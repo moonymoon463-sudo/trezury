@@ -16,6 +16,7 @@ import SellGoldAmount from "./pages/SellGoldAmount";
 import SellGoldPayout from "./pages/SellGoldPayout";
 import SellGoldConfirmation from "./pages/SellGoldConfirmation";
 import Swap from "./pages/Swap";
+import Wallet from "./pages/Wallet";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -83,6 +84,11 @@ const App = () => (
             <Route path="/swap" element={
               <ProtectedRoute>
                 <Swap />
+              </ProtectedRoute>
+            } />
+            <Route path="/wallet" element={
+              <ProtectedRoute>
+                <Wallet />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
