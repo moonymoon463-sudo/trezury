@@ -14,7 +14,253 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      balance_snapshots: {
+        Row: {
+          amount: number
+          asset: string
+          id: string
+          snapshot_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          asset: string
+          id?: string
+          snapshot_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          asset?: string
+          id?: string
+          snapshot_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          read: boolean | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          kind: string
+          read?: boolean | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          read?: boolean | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          kyc_status: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          kyc_status?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          kyc_status?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      quotes: {
+        Row: {
+          created_at: string
+          expires_at: string
+          fee_bps: number
+          grams: number
+          id: string
+          route: Json | null
+          side: string
+          unit_price_usd: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          fee_bps: number
+          grams: number
+          id?: string
+          route?: Json | null
+          side: string
+          unit_price_usd: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          fee_bps?: number
+          grams?: number
+          id?: string
+          route?: Json | null
+          side?: string
+          unit_price_usd?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          asset: string
+          created_at: string
+          fee_gold_units: number | null
+          fee_usd: number | null
+          id: string
+          metadata: Json | null
+          quantity: number
+          status: string | null
+          tx_hash: string | null
+          type: string
+          unit_price_usd: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset: string
+          created_at?: string
+          fee_gold_units?: number | null
+          fee_usd?: number | null
+          id?: string
+          metadata?: Json | null
+          quantity: number
+          status?: string | null
+          tx_hash?: string | null
+          type: string
+          unit_price_usd?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset?: string
+          created_at?: string
+          fee_gold_units?: number | null
+          fee_usd?: number | null
+          id?: string
+          metadata?: Json | null
+          quantity?: number
+          status?: string | null
+          tx_hash?: string | null
+          type?: string
+          unit_price_usd?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          address: string
+          chain: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          chain?: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          chain?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
