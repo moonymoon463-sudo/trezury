@@ -15,6 +15,8 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        aurum: "bg-[hsl(var(--aurum-gold))] text-black hover:bg-[hsl(var(--aurum-gold))]/90 font-bold tracking-wide",
+        "aurum-secondary": "bg-[hsl(var(--aurum-gray))] text-white hover:bg-[hsl(var(--aurum-gray))]/80 font-bold tracking-wide",
       },
       size: {
         default: "h-10 px-4 py-2",
