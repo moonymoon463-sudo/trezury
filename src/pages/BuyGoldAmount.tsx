@@ -134,6 +134,7 @@ const BuyGoldAmount = () => {
         <Button 
           className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-lg hover:bg-[#f9b006]/90"
           disabled={!amount || parseFloat(amount) <= 0}
+          onClick={() => navigate("/buy-gold/asset")}
         >
           Continue
         </Button>
