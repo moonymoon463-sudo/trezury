@@ -54,6 +54,16 @@ const SellGoldPayout = () => {
         </main>
       </div>
 
+      {/* Bottom Button */}
+      <div className="p-6">
+        <Button 
+          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
+          onClick={() => navigate("/sell-gold/confirmation")}
+        >
+          Complete Sale
+        </Button>
+      </div>
+
       {/* Bottom Navigation */}
       <div className="sticky bottom-0 border-t border-gray-800 bg-[#1C1C1E] pb-3 pt-2">
         <div className="flex justify-around items-center">
