@@ -1,62 +1,52 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { X, ChevronRight, Home, DollarSign, ArrowLeftRight, History, Settings } from "lucide-react";
+import { X, ChevronRight, Home, DollarSign, ArrowLeftRight, History, Settings, CircleDollarSign, Building2 } from "lucide-react";
 
-const SellGold = () => {
+const SellGoldPayout = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between bg-[#111111] text-white">
+    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between overflow-x-hidden bg-[#111111] text-white">
       <div className="flex-grow">
         {/* Header */}
         <header className="flex items-center p-4">
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/sell-gold/amount")}
             className="text-white hover:bg-gray-800"
           >
             <X size={24} />
           </Button>
-          <h1 className="flex-1 text-center text-lg font-bold">Sell/Cash Out</h1>
+          <h1 className="flex-1 text-center text-lg font-bold">Sell</h1>
           <div className="w-10"></div>
         </header>
 
         {/* Main Content */}
-        <main className="p-4">
-          <h2 className="text-2xl font-bold mb-8">Which gold token would you like to sell?</h2>
+        <main className="px-4 pt-6 pb-8">
+          <h2 className="text-2xl font-bold mb-6">Choose your payout method</h2>
           
           <div className="space-y-4">
-            {/* PAXG Option */}
-            <button 
-              onClick={() => navigate("/sell-gold/amount")}
-              className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left"
-            >
-              <div className="flex-shrink-0">
-                <div className="h-12 w-12 rounded-full bg-green-700 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">PAXG</span>
-                </div>
+            {/* USDC Option */}
+            <button className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#2C2C2E]">
+                <CircleDollarSign size={24} className="text-[#f9b006]" />
               </div>
-              <div className="flex-1">
-                <p className="text-base font-semibold text-white">PAXG</p>
-                <p className="text-sm text-gray-400">Pax Gold</p>
+              <div className="flex-grow">
+                <p className="text-base font-semibold">USDC</p>
+                <p className="text-sm text-gray-400">Receive USDC in your wallet</p>
               </div>
               <ChevronRight size={20} className="text-gray-500" />
             </button>
 
-            {/* XAUT Option */}
-            <button 
-              onClick={() => navigate("/sell-gold/amount")}
-              className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left"
-            >
-              <div className="flex-shrink-0">
-                <div className="h-12 w-12 rounded-full bg-green-800 flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">XAUT</span>
-                </div>
+            {/* Bank via Ramp Option */}
+            <button className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#2C2C2E]">
+                <Building2 size={24} className="text-[#f9b006]" />
               </div>
-              <div className="flex-1">
-                <p className="text-base font-semibold text-white">XAUT</p>
-                <p className="text-sm text-gray-400">Tether Gold</p>
+              <div className="flex-grow">
+                <p className="text-base font-semibold">Bank via Ramp</p>
+                <p className="text-sm text-gray-400">Receive USD in your bank account</p>
               </div>
               <ChevronRight size={20} className="text-gray-500" />
             </button>
@@ -65,7 +55,7 @@ const SellGold = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="bg-[#1C1C1C] px-4 py-3">
+      <div className="sticky bottom-0 border-t border-gray-800 bg-[#1C1C1E] pb-3 pt-2">
         <div className="flex justify-around items-center">
           <button 
             onClick={() => navigate("/")}
@@ -102,4 +92,4 @@ const SellGold = () => {
   );
 };
 
-export default SellGold;
+export default SellGoldPayout;
