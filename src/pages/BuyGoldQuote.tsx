@@ -80,10 +80,7 @@ const BuyGoldQuote = () => {
             <div className="mt-8 space-y-3">
               <Button 
                 className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
-                onClick={() => {
-                  // Here you would normally proceed to payment/confirmation
-                  console.log("Confirming purchase...");
-                }}
+                onClick={() => navigate("/buy-gold/confirmation")}
               >
                 Confirm Purchase
               </Button>

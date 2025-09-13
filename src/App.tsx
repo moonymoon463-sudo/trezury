@@ -10,6 +10,8 @@ import BuyGold from "./pages/BuyGold";
 import BuyGoldAmount from "./pages/BuyGoldAmount";
 import BuyGoldAsset from "./pages/BuyGoldAsset";
 import BuyGoldQuote from "./pages/BuyGoldQuote";
+import BuyGoldConfirmation from "./pages/BuyGoldConfirmation";
+import SellGold from "./pages/SellGold";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +49,16 @@ const App = () => (
             <Route path="/buy-gold/quote" element={
               <ProtectedRoute>
                 <BuyGoldQuote />
+              </ProtectedRoute>
+            } />
+            <Route path="/buy-gold/confirmation" element={
+              <ProtectedRoute>
+                <BuyGoldConfirmation />
+              </ProtectedRoute>
+            } />
+            <Route path="/sell-gold" element={
+              <ProtectedRoute>
+                <SellGold />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
