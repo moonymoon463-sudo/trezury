@@ -74,7 +74,10 @@ const BuyGold = () => {
       {/* Footer */}
       <footer className="flex flex-col">
         <div className="px-4 py-6">
-          <Button className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90">
+          <Button 
+            className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
+            onClick={() => navigate("/buy-gold/amount")}
+          >
             Continue
           </Button>
         </div>
