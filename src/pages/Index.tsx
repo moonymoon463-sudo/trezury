@@ -1,9 +1,11 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus } from "lucide-react";
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const tokens = [
     {
@@ -92,7 +94,10 @@ const Index = () => {
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <Button className="bg-[#f9b006] text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90">
+            <Button 
+              className="bg-[#f9b006] text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
+              onClick={() => navigate("/buy-gold")}
+            >
               <ShoppingCart size={16} />
               Buy Gold
             </Button>
