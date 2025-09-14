@@ -1,78 +1,150 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { X, Check } from "lucide-react";
+import { ArrowLeft, Copy, Clock, TrendingDown } from "lucide-react";
+import { Quote } from "@/services/quoteEngine";
+import { useToast } from "@/hooks/use-toast";
 
 const SellGoldConfirmation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  
+  const quote = location.state?.quote as Quote;
+  const asset = location.state?.asset || 'GOLD';
+
+  const handleCopyQuoteId = () => {
+    if (quote?.id) {
+      navigator.clipboard.writeText(quote.id);
+      toast({
+        title: "Copied!",
+        description: "Quote ID copied to clipboard",
+      });
+    }
+  };
+
+  const timeRemaining = quote ? Math.max(0, Math.floor((new Date(quote.expiresAt).getTime() - Date.now()) / 1000)) : 0;
+
+  if (!quote) {
+    return (
+      <div className="flex flex-col h-screen bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-foreground mb-4">No Quote Found</h2>
+            <p className="text-muted-foreground mb-6">Please return to the amount page to generate a new quote.</p>
+            <Button onClick={() => navigate("/sell-gold/amount")}>
+              Back to Amount
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-[#111111]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate("/")}
-            className="text-white hover:bg-gray-800"
+            onClick={() => navigate("/sell-gold/amount")}
+            className="text-foreground hover:bg-accent"
           >
-            <X size={24} />
+            <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-lg font-bold text-white">Sell</h1>
-          <div className="w-8"></div>
-        </div>
-        
-        {/* Progress Dots */}
-        <div className="flex justify-center items-center space-x-2 mt-6 mb-8">
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-600"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-gray-600"></div>
-          <div className="w-2.5 h-2.5 rounded-full bg-[#f9b006]"></div>
+          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Confirm Sale</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow flex flex-col items-center justify-center text-center px-6">
-        {/* Success Icon */}
-        <div className="bg-[#f9b006] p-4 rounded-full mb-6">
-          <Check size={40} className="text-black" />
-        </div>
+      <main className="flex-1 px-4 py-8">
+        {/* Quote Expiration Warning */}
+        {timeRemaining > 0 && (
+          <div className="bg-accent border border-border rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock size={16} />
+              <span className="text-sm">Quote expires in {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</span>
+            </div>
+          </div>
+        )}
 
-        <h2 className="text-2xl font-bold text-white mb-3">You've sold your gold</h2>
-        <p className="text-gray-400 mb-8 max-w-sm">
-          Your sale is complete. The funds will be available in your account within 1-3 business days.
-        </p>
-
-        {/* Sale Details */}
-        <div className="w-full">
-          <h3 className="text-lg font-bold text-white mb-4 text-left">Sale Details</h3>
-          <div className="w-full bg-[#1C1C1C] rounded-xl p-6 space-y-4">
+        {/* Quote Summary */}
+        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+              <TrendingDown size={20} className="text-destructive" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground">Sale Summary</h2>
+          </div>
+          
+          <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Amount Sold</span>
-              <span className="text-white font-medium">0.001g</span>
+              <span className="text-muted-foreground">Selling</span>
+              <span className="text-foreground font-semibold">{quote.grams.toFixed(3)} grams {asset}</span>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Price per gram</span>
-              <span className="text-white font-medium">$65.00</span>
+              <span className="text-muted-foreground">Gold Price</span>
+              <span className="text-foreground font-semibold">${quote.unitPriceUsd.toFixed(2)}/oz</span>
             </div>
 
-            <div className="border-t border-gray-600 my-4"></div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Gross Amount</span>
+              <span className="text-foreground font-semibold">${(quote.outputAmount + quote.feeUsd).toFixed(2)}</span>
+            </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-white font-bold">Total</span>
-              <span className="text-white font-bold">$0.06</span>
+              <span className="text-muted-foreground">Fee ({(quote.feeBps / 100).toFixed(1)}%)</span>
+              <span className="text-destructive font-semibold">-${quote.feeUsd.toFixed(2)}</span>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-foreground font-bold">You'll Receive</span>
+                <span className="text-foreground font-bold text-xl">${quote.outputAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Minimum Amount</span>
+              <span className="text-muted-foreground">${quote.minimumReceived.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-sm">Quote ID</span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs font-mono">{quote.id.slice(0, 8)}...</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyQuoteId}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <Copy size={12} />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Risk Disclosure */}
+        <div className="bg-muted/30 rounded-xl p-4 mb-6">
+          <p className="text-sm text-muted-foreground">
+            Prices are subject to market fluctuations. The actual amount received may vary slightly due to slippage protection. This transaction cannot be reversed once confirmed.
+          </p>
+        </div>
       </main>
 
-      {/* Bottom Button */}
-      <div className="p-6">
+      {/* Confirm Button */}
+      <div className="px-4 py-6">
         <Button 
-          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
-          onClick={() => navigate("/")}
+          variant="destructive"
+          className="w-full h-14 font-bold text-lg rounded-xl"
+          disabled={timeRemaining === 0}
+          onClick={() => navigate("/sell-gold/success", { state: { quote, asset } })}
         >
-          Done
+          {timeRemaining === 0 ? "Quote Expired" : "Confirm Sale"}
         </Button>
       </div>
     </div>

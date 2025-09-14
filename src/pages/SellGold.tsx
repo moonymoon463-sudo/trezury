@@ -1,103 +1,72 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { X, ChevronRight, Home, DollarSign, ArrowLeftRight, History, Settings } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 
 const SellGold = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between bg-[#111111] text-white">
-      <div className="flex-grow">
-        {/* Header */}
-        <header className="flex items-center p-4">
+    <div className="flex flex-col h-screen bg-background">
+      {/* Header */}
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-white hover:bg-gray-800"
+            className="text-foreground hover:bg-accent"
           >
-            <X size={24} />
+            <ArrowLeft size={24} />
           </Button>
-          <h1 className="flex-1 text-center text-lg font-bold">Sell/Cash Out</h1>
-          <div className="w-10"></div>
-        </header>
+          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Sell Gold</h1>
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <main className="p-4">
-          <h2 className="text-2xl font-bold mb-8">Which gold token would you like to sell?</h2>
-          
-          <div className="space-y-4">
-            {/* PAXG Option */}
-            <button 
-              onClick={() => navigate("/sell-gold/amount")}
-              className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left"
-            >
-              <div className="flex-shrink-0">
-                <div className="h-12 w-12 rounded-full bg-green-700 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">PAXG</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <p className="text-base font-semibold text-white">PAXG</p>
-                <p className="text-sm text-gray-400">Pax Gold</p>
-              </div>
-              <ChevronRight size={20} className="text-gray-500" />
-            </button>
-
-            {/* XAUT Option */}
-            <button 
-              onClick={() => navigate("/sell-gold/amount")}
-              className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left"
-            >
-              <div className="flex-shrink-0">
-                <div className="h-12 w-12 rounded-full bg-green-800 flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">XAUT</span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <p className="text-base font-semibold text-white">XAUT</p>
-                <p className="text-sm text-gray-400">Tether Gold</p>
-              </div>
-              <ChevronRight size={20} className="text-gray-500" />
-            </button>
-          </div>
-        </main>
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="bg-[#1C1C1C] px-4 py-3">
-        <div className="flex justify-around items-center">
+      {/* Main Content */}
+      <main className="flex-1 p-4">
+        <h2 className="text-2xl font-bold text-foreground mb-8">Which gold would you like to sell?</h2>
+        
+        <div className="space-y-4">
+          {/* GOLD Token Option */}
           <button 
-            onClick={() => navigate("/")}
-            className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors"
+            onClick={() => navigate("/sell-gold/amount", { state: { asset: 'GOLD' } })}
+            className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 transition-colors hover:bg-accent w-full text-left"
           >
-            <Home size={24} />
-            <span className="text-xs">Dashboard</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-[#f9b006]">
-            <div className="bg-[#f9b006] rounded-full p-2">
-              <DollarSign size={24} className="text-black" />
+            <div className="flex-shrink-0">
+              <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">GOLD</span>
+              </div>
             </div>
-            <span className="text-xs font-medium">Buy/Sell</span>
+            <div className="flex-1">
+              <p className="text-base font-semibold text-foreground">GOLD</p>
+              <p className="text-sm text-muted-foreground">Aurum Gold Token</p>
+            </div>
+            <ChevronRight size={20} className="text-muted-foreground" />
           </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeftRight size={24} />
-            <span className="text-xs">Swap</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <History size={24} />
-            <span className="text-xs">History</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <Settings size={24} />
-            <span className="text-xs">Settings</span>
+
+          {/* PAXG Option - Disabled for now */}
+          <button 
+            onClick={() => navigate("/sell-gold/amount", { state: { asset: 'PAXG' } })}
+            className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 transition-colors hover:bg-accent w-full text-left opacity-50 cursor-not-allowed"
+            disabled
+          >
+            <div className="flex-shrink-0">
+              <div className="h-12 w-12 rounded-full bg-green-700 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">PAXG</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-base font-semibold text-foreground">PAXG</p>
+              <p className="text-sm text-muted-foreground">Pax Gold (Coming Soon)</p>
+            </div>
+            <ChevronRight size={20} className="text-muted-foreground" />
           </button>
         </div>
-      </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </div>
   );
 };

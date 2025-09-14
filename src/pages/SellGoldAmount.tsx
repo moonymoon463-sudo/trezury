@@ -1,141 +1,248 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Home, DollarSign, ArrowLeftRight, History, Settings } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
+import { useGoldPrice } from "@/hooks/useGoldPrice";
+import { useSellQuote } from "@/hooks/useSellQuote";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
+import { quoteEngineService } from "@/services/quoteEngine";
 
 const SellGoldAmount = () => {
   const navigate = useNavigate();
-  const [amount, setAmount] = useState("0.00");
-  const [selectedUnit, setSelectedUnit] = useState("USD");
+  const location = useLocation();
+  const [amount, setAmount] = useState("1.0");
+  const [selectedUnit, setSelectedUnit] = useState("GRAMS");
+
+  const asset = location.state?.asset || 'GOLD';
+  const { price: goldPrice } = useGoldPrice();
+  const { quote, loading: quoteLoading, generateQuote } = useSellQuote();
+  const { getBalance, loading: balanceLoading } = useWalletBalance();
+  
+  const goldBalance = getBalance('GOLD');
+  const goldBalanceValue = goldPrice ? quoteEngineService.calculateGramsToUsd(goldBalance, goldPrice.price) : 0;
+
+  const handleAmountChange = (value: string) => {
+    // Remove any non-numeric characters except decimal point
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    setAmount(cleanValue);
+  };
+
+  const calculateUsdValue = (grams: string) => {
+    if (!goldPrice) return "0.00";
+    const gramAmount = parseFloat(grams) || 0;
+    const usd = quoteEngineService.calculateGramsToUsd(gramAmount, goldPrice.price);
+    return usd.toFixed(2);
+  };
+
+  const calculateGramsValue = (usd: string) => {
+    if (!goldPrice) return "0.000";
+    const usdAmount = parseFloat(usd) || 0;
+    const grams = quoteEngineService.calculateUsdToGrams(usdAmount, goldPrice.price);
+    return grams.toFixed(3);
+  };
+
+  // Generate quote when amount changes
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      const numericAmount = parseFloat(amount);
+      if (numericAmount > 0 && goldPrice) {
+        const request = selectedUnit === "GRAMS"
+          ? {
+              side: 'sell' as const,
+              inputAsset: 'GOLD' as const,
+              outputAsset: 'USDC' as const,
+              grams: numericAmount
+            }
+          : selectedUnit === "USD"
+          ? {
+              side: 'sell' as const,
+              inputAsset: 'GOLD' as const,
+              outputAsset: 'USDC' as const,
+              outputAmount: numericAmount
+            }
+          : {
+              side: 'sell' as const,
+              inputAsset: 'GOLD' as const,
+              outputAsset: 'USDC' as const,
+              grams: numericAmount // Treat tokens as grams for now
+            };
+        
+        generateQuote(request);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [amount, selectedUnit, goldPrice, generateQuote]);
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between bg-[#1C1C1E] text-white">
-      <div className="flex flex-col flex-1">
-        {/* Header */}
-        <header className="flex items-center p-4 pb-2 justify-between sticky top-0 bg-[#1C1C1E] z-10">
+    <div className="flex flex-col h-screen bg-background">
+      {/* Header */}
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/sell-gold")}
-            className="text-white hover:bg-white/10 rounded-full w-10 h-10"
+            className="text-foreground hover:bg-accent"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-white text-lg font-bold flex-1 text-center pr-10">Sell Gold</h1>
-        </header>
+          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Sell {asset}</h1>
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <main className="flex-1 px-4 py-8 space-y-8">
-          <div className="text-center">
-            <h2 className="text-white text-3xl font-bold mb-4">How much would you like to sell?</h2>
-            <p className="text-gray-400 text-sm">You have 12.5 GOLD ($1,250.00) available.</p>
-          </div>
-
-          <div className="flex flex-col items-center gap-4">
-            {/* Amount Input */}
-            <div className="relative w-full max-w-sm">
-              <input 
-                className="w-full text-center text-5xl font-bold text-white bg-transparent border-none focus:ring-0 p-0 outline-none"
-                placeholder="$0.00"
-                type="text"
-                value={`$${amount}`}
-                onChange={(e) => setAmount(e.target.value.replace('$', ''))}
-              />
-              <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-gray-400 text-sm">~ 0 GOLD</span>
+      {/* Main Content */}
+      <main className="flex-1 px-4 py-8">
+        {/* Gold Balance */}
+        <div className="text-center mb-8">
+          <p className="text-sm text-muted-foreground">Available Balance</p>
+          {balanceLoading ? (
+            <div className="animate-pulse">
+              <div className="h-8 w-32 bg-muted rounded mx-auto"></div>
             </div>
+          ) : (
+            <>
+              <p className="text-3xl font-bold text-foreground">
+                {goldBalance.toFixed(3)} {asset}
+              </p>
+              <p className="text-lg text-muted-foreground">
+                ≈ ${goldBalanceValue.toFixed(2)}
+              </p>
+            </>
+          )}
+        </div>
 
-            {/* Currency Toggle */}
-            <div className="flex items-center justify-center rounded-full bg-[#2C2C2E] p-1">
-              <label className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-full px-4 py-1.5 text-sm font-semibold leading-normal transition-all duration-300 ease-in-out ${
-                selectedUnit === 'USD' ? 'bg-[#f9b006] text-[#1C1C1E] shadow-lg' : 'text-gray-300'
-              }`}>
-                <span className="truncate">USD</span>
-                <input 
-                  className="invisible w-0" 
-                  name="unit" 
-                  type="radio" 
-                  value="USD"
-                  checked={selectedUnit === 'USD'}
-                  onChange={() => setSelectedUnit('USD')}
-                />
-              </label>
-              
-              <label className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-full px-4 py-1.5 text-sm font-semibold leading-normal transition-all duration-300 ease-in-out ${
-                selectedUnit === 'Tokens' ? 'bg-[#f9b006] text-[#1C1C1E] shadow-lg' : 'text-gray-300'
-              }`}>
-                <span className="truncate">Tokens</span>
-                <input 
-                  className="invisible w-0" 
-                  name="unit" 
-                  type="radio" 
-                  value="Tokens"
-                  checked={selectedUnit === 'Tokens'}
-                  onChange={() => setSelectedUnit('Tokens')}
-                />
-              </label>
-              
-              <label className={`flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-full px-4 py-1.5 text-sm font-semibold leading-normal transition-all duration-300 ease-in-out ${
-                selectedUnit === 'Grams' ? 'bg-[#f9b006] text-[#1C1C1E] shadow-lg' : 'text-gray-300'
-              }`}>
-                <span className="truncate">Grams</span>
-                <input 
-                  className="invisible w-0" 
-                  name="unit" 
-                  type="radio" 
-                  value="Grams"
-                  checked={selectedUnit === 'Grams'}
-                  onChange={() => setSelectedUnit('Grams')}
-                />
-              </label>
-            </div>
+        {/* Unit Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-full bg-muted p-1">
+            <button 
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                selectedUnit === "USD" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground"
+              }`}
+              onClick={() => setSelectedUnit("USD")}
+            >
+              USD
+            </button>
+            <button 
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                selectedUnit === "Tokens" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground"
+              }`}
+              onClick={() => setSelectedUnit("Tokens")}
+            >
+              Tokens
+            </button>
+            <button 
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                selectedUnit === "GRAMS" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground"
+              }`}
+              onClick={() => setSelectedUnit("GRAMS")}
+            >
+              Grams
+            </button>
           </div>
-        </main>
+        </div>
 
-        {/* Continue Button */}
-        <div className="px-4 pb-6">
+        {/* Amount Input */}
+        <div className="text-center mb-8">
+          <div className="relative">
+            {selectedUnit === "USD" && (
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-bold text-foreground pointer-events-none">
+                $
+              </span>
+            )}
+            <input 
+              className="w-full text-center text-6xl font-bold text-foreground bg-transparent border-none focus:ring-0 p-0 outline-none placeholder-muted-foreground"
+              placeholder={selectedUnit === "USD" ? "0.00" : "0"}
+              type="text"
+              value={amount}
+              onChange={(e) => handleAmountChange(e.target.value)}
+            />
+          </div>
+          
+          {/* Real-time conversion with loading state */}
+          <div className="mt-4 min-h-[2rem]">
+            {quoteLoading ? (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 size={16} className="animate-spin" />
+                <span>Calculating...</span>
+              </div>
+            ) : quote ? (
+              <>
+                <p className="text-muted-foreground mb-2">
+                  {selectedUnit === "GRAMS"
+                    ? `You will receive $${quote.outputAmount.toFixed(2)}`
+                    : selectedUnit === "USD" 
+                    ? `You will sell ${quote.grams.toFixed(3)} grams`
+                    : `You will receive $${quote.outputAmount.toFixed(2)}`
+                  }
+                </p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Fee: ${quote.feeUsd.toFixed(2)} ({(quote.feeBps / 100).toFixed(1)}%)</p>
+                  <p>Gold price: ${quote.unitPriceUsd.toFixed(2)}/oz</p>
+                  <p>Net amount: ${(quote.outputAmount - quote.feeUsd).toFixed(2)}</p>
+                </div>
+              </>
+            ) : goldPrice ? (
+              <p className="text-muted-foreground">
+                {selectedUnit === "GRAMS"
+                  ? `≈ $${calculateUsdValue(amount)}`
+                  : selectedUnit === "USD"
+                  ? `≈ ${calculateGramsValue(amount)} grams`
+                  : `≈ $${calculateUsdValue(amount)}`
+                }
+              </p>
+            ) : (
+              <p className="text-muted-foreground">Loading price...</p>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Amount Buttons */}
+        <div className="grid grid-cols-3 gap-4">
           <Button 
-            className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
-            onClick={() => navigate("/sell-gold/payout")}
+            variant="outline"
+            className="py-6 text-lg font-semibold"
+            onClick={() => setAmount((goldBalance * 0.25).toFixed(3))}
           >
-            Continue
+            25%
+          </Button>
+          <Button 
+            variant="outline"
+            className="py-6 text-lg font-semibold"
+            onClick={() => setAmount((goldBalance * 0.5).toFixed(3))}
+          >
+            50%
+          </Button>
+          <Button 
+            variant="outline"
+            className="py-6 text-lg font-semibold"
+            onClick={() => setAmount(goldBalance.toFixed(3))}
+          >
+            Max
           </Button>
         </div>
+      </main>
+
+      {/* Continue Button */}
+      <div className="px-4 py-6">
+        <Button 
+          className="w-full h-14 font-bold text-lg rounded-xl"
+          disabled={!amount || parseFloat(amount) <= 0 || !quote || quote.grams > goldBalance}
+          onClick={() => navigate("/sell-gold/confirmation", { state: { quote, asset } })}
+        >
+          {quote && quote.grams > goldBalance ? "Insufficient Balance" : "Continue"}
+        </Button>
       </div>
 
       {/* Bottom Navigation */}
-      <div className="bg-[#1C1C1C] px-4 py-3">
-        <div className="flex justify-around items-center">
-          <button 
-            onClick={() => navigate("/")}
-            className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors"
-          >
-            <Home size={24} />
-            <span className="text-xs">Dashboard</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-[#f9b006]">
-            <div className="bg-[#f9b006] rounded-full p-2">
-              <DollarSign size={24} className="text-black" />
-            </div>
-            <span className="text-xs font-medium">Buy/Sell</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeftRight size={24} />
-            <span className="text-xs">Swap</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <History size={24} />
-            <span className="text-xs">History</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <Settings size={24} />
-            <span className="text-xs">Settings</span>
-          </button>
-        </div>
-      </div>
+      <BottomNavigation />
     </div>
   );
 };
