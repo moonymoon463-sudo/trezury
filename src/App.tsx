@@ -20,6 +20,7 @@ import Wallet from "./pages/Wallet";
 import BuySellHub from "./pages/BuySellHub";
 import Transactions from "./pages/Transactions";
 import TransactionDetail from "./pages/TransactionDetail";
+import TransactionSuccess from "./pages/TransactionSuccess";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import FundingMethods from "./pages/FundingMethods";
@@ -108,6 +109,11 @@ const App = () => (
             <Route path="/transaction-detail/:id" element={
               <ProtectedRoute>
                 <TransactionDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/transactions/success" element={
+              <ProtectedRoute>
+                <TransactionSuccess />
               </ProtectedRoute>
             } />
             <Route path="/funding-methods" element={

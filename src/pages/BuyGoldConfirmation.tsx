@@ -1,13 +1,17 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Copy, Clock } from "lucide-react";
+import { ArrowLeft, Copy, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { Quote } from "@/services/quoteEngine";
 import { useToast } from "@/hooks/use-toast";
+import { useTransactionExecution } from "@/hooks/useTransactionExecution";
 
 const BuyGoldConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { executeTransaction, loading: executionLoading } = useTransactionExecution();
+  const [isExecuting, setIsExecuting] = useState(false);
   
   const quote = location.state?.quote as Quote;
 
@@ -22,6 +26,42 @@ const BuyGoldConfirmation = () => {
   };
 
   const timeRemaining = quote ? Math.max(0, Math.floor((new Date(quote.expiresAt).getTime() - Date.now()) / 1000)) : 0;
+
+  const handleExecuteTransaction = async () => {
+    if (!quote) return;
+
+    setIsExecuting(true);
+    try {
+      const result = await executeTransaction(quote.id);
+      
+      if (result.success) {
+        toast({
+          title: "Purchase Successful!",
+          description: "Your gold purchase has been completed.",
+        });
+        navigate("/transactions/success", { 
+          state: { 
+            transaction: result,
+            type: 'buy'
+          } 
+        });
+      } else {
+        toast({
+          title: "Purchase Failed",
+          description: result.error || "Transaction could not be completed.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Purchase Failed",
+        description: "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExecuting(false);
+    }
+  };
 
   if (!quote) {
     return (
@@ -70,7 +110,12 @@ const BuyGoldConfirmation = () => {
 
         {/* Quote Summary */}
         <div className="bg-card border border-border rounded-xl p-6 mb-6">
-          <h2 className="text-xl font-bold text-foreground mb-4">Purchase Summary</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+              <TrendingUp size={20} className="text-primary" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground">Purchase Summary</h2>
+          </div>
           
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -134,10 +179,19 @@ const BuyGoldConfirmation = () => {
       <div className="px-4 py-6">
         <Button 
           className="w-full h-14 font-bold text-lg rounded-xl"
-          disabled={timeRemaining === 0}
-          onClick={() => navigate("/buy-gold/success", { state: { quote } })}
+          disabled={timeRemaining === 0 || isExecuting || executionLoading}
+          onClick={handleExecuteTransaction}
         >
-          {timeRemaining === 0 ? "Quote Expired" : "Confirm Purchase"}
+          {isExecuting || executionLoading ? (
+            <>
+              <Loader2 size={20} className="animate-spin mr-2" />
+              Processing...
+            </>
+          ) : timeRemaining === 0 ? (
+            "Quote Expired"
+          ) : (
+            "Confirm Purchase"
+          )}
         </Button>
       </div>
     </div>

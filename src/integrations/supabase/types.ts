@@ -412,7 +412,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      execute_transaction: {
+        Args: { payment_method_param?: string; quote_id_param: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
