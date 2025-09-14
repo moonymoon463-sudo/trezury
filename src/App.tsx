@@ -24,6 +24,10 @@ import TransactionSuccess from "./pages/TransactionSuccess";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import FundingMethods from "./pages/FundingMethods";
+import Settings from "./pages/Settings";
+import KYCVerification from "./pages/KYCVerification";
+import PaymentMethods from "./pages/PaymentMethods";
+import AddPaymentMethod from "./pages/AddPaymentMethod";
 
 const queryClient = new QueryClient();
 
@@ -119,6 +123,26 @@ const App = () => (
             <Route path="/funding-methods" element={
               <ProtectedRoute>
                 <FundingMethods />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/kyc-verification" element={
+              <ProtectedRoute>
+                <KYCVerification />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment-methods" element={
+              <ProtectedRoute>
+                <PaymentMethods />
+              </ProtectedRoute>
+            } />
+            <Route path="/add-payment-method" element={
+              <ProtectedRoute>
+                <AddPaymentMethod />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

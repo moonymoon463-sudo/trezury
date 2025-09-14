@@ -1,12 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CreditCard, DollarSign } from "lucide-react";
+import { ArrowLeft, CreditCard, DollarSign, AlertTriangle } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const BuyGold = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState("credit_card");
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('kyc_status')
+        .eq('id', user!.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContinue = () => {
+    if (paymentMethod === "credit_card" && profile?.kyc_status !== 'verified') {
+      // Redirect to KYC if trying to use card without verification
+      navigate("/kyc-verification");
+      return;
+    }
+    
+    // Store payment method for later use
+    sessionStorage.setItem('selectedPaymentMethod', paymentMethod);
+    navigate("/buy-gold/amount");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -38,7 +88,12 @@ const BuyGold = () => {
           }`}>
             <div className="flex items-center gap-4">
               <CreditCard className="text-muted-foreground" size={24} />
-              <span className="text-foreground font-medium">Credit Card/Bank</span>
+              <div>
+                <span className="text-foreground font-medium block">Credit Card/Bank</span>
+                {profile?.kyc_status !== 'verified' && (
+                  <span className="text-xs text-muted-foreground">Requires identity verification</span>
+                )}
+              </div>
             </div>
             <input
               type="radio"
@@ -50,6 +105,22 @@ const BuyGold = () => {
             />
           </label>
 
+          {/* KYC Warning for Credit Card */}
+          {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-yellow-800 text-sm">Identity Verification Required</p>
+                  <p className="text-yellow-700 text-sm mt-1">
+                    To buy gold with a credit card, you need to complete identity verification first. 
+                    This helps us comply with financial regulations.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* USDC Option */}
           <label className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
             paymentMethod === "usdc" 
@@ -58,7 +129,10 @@ const BuyGold = () => {
           }`}>
             <div className="flex items-center gap-4">
               <DollarSign className="text-muted-foreground" size={24} />
-              <span className="text-foreground font-medium">USDC</span>
+              <div>
+                <span className="text-foreground font-medium block">USDC</span>
+                <span className="text-xs text-muted-foreground">Use existing wallet balance</span>
+              </div>
             </div>
             <input
               type="radio"
@@ -76,9 +150,12 @@ const BuyGold = () => {
       <div className="px-4 py-6">
         <Button 
           className="w-full h-14 font-bold text-lg rounded-xl"
-          onClick={() => navigate("/buy-gold/amount")}
+          onClick={handleContinue}
         >
-          Continue
+          {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 
+            ? "Verify Identity & Continue" 
+            : "Continue"
+          }
         </Button>
       </div>
 

@@ -42,7 +42,10 @@ const Index = () => {
             Dashboard
           </h2>
           <div className="flex w-12 items-center justify-end">
-            <button className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors">
+            <button 
+              className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
+              onClick={() => navigate("/settings")}
+            >
               <Settings size={20} />
             </button>
           </div>

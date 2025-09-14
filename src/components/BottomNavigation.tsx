@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingBag, ArrowUpDown, Clock } from "lucide-react";
+import { Home, ShoppingBag, ArrowUpDown, Clock, Settings } from "lucide-react";
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
@@ -29,6 +29,12 @@ const BottomNavigation = () => {
       label: "History",
       icon: Clock,
       path: "/transactions",
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      path: "/settings",
     },
   ];
 
