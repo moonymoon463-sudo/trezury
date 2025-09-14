@@ -22,6 +22,7 @@ import Transactions from "./pages/Transactions";
 import TransactionDetail from "./pages/TransactionDetail";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import FundingMethods from "./pages/FundingMethods";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +108,11 @@ const App = () => (
             <Route path="/transaction-detail/:id" element={
               <ProtectedRoute>
                 <TransactionDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/funding-methods" element={
+              <ProtectedRoute>
+                <FundingMethods />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -64,6 +64,51 @@ export type Database = {
         }
         Relationships: []
       }
+      deposits: {
+        Row: {
+          address: string
+          amount: number
+          asset: string
+          block_number: number | null
+          chain: string
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          status: string
+          tx_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          amount: number
+          asset?: string
+          block_number?: number | null
+          chain?: string
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          status?: string
+          tx_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          amount?: number
+          asset?: string
+          block_number?: number | null
+          chain?: string
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          status?: string
+          tx_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string
@@ -102,6 +147,69 @@ export type Database = {
           },
         ]
       }
+      onchain_addresses: {
+        Row: {
+          address: string
+          asset: string
+          chain: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          asset?: string
+          chain?: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          asset?: string
+          chain?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_methods: {
+        Row: {
+          created_at: string
+          external_id: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          provider: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_id: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          provider: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          provider?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -136,6 +244,10 @@ export type Database = {
           fee_bps: number
           grams: number
           id: string
+          input_amount: number | null
+          input_asset: string | null
+          output_amount: number | null
+          output_asset: string | null
           route: Json | null
           side: string
           unit_price_usd: number
@@ -147,6 +259,10 @@ export type Database = {
           fee_bps: number
           grams: number
           id?: string
+          input_amount?: number | null
+          input_asset?: string | null
+          output_amount?: number | null
+          output_asset?: string | null
           route?: Json | null
           side: string
           unit_price_usd: number
@@ -158,6 +274,10 @@ export type Database = {
           fee_bps?: number
           grams?: number
           id?: string
+          input_amount?: number | null
+          input_asset?: string | null
+          output_amount?: number | null
+          output_asset?: string | null
           route?: Json | null
           side?: string
           unit_price_usd?: number
@@ -177,11 +297,15 @@ export type Database = {
         Row: {
           asset: string
           created_at: string
+          deposit_id: string | null
           fee_gold_units: number | null
           fee_usd: number | null
           id: string
+          input_asset: string | null
           metadata: Json | null
+          output_asset: string | null
           quantity: number
+          quote_id: string | null
           status: string | null
           tx_hash: string | null
           type: string
@@ -192,11 +316,15 @@ export type Database = {
         Insert: {
           asset: string
           created_at?: string
+          deposit_id?: string | null
           fee_gold_units?: number | null
           fee_usd?: number | null
           id?: string
+          input_asset?: string | null
           metadata?: Json | null
+          output_asset?: string | null
           quantity: number
+          quote_id?: string | null
           status?: string | null
           tx_hash?: string | null
           type: string
@@ -207,11 +335,15 @@ export type Database = {
         Update: {
           asset?: string
           created_at?: string
+          deposit_id?: string | null
           fee_gold_units?: number | null
           fee_usd?: number | null
           id?: string
+          input_asset?: string | null
           metadata?: Json | null
+          output_asset?: string | null
           quantity?: number
+          quote_id?: string | null
           status?: string | null
           tx_hash?: string | null
           type?: string
@@ -220,6 +352,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_deposit_id_fkey"
+            columns: ["deposit_id"]
+            isOneToOne: false
+            referencedRelation: "deposits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_user_id_fkey"
             columns: ["user_id"]
