@@ -1,34 +1,114 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Copy } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Check, Copy, TrendingUp, TrendingDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useTransactions } from "@/hooks/useTransactions";
+import { Transaction } from "@/services/transactionService";
+import { useToast } from "@/hooks/use-toast";
 
 const TransactionDetail = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
+  const { getTransaction } = useTransactions();
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // Mock transaction data - in real app this would come from API
-  const transaction = {
-    id: id,
-    type: "Buy Gold",
-    status: "Completed",
-    amount: "+0.12345 oz",
-    value: "$330.56",
-    fee: "$2.50",
-    timestamp: "Dec 15, 2024 at 2:34 PM",
-    txHash: "0x1234567890abcdef1234567890abcdef12345678",
-    confirmations: 12,
+  useEffect(() => {
+    const fetchTransaction = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await getTransaction(id);
+        setTransaction(data);
+      } catch (error) {
+        console.error('Failed to fetch transaction:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransaction();
+  }, [id, getTransaction]);
+
+  const handleCopyId = () => {
+    if (transaction?.id) {
+      navigator.clipboard.writeText(transaction.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({
+        title: "Copied!",
+        description: "Transaction ID copied to clipboard",
+      });
+    }
   };
 
-  const handleCopyHash = () => {
-    navigator.clipboard.writeText(transaction.txHash);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  if (loading) {
+    return (
+      <div className="flex flex-col h-screen bg-background">
+        <header className="p-4">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/transactions")}
+            >
+              <ArrowLeft size={24} />
+            </Button>
+            <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Transaction Details</h1>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading transaction details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!transaction) {
+    return (
+      <div className="flex flex-col h-screen bg-background">
+        <header className="p-4">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/transactions")}
+            >
+              <ArrowLeft size={24} />
+            </Button>
+            <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Transaction Details</h1>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-foreground mb-4">Transaction Not Found</h2>
+            <p className="text-muted-foreground mb-6">Unable to load transaction details.</p>
+            <Button onClick={() => navigate("/transactions")}>
+              Back to Transactions
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isBuy = transaction.type === 'buy';
+  const formatAmount = (quantity: number) => `${isBuy ? '+' : '-'}${quantity.toFixed(3)} g`;
+  const formatValue = () => {
+    if (transaction.unit_price_usd) {
+      const value = (transaction.quantity * transaction.unit_price_usd / 31.1035);
+      return `$${value.toFixed(2)}`;
+    }
+    return 'N/A';
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -36,80 +116,107 @@ const TransactionDetail = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/transactions")}
-            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Transaction Details</h1>
+          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Transaction Details</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4">
+      <main className="flex-1 px-4 py-8">
         {/* Status Section */}
         <div className="mb-8 text-center">
-          <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check size={32} className="text-white" />
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+            transaction.status === 'completed' ? 'bg-primary' : 'bg-muted'
+          }`}>
+            {isBuy ? (
+              <TrendingDown size={32} className="text-primary-foreground" />
+            ) : (
+              <TrendingUp size={32} className="text-primary-foreground" />
+            )}
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">{transaction.type}</h2>
-          <p className="text-green-400 text-lg font-semibold">{transaction.status}</p>
+          <h2 className="text-2xl font-bold text-foreground mb-2 capitalize">
+            {transaction.type} {transaction.asset}
+          </h2>
+          <p className={`text-lg font-semibold capitalize ${
+            transaction.status === 'completed' ? 'text-primary' : 'text-muted-foreground'
+          }`}>
+            {transaction.status}
+          </p>
         </div>
 
         {/* Amount Section */}
-        <div className="bg-[#2C2C2E] p-6 rounded-xl mb-6">
+        <div className="bg-card border border-border p-6 rounded-xl mb-6">
           <div className="text-center">
-            <p className="text-gray-400 text-sm mb-2">Amount</p>
-            <p className="text-3xl font-bold text-white mb-1">{transaction.amount}</p>
-            <p className="text-xl text-gray-300">{transaction.value}</p>
+            <p className="text-muted-foreground text-sm mb-2">Amount</p>
+            <p className="text-3xl font-bold text-foreground mb-1">{formatAmount(transaction.quantity)}</p>
+            <p className="text-xl text-muted-foreground">{formatValue()}</p>
           </div>
         </div>
 
         {/* Transaction Details */}
-        <div className="bg-[#2C2C2E] p-6 rounded-xl mb-6">
-          <h3 className="text-white text-lg font-semibold mb-4">Transaction Details</h3>
+        <div className="bg-card border border-border p-6 rounded-xl mb-6">
+          <h3 className="text-foreground text-lg font-semibold mb-4">Transaction Details</h3>
           
           <div className="space-y-4">
             <div className="flex justify-between">
-              <span className="text-gray-400">Transaction ID</span>
-              <span className="text-white">#{transaction.id}</span>
+              <span className="text-muted-foreground">Transaction ID</span>
+              <div className="flex items-center gap-2">
+                <span className="text-foreground text-sm font-mono">
+                  {transaction.id.slice(0, 8)}...
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyId}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                </Button>
+              </div>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-gray-400">Date & Time</span>
-              <span className="text-white">{transaction.timestamp}</span>
+              <span className="text-muted-foreground">Date & Time</span>
+              <span className="text-foreground">{new Date(transaction.created_at).toLocaleString()}</span>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-gray-400">Fee</span>
-              <span className="text-white">{transaction.fee}</span>
+              <span className="text-muted-foreground">Asset</span>
+              <span className="text-foreground">{transaction.asset}</span>
             </div>
             
-            <div className="flex justify-between">
-              <span className="text-gray-400">Confirmations</span>
-              <span className="text-white">{transaction.confirmations}/12</span>
-            </div>
+            {transaction.unit_price_usd && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Unit Price</span>
+                <span className="text-foreground">${transaction.unit_price_usd.toFixed(2)}/oz</span>
+              </div>
+            )}
+            
+            {transaction.fee_usd && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fee</span>
+                <span className="text-foreground">${transaction.fee_usd.toFixed(2)}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Transaction Hash */}
-        <div className="bg-[#2C2C2E] p-6 rounded-xl">
-          <h3 className="text-white text-lg font-semibold mb-4">Transaction Hash</h3>
-          
-          <div className="flex items-center gap-3">
-            <code className="text-gray-300 text-sm font-mono bg-[#1C1C1E] p-3 rounded flex-1 break-all">
-              {transaction.txHash}
-            </code>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleCopyHash}
-              className="text-gray-400 hover:text-white hover:bg-gray-700"
-            >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-            </Button>
+        {/* Metadata */}
+        {transaction.metadata && Object.keys(transaction.metadata).length > 0 && (
+          <div className="bg-card border border-border p-6 rounded-xl">
+            <h3 className="text-foreground text-lg font-semibold mb-4">Additional Information</h3>
+            <div className="space-y-2">
+              {Object.entries(transaction.metadata).map(([key, value]) => (
+                <div key={key} className="flex justify-between">
+                  <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-foreground text-sm">{String(value)}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

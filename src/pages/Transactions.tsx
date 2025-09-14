@@ -3,57 +3,57 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowUpRight, ArrowDownLeft, RefreshCw, DollarSign } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { useTransactions } from "@/hooks/useTransactions";
 
 const Transactions = () => {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState("All");
+  const { transactions, loading, error } = useTransactions();
 
-  const filters = ["All", "Buy", "Sell", "P2P", "Fees"];
+  const filters = ["All", "Buy", "Sell"];
 
-  const transactions = [
-    {
-      id: 1,
-      type: "Buy",
-      icon: ArrowDownLeft,
-      iconColor: "text-green-500",
-      amount: "+0.12345 oz",
-      value: "$330.56",
-      status: "Completed",
-      timestamp: "2 hours ago",
-    },
-    {
-      id: 2,
-      type: "Sell",
-      icon: ArrowUpRight,
-      iconColor: "text-red-500",
-      amount: "-0.05000 oz",
-      value: "$133.92",
-      status: "Completed",
-      timestamp: "1 day ago",
-    },
-    {
-      id: 3,
-      type: "P2P",
-      icon: RefreshCw,
-      iconColor: "text-blue-500",
-      amount: "+0.03000 oz",
-      value: "$80.35",
-      status: "Pending",
-      timestamp: "2 days ago",
-    },
-    {
-      id: 4,
-      type: "Fees",
-      icon: DollarSign,
-      iconColor: "text-orange-500",
-      amount: "-$2.50",
-      value: "Transaction Fee",
-      status: "Completed",
-      timestamp: "3 days ago",
-    },
-  ];
+  const filteredTransactions = transactions.filter(tx => {
+    if (activeFilter === "All") return true;
+    return tx.type.toLowerCase() === activeFilter.toLowerCase();
+  });
 
-  const handleTransactionClick = (transactionId: number) => {
+  const getTransactionIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'buy':
+        return { icon: ArrowDownLeft, color: "text-primary" };
+      case 'sell':
+        return { icon: ArrowUpRight, color: "text-destructive" };
+      default:
+        return { icon: RefreshCw, color: "text-muted-foreground" };
+    }
+  };
+
+  const formatTransactionAmount = (tx: any) => {
+    const sign = tx.type === 'buy' ? '+' : '-';
+    return `${sign}${tx.quantity.toFixed(3)} g`;
+  };
+
+  const formatTransactionValue = (tx: any) => {
+    const amount = tx.unit_price_usd ? (tx.quantity * tx.unit_price_usd / 31.1035).toFixed(2) : '0.00';
+    return `$${amount}`;
+  };
+
+  const formatTimestamp = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 24) {
+      return `${diffInHours} hours ago`;
+    } else if (diffInHours < 168) {
+      const days = Math.floor(diffInHours / 24);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  const handleTransactionClick = (transactionId: string) => {
     navigate(`/transaction-detail/${transactionId}`);
   };
 
@@ -95,51 +95,61 @@ const Transactions = () => {
 
       {/* Transactions List */}
       <main className="flex-1 px-4">
-        <div className="space-y-3">
-          {transactions.map((transaction) => {
-            const Icon = transaction.icon;
-            
-            return (
-              <div
-                key={transaction.id}
-                onClick={() => handleTransactionClick(transaction.id)}
-                className="bg-[#2C2C2E] p-4 rounded-xl cursor-pointer hover:bg-[#3C3C3E] transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-[#48484A] rounded-full flex items-center justify-center">
-                    <Icon size={20} className={transaction.iconColor} />
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-white font-medium">{transaction.type}</p>
-                      <p className="text-white font-semibold">{transaction.amount}</p>
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading transactions...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-destructive">Error: {error}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredTransactions.map((transaction) => {
+              const { icon: Icon, color } = getTransactionIcon(transaction.type);
+              
+              return (
+                <div
+                  key={transaction.id}
+                  onClick={() => handleTransactionClick(transaction.id)}
+                  className="bg-card border border-border p-4 rounded-xl cursor-pointer hover:bg-accent transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                      <Icon size={20} className={color} />
                     </div>
                     
-                    <div className="flex items-center justify-between">
-                      <p className="text-gray-400 text-sm">{transaction.timestamp}</p>
-                      <p className="text-gray-400 text-sm">{transaction.value}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-foreground font-medium capitalize">{transaction.type}</p>
+                        <p className="text-foreground font-semibold">{formatTransactionAmount(transaction)}</p>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <p className="text-muted-foreground text-sm">{formatTimestamp(transaction.created_at)}</p>
+                        <p className="text-muted-foreground text-sm">{formatTransactionValue(transaction)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        transaction.status === "completed"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                      </span>
                     </div>
                   </div>
-                  
-                  <div className="text-right">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      transaction.status === "Completed"
-                        ? "bg-green-900/30 text-green-400"
-                        : "bg-yellow-900/30 text-yellow-400"
-                    }`}>
-                      {transaction.status}
-                    </span>
-                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
         
-        {transactions.length === 0 && (
+        {!loading && !error && filteredTransactions.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-400">No transactions found</p>
+            <p className="text-muted-foreground">No transactions found</p>
           </div>
         )}
       </main>
