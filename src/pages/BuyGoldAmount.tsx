@@ -87,9 +87,9 @@ const BuyGoldAmount = () => {
     // Handle card payment with MoonPay
     if (paymentMethod === 'credit_card') {
       try {
-        const usdAmount = currency === 'USD' ? numericAmount : calculateUsdAmount(amount);
+        const usdAmount = currency === 'USD' ? numericAmount : parseFloat(calculateUsdAmount(amount));
         const result = await initiateBuy({
-          amount: parseFloat(usdAmount),
+          amount: usdAmount,
           currency: 'USD'
         });
 

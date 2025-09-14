@@ -1,1 +1,7 @@
 project_id = "auntkvllzejtfqmousxg"
+
+[functions.moonpay-buy]
+verify_jwt = true
+
+[functions.moonpay-webhook]
+verify_jwt = false
