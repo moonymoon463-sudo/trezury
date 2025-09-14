@@ -1,19 +1,26 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useBuyQuote } from "@/hooks/useBuyQuote";
+import { useMoonPayBuy } from "@/hooks/useMoonPayBuy";
 import { quoteEngineService } from "@/services/quoteEngine";
+import { toast } from "sonner";
 
 const BuyGoldAmount = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currency, setCurrency] = useState<"USD" | "GRAMS">("USD");
   const [amount, setAmount] = useState("100");
   
   const { price: goldPrice } = useGoldPrice();
   const { quote, loading: quoteLoading, generateQuote } = useBuyQuote();
+  const { initiateBuy, loading: moonPayLoading } = useMoonPayBuy();
+  
+  // Get payment method from location state (passed from BuyGold page)
+  const paymentMethod = location.state?.paymentMethod || 'usdc';
   
   // Mock USD balance - would come from wallet service
   const usdBalance = 10000.00;
@@ -69,6 +76,48 @@ const BuyGoldAmount = () => {
 
     return () => clearTimeout(debounceTimer);
   }, [amount, currency, goldPrice, generateQuote]);
+
+  const handleContinue = async () => {
+    const numericAmount = parseFloat(amount);
+    if (!numericAmount || numericAmount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    // Handle card payment with MoonPay
+    if (paymentMethod === 'credit_card') {
+      try {
+        const usdAmount = currency === 'USD' ? numericAmount : calculateUsdAmount(amount);
+        const result = await initiateBuy({
+          amount: parseFloat(usdAmount),
+          currency: 'USD'
+        });
+
+        if (result.success && result.redirectUrl) {
+          // Redirect to MoonPay checkout
+          window.open(result.redirectUrl, '_blank');
+          toast.success('Redirecting to payment...');
+        }
+      } catch (error) {
+        console.error('MoonPay buy failed:', error);
+        toast.error('Payment failed. Please try again.');
+      }
+      return;
+    }
+
+    // Handle USDC payment - continue with existing flow
+    if (!quote) {
+      toast.error('Please wait for quote calculation');
+      return;
+    }
+
+    if (quote.inputAmount > usdBalance) {
+      toast.error('Insufficient USDC balance');
+      return;
+    }
+
+    navigate("/buy-gold/confirmation", { state: { quote } });
+  };
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -204,10 +253,10 @@ const BuyGoldAmount = () => {
       <div className="px-4 py-6">
         <Button 
           className="w-full h-14 font-bold text-lg rounded-xl"
-          disabled={!amount || parseFloat(amount) <= 0 || !quote}
-          onClick={() => navigate("/buy-gold/confirmation", { state: { quote } })}
+          disabled={!amount || parseFloat(amount) <= 0 || (paymentMethod === 'usdc' && !quote) || moonPayLoading}
+          onClick={handleContinue}
         >
-          Continue
+          {moonPayLoading ? 'Processing...' : paymentMethod === 'credit_card' ? 'Pay with Card' : 'Continue'}
         </Button>
       </div>
 
