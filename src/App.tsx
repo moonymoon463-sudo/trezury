@@ -28,6 +28,7 @@ import Settings from "./pages/Settings";
 import KYCVerification from "./pages/KYCVerification";
 import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
+import AddUSDC from "./pages/AddUSDC";
 
 const queryClient = new QueryClient();
 
@@ -143,6 +144,11 @@ const App = () => (
             <Route path="/add-payment-method" element={
               <ProtectedRoute>
                 <AddPaymentMethod />
+              </ProtectedRoute>
+            } />
+            <Route path="/add-usdc" element={
+              <ProtectedRoute>
+                <AddUSDC />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

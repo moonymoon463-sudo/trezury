@@ -35,7 +35,7 @@ class QuoteEngineService {
 
   async generateQuote(request: QuoteRequest, userId: string): Promise<Quote> {
     const goldPrice = await goldPriceService.getCurrentPrice();
-    const unitPriceUsd = goldPrice.price;
+    const unitPriceUsd = goldPrice.usd_per_gram;
 
     let inputAmount: number;
     let outputAmount: number;
@@ -112,7 +112,7 @@ class QuoteEngineService {
       route: {
         provider: 'aurum',
         goldPrice: unitPriceUsd,
-        timestamp: goldPrice.timestamp
+        timestamp: goldPrice.last_updated
       }
     };
 

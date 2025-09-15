@@ -25,19 +25,19 @@ const BuyGoldAmount = () => {
   // Mock USD balance - would come from wallet service
   const usdBalance = 10000.00;
   
-  const goldPricePerGram = goldPrice ? quoteEngineService.calculateUsdToGrams(goldPrice.price, goldPrice.price) : 0;
+  const goldPricePerGram = goldPrice ? goldPrice.usd_per_gram : 0;
   
   const calculateGoldAmount = (usdAmount: string) => {
     if (!goldPrice) return "0.000";
     const usd = parseFloat(usdAmount) || 0;
-    const grams = quoteEngineService.calculateUsdToGrams(usd, goldPrice.price);
+    const grams = quoteEngineService.calculateUsdToGrams(usd, goldPrice.usd_per_gram);
     return grams.toFixed(3);
   };
   
   const calculateUsdAmount = (grams: string) => {
     if (!goldPrice) return "0.00";
     const gramAmount = parseFloat(grams) || 0;
-    const usd = quoteEngineService.calculateGramsToUsd(gramAmount, goldPrice.price);
+    const usd = quoteEngineService.calculateGramsToUsd(gramAmount, goldPrice.usd_per_gram);
     return usd.toFixed(2);
   };
 

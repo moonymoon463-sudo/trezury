@@ -1,9 +1,11 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface GoldPrice {
-  price: number;
-  change: number;
-  changePercent: number;
-  timestamp: string;
-  source: string;
+  usd_per_oz: number;
+  usd_per_gram: number;
+  change_24h: number;
+  change_percent_24h: number;
+  last_updated: number;
 }
 
 export interface GoldPriceHistory {
@@ -12,32 +14,26 @@ export interface GoldPriceHistory {
 }
 
 class GoldPriceService {
-  private readonly GOLD_API_URL = 'https://api.metals.live/v1/spot/gold';
   private currentPrice: GoldPrice | null = null;
   private subscribers: Set<(price: GoldPrice) => void> = new Set();
-  private updateInterval: NodeJS.Timeout | null = null;
+  private updateInterval: number | null = null;
 
   async getCurrentPrice(): Promise<GoldPrice> {
     try {
-      const response = await fetch(this.GOLD_API_URL);
-      if (!response.ok) {
-        throw new Error('Failed to fetch gold price');
+      const { data, error } = await supabase.functions.invoke('gold-price-api');
+      
+      if (error) {
+        console.error('Failed to fetch gold price:', error);
+        return this.getMockPrice();
       }
-      
-      const data = await response.json();
-      
-      const goldPrice: GoldPrice = {
-        price: data.price || this.generateMockPrice(),
-        change: data.change || this.generateMockChange(),
-        changePercent: data.changePercent || this.generateMockChangePercent(),
-        timestamp: new Date().toISOString(),
-        source: data.source || 'metals.live'
-      };
 
-      this.currentPrice = goldPrice;
-      this.notifySubscribers(goldPrice);
-      
-      return goldPrice;
+      if (data?.gold) {
+        this.currentPrice = data.gold;
+        this.notifySubscribers(data.gold);
+        return data.gold;
+      }
+
+      return this.getMockPrice();
     } catch (error) {
       console.warn('Failed to fetch real gold price, using mock data:', error);
       return this.getMockPrice();
@@ -45,35 +41,24 @@ class GoldPriceService {
   }
 
   private getMockPrice(): GoldPrice {
-    const basePrice = 2678.45;
+    const basePrice = 2345.67;
     const variation = (Math.random() - 0.5) * 20; // ±$10
     const price = basePrice + variation;
     const change = variation;
     const changePercent = (change / basePrice) * 100;
 
     const goldPrice: GoldPrice = {
-      price: Number(price.toFixed(2)),
-      change: Number(change.toFixed(2)),
-      changePercent: Number(changePercent.toFixed(2)),
-      timestamp: new Date().toISOString(),
-      source: 'mock'
+      usd_per_oz: Number(price.toFixed(2)),
+      usd_per_gram: Number((price / 31.1035).toFixed(2)),
+      change_24h: Number(change.toFixed(2)),
+      change_percent_24h: Number(changePercent.toFixed(2)),
+      last_updated: Date.now()
     };
 
     this.currentPrice = goldPrice;
     return goldPrice;
   }
 
-  private generateMockPrice(): number {
-    return 2678.45 + (Math.random() - 0.5) * 20;
-  }
-
-  private generateMockChange(): number {
-    return (Math.random() - 0.5) * 40;
-  }
-
-  private generateMockChangePercent(): number {
-    return (Math.random() - 0.5) * 2;
-  }
 
   subscribe(callback: (price: GoldPrice) => void): () => void {
     this.subscribers.add(callback);
@@ -101,7 +86,7 @@ class GoldPriceService {
     this.getCurrentPrice();
 
     // Set up periodic updates
-    this.updateInterval = setInterval(() => {
+    this.updateInterval = window.setInterval(() => {
       this.getCurrentPrice();
     }, intervalMs);
   }
@@ -117,7 +102,7 @@ class GoldPriceService {
     // For now, generate mock historical data
     const history: GoldPriceHistory[] = [];
     const now = new Date();
-    const basePrice = 2678.45;
+    const basePrice = 2345.67;
 
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);

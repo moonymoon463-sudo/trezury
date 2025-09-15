@@ -3,32 +3,38 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { useGoldPrice } from "@/hooks/useGoldPrice";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
+import GoldPriceChart from "@/components/GoldPriceChart";
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { price: goldPrice, loading: priceLoading } = useGoldPrice();
+  const { getBalance, loading: balanceLoading } = useWalletBalance();
+
+  // Get real balances
+  const usdcBalance = getBalance('USDC');
+  const goldBalance = getBalance('GOLD');
+  
+  // Calculate portfolio values
+  const goldValueUsd = goldPrice && goldBalance ? goldBalance * goldPrice.usd_per_gram : 0;
+  const totalPortfolioValue = usdcBalance + goldValueUsd;
 
   const tokens = [
     {
-      name: "PAX Gold",
-      symbol: "PAXG",
-      amount: "81.84",
-      value: "$6,172.84",
-      icon: "🏅" // Placeholder for token icon
-    },
-    {
-      name: "Tether Gold", 
-      symbol: "XAUT",
-      amount: "81.84",
-      value: "$6,172.84",
-      icon: "🥇" // Placeholder for token icon
+      name: "Gold",
+      symbol: "GOLD",
+      amount: goldBalance.toFixed(3),
+      value: `$${goldValueUsd.toFixed(2)}`,
+      icon: "🥇"
     },
     {
       name: "USD Coin",
       symbol: "USDC", 
-      amount: "0.00",
-      value: "$0.00",
-      icon: "💲" // Placeholder for token icon
+      amount: usdcBalance.toFixed(2),
+      value: `$${usdcBalance.toFixed(2)}`,
+      icon: "💲"
     }
   ];
 
@@ -58,19 +64,31 @@ const Index = () => {
               <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
                 Gold Price
               </h3>
-              <div className="flex items-center gap-1 text-[#f9b006]">
-                <TrendingUp size={16} />
-                <span className="text-sm font-medium">+2.15%</span>
-              </div>
+              {priceLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-4 w-16 bg-gray-600 rounded"></div>
+                </div>
+              ) : goldPrice && (
+                <div className="flex items-center gap-1 text-[#f9b006]">
+                  <TrendingUp size={16} />
+                  <span className="text-sm font-medium">
+                    {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
+                  </span>
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <div className="flex justify-between gap-x-6 py-1">
                 <p className="text-gray-400 text-sm font-normal">USD/oz</p>
-                <p className="text-white text-sm font-semibold text-right">$2,345.67</p>
+                <p className="text-white text-sm font-semibold text-right">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
+                </p>
               </div>
               <div className="flex justify-between gap-x-6 py-1">
                 <p className="text-gray-400 text-sm font-normal">USD/g</p>
-                <p className="text-white text-sm font-semibold text-right">$75.43</p>
+                <p className="text-white text-sm font-semibold text-right">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
+                </p>
               </div>
             </div>
           </div>
@@ -82,16 +100,22 @@ const Index = () => {
             </h3>
             <div className="mb-4">
               <p className="text-gray-400 text-sm font-normal mb-1">Total USD Value</p>
-              <p className="text-white text-2xl font-bold">$12,345.67</p>
+              <p className="text-white text-2xl font-bold">
+                {balanceLoading ? "Loading..." : `$${totalPortfolioValue.toFixed(2)}`}
+              </p>
             </div>
             <div className="flex justify-between">
               <div>
-                <p className="text-gray-400 text-sm font-normal mb-1">Total Grams</p>
-                <p className="text-white text-lg font-semibold">163.67 g</p>
+                <p className="text-gray-400 text-sm font-normal mb-1">Gold Balance</p>
+                <p className="text-white text-lg font-semibold">
+                  {balanceLoading ? "Loading..." : `${goldBalance.toFixed(2)} g`}
+                </p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm font-normal mb-1">Tokens Held</p>
-                <p className="text-white text-lg font-semibold">163.67</p>
+                <p className="text-gray-400 text-sm font-normal mb-1">USDC Balance</p>
+                <p className="text-white text-lg font-semibold">
+                  {balanceLoading ? "Loading..." : `$${usdcBalance.toFixed(2)}`}
+                </p>
               </div>
             </div>
           </div>
@@ -119,7 +143,10 @@ const Index = () => {
               <ArrowRightLeft size={16} />
               Swap
             </Button>
-            <Button className="bg-[#2C2C2E] text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80">
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
+              onClick={() => navigate("/add-usdc")}
+            >
               <Plus size={16} />
               Add USDC
             </Button>
@@ -152,29 +179,7 @@ const Index = () => {
           </div>
 
           {/* Gold Price Chart */}
-          <div className="bg-[#2C2C2E] rounded-xl p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                Gold Price Chart
-              </h3>
-              <div className="flex bg-[#1A1A1A] rounded-lg p-1">
-                <button className="bg-[#f9b006] text-black px-3 py-1 rounded-md text-sm font-semibold">
-                  24h
-                </button>
-                <button className="text-gray-400 px-3 py-1 text-sm font-semibold">
-                  7d
-                </button>
-              </div>
-            </div>
-            <div className="mb-4">
-              <p className="text-white text-2xl font-bold">$2,345.67</p>
-              <p className="text-green-500 text-sm">+5.12% ($114.21)</p>
-            </div>
-            {/* Chart placeholder - would use a real chart library like recharts in production */}
-            <div className="h-32 bg-[#1A1A1A] rounded-lg flex items-center justify-center">
-              <p className="text-gray-400 text-sm">Chart visualization would go here</p>
-            </div>
-          </div>
+          <GoldPriceChart />
         </div>
       </div>
 

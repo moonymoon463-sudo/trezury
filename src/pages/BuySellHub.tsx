@@ -11,7 +11,7 @@ const BuySellHub = () => {
   
   // Mock user balance - would come from wallet service
   const mockGoldBalance = 1.23456; // oz
-  const goldBalanceValue = goldPrice ? mockGoldBalance * goldPrice.price : 0;
+  const goldBalanceValue = goldPrice ? mockGoldBalance * goldPrice.usd_per_oz : 0;
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -62,16 +62,16 @@ const BuySellHub = () => {
                   ) : goldPrice ? (
                     <>
                       <span className="text-2xl font-bold text-foreground">
-                        ${goldPrice.price.toFixed(2)}
+                        ${goldPrice.usd_per_oz.toFixed(2)}
                       </span>
                       <div className="flex items-center gap-1">
-                        {goldPrice.changePercent >= 0 ? (
+                        {goldPrice.change_percent_24h >= 0 ? (
                           <TrendingUp size={16} className="text-green-500" />
                         ) : (
                           <TrendingDown size={16} className="text-red-500" />
                         )}
-                        <span className={goldPrice.changePercent >= 0 ? "text-green-500" : "text-red-500"}>
-                          {goldPrice.changePercent >= 0 ? "+" : ""}{goldPrice.changePercent.toFixed(2)}%
+                        <span className={goldPrice.change_percent_24h >= 0 ? "text-green-500" : "text-red-500"}>
+                          {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
                         </span>
                       </div>
                     </>
@@ -85,7 +85,7 @@ const BuySellHub = () => {
               <p className="text-muted-foreground text-sm">Per troy ounce</p>
               {goldPrice && (
                 <p className="text-muted-foreground text-xs">
-                  Updated: {new Date(goldPrice.timestamp).toLocaleTimeString()}
+                  Updated: {new Date(goldPrice.last_updated).toLocaleTimeString()}
                 </p>
               )}
             </div>

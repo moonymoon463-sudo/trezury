@@ -20,7 +20,7 @@ const SellGoldAmount = () => {
   const { getBalance, loading: balanceLoading } = useWalletBalance();
   
   const goldBalance = getBalance('GOLD');
-  const goldBalanceValue = goldPrice ? quoteEngineService.calculateGramsToUsd(goldBalance, goldPrice.price) : 0;
+  const goldBalanceValue = goldPrice ? quoteEngineService.calculateGramsToUsd(goldBalance, goldPrice.usd_per_gram) : 0;
 
   const handleAmountChange = (value: string) => {
     // Remove any non-numeric characters except decimal point
@@ -31,14 +31,14 @@ const SellGoldAmount = () => {
   const calculateUsdValue = (grams: string) => {
     if (!goldPrice) return "0.00";
     const gramAmount = parseFloat(grams) || 0;
-    const usd = quoteEngineService.calculateGramsToUsd(gramAmount, goldPrice.price);
+    const usd = quoteEngineService.calculateGramsToUsd(gramAmount, goldPrice.usd_per_gram);
     return usd.toFixed(2);
   };
 
   const calculateGramsValue = (usd: string) => {
     if (!goldPrice) return "0.000";
     const usdAmount = parseFloat(usd) || 0;
-    const grams = quoteEngineService.calculateUsdToGrams(usdAmount, goldPrice.price);
+    const grams = quoteEngineService.calculateUsdToGrams(usdAmount, goldPrice.usd_per_gram);
     return grams.toFixed(3);
   };
 
