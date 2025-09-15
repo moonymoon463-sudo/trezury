@@ -138,9 +138,46 @@ const KYCVerification = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
+  const uploadDocuments = async () => {
+    const uploads = [];
+    
+    if (documents.frontId) {
+      const fileName = `${user!.id}/front_id_${Date.now()}.${documents.frontId.name.split('.').pop()}`;
+      uploads.push(
+        supabase.storage
+          .from('kyc-documents')
+          .upload(fileName, documents.frontId)
+      );
+    }
+    
+    if (documents.backId) {
+      const fileName = `${user!.id}/back_id_${Date.now()}.${documents.backId.name.split('.').pop()}`;
+      uploads.push(
+        supabase.storage
+          .from('kyc-documents')
+          .upload(fileName, documents.backId)
+      );
+    }
+    
+    if (documents.selfie) {
+      const fileName = `${user!.id}/selfie_${Date.now()}.${documents.selfie.name.split('.').pop()}`;
+      uploads.push(
+        supabase.storage
+          .from('kyc-documents')
+          .upload(fileName, documents.selfie)
+      );
+    }
+    
+    const results = await Promise.allSettled(uploads);
+    return results.map(result => result.status === 'fulfilled' ? result.value : null);
+  };
+
   const submitKYC = async () => {
     setLoading(true);
     try {
+      // Upload documents to storage first
+      const uploadResults = await uploadDocuments();
+      
       // Update profile with KYC data and set status to pending
       const { error: profileError } = await supabase
         .from('profiles')
@@ -162,45 +199,24 @@ const KYCVerification = () => {
 
       if (profileError) throw profileError;
 
-      // In a real implementation, documents would be uploaded to Supabase Storage
-      // For now, we'll create document records as placeholders
+      // Create document records with actual file paths
       const documentPromises = [];
+      const docTypes = ['front_id', 'back_id', 'selfie'];
+      const docFiles = [documents.frontId, documents.backId, documents.selfie];
       
-      if (documents.frontId) {
-        documentPromises.push(
-          supabase.from('kyc_documents').insert({
-            user_id: user!.id,
-            document_type: 'front_id',
-            file_name: documents.frontId.name,
-            file_path: `/kyc/${user!.id}/front_id_${Date.now()}`,
-            upload_status: 'uploaded'
-          })
-        );
-      }
-      
-      if (documents.backId) {
-        documentPromises.push(
-          supabase.from('kyc_documents').insert({
-            user_id: user!.id,
-            document_type: 'back_id',
-            file_name: documents.backId.name,
-            file_path: `/kyc/${user!.id}/back_id_${Date.now()}`,
-            upload_status: 'uploaded'
-          })
-        );
-      }
-      
-      if (documents.selfie) {
-        documentPromises.push(
-          supabase.from('kyc_documents').insert({
-            user_id: user!.id,
-            document_type: 'selfie',
-            file_name: documents.selfie.name,
-            file_path: `/kyc/${user!.id}/selfie_${Date.now()}`,
-            upload_status: 'uploaded'
-          })
-        );
-      }
+      uploadResults.forEach((result, index) => {
+        if (result?.data && docFiles[index]) {
+          documentPromises.push(
+            supabase.from('kyc_documents').insert({
+              user_id: user!.id,
+              document_type: docTypes[index],
+              file_name: docFiles[index]!.name,
+              file_path: result.data.path,
+              upload_status: 'uploaded'
+            })
+          );
+        }
+      });
 
       await Promise.all(documentPromises);
 
