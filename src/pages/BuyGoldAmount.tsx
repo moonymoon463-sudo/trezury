@@ -88,35 +88,61 @@ const BuyGoldAmount = () => {
     if (paymentMethod === 'credit_card') {
       try {
         const usdAmount = currency === 'USD' ? numericAmount : parseFloat(calculateUsdAmount(amount));
+        
+        // Additional validation for card payments
+        if (usdAmount < 10) {
+          toast.error('Minimum purchase amount is $10 for card payments');
+          return;
+        }
+
+        if (usdAmount > 10000) {
+          toast.error('Maximum purchase amount is $10,000. Please contact support for larger amounts.');
+          return;
+        }
+
         const result = await initiateBuy({
           amount: usdAmount,
           currency: 'USD'
         });
 
         if (result.success && result.redirectUrl) {
-          // Redirect to MoonPay checkout
-          window.open(result.redirectUrl, '_blank');
-          toast.success('Redirecting to payment...');
+          // Show success message before redirect
+          toast.success('Redirecting to secure payment...', { duration: 3000 });
+          
+          // Small delay to allow user to see the message
+          setTimeout(() => {
+            window.location.href = result.redirectUrl!;
+          }, 1500);
+        } else {
+          // Error handling is already done in the hook
+          console.error('MoonPay initiation failed:', result.error);
         }
       } catch (error) {
-        console.error('MoonPay buy failed:', error);
-        toast.error('Payment failed. Please try again.');
+        console.error('MoonPay initiation error:', error);
+        toast.error('Failed to initiate payment. Please try again.');
       }
       return;
     }
 
-    // Handle USDC payment - continue with existing flow
+    // Handle USDC payment flow
     if (!quote) {
       toast.error('Please wait for quote calculation');
       return;
     }
 
-    if (quote.inputAmount > usdBalance) {
-      toast.error('Insufficient USDC balance');
-      return;
+    // Check if user has sufficient USDC balance for USDC payments
+    if (paymentMethod === 'usdc') {
+      if (quote.inputAmount > usdBalance) {
+        toast.error(`You need $${quote.inputAmount.toFixed(2)} USDC but only have $${usdBalance.toFixed(2)}`);
+        return;
+      }
     }
 
-    navigate("/buy-gold/confirmation", { state: { quote } });
+    // Store the amount and currency for the next step
+    sessionStorage.setItem('buyGoldAmount', amount);
+    sessionStorage.setItem('buyGoldCurrency', currency);
+    
+    navigate('/buy-gold/confirmation', { state: { quote } });
   };
 
   return (
