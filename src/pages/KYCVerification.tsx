@@ -141,19 +141,68 @@ const KYCVerification = () => {
   const submitKYC = async () => {
     setLoading(true);
     try {
-      // In a real implementation, this would upload documents to storage
-      // and send data to a KYC provider like Jumio, Onfido, etc.
-      
-      // For now, we'll simulate the process and update the status to pending
-      const { error } = await supabase
+      // Update profile with KYC data and set status to pending
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
+          first_name: personalInfo.firstName,
+          last_name: personalInfo.lastName,
+          date_of_birth: personalInfo.dateOfBirth,
+          address: personalInfo.address,
+          city: personalInfo.city,
+          state: personalInfo.state,
+          zip_code: personalInfo.zipCode,
+          country: personalInfo.country,
+          ssn_last_four: personalInfo.ssn,
           kyc_status: 'pending',
+          kyc_submitted_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', user!.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // In a real implementation, documents would be uploaded to Supabase Storage
+      // For now, we'll create document records as placeholders
+      const documentPromises = [];
+      
+      if (documents.frontId) {
+        documentPromises.push(
+          supabase.from('kyc_documents').insert({
+            user_id: user!.id,
+            document_type: 'front_id',
+            file_name: documents.frontId.name,
+            file_path: `/kyc/${user!.id}/front_id_${Date.now()}`,
+            upload_status: 'uploaded'
+          })
+        );
+      }
+      
+      if (documents.backId) {
+        documentPromises.push(
+          supabase.from('kyc_documents').insert({
+            user_id: user!.id,
+            document_type: 'back_id',
+            file_name: documents.backId.name,
+            file_path: `/kyc/${user!.id}/back_id_${Date.now()}`,
+            upload_status: 'uploaded'
+          })
+        );
+      }
+      
+      if (documents.selfie) {
+        documentPromises.push(
+          supabase.from('kyc_documents').insert({
+            user_id: user!.id,
+            document_type: 'selfie',
+            file_name: documents.selfie.name,
+            file_path: `/kyc/${user!.id}/selfie_${Date.now()}`,
+            upload_status: 'uploaded'
+          })
+        );
+      }
+
+      await Promise.all(documentPromises);
 
       toast({
         title: "Verification Submitted",

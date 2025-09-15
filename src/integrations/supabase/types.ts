@@ -109,6 +109,47 @@ export type Database = {
         }
         Relationships: []
       }
+      kyc_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          file_name: string
+          file_path: string
+          id: string
+          updated_at: string
+          upload_status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          file_name: string
+          file_path: string
+          id?: string
+          updated_at?: string
+          upload_status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          updated_at?: string
+          upload_status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -251,28 +292,64 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          date_of_birth: string | null
           email: string
+          first_name: string | null
           id: string
+          kyc_rejection_reason: string | null
           kyc_status: string | null
+          kyc_submitted_at: string | null
+          kyc_verified_at: string | null
+          last_name: string | null
           phone: string | null
+          ssn_last_four: string | null
+          state: string | null
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email: string
+          first_name?: string | null
           id: string
+          kyc_rejection_reason?: string | null
           kyc_status?: string | null
+          kyc_submitted_at?: string | null
+          kyc_verified_at?: string | null
+          last_name?: string | null
           phone?: string | null
+          ssn_last_four?: string | null
+          state?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string
+          first_name?: string | null
           id?: string
+          kyc_rejection_reason?: string | null
           kyc_status?: string | null
+          kyc_submitted_at?: string | null
+          kyc_verified_at?: string | null
+          last_name?: string | null
           phone?: string | null
+          ssn_last_four?: string | null
+          state?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
