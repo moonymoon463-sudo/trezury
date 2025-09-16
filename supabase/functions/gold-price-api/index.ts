@@ -12,42 +12,46 @@ serve(async (req) => {
   }
 
   try {
-    const metalsApiKey = Deno.env.get('METALS_API_KEY');
+    const alphaVantageApiKey = Deno.env.get('ALPHA_VANTAGE_API_KEY');
     
-    if (!metalsApiKey) {
-      throw new Error('METALS_API_KEY is not configured');
+    if (!alphaVantageApiKey) {
+      throw new Error('ALPHA_VANTAGE_API_KEY is not configured');
     }
 
-    // Fetch gold price from Metals API
-    const response = await fetch(`https://metals-api.com/api/latest?access_key=${metalsApiKey}&base=USD&symbols=XAU`);
+    // Fetch gold price from Alpha Vantage API
+    const response = await fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=XAU&to_currency=USD&apikey=${alphaVantageApiKey}`);
     
     if (!response.ok) {
-      throw new Error(`Metals API error: ${response.status}`);
+      throw new Error(`Alpha Vantage API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (!data.success) {
-      throw new Error(data.error?.info || 'Failed to fetch gold price');
+    if (data['Error Message'] || data['Note']) {
+      throw new Error(data['Error Message'] || data['Note'] || 'Failed to fetch gold price');
     }
 
-    // Convert from troy ounce price to more usable format
-    const goldPricePerOz = 1 / data.rates.XAU; // Metals API returns XAU as 1/price
+    if (!data['Realtime Currency Exchange Rate']) {
+      throw new Error('Invalid response format from Alpha Vantage');
+    }
+
+    const exchangeRate = data['Realtime Currency Exchange Rate'];
+    const goldPricePerOz = parseFloat(exchangeRate['5. Exchange Rate']); // Price per troy ounce
     const goldPricePerGram = goldPricePerOz / 31.1035; // 1 troy ounce = 31.1035 grams
 
-    // Calculate 24h change (mock for now - would need historical data)
+    // Calculate 24h change (mock for now - Alpha Vantage free tier doesn't include historical data)
     const change24h = goldPricePerOz * (Math.random() * 0.04 - 0.02); // Random ±2%
     const changePercent = (change24h / goldPricePerOz) * 100;
 
     const result = {
       timestamp: Date.now(),
-      source: 'metals-api.com',
+      source: 'alphavantage.co',
       gold: {
         usd_per_oz: Math.round(goldPricePerOz * 100) / 100,
         usd_per_gram: Math.round(goldPricePerGram * 100) / 100,
         change_24h: Math.round(change24h * 100) / 100,
         change_percent_24h: Math.round(changePercent * 100) / 100,
-        last_updated: data.timestamp || Date.now()
+        last_updated: new Date(exchangeRate['6. Last Refreshed']).getTime() || Date.now()
       }
     };
 
