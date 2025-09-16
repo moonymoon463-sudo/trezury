@@ -30,6 +30,7 @@ import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
 import AddUSDC from "./pages/AddUSDC";
 import AdminFees from "./pages/AdminFees";
+import WalletManagement from "./pages/WalletManagement";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +156,11 @@ const App = () => (
             <Route path="/admin/fees" element={
               <ProtectedRoute>
                 <AdminFees />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/wallet" element={
+              <ProtectedRoute>
+                <WalletManagement />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

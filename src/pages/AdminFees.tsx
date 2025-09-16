@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Download, Wallet, DollarSign, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { feeCollectionService, FeeCollectionSummary, PlatformFeeRecord } from "@/services/feeCollectionService";
+import { feeCollectionBot } from "@/services/feeCollectionBot";
+import { blockchainService } from "@/services/blockchainService";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminFees = () => {
@@ -12,6 +14,8 @@ const AdminFees = () => {
   const [summary, setSummary] = useState<FeeCollectionSummary | null>(null);
   const [recentFees, setRecentFees] = useState<PlatformFeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [botStats, setBotStats] = useState<any>(null);
+  const [collectingFees, setCollectingFees] = useState(false);
 
   useEffect(() => {
     loadFeeData();
@@ -20,13 +24,15 @@ const AdminFees = () => {
   const loadFeeData = async () => {
     try {
       setLoading(true);
-      const [summaryData, feesData] = await Promise.all([
+      const [summaryData, feesData, stats] = await Promise.all([
         feeCollectionService.getFeeCollectionSummary(),
-        feeCollectionService.getCollectedFees()
+        feeCollectionService.getCollectedFees(),
+        feeCollectionBot.getFeeCollectionStats()
       ]);
       
       setSummary(summaryData);
       setRecentFees(feesData.slice(0, 10)); // Show last 10 transactions
+      setBotStats(stats);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -35,6 +41,43 @@ const AdminFees = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCollectFees = async () => {
+    try {
+      setCollectingFees(true);
+      const results = await feeCollectionBot.collectAllPendingFees();
+      
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      if (successCount > 0) {
+        toast({
+          title: "Fees Collected",
+          description: `Successfully collected ${successCount} fees${failCount > 0 ? `, ${failCount} failed` : ''}`
+        });
+        loadFeeData(); // Refresh data
+      } else if (failCount > 0) {
+        toast({
+          variant: "destructive",
+          title: "Collection Failed",
+          description: `Failed to collect ${failCount} fees`
+        });
+      } else {
+        toast({
+          title: "No Fees to Collect",
+          description: "All platform fees have already been collected"
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Collection Error",
+        description: "Failed to collect platform fees"
+      });
+    } finally {
+      setCollectingFees(false);
     }
   };
 
@@ -95,26 +138,26 @@ const AdminFees = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="bg-[#2C2C2E] border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Total Fees Collected</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-400">Collected Fees</CardTitle>
               <DollarSign className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">${summary?.total_fees_usd.toFixed(2) || '0.00'}</div>
+              <div className="text-2xl font-bold text-white">${botStats?.total_collected_usd?.toFixed(2) || '0.00'}</div>
               <p className="text-xs text-gray-400">
-                From {summary?.transaction_count || 0} transactions
+                From {botStats?.collection_count || 0} collections
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-[#2C2C2E] border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-400">Uncollected Fees</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-400">Pending Fees</CardTitle>
               <TrendingUp className="h-4 w-4 text-yellow-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-white">${summary?.uncollected_fees_usd.toFixed(2) || '0.00'}</div>
+              <div className="text-2xl font-bold text-white">${botStats?.total_uncollected_usd?.toFixed(2) || '0.00'}</div>
               <p className="text-xs text-gray-400">
-                Ready for withdrawal
+                Ready for collection
               </p>
             </CardContent>
           </Card>
@@ -126,7 +169,7 @@ const AdminFees = () => {
             </CardHeader>
             <CardContent>
               <div className="text-sm font-mono text-white break-all">
-                {feeCollectionService.getPlatformWallet()}
+                {blockchainService.getPlatformWallet()}
               </div>
               <p className="text-xs text-gray-400 mt-1">
                 Fee collection address
@@ -138,6 +181,20 @@ const AdminFees = () => {
         {/* Actions */}
         <div className="flex gap-4 mb-6">
           <Button 
+            onClick={handleCollectFees}
+            disabled={collectingFees}
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            {collectingFees ? "Collecting..." : "Collect Fees Now"}
+          </Button>
+          <Button 
+            onClick={() => navigate('/admin/wallet')}
+            className="bg-purple-600 text-white hover:bg-purple-700"
+          >
+            <Wallet className="w-4 h-4 mr-2" />
+            Wallet Management
+          </Button>
+          <Button 
             onClick={handleExportReport}
             className="bg-[#f9b006] text-black hover:bg-[#f9b006]/90"
           >
@@ -148,7 +205,7 @@ const AdminFees = () => {
             variant="outline"
             className="border-gray-600 text-white hover:bg-gray-800"
             onClick={() => {
-              navigator.clipboard.writeText(feeCollectionService.getPlatformWallet());
+              navigator.clipboard.writeText(blockchainService.getPlatformWallet());
               toast({
                 title: "Wallet Address Copied",
                 description: "Platform wallet address copied to clipboard"
