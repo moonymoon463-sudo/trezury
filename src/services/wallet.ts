@@ -19,7 +19,7 @@ export class WalletService {
     
     // Create addresses for both assets on Ethereum
     const usdcAddress = this.generatePlaceholderAddress();
-    const goldAddress = this.generatePlaceholderAddress();
+    const xautAddress = this.generatePlaceholderAddress(); // XAUT (Tether Gold)
     
     const { data: createdAddresses, error: createError } = await supabase
       .from('onchain_addresses')
@@ -32,9 +32,9 @@ export class WalletService {
         },
         {
           user_id: userId,
-          address: goldAddress,
+          address: xautAddress,
           chain: 'ethereum',
-          asset: 'GOLD'
+          asset: 'XAUT' // Tether Gold (1 token = 1 oz)
         }
       ])
       .select();

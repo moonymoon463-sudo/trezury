@@ -45,7 +45,7 @@ export const useWalletBalance = () => {
       });
 
       const walletBalances: WalletBalance[] = Array.from(balanceMap.entries()).map(([asset, amount]) => ({
-        asset,
+        asset: asset === 'XAUT' ? 'GOLD' : asset, // Display XAUT as GOLD
         amount,
         chain: 'ethereum' // Both USDC and GOLD on Ethereum
       }));
@@ -54,7 +54,7 @@ export const useWalletBalance = () => {
       if (walletBalances.length === 0) {
         walletBalances.push(
           { asset: 'USDC', amount: 1000.00, chain: 'ethereum' },
-          { asset: 'GOLD', amount: 2.5, chain: 'ethereum' }
+          { asset: 'GOLD', amount: 2.5, chain: 'ethereum' } // 2.5 oz of gold (XAUT)
         );
       }
 
@@ -66,7 +66,7 @@ export const useWalletBalance = () => {
       // Fallback to mock data
       setBalances([
         { asset: 'USDC', amount: 1000.00, chain: 'ethereum' },
-        { asset: 'GOLD', amount: 2.5, chain: 'ethereum' }
+        { asset: 'GOLD', amount: 2.5, chain: 'ethereum' } // 2.5 oz of gold (XAUT)
       ]);
     } finally {
       setLoading(false);
