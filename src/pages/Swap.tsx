@@ -1,10 +1,78 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, ChevronDown, ArrowUpDown, Edit } from "lucide-react";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
+import { useBuyQuote } from "@/hooks/useBuyQuote";
+import { useTransactionExecution } from "@/hooks/useTransactionExecution";
+import { useToast } from "@/hooks/use-toast";
 
 const Swap = () => {
   const navigate = useNavigate();
+  const { balances, getBalance } = useWalletBalance();
+  const { generateQuote, quote, loading: quoteLoading } = useBuyQuote();
+  const { executeTransaction, loading: transactionLoading } = useTransactionExecution();
+  const { toast } = useToast();
+  
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'GOLD'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'GOLD'>('GOLD');
+  const [fromAmount, setFromAmount] = useState('');
+  
+  const fromBalance = getBalance(fromAsset);
+  const toBalance = getBalance(toAsset);
+  
+  const getNetworkForAsset = (asset: 'USDC' | 'GOLD') => {
+    return asset === 'GOLD' ? 'Ethereum' : 'Base';
+  };
+  
+  const handleSwapTokens = () => {
+    const tempAsset = fromAsset;
+    setFromAsset(toAsset);
+    setToAsset(tempAsset);
+    setFromAmount('');
+  };
+  
+  const handlePreviewSwap = async () => {
+    if (!fromAmount || parseFloat(fromAmount) <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Amount",
+        description: "Please enter a valid amount to swap"
+      });
+      return;
+    }
+    
+    if (parseFloat(fromAmount) > fromBalance) {
+      toast({
+        variant: "destructive", 
+        title: "Insufficient Balance",
+        description: `You don't have enough ${fromAsset}`
+      });
+      return;
+    }
+    
+    try {
+      await generateQuote({
+        side: fromAsset === 'USDC' ? 'buy' : 'sell',
+        inputAsset: fromAsset,
+        outputAsset: toAsset,
+        inputAmount: fromAsset === 'USDC' ? parseFloat(fromAmount) : undefined,
+        grams: fromAsset === 'GOLD' ? parseFloat(fromAmount) : undefined
+      });
+      
+      toast({
+        title: "Quote Generated",
+        description: "Swap quote ready for execution"
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Quote Failed", 
+        description: "Failed to generate swap quote"
+      });
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[#1C1C1E]">
@@ -31,19 +99,24 @@ const Swap = () => {
           <div className="bg-[#2C2C2E] p-4 rounded-xl">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-400">From</span>
-              <span className="text-sm text-gray-400">Balance: 1,234.56</span>
+              <span className="text-sm text-gray-400">Balance: {fromBalance.toFixed(fromAsset === 'GOLD' ? 6 : 2)} {fromAsset}</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
-                <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">USDC</span>
+                <div className={`w-10 h-10 ${fromAsset === 'GOLD' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
+                  <span className="text-white text-xs font-bold">{fromAsset}</span>
                 </div>
-                <span className="text-white text-lg font-bold">USDC</span>
+                <div>
+                  <span className="text-white text-lg font-bold">{fromAsset}</span>
+                  <div className="text-xs text-gray-400">{getNetworkForAsset(fromAsset)}</div>
+                </div>
                 <ChevronDown className="text-gray-400" size={20} />
               </div>
               <Input
                 className="bg-transparent border-none text-white text-right text-2xl font-bold placeholder:text-gray-500 focus:ring-0"
                 placeholder="0.00"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
               />
             </div>
           </div>
@@ -53,6 +126,7 @@ const Swap = () => {
             <Button 
               variant="ghost" 
               size="icon"
+              onClick={handleSwapTokens}
               className="bg-[#48484A] rounded-full p-2 text-white border-4 border-[#2C2C2E] hover:bg-[#48484A]/80"
             >
               <ArrowUpDown size={20} />
@@ -63,19 +137,24 @@ const Swap = () => {
           <div className="bg-[#2C2C2E] p-4 rounded-xl">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-400">To</span>
-              <span className="text-sm text-gray-400">Balance: 0.00</span>
+              <span className="text-sm text-gray-400">Balance: {toBalance.toFixed(toAsset === 'GOLD' ? 6 : 2)} {toAsset}</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
-                <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">XAUT</span>
+                <div className={`w-10 h-10 ${toAsset === 'GOLD' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
+                  <span className="text-white text-xs font-bold">{toAsset}</span>
                 </div>
-                <span className="text-white text-lg font-bold">XAUT</span>
+                <div>
+                  <span className="text-white text-lg font-bold">{toAsset}</span>
+                  <div className="text-xs text-gray-400">{getNetworkForAsset(toAsset)}</div>
+                </div>
                 <ChevronDown className="text-gray-400" size={20} />
               </div>
               <Input
                 className="bg-transparent border-none text-white text-right text-2xl font-bold placeholder:text-gray-500 focus:ring-0"
                 placeholder="0.00"
+                value={quote ? (toAsset === 'GOLD' ? quote.grams.toFixed(6) : quote.outputAmount.toFixed(2)) : ''}
+                readOnly
               />
             </div>
           </div>
@@ -98,17 +177,26 @@ const Swap = () => {
 
           <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
             <span className="text-white">Route</span>
-            <span className="text-white">USDC → XAUT</span>
+            <span className="text-white">{fromAsset} → {toAsset}</span>
           </div>
+          
+          {quote && (
+            <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
+              <span className="text-white">Exchange Rate</span>
+              <span className="text-white">${quote.unitPriceUsd}/gram</span>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Bottom Button */}
       <div className="p-6">
         <Button 
-          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
+          onClick={handlePreviewSwap}
+          disabled={quoteLoading || transactionLoading || !fromAmount}
+          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90 disabled:opacity-50"
         >
-          Preview Swap
+          {quoteLoading ? "Generating Quote..." : quote ? "Execute Swap" : "Preview Swap"}
         </Button>
       </div>
     </div>

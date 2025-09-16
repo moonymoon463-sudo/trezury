@@ -252,6 +252,9 @@ const AddUSDC = () => {
                 <p className="text-sm text-muted-foreground">
                   Send USDC to this address on Base network:
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (For Gold tokens, use Ethereum network)
+                </p>
                 
                 {qrCodeUrl && (
                   <div className="flex justify-center">
@@ -274,7 +277,7 @@ const AddUSDC = () => {
               
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Only send USDC on Base network. Other tokens or networks may result in permanent loss.
+                  ⚠️ Only send USDC on Base network. Gold tokens should be sent on Ethereum network. Other tokens or networks may result in permanent loss.
                 </p>
               </div>
             </CardContent>
@@ -286,8 +289,12 @@ const AddUSDC = () => {
           <CardContent className="pt-6">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Network:</span>
+                <span className="text-muted-foreground">USDC Network:</span>
                 <span>Base</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Gold Network:</span>
+                <span>Ethereum</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Asset:</span>

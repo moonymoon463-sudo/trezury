@@ -47,14 +47,14 @@ export const useWalletBalance = () => {
       const walletBalances: WalletBalance[] = Array.from(balanceMap.entries()).map(([asset, amount]) => ({
         asset,
         amount,
-        chain: 'base' // Default chain
+        chain: asset === 'GOLD' ? 'ethereum' : 'base' // Gold on Ethereum, USDC on Base
       }));
 
       // Add mock data if no balances exist
       if (walletBalances.length === 0) {
         walletBalances.push(
           { asset: 'USDC', amount: 1000.00, chain: 'base' },
-          { asset: 'GOLD', amount: 2.5, chain: 'base' }
+          { asset: 'GOLD', amount: 2.5, chain: 'ethereum' }
         );
       }
 
@@ -66,7 +66,7 @@ export const useWalletBalance = () => {
       // Fallback to mock data
       setBalances([
         { asset: 'USDC', amount: 1000.00, chain: 'base' },
-        { asset: 'GOLD', amount: 2.5, chain: 'base' }
+        { asset: 'GOLD', amount: 2.5, chain: 'ethereum' }
       ]);
     } finally {
       setLoading(false);

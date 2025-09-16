@@ -17,19 +17,37 @@ export class WalletService {
     // Generate a new deposit address (placeholder - would integrate with actual wallet provider)
     const newAddress = this.generatePlaceholderAddress();
     
-    const { data: createdAddress, error: createError } = await supabase
+    // Create addresses for both networks
+    const usdcAddress = this.generatePlaceholderAddress();
+    const goldAddress = this.generatePlaceholderAddress();
+    
+    const { data: createdAddresses, error: createError } = await supabase
       .from('onchain_addresses')
-      .insert({
-        user_id: userId,
-        address: newAddress,
-        chain: 'base',
-        asset: 'USDC'
-      })
-      .select()
-      .single();
+      .insert([
+        {
+          user_id: userId,
+          address: usdcAddress,
+          chain: 'base',
+          asset: 'USDC'
+        },
+        {
+          user_id: userId,
+          address: goldAddress,
+          chain: 'ethereum',
+          asset: 'GOLD'
+        }
+      ])
+      .select();
 
     if (createError) {
-      throw new Error(`Failed to create deposit address: ${createError.message}`);
+      throw new Error(`Failed to create deposit addresses: ${createError.message}`);
+    }
+
+    // Return the USDC address by default (for backwards compatibility)
+    const createdAddress = createdAddresses?.find(addr => addr.asset === 'USDC');
+
+    if (!createdAddress) {
+      throw new Error('Failed to create USDC deposit address');
     }
 
     return createdAddress;

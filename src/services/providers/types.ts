@@ -38,3 +38,25 @@ export type DepositStatus = 'pending' | 'confirmed' | 'failed';
 export type PaymentMethodType = 'card' | 'bank_account';
 export type SupportedChain = 'base' | 'ethereum';
 export type SupportedAsset = 'USDC' | 'GOLD';
+
+export interface NetworkConfig {
+  chain: SupportedChain;
+  nativeAssets: SupportedAsset[];
+  rpcUrl?: string;
+  blockExplorer?: string;
+}
+
+export const NETWORK_CONFIGS: Record<SupportedChain, NetworkConfig> = {
+  base: {
+    chain: 'base',
+    nativeAssets: ['USDC'],
+    rpcUrl: 'https://mainnet.base.org',
+    blockExplorer: 'https://basescan.org'
+  },
+  ethereum: {
+    chain: 'ethereum', 
+    nativeAssets: ['GOLD'],
+    rpcUrl: 'https://mainnet.infura.io',
+    blockExplorer: 'https://etherscan.io'
+  }
+};
