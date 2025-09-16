@@ -9,7 +9,7 @@ export interface SwapFeeCalculation {
 
 class SwapFeeService {
   private readonly PLATFORM_FEE_BPS = 100; // 1% platform fee
-  private readonly PLATFORM_FEE_WALLET = 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom';
+  private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   /**
    * Calculate swap fee in the output token (GOLD or USDC) instead of ETH

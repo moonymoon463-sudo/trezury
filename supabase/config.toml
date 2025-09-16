@@ -1,7 +1,49 @@
 project_id = "auntkvllzejtfqmousxg"
 
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54324
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[db]
+port = 54322
+shadow_port = 54320
+max_connections = 100
+
+[functions.gold-price-api]
+verify_jwt = false
+
 [functions.moonpay-buy]
 verify_jwt = true
 
 [functions.moonpay-webhook]
 verify_jwt = false
+
+[functions.blockchain-operations]
+verify_jwt = false
+
+[functions.fee-collection-webhook]
+verify_jwt = false
+
+[functions.fee-collection-api]
+verify_jwt = false
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324

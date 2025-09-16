@@ -109,6 +109,54 @@ export type Database = {
         }
         Relationships: []
       }
+      fee_collection_requests: {
+        Row: {
+          amount: number
+          asset: string
+          completed_at: string | null
+          created_at: string
+          external_tx_hash: string | null
+          from_address: string
+          id: string
+          metadata: Json | null
+          status: string
+          to_address: string
+          transaction_id: string
+          user_id: string
+          webhook_data: Json | null
+        }
+        Insert: {
+          amount: number
+          asset: string
+          completed_at?: string | null
+          created_at?: string
+          external_tx_hash?: string | null
+          from_address: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          to_address?: string
+          transaction_id: string
+          user_id: string
+          webhook_data?: Json | null
+        }
+        Update: {
+          amount?: number
+          asset?: string
+          completed_at?: string | null
+          created_at?: string
+          external_tx_hash?: string | null
+          from_address?: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          to_address?: string
+          transaction_id?: string
+          user_id?: string
+          webhook_data?: Json | null
+        }
+        Relationships: []
+      }
       kyc_documents: {
         Row: {
           created_at: string

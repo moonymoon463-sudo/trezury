@@ -44,7 +44,7 @@ serve(async (req) => {
     // In production, you would use ethers.js here with the actual private key
     
     const txHash = generateTransactionHash();
-    const platformWallet = '0x742d35Cc6634C0532925a3b8D69B8e6b4f5c5a4c';
+    const platformWallet = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
     
     let result = {};
 

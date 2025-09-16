@@ -24,7 +24,7 @@ class BlockchainService {
   private readonly ETHEREUM_RPC_URL = 'https://mainnet.infura.io/v3/46a2ce5cfbdf4ea6a30f5f2f8e841bf5'; // Using Infura
   private readonly USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C'; // USDC on Ethereum mainnet
   private readonly XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // XAUT on Ethereum mainnet  
-  private readonly PLATFORM_WALLET = '0x742d35Cc6634C0532925a3b8D69B8e6b4f5c5a4c'; // Your Ethereum platform wallet
+  private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // Your Ethereum platform wallet
   
   // ERC20 ABI for basic token operations
   private readonly ERC20_ABI = [
