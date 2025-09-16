@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ethers } from "ethers";
+import { secureWalletService } from "./secureWalletService";
 
 export interface BlockchainTransaction {
   hash: string;
@@ -43,15 +44,31 @@ class BlockchainService {
   }
 
   /**
-   * Generate a new Ethereum address for a user
+   * DEPRECATED: Use secureWalletService instead
+   * This method is kept for compatibility but should not be used for new wallets
    */
   async generateWalletAddress(userId: string): Promise<string> {
+    console.warn('DEPRECATED: Use secureWalletService.generateDeterministicWallet() instead');
+    
     try {
-      // Generate a new random wallet
+      // Check if user already has a wallet address
+      const { data: existingAddress } = await supabase
+        .from('onchain_addresses')
+        .select('address')
+        .eq('user_id', userId)
+        .eq('asset', 'USDC')
+        .single();
+
+      if (existingAddress) {
+        return existingAddress.address;
+      }
+
+      // For backward compatibility, generate a simple address
+      // NOTE: This should be replaced with secureWalletService usage
       const wallet = ethers.Wallet.createRandom();
       const address = wallet.address;
     
-      // Store both USDC and XAUT addresses for the user
+      // Store ONLY the address (NO private keys)
       const { error } = await supabase
         .from('onchain_addresses')
         .insert([
@@ -63,7 +80,7 @@ class BlockchainService {
           },
           {
             user_id: userId,
-            address: address, // Same address can hold multiple ERC20 tokens
+            address: address,
             chain: 'ethereum',
             asset: 'XAUT'
           }
@@ -71,13 +88,8 @@ class BlockchainService {
 
       if (error) throw error;
 
-      // Store wallet info in local storage for demo purposes
-      // In production, use proper key management service
-      const walletInfo = {
-        address: address,
-        privateKey: wallet.privateKey // WARNING: Never do this in production!
-      };
-      localStorage.setItem(`wallet_${userId}`, JSON.stringify(walletInfo));
+      // SECURITY FIX: NO private key storage anywhere
+      console.warn('Wallet generated without private key storage - user must use secureWalletService for transactions');
       
       return address;
     } catch (err) {
