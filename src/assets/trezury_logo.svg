@@ -1,0 +1,20 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 0 1000 300">
+  <rect width="1000" height="300" fill="#FFFFFF"/>
+  
+    <g transform="translate(60 80.0)">
+      <rect x="0" y="0" width="140" height="140" rx="16.8" fill="#FFFFFF"/>
+      <rect x="11.200000000000001" y="11.200000000000001" width="117.6" height="117.6" rx="8.4" fill="none" stroke="#0B1D36" stroke-width="7.0"/>
+      <circle cx="70.0" cy="70.0" r="30.8" fill="none" stroke="#0B1D36" stroke-width="7.0"/>
+      <line x1="70.0" y1="70.0" x2="117.6" y2="70.0" stroke="#0B1D36" stroke-width="5.6000000000000005" stroke-linecap="round"/>
+<line x1="70.0" y1="70.0" x2="93.80000000000001" y2="111.22280922013928" stroke="#0B1D36" stroke-width="5.6000000000000005" stroke-linecap="round"/>
+<line x1="70.0" y1="70.0" x2="46.20000000000001" y2="111.22280922013928" stroke="#0B1D36" stroke-width="5.6000000000000005" stroke-linecap="round"/>
+<line x1="70.0" y1="70.0" x2="22.4" y2="70.0" stroke="#0B1D36" stroke-width="5.6000000000000005" stroke-linecap="round"/>
+<line x1="70.0" y1="70.0" x2="46.199999999999974" y2="28.77719077986073" stroke="#0B1D36" stroke-width="5.6000000000000005" stroke-linecap="round"/>
+<line x1="70.0" y1="70.0" x2="93.80000000000001" y2="28.777190779860724" stroke="#0B1D36" stroke-width="5.6000000000000005" stroke-linecap="round"/>
+      <circle cx="70.0" cy="70.0" r="8.4" fill="#0B1D36"/>
+    </g>
+    
+  <text x="240" y="150" font-family="Montserrat, Avenir, Arial, sans-serif" font-weight="700" font-size="88" fill="#0B1D36">TREZURY</text>
+  <text x="240" y="200" font-family="Montserrat, Avenir, Arial, sans-serif" font-weight="400" font-size="24" fill="#5A6B87">Wealth • Security • Growth</text>
+</svg>

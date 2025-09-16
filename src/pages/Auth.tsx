@@ -278,9 +278,9 @@ const Auth = () => {
         <div className="flex items-center justify-center mb-8">
           <AurumLogo />
         </div>
-        <h1 className="text-white text-3xl font-bold leading-tight tracking-tighter text-center mb-3">
-          Welcome to Aurum
-        </h1>
+        <p className="text-muted-foreground text-base font-normal leading-normal text-center max-w-xs mb-6">
+          Buy, sell, and hold tokenized gold and USD securely.
+        </p>
         <p className="text-muted-foreground text-base font-normal leading-normal text-center max-w-xs">
           Buy, sell, and hold tokenized gold and USD securely.
         </p>
