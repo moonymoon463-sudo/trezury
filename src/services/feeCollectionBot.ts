@@ -117,24 +117,35 @@ class FeeCollectionBot {
         };
       }
 
-      // Execute the fee collection transfer
-      const transfer = await blockchainService.collectPlatformFee(
-        fee.user_address,
-        fee.fee_amount_usd,
-        fee.fee_asset,
-        fee.user_id,
-        fee.transaction_id
-      );
+      // Use edge function for secure blockchain operations
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'collect_fee',
+          from: fee.user_address,
+          amount: fee.fee_amount_usd,
+          asset: fee.fee_asset,
+          userId: fee.user_id,
+          transactionId: fee.transaction_id
+        }
+      });
+
+      if (error) {
+        throw new Error(`Blockchain operation failed: ${error.message}`);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Fee collection failed');
+      }
 
       // Mark fee as collected in the transaction record
-      await this.markFeeAsCollected(fee.transaction_id, transfer.hash);
+      await this.markFeeAsCollected(fee.transaction_id, data.hash);
 
       // Send notification to user (optional)
       await this.sendFeeCollectionNotification(fee.user_id, fee.fee_amount_usd, fee.fee_asset);
 
       return {
         success: true,
-        transaction_hash: transfer.hash,
+        transaction_hash: data.hash,
         fee_amount: fee.fee_amount_usd,
         asset: fee.fee_asset
       };

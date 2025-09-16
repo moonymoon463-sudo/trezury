@@ -491,6 +491,33 @@ export type Database = {
           },
         ]
       }
+      user_wallet_keys: {
+        Row: {
+          address: string
+          created_at: string
+          encrypted_private_key: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          encrypted_private_key: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          encrypted_private_key?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallets: {
         Row: {
           address: string
