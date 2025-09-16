@@ -7,6 +7,7 @@ import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useBuyQuote } from "@/hooks/useBuyQuote";
 import { useTransactionExecution } from "@/hooks/useTransactionExecution";
 import { useToast } from "@/hooks/use-toast";
+import { swapFeeService } from "@/services/swapFeeService";
 
 const Swap = () => {
   const navigate = useNavigate();
@@ -70,6 +71,58 @@ const Swap = () => {
         variant: "destructive",
         title: "Quote Failed", 
         description: "Failed to generate swap quote"
+      });
+    }
+  };
+
+  const handleExecuteSwap = async () => {
+    if (!quote) {
+      toast({
+        variant: "destructive",
+        title: "No Quote",
+        description: "Please generate a quote first"
+      });
+      return;
+    }
+
+    try {
+      // Calculate swap fees in tokens
+      const swapFee = swapFeeService.calculateSwapFee(
+        quote.outputAmount, 
+        toAsset, 
+        fromAsset
+      );
+
+      // Execute the transaction with fee information
+      const result = await executeTransaction(quote.id, 'wallet');
+      
+      if (result.success) {
+        // Record fee collection
+        await swapFeeService.recordSwapFeeCollection(
+          'user-id', // Would get from auth context
+          result.transaction_id || '',
+          swapFee
+        );
+
+        toast({
+          title: "Swap Successful",
+          description: `Swapped ${fromAmount} ${fromAsset} for ${swapFee.remainingAmount.toFixed(6)} ${toAsset}`
+        });
+        
+        // Navigate to success page or refresh balances
+        setFromAmount('');
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Swap Failed",
+          description: result.error || "Transaction failed"
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Swap Error",
+        description: "Failed to execute swap"
       });
     }
   };
@@ -171,8 +224,8 @@ const Swap = () => {
           </div>
 
           <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
-            <span className="text-white">Gas Estimate</span>
-            <span className="text-white">~$5.32</span>
+            <span className="text-white">Transaction Fees</span>
+            <span className="text-white">Paid in {toAsset} tokens</span>
           </div>
 
           <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
@@ -181,10 +234,26 @@ const Swap = () => {
           </div>
           
           {quote && (
-            <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
-              <span className="text-white">Exchange Rate</span>
-              <span className="text-white">${quote.unitPriceUsd}/gram</span>
-            </div>
+            <>
+              <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
+                <span className="text-white">Exchange Rate</span>
+                <span className="text-white">${quote.unitPriceUsd}/gram</span>
+              </div>
+              
+              <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
+                <span className="text-white">Platform Fee (1%)</span>
+                <span className="text-white">
+                  {swapFeeService.calculateSwapFee(quote.outputAmount, toAsset, fromAsset).feeAmount.toFixed(6)} {toAsset}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
+                <span className="text-white">You'll receive</span>
+                <span className="text-white font-bold">
+                  {swapFeeService.calculateSwapFee(quote.outputAmount, toAsset, fromAsset).remainingAmount.toFixed(6)} {toAsset}
+                </span>
+              </div>
+            </>
           )}
         </div>
       </main>
@@ -192,11 +261,11 @@ const Swap = () => {
       {/* Bottom Button */}
       <div className="p-6">
         <Button 
-          onClick={handlePreviewSwap}
+          onClick={quote ? handleExecuteSwap : handlePreviewSwap}
           disabled={quoteLoading || transactionLoading || !fromAmount}
           className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90 disabled:opacity-50"
         >
-          {quoteLoading ? "Generating Quote..." : quote ? "Execute Swap" : "Preview Swap"}
+          {quoteLoading ? "Generating Quote..." : transactionLoading ? "Executing..." : quote ? "Execute Swap" : "Preview Swap"}
         </Button>
       </div>
     </div>

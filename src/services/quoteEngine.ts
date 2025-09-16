@@ -28,10 +28,13 @@ export interface Quote {
 }
 
 class QuoteEngineService {
-  private readonly FEE_BPS = 50; // 0.5% fee
+  private readonly BASE_FEE_BPS = 50; // 0.5% base fee
+  private readonly PLATFORM_FEE_BPS = 100; // 1% platform fee 
+  private readonly TOTAL_FEE_BPS = this.BASE_FEE_BPS + this.PLATFORM_FEE_BPS; // 1.5% total
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
   private readonly GRAMS_PER_TROY_OUNCE = 31.1035;
   private readonly QUOTE_VALIDITY_MINUTES = 2;
+  private readonly PLATFORM_FEE_WALLET = '0x742e4b5c0a2b4c1e9d8a7f6e5d4c3b2a1098765a'; // Platform fee collection wallet
 
   async generateQuote(request: QuoteRequest, userId: string): Promise<Quote> {
     const goldPrice = await goldPriceService.getCurrentPrice();
@@ -46,7 +49,7 @@ class QuoteEngineService {
       if (request.inputAmount) {
         // User specified USD amount
         inputAmount = request.inputAmount;
-        const feeUsd = (inputAmount * this.FEE_BPS) / 10000;
+        const feeUsd = (inputAmount * this.TOTAL_FEE_BPS) / 10000;
         const netUsdAmount = inputAmount - feeUsd;
         const troyOunces = netUsdAmount / unitPriceUsd;
         grams = troyOunces * this.GRAMS_PER_TROY_OUNCE;
@@ -56,7 +59,7 @@ class QuoteEngineService {
         grams = request.grams;
         const troyOunces = grams / this.GRAMS_PER_TROY_OUNCE;
         const grossUsdAmount = troyOunces * unitPriceUsd;
-        const feeUsd = (grossUsdAmount * this.FEE_BPS) / 10000;
+        const feeUsd = (grossUsdAmount * this.TOTAL_FEE_BPS) / 10000;
         inputAmount = grossUsdAmount + feeUsd;
         outputAmount = grams;
       } else {
@@ -69,13 +72,13 @@ class QuoteEngineService {
         grams = request.grams;
         const troyOunces = grams / this.GRAMS_PER_TROY_OUNCE;
         const grossUsdAmount = troyOunces * unitPriceUsd;
-        const feeUsd = (grossUsdAmount * this.FEE_BPS) / 10000;
+        const feeUsd = (grossUsdAmount * this.TOTAL_FEE_BPS) / 10000;
         inputAmount = grams;
         outputAmount = grossUsdAmount - feeUsd;
       } else if (request.outputAmount) {
         // User specified desired USD output
         outputAmount = request.outputAmount;
-        const feeUsd = (outputAmount * this.FEE_BPS) / (10000 - this.FEE_BPS);
+        const feeUsd = (outputAmount * this.TOTAL_FEE_BPS) / (10000 - this.TOTAL_FEE_BPS);
         const grossUsdAmount = outputAmount + feeUsd;
         const troyOunces = grossUsdAmount / unitPriceUsd;
         grams = troyOunces * this.GRAMS_PER_TROY_OUNCE;
@@ -86,8 +89,13 @@ class QuoteEngineService {
     }
 
     const feeUsd = request.side === 'buy' 
-      ? (inputAmount * this.FEE_BPS) / 10000
-      : (outputAmount * this.FEE_BPS) / (10000 - this.FEE_BPS);
+      ? (inputAmount * this.TOTAL_FEE_BPS) / 10000
+      : (outputAmount * this.TOTAL_FEE_BPS) / (10000 - this.TOTAL_FEE_BPS);
+    
+    // Calculate platform fee portion
+    const platformFeeUsd = request.side === 'buy'
+      ? (inputAmount * this.PLATFORM_FEE_BPS) / 10000
+      : (outputAmount * this.PLATFORM_FEE_BPS) / (10000 - this.TOTAL_FEE_BPS);
 
     const slippageAmount = (outputAmount * this.SLIPPAGE_BPS) / 10000;
     const minimumReceived = outputAmount - slippageAmount;
@@ -104,7 +112,7 @@ class QuoteEngineService {
       outputAmount: Number(outputAmount.toFixed(6)),
       grams: Number(grams.toFixed(6)),
       unitPriceUsd: Number(unitPriceUsd.toFixed(2)),
-      feeBps: this.FEE_BPS,
+      feeBps: this.TOTAL_FEE_BPS,
       feeUsd: Number(feeUsd.toFixed(2)),
       slippageBps: this.SLIPPAGE_BPS,
       minimumReceived: Number(minimumReceived.toFixed(6)),
@@ -112,7 +120,9 @@ class QuoteEngineService {
       route: {
         provider: 'aurum',
         goldPrice: unitPriceUsd,
-        timestamp: goldPrice.last_updated
+        timestamp: goldPrice.last_updated,
+        platformFeeUsd,
+        platformFeeWallet: this.PLATFORM_FEE_WALLET
       }
     };
 
