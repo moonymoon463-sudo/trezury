@@ -1,13 +1,47 @@
-const AurumLogo = ({ className = "w-16 h-16" }: { className?: string }) => {
+import React from 'react';
+
+interface TrezuryLogoProps {
+  className?: string;
+}
+
+const AurumLogo: React.FC<TrezuryLogoProps> = ({ className = '' }) => {
   return (
-    <svg 
-      className={`${className} text-[hsl(var(--aurum-gold))]`} 
-      fill="currentColor" 
-      viewBox="0 0 24 24" 
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-2-9.5h4c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5h-4c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5zm0 5h4c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5h-4c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5z" />
-    </svg>
+    <div className={`flex flex-col items-center ${className}`}>
+      {/* Logo Symbol */}
+      <div className="border-2 border-foreground p-3 mb-3">
+        <div className="grid grid-cols-6 gap-1 w-12 h-8">
+          {/* Top row - 2 dots */}
+          <div className="col-start-2 w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="col-start-5 w-2 h-2 bg-foreground rounded-full"></div>
+          
+          {/* Middle row - 6 dots */}
+          <div className="w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="w-2 h-2 bg-foreground rounded-full"></div>
+          
+          {/* Bottom row - 2 dots */}
+          <div className="col-start-2 w-2 h-2 bg-foreground rounded-full"></div>
+          <div className="col-start-5 w-2 h-2 bg-foreground rounded-full"></div>
+        </div>
+      </div>
+      
+      {/* Company Name */}
+      <div className="flex flex-col items-center">
+        <div className="w-24 h-0.5 bg-foreground mb-1"></div>
+        <div className="font-bold text-xl tracking-wider text-foreground px-2">
+          TREZURY
+        </div>
+        <div className="w-24 h-0.5 bg-foreground mt-1 mb-2"></div>
+      </div>
+      
+      {/* Tagline */}
+      <div className="text-xs text-muted-foreground tracking-wide">
+        Wealth • Security • Growth
+      </div>
+    </div>
   );
 };
 
