@@ -532,6 +532,10 @@ export type Database = {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
       }
+      get_public_config: {
+        Args: { key_name: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
