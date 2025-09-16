@@ -34,7 +34,7 @@ class QuoteEngineService {
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
   private readonly GRAMS_PER_TROY_OUNCE = 31.1035;
   private readonly QUOTE_VALIDITY_MINUTES = 2;
-  private readonly PLATFORM_FEE_WALLET = '0x742e4b5c0a2b4c1e9d8a7f6e5d4c3b2a1098765a'; // Platform fee collection wallet
+  private readonly PLATFORM_FEE_WALLET = 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom'; // Platform fee collection wallet
 
   async generateQuote(request: QuoteRequest, userId: string): Promise<Quote> {
     const goldPrice = await goldPriceService.getCurrentPrice();
