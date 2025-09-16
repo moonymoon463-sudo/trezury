@@ -29,6 +29,7 @@ import KYCVerification from "./pages/KYCVerification";
 import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
 import AddUSDC from "./pages/AddUSDC";
+import AdminFees from "./pages/AdminFees";
 
 const queryClient = new QueryClient();
 
@@ -149,6 +150,11 @@ const App = () => (
             <Route path="/add-usdc" element={
               <ProtectedRoute>
                 <AddUSDC />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/fees" element={
+              <ProtectedRoute>
+                <AdminFees />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
