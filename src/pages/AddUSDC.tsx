@@ -250,10 +250,10 @@ const AddUSDC = () => {
             <CardContent className="space-y-4">
               <div className="text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Send USDC to this address on Base network:
+                  Send USDC to this address on Ethereum network:
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  (For Gold tokens, use Ethereum network)
+                  (Gold tokens also use Ethereum network)
                 </p>
                 
                 {qrCodeUrl && (
@@ -277,7 +277,7 @@ const AddUSDC = () => {
               
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Only send USDC on Base network. Gold tokens should be sent on Ethereum network. Other tokens or networks may result in permanent loss.
+                  ⚠️ Only send USDC or GOLD tokens on Ethereum network. Other tokens or networks may result in permanent loss.
                 </p>
               </div>
             </CardContent>
@@ -289,16 +289,12 @@ const AddUSDC = () => {
           <CardContent className="pt-6">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">USDC Network:</span>
-                <span>Base</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gold Network:</span>
+                <span className="text-muted-foreground">Network:</span>
                 <span>Ethereum</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Asset:</span>
-                <span>USDC</span>
+                <span className="text-muted-foreground">Supported Assets:</span>
+                <span>USDC, GOLD</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Estimated time:</span>

@@ -49,13 +49,13 @@ export interface NetworkConfig {
 export const NETWORK_CONFIGS: Record<SupportedChain, NetworkConfig> = {
   base: {
     chain: 'base',
-    nativeAssets: ['USDC'],
+    nativeAssets: [],
     rpcUrl: 'https://mainnet.base.org',
     blockExplorer: 'https://basescan.org'
   },
   ethereum: {
     chain: 'ethereum', 
-    nativeAssets: ['GOLD'],
+    nativeAssets: ['USDC', 'GOLD'],
     rpcUrl: 'https://mainnet.infura.io',
     blockExplorer: 'https://etherscan.io'
   }

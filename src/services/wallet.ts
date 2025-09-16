@@ -17,7 +17,7 @@ export class WalletService {
     // Generate a new deposit address (placeholder - would integrate with actual wallet provider)
     const newAddress = this.generatePlaceholderAddress();
     
-    // Create addresses for both networks
+    // Create addresses for both assets on Ethereum
     const usdcAddress = this.generatePlaceholderAddress();
     const goldAddress = this.generatePlaceholderAddress();
     
@@ -27,7 +27,7 @@ export class WalletService {
         {
           user_id: userId,
           address: usdcAddress,
-          chain: 'base',
+          chain: 'ethereum',
           asset: 'USDC'
         },
         {

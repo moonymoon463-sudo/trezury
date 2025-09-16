@@ -23,7 +23,7 @@ const Swap = () => {
   const toBalance = getBalance(toAsset);
   
   const getNetworkForAsset = (asset: 'USDC' | 'GOLD') => {
-    return asset === 'GOLD' ? 'Ethereum' : 'Base';
+    return 'Ethereum'; // Both assets on Ethereum now
   };
   
   const handleSwapTokens = () => {
