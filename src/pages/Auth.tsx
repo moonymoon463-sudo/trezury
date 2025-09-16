@@ -281,9 +281,6 @@ const Auth = () => {
         <p className="text-muted-foreground text-base font-normal leading-normal text-center max-w-xs mb-6">
           Buy, sell, and hold tokenized gold and USD securely.
         </p>
-        <p className="text-muted-foreground text-base font-normal leading-normal text-center max-w-xs">
-          Buy, sell, and hold tokenized gold and USD securely.
-        </p>
       </div>
       
       <div className="w-full px-6 pb-8">
