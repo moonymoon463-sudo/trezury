@@ -21,7 +21,7 @@ const AddUSDC = () => {
   
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "crypto">("card");
-  const [depositAddress] = useState("0x742d35Cc6634C0532925a3b8D7B1295ce8b8e81e"); // Mock address
+  const [depositAddress] = useState("0x742d35cc6634c0532925a3b8d7b1295ce8b8e81e"); // ERC20 compatible address
   const [qrCodeUrl, setQrCodeUrl] = useState("");
 
   const handleAmountChange = (value: string) => {
@@ -250,10 +250,10 @@ const AddUSDC = () => {
             <CardContent className="space-y-4">
               <div className="text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Send USDC to this address on Ethereum network:
+                  Send ERC20 tokens to this Ethereum address:
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  (Gold tokens also use Ethereum network)
+                  (Supports USDC and GOLD ERC20 tokens)
                 </p>
                 
                 {qrCodeUrl && (
@@ -277,7 +277,7 @@ const AddUSDC = () => {
               
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Only send USDC or GOLD tokens on Ethereum network. Other tokens or networks may result in permanent loss.
+                  ⚠️ Only send ERC20 tokens (USDC, GOLD) on Ethereum network. Other tokens or networks may result in permanent loss.
                 </p>
               </div>
             </CardContent>
@@ -290,10 +290,10 @@ const AddUSDC = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Network:</span>
-                <span>Ethereum</span>
+                <span>Ethereum (ERC20)</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Supported Assets:</span>
+                <span className="text-muted-foreground">Supported Tokens:</span>
                 <span>USDC, GOLD</span>
               </div>
               <div className="flex justify-between">

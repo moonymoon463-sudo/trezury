@@ -95,7 +95,7 @@ export class WalletService {
         address: address.address,
         amount: 0, // Amount would be determined by blockchain verification
         asset: 'USDC',
-        chain: 'base',
+        chain: 'ethereum', // ERC20 tokens on Ethereum
         tx_hash: txHash,
         status: 'pending'
       });
@@ -106,8 +106,8 @@ export class WalletService {
   }
 
   private generatePlaceholderAddress(): string {
-    // Placeholder address generation - would be replaced with actual wallet provider integration
-    const chars = '0123456789ABCDEFabcdef';
+    // Generate proper Ethereum ERC20 address format (0x + 40 hex characters)
+    const chars = '0123456789abcdef';
     let result = '0x';
     for (let i = 0; i < 40; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
