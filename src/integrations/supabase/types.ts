@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          operation: string
+          sensitive_fields: string[] | null
+          table_name: string
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          operation: string
+          sensitive_fields?: string[] | null
+          table_name: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          operation?: string
+          sensitive_fields?: string[] | null
+          table_name?: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       balance_snapshots: {
         Row: {
           amount: number
@@ -762,6 +798,23 @@ export type Database = {
       get_public_config: {
         Args: { key_name: string }
         Returns: string
+      }
+      is_kyc_verified: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      log_sensitive_access: {
+        Args: {
+          p_metadata?: Json
+          p_operation: string
+          p_sensitive_fields?: string[]
+          p_table_name: string
+        }
+        Returns: undefined
+      }
+      validate_kyc_document_access: {
+        Args: { doc_status: string; doc_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
