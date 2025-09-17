@@ -76,7 +76,7 @@ const BuySellHub = () => {
                 <div className="flex-1">
                   <h3 className="text-white text-lg font-bold mb-1">Buy Gold</h3>
                   <p className="text-gray-400 text-sm">
-                    Purchase physical gold backed tokens with USDC
+                    Purchase physical gold backed tokens with Credit card or USDC
                   </p>
                 </div>
                 <ArrowRightLeft size={20} className="text-gray-400 rotate-90" />
@@ -94,7 +94,7 @@ const BuySellHub = () => {
                 <div className="flex-1">
                   <h3 className="text-white text-lg font-bold mb-1">Sell Gold</h3>
                   <p className="text-gray-400 text-sm">
-                    Convert your gold tokens back to USDC instantly
+                    Convert your gold tokens back to USDC or Fiat
                   </p>
                 </div>
                 <ArrowRightLeft size={20} className="text-gray-400 rotate-90" />
