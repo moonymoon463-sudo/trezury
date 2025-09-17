@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { transactionService, TransactionResult } from '@/services/transactionService';
+import { supabase } from "@/integrations/supabase/client";
+
+export interface TransactionResult {
+  success: boolean;
+  transaction_id?: string;
+  quote?: any;
+  executed_at?: string;
+  blockchain_hash?: string;
+  confirmations?: number;
+  error?: string;
+}
 
 export const useTransactionExecution = () => {
   const [loading, setLoading] = useState(false);
@@ -10,13 +20,56 @@ export const useTransactionExecution = () => {
       setLoading(true);
       setError(null);
 
-      const result = await transactionService.executeTransaction(quoteId, paymentMethod);
-      
-      if (!result.success) {
-        setError(result.error || 'Transaction failed');
+      // Execute via blockchain operations edge function for live transactions
+      const { data: result, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'execute_transaction',
+          quoteId: quoteId,
+          paymentMethod: paymentMethod || 'wallet'
+        }
+      });
+
+      if (error) {
+        const errorMessage = error.message || 'Transaction execution failed';
+        setError(errorMessage);
+        return {
+          success: false,
+          error: errorMessage
+        };
       }
 
-      return result;
+      // If blockchain operation succeeded, execute the database transaction
+      const dbResult = await supabase.rpc('execute_transaction', {
+        quote_id_param: quoteId,
+        payment_method_param: paymentMethod || 'wallet'
+      });
+
+      if (dbResult.error) {
+        console.error('Database transaction error:', dbResult.error);
+        setError(dbResult.error.message || 'Transaction failed');
+        return {
+          success: false,
+          error: dbResult.error.message || 'Transaction failed'
+        };
+      }
+
+      // Combine blockchain and database results  
+      const dbResultData = dbResult.data as any;
+      const combinedResult: TransactionResult = {
+        success: dbResultData?.success || false,
+        transaction_id: dbResultData?.transaction_id,
+        quote: dbResultData?.quote,
+        executed_at: dbResultData?.executed_at,
+        blockchain_hash: result?.hash,
+        confirmations: result?.confirmations || 0,
+        error: dbResultData?.error
+      };
+      
+      if (!combinedResult.success) {
+        setError(combinedResult.error || 'Transaction failed');
+      }
+
+      return combinedResult;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Transaction execution failed';
       setError(errorMessage);

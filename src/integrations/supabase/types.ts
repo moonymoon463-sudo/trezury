@@ -591,6 +591,51 @@ export type Database = {
           },
         ]
       }
+      swap_quotes: {
+        Row: {
+          created_at: string
+          exchange_rate: number
+          expires_at: string
+          fee: number
+          id: string
+          input_amount: number
+          input_asset: string
+          minimum_received: number
+          output_amount: number
+          output_asset: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exchange_rate: number
+          expires_at: string
+          fee: number
+          id?: string
+          input_amount: number
+          input_asset: string
+          minimum_received: number
+          output_amount: number
+          output_asset: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exchange_rate?: number
+          expires_at?: string
+          fee?: number
+          id?: string
+          input_amount?: number
+          input_asset?: string
+          minimum_received?: number
+          output_amount?: number
+          output_asset?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           asset: string

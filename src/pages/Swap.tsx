@@ -5,27 +5,28 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, ChevronDown, ArrowUpDown, Edit } from "lucide-react";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useBuyQuote } from "@/hooks/useBuyQuote";
-import { useTransactionExecution } from "@/hooks/useTransactionExecution";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { swapFeeService } from "@/services/swapFeeService";
+import { swapService, SwapQuote } from "@/services/swapService";
 import AurumLogo from "@/components/AurumLogo";
 
 const Swap = () => {
   const navigate = useNavigate();
   const { balances, getBalance } = useWalletBalance();
-  const { generateQuote, quote, loading: quoteLoading } = useBuyQuote();
-  const { executeTransaction, loading: transactionLoading } = useTransactionExecution();
+  const { user } = useAuth();
   const { toast } = useToast();
   
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'GOLD'>('USDC');
-  const [toAsset, setToAsset] = useState<'USDC' | 'GOLD'>('GOLD');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
+  const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const [loading, setLoading] = useState(false);
   
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'USDC' | 'GOLD') => {
-    return 'Ethereum'; // Both assets on Ethereum now
+  const getNetworkForAsset = (asset: 'USDC' | 'XAUT') => {
+    return 'Ethereum'; // Both assets on Ethereum mainnet
   };
   
   const handleSwapTokens = () => {
@@ -36,6 +37,15 @@ const Swap = () => {
   };
   
   const handlePreviewSwap = async () => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to continue"
+      });
+      return;
+    }
+
     if (!fromAmount || parseFloat(fromAmount) <= 0) {
       toast({
         variant: "destructive",
@@ -53,65 +63,85 @@ const Swap = () => {
       });
       return;
     }
+
+    // Validate asset pair
+    if ((fromAsset === 'USDC' && toAsset !== 'XAUT') || (fromAsset === 'XAUT' && toAsset !== 'USDC')) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Swap Pair",
+        description: "You can only swap between USDC and XAUT"
+      });
+      return;
+    }
     
     try {
-      await generateQuote({
-        side: fromAsset === 'USDC' ? 'buy' : 'sell',
-        inputAsset: fromAsset,
-        outputAsset: toAsset,
-        inputAmount: fromAsset === 'USDC' ? parseFloat(fromAmount) : undefined,
-        grams: fromAsset === 'GOLD' ? parseFloat(fromAmount) : undefined
-      });
+      setLoading(true);
+      const newQuote = await swapService.generateSwapQuote(
+        fromAsset,
+        toAsset,
+        parseFloat(fromAmount),
+        user.id
+      );
+      
+      setQuote(newQuote);
       
       toast({
         title: "Quote Generated",
         description: "Swap quote ready for execution"
       });
     } catch (error) {
+      console.error('Quote generation error:', error);
       toast({
         variant: "destructive",
         title: "Quote Failed", 
         description: "Failed to generate swap quote"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleExecuteSwap = async () => {
-    if (!quote) {
+    if (!user || !quote) {
       toast({
         variant: "destructive",
-        title: "No Quote",
-        description: "Please generate a quote first"
+        title: "Cannot Execute Swap",
+        description: !user ? "Please sign in first" : "Please generate a quote first"
       });
       return;
     }
 
-    try {
-      // Calculate swap fees in tokens
-      const swapFee = swapFeeService.calculateSwapFee(
-        quote.outputAmount, 
-        toAsset, 
-        fromAsset
-      );
+    // Check if quote is expired
+    if (new Date() > new Date(quote.expiresAt)) {
+      toast({
+        variant: "destructive",
+        title: "Quote Expired",
+        description: "Please generate a new quote"
+      });
+      setQuote(null);
+      return;
+    }
 
-      // Execute the transaction with fee information
-      const result = await executeTransaction(quote.id, 'wallet');
+    try {
+      setLoading(true);
+      
+      // Execute the swap transaction
+      const result = await swapService.executeSwap(quote.id, user.id);
       
       if (result.success) {
-        // Record fee collection
-        await swapFeeService.recordSwapFeeCollection(
-          'user-id', // Would get from auth context
-          result.transaction_id || '',
-          swapFee
-        );
-
         toast({
           title: "Swap Successful",
-          description: `Swapped ${fromAmount} ${fromAsset} for ${swapFee.remainingAmount.toFixed(6)} ${toAsset}`
+          description: `Successfully swapped ${fromAmount} ${fromAsset} for ${toAsset}`
         });
         
-        // Navigate to success page or refresh balances
+        // Reset form
         setFromAmount('');
+        setQuote(null);
+        
+        // Refresh balances (assuming useWalletBalance has a refresh method)
+        if (typeof (window as any).location !== 'undefined') {
+          window.location.reload(); // Simple refresh for now
+        }
       } else {
         toast({
           variant: "destructive",
@@ -120,11 +150,14 @@ const Swap = () => {
         });
       }
     } catch (error) {
+      console.error('Swap execution error:', error);
       toast({
         variant: "destructive",
         title: "Swap Error",
         description: "Failed to execute swap"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -155,11 +188,11 @@ const Swap = () => {
           <div className="bg-[#2C2C2E] p-4 rounded-xl">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-400">From</span>
-              <span className="text-sm text-gray-400">Balance: {fromBalance.toFixed(fromAsset === 'GOLD' ? 6 : 2)} {fromAsset}</span>
+              <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
-                <div className={`w-10 h-10 ${fromAsset === 'GOLD' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
+                <div className={`w-10 h-10 ${fromAsset === 'XAUT' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
                   <span className="text-white text-xs font-bold">{fromAsset}</span>
                 </div>
                 <div>
@@ -193,11 +226,11 @@ const Swap = () => {
           <div className="bg-[#2C2C2E] p-4 rounded-xl">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-400">To</span>
-              <span className="text-sm text-gray-400">Balance: {toBalance.toFixed(toAsset === 'GOLD' ? 6 : 2)} {toAsset}</span>
+              <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
-                <div className={`w-10 h-10 ${toAsset === 'GOLD' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
+                <div className={`w-10 h-10 ${toAsset === 'XAUT' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
                   <span className="text-white text-xs font-bold">{toAsset}</span>
                 </div>
                 <div>
@@ -209,7 +242,7 @@ const Swap = () => {
               <Input
                 className="bg-transparent border-none text-white text-right text-2xl font-bold placeholder:text-gray-500 focus:ring-0"
                 placeholder="0.00"
-                value={quote ? (toAsset === 'GOLD' ? quote.grams.toFixed(6) : quote.outputAmount.toFixed(2)) : ''}
+                value={quote ? quote.outputAmount.toFixed(6) : ''}
                 readOnly
               />
             </div>
@@ -238,22 +271,29 @@ const Swap = () => {
           
           {quote && (
             <>
-              <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
-                <span className="text-white">Exchange Rate</span>
-                <span className="text-white">${quote.unitPriceUsd}/gram</span>
+              <div className="flex justify-between items-center bg-surface-secondary p-4 rounded-xl">
+                <span className="text-foreground">Exchange Rate</span>
+                <span className="text-foreground">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
               </div>
               
-              <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
-                <span className="text-white">Platform Fee (1%)</span>
-                <span className="text-white">
-                  {swapFeeService.calculateSwapFee(quote.outputAmount, toAsset, fromAsset).feeAmount.toFixed(6)} {toAsset}
+              <div className="flex justify-between items-center bg-surface-secondary p-4 rounded-xl">
+                <span className="text-foreground">Platform Fee (1.5%)</span>
+                <span className="text-foreground">
+                  {quote.fee.toFixed(6)} {fromAsset}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
-                <span className="text-white">You'll receive</span>
-                <span className="text-white font-bold">
-                  {swapFeeService.calculateSwapFee(quote.outputAmount, toAsset, fromAsset).remainingAmount.toFixed(6)} {toAsset}
+              <div className="flex justify-between items-center bg-surface-secondary p-4 rounded-xl">
+                <span className="text-foreground">Minimum Received</span>
+                <span className="text-foreground">
+                  {quote.minimumReceived.toFixed(6)} {toAsset}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center bg-surface-secondary p-4 rounded-xl">
+                <span className="text-foreground">You'll receive</span>
+                <span className="text-foreground font-bold">
+                  ≈ {quote.outputAmount.toFixed(6)} {toAsset}
                 </span>
               </div>
             </>
@@ -265,10 +305,10 @@ const Swap = () => {
       <div className="p-6">
         <Button 
           onClick={quote ? handleExecuteSwap : handlePreviewSwap}
-          disabled={quoteLoading || transactionLoading || !fromAmount}
-          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90 disabled:opacity-50"
+          disabled={loading || !fromAmount}
+          className="w-full h-14 bg-primary text-primary-foreground font-bold text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50"
         >
-          {quoteLoading ? "Generating Quote..." : transactionLoading ? "Executing..." : quote ? "Execute Swap" : "Preview Swap"}
+          {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
         </Button>
       </div>
     </div>
