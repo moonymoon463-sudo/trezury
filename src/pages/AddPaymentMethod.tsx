@@ -200,7 +200,7 @@ const AddPaymentMethod = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -208,16 +208,17 @@ const AddPaymentMethod = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/payment-methods")}
-            className="text-foreground hover:bg-accent"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Add Payment Method</h1>
+          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Add Payment Method</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-4 overflow-y-auto">
+      <main className="flex-1 px-4 pb-4 overflow-y-auto">
+        <div className="max-w-md mx-auto space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="card" className="flex items-center gap-2">
@@ -437,6 +438,7 @@ const AddPaymentMethod = () => {
             </div>
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );

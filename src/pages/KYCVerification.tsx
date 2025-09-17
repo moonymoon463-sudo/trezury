@@ -242,132 +242,140 @@ const KYCVerification = () => {
     switch (currentStep) {
       case 1:
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="bg-[#2C2C2E] rounded-xl p-4">
+            <div className="mb-4">
+              <h3 className="text-white text-lg font-bold flex items-center gap-2 mb-2">
                 <FileText size={20} />
                 Personal Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </h3>
+            </div>
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">First Name *</Label>
+                  <Label htmlFor="firstName" className="text-gray-300">First Name *</Label>
                   <Input
                     id="firstName"
                     value={personalInfo.firstName}
                     onChange={(e) => handlePersonalInfoChange('firstName', e.target.value)}
                     placeholder="Enter your first name"
+                    className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Label htmlFor="lastName" className="text-gray-300">Last Name *</Label>
                   <Input
                     id="lastName"
                     value={personalInfo.lastName}
                     onChange={(e) => handlePersonalInfoChange('lastName', e.target.value)}
                     placeholder="Enter your last name"
+                    className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                   />
                 </div>
               </div>
               
               <div>
-                <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                <Label htmlFor="dateOfBirth" className="text-gray-300">Date of Birth *</Label>
                 <Input
                   id="dateOfBirth"
                   type="date"
                   value={personalInfo.dateOfBirth}
                   onChange={(e) => handlePersonalInfoChange('dateOfBirth', e.target.value)}
+                  className="bg-[#1C1C1E] border-gray-600 text-white"
                 />
               </div>
 
               <div>
-                <Label htmlFor="ssn">Social Security Number (Last 4 digits)</Label>
+                <Label htmlFor="ssn" className="text-gray-300">Social Security Number (Last 4 digits)</Label>
                 <Input
                   id="ssn"
                   value={personalInfo.ssn}
                   onChange={(e) => handlePersonalInfoChange('ssn', e.target.value)}
                   placeholder="XXXX"
                   maxLength={4}
+                  className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <Label htmlFor="address">Address *</Label>
+                <Label htmlFor="address" className="text-gray-300">Address *</Label>
                 <Input
                   id="address"
                   value={personalInfo.address}
                   onChange={(e) => handlePersonalInfoChange('address', e.target.value)}
                   placeholder="Enter your street address"
+                  className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="city">City *</Label>
+                  <Label htmlFor="city" className="text-gray-300">City *</Label>
                   <Input
                     id="city"
                     value={personalInfo.city}
                     onChange={(e) => handlePersonalInfoChange('city', e.target.value)}
                     placeholder="Enter your city"
+                    className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="state">State *</Label>
+                  <Label htmlFor="state" className="text-gray-300">State *</Label>
                   <Input
                     id="state"
                     value={personalInfo.state}
                     onChange={(e) => handlePersonalInfoChange('state', e.target.value)}
                     placeholder="Enter your state"
+                    className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="zipCode">ZIP Code *</Label>
+                <Label htmlFor="zipCode" className="text-gray-300">ZIP Code *</Label>
                 <Input
                   id="zipCode"
                   value={personalInfo.zipCode}
                   onChange={(e) => handlePersonalInfoChange('zipCode', e.target.value)}
                   placeholder="Enter your ZIP code"
+                  className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400"
                 />
               </div>
 
               <div>
-                <Label htmlFor="country">Country *</Label>
+                <Label htmlFor="country" className="text-gray-300">Country *</Label>
                 <Select value={personalInfo.country} onValueChange={(value) => handlePersonalInfoChange('country', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-[#1C1C1E] border-gray-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="US">United States</SelectItem>
-                    <SelectItem value="CA">Canada</SelectItem>
-                    <SelectItem value="GB">United Kingdom</SelectItem>
+                  <SelectContent className="bg-[#2C2C2E] border-gray-600">
+                    <SelectItem value="US" className="text-white hover:bg-gray-700">United States</SelectItem>
+                    <SelectItem value="CA" className="text-white hover:bg-gray-700">Canada</SelectItem>
+                    <SelectItem value="GB" className="text-white hover:bg-gray-700">United Kingdom</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
 
       case 2:
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="bg-[#2C2C2E] rounded-xl p-4">
+            <div className="mb-4">
+              <h3 className="text-white text-lg font-bold flex items-center gap-2 mb-2">
                 <Upload size={20} />
                 Document Upload
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-sm text-muted-foreground mb-4">
+              </h3>
+            </div>
+            <div className="space-y-6">
+              <div className="text-sm text-gray-400 mb-4">
                 Please upload clear photos of your government-issued ID and a selfie for verification.
               </div>
 
               {/* Front of ID */}
               <div className="space-y-2">
-                <Label>Front of Government ID *</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <Label className="text-gray-300">Front of Government ID *</Label>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center bg-[#1C1C1E]">
                   <input
                     type="file"
                     accept="image/*"
@@ -376,8 +384,8 @@ const KYCVerification = () => {
                     id="frontId"
                   />
                   <label htmlFor="frontId" className="cursor-pointer">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-400">
                       {documents.frontId ? documents.frontId.name : "Click to upload front of ID"}
                     </p>
                   </label>
@@ -386,8 +394,8 @@ const KYCVerification = () => {
 
               {/* Back of ID */}
               <div className="space-y-2">
-                <Label>Back of Government ID *</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <Label className="text-gray-300">Back of Government ID *</Label>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center bg-[#1C1C1E]">
                   <input
                     type="file"
                     accept="image/*"
@@ -396,8 +404,8 @@ const KYCVerification = () => {
                     id="backId"
                   />
                   <label htmlFor="backId" className="cursor-pointer">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-400">
                       {documents.backId ? documents.backId.name : "Click to upload back of ID"}
                     </p>
                   </label>
@@ -406,8 +414,8 @@ const KYCVerification = () => {
 
               {/* Selfie */}
               <div className="space-y-2">
-                <Label>Selfie Photo *</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <Label className="text-gray-300">Selfie Photo *</Label>
+                <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center bg-[#1C1C1E]">
                   <input
                     type="file"
                     accept="image/*"
@@ -416,59 +424,59 @@ const KYCVerification = () => {
                     id="selfie"
                   />
                   <label htmlFor="selfie" className="cursor-pointer">
-                    <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
+                    <Camera className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-400">
                       {documents.selfie ? documents.selfie.name : "Click to upload selfie"}
                     </p>
                   </label>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
 
       case 3:
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="bg-[#2C2C2E] rounded-xl p-4">
+            <div className="mb-4">
+              <h3 className="text-white text-lg font-bold flex items-center gap-2 mb-2">
                 <CheckCircle size={20} />
                 Review & Submit
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h4 className="font-semibold mb-2">Personal Information</h4>
+              </h3>
+            </div>
+            <div className="space-y-6">
+              <div className="bg-[#1C1C1E] rounded-lg p-4">
+                <h4 className="font-semibold mb-2 text-[#f9b006]">Personal Information</h4>
                 <div className="text-sm space-y-1">
-                  <p><strong>Name:</strong> {personalInfo.firstName} {personalInfo.lastName}</p>
-                  <p><strong>Date of Birth:</strong> {personalInfo.dateOfBirth}</p>
-                  <p><strong>Address:</strong> {personalInfo.address}, {personalInfo.city}, {personalInfo.state} {personalInfo.zipCode}</p>
+                  <p className="text-gray-300"><strong>Name:</strong> {personalInfo.firstName} {personalInfo.lastName}</p>
+                  <p className="text-gray-300"><strong>Date of Birth:</strong> {personalInfo.dateOfBirth}</p>
+                  <p className="text-gray-300"><strong>Address:</strong> {personalInfo.address}, {personalInfo.city}, {personalInfo.state} {personalInfo.zipCode}</p>
                 </div>
               </div>
 
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h4 className="font-semibold mb-2">Documents Uploaded</h4>
+              <div className="bg-[#1C1C1E] rounded-lg p-4">
+                <h4 className="font-semibold mb-2 text-[#f9b006]">Documents Uploaded</h4>
                 <div className="text-sm space-y-1">
-                  <p><strong>Government ID (Front):</strong> {documents.frontId?.name}</p>
-                  <p><strong>Government ID (Back):</strong> {documents.backId?.name}</p>
-                  <p><strong>Selfie Photo:</strong> {documents.selfie?.name}</p>
+                  <p className="text-gray-300"><strong>Government ID (Front):</strong> {documents.frontId?.name}</p>
+                  <p className="text-gray-300"><strong>Government ID (Back):</strong> {documents.backId?.name}</p>
+                  <p className="text-gray-300"><strong>Selfie Photo:</strong> {documents.selfie?.name}</p>
                 </div>
               </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-lg p-4">
                 <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 text-[#f9b006] mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-semibold text-yellow-800">Important Notice</p>
-                    <p className="text-yellow-700 mt-1">
+                    <p className="font-semibold text-[#f9b006]">Important Notice</p>
+                    <p className="text-gray-300 mt-1">
                       Your information will be securely processed and verified within 24-48 hours. 
                       You'll receive a notification once verification is complete.
                     </p>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
 
       default:
@@ -477,77 +485,85 @@ const KYCVerification = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate("/settings")}
-            className="text-foreground hover:bg-accent"
+            onClick={() => navigate("/")}
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Identity Verification</h1>
+          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Identity Verification</h1>
         </div>
       </header>
 
-      {/* Progress Steps */}
-      <div className="px-4 py-2">
-        <div className="flex items-center justify-between mb-4">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                currentStep >= step.id 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-muted text-muted-foreground"
-              }`}>
-                {step.id}
-              </div>
-              {index < steps.length - 1 && (
-                <div className={`w-16 h-0.5 mx-2 ${
-                  currentStep > step.id ? "bg-primary" : "bg-muted"
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="text-center">
-          <h2 className="font-semibold text-foreground">{steps[currentStep - 1].title}</h2>
-          <p className="text-sm text-muted-foreground">{steps[currentStep - 1].description}</p>
-        </div>
-      </div>
-
       {/* Main Content */}
-      <main className="flex-1 px-4 py-4 overflow-y-auto">
-        {renderStepContent()}
-      </main>
+      <main className="flex-1 px-4 pb-4 overflow-y-auto">
+        <div className="max-w-md mx-auto space-y-6">
+          {/* Progress Steps */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              {steps.map((step, index) => (
+                <div key={step.id} className="flex items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                    currentStep >= step.id 
+                      ? "bg-[#f9b006] text-black" 
+                      : "bg-gray-600 text-gray-300"
+                  }`}>
+                    {step.id}
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div className={`w-16 h-0.5 mx-2 ${
+                      currentStep > step.id ? "bg-[#f9b006]" : "bg-gray-600"
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="text-center">
+              <h2 className="font-semibold text-white">{steps[currentStep - 1].title}</h2>
+              <p className="text-sm text-gray-400">{steps[currentStep - 1].description}</p>
+            </div>
+          </div>
 
-      {/* Navigation Buttons */}
-      <div className="px-4 py-6 border-t border-border">
-        <div className="flex gap-3">
-          {currentStep > 1 && (
-            <Button variant="outline" onClick={prevStep} className="flex-1">
-              Previous
-            </Button>
-          )}
-          
-          {currentStep < steps.length ? (
-            <Button onClick={nextStep} className="flex-1">
-              Next
-            </Button>
-          ) : (
-            <Button 
-              onClick={submitKYC} 
-              disabled={loading}
-              className="flex-1"
-            >
-              {loading ? "Submitting..." : "Submit for Verification"}
-            </Button>
-          )}
+          {/* Step Content */}
+          {renderStepContent()}
+
+          {/* Navigation Buttons */}
+          <div className="flex gap-3 pt-4">
+            {currentStep > 1 && (
+              <Button 
+                variant="outline" 
+                onClick={prevStep} 
+                className="flex-1 bg-[#2C2C2E] border-gray-600 text-white hover:bg-gray-700"
+              >
+                Previous
+              </Button>
+            )}
+            
+            {currentStep < steps.length ? (
+              <Button 
+                onClick={nextStep} 
+                className="flex-1 bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button 
+                onClick={submitKYC} 
+                disabled={loading}
+                className="flex-1 bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+              >
+                {loading ? "Submitting..." : "Submit for Verification"}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

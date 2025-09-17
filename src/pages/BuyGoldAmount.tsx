@@ -146,7 +146,7 @@ const BuyGoldAmount = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -154,49 +154,50 @@ const BuyGoldAmount = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/buy-gold")}
-            className="text-foreground hover:bg-accent"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Buy Gold</h1>
+          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Buy Gold</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-8">
-        {/* USD Balance */}
-        <div className="text-center mb-8">
-          <p className="text-sm text-muted-foreground">USD Balance</p>
-          <p className="text-3xl font-bold text-foreground">
+      <main className="flex-1 px-4 pb-4">
+        <div className="max-w-md mx-auto space-y-6">
+          {/* USD Balance */}
+          <div className="text-center">
+            <p className="text-sm text-gray-400">USD Balance</p>
+            <p className="text-3xl font-bold text-white">
             ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </p>
         </div>
 
-        {/* Currency Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex rounded-full bg-muted p-1">
-            <button 
-              className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
-                currency === "USD" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "text-muted-foreground"
-              }`}
-              onClick={() => setCurrency("USD")}
-            >
-              USD
-            </button>
-            <button 
-              className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
-                currency === "GRAMS" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "text-muted-foreground"
-              }`}
-              onClick={() => setCurrency("GRAMS")}
-            >
-              GRAMS
-            </button>
+          {/* Currency Toggle */}
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex rounded-full bg-[#2C2C2E] p-1">
+              <button 
+                className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
+                  currency === "USD" 
+                    ? "bg-[#f9b006] text-black" 
+                    : "text-gray-400"
+                }`}
+                onClick={() => setCurrency("USD")}
+              >
+                USD
+              </button>
+              <button 
+                className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
+                  currency === "GRAMS" 
+                    ? "bg-[#f9b006] text-black" 
+                    : "text-gray-400"
+                }`}
+                onClick={() => setCurrency("GRAMS")}
+              >
+                GRAMS
+              </button>
+            </div>
           </div>
-        </div>
 
         {/* Amount Input */}
         <div className="text-center mb-8">
@@ -273,18 +274,19 @@ const BuyGoldAmount = () => {
             {currency === "USD" ? "$500" : "5.0g"}
           </Button>
         </div>
-      </main>
 
-      {/* Continue Button */}
-      <div className="px-4 py-6">
-        <Button 
-          className="w-full h-14 font-bold text-lg rounded-xl"
-          disabled={!amount || parseFloat(amount) <= 0 || (paymentMethod === 'usdc' && !quote) || moonPayLoading}
-          onClick={handleContinue}
-        >
-          {moonPayLoading ? 'Processing...' : paymentMethod === 'credit_card' ? 'Pay with Card' : 'Continue'}
-        </Button>
-      </div>
+        {/* Continue Button */}
+        <div className="pt-4">
+          <Button 
+            className="w-full bg-[#f9b006] text-black font-bold h-14 text-lg rounded-xl hover:bg-[#f9b006]/90"
+            disabled={!amount || parseFloat(amount) <= 0 || (paymentMethod === 'usdc' && !quote) || moonPayLoading}
+            onClick={handleContinue}
+          >
+            {moonPayLoading ? 'Processing...' : paymentMethod === 'credit_card' ? 'Pay with Card' : 'Continue'}
+          </Button>
+        </div>
+        </div>
+      </main>
 
       {/* Bottom Navigation */}
       <BottomNavigation />
