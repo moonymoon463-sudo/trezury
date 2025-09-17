@@ -115,23 +115,23 @@ export const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {
 // Deposit wallet addresses for receiving lending funds
 export const LENDING_DEPOSIT_WALLETS: Record<Chain, Record<Token, string>> = {
   ethereum: {
-    USDC: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12', // Platform USDC deposit wallet
-    USDT: '0x2b3c4d5e6f7890abcdef1234567890abcdef1234', // Platform USDT deposit wallet  
-    DAI: '0x3c4d5e6f7890abcdef1234567890abcdef123456'   // Platform DAI deposit wallet
+    USDC: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform USDC deposit wallet
+    USDT: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform USDT deposit wallet  
+    DAI: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06'   // Platform DAI deposit wallet
   },
   base: {
-    USDC: '0x4d5e6f7890abcdef1234567890abcdef12345678', // Platform Base USDC wallet
+    USDC: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform Base USDC wallet
     USDT: '',
     DAI: ''
   },
   solana: {
-    USDC: 'B1tcZ5xY4D6VGwJh89v8e3KqL5mN7oP2qR8sT9uX3vW4', // Platform Solana USDC wallet
-    USDT: 'C2udA6yE5F7HxKj90w9f4LqN8pQ3rS0tU1vY4xZ5bX6', // Platform Solana USDT wallet
+    USDC: '4zVpkkUx5f3c84mGCmbxHxbZhbUQ9yixm2NsAU4zrcj7', // Platform Solana USDC wallet
+    USDT: '4zVpkkUx5f3c84mGCmbxHxbZhbUQ9yixm2NsAU4zrcj7', // Platform Solana USDT wallet
     DAI: ''
   },
   tron: {
-    USDT: 'TLendingPlatformUSDTWalletAddress123456789', // Platform Tron USDT wallet
-    USDC: 'TLendingPlatformUSDCWalletAddress987654321', // Platform Tron USDC wallet
+    USDT: 'TFLY2RJXohwZp1ppxiUdySstHUHZ2wc1Zm', // Platform Tron USDT wallet
+    USDC: 'TFLY2RJXohwZp1ppxiUdySstHUHZ2wc1Zm', // Platform Tron USDC wallet
     DAI: ''
   }
 };
