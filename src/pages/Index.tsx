@@ -6,6 +6,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import GoldPriceChart from "@/components/GoldPriceChart";
+import AurumLogo from "@/components/AurumLogo";
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -44,9 +45,9 @@ const Index = () => {
         {/* Header */}
         <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10">
           <div className="w-12"></div>
-          <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">
-            Dashboard
-          </h2>
+          <div className="flex-1 flex justify-center">
+            <AurumLogo className="scale-75" />
+          </div>
           <div className="flex w-12 items-center justify-end">
             <button 
               className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
