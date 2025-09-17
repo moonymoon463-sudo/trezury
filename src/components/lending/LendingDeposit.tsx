@@ -205,7 +205,7 @@ export function LendingDeposit() {
             <Button onClick={resetForm} variant="outline" className="flex-1">
               Create Another Lock
             </Button>
-            <Button onClick={() => window.location.href = '/lending?tab=profile'} className="flex-1">
+            <Button onClick={() => setShowDepositInfo(false)} className="flex-1">
               View My Locks
             </Button>
           </div>

@@ -19,6 +19,12 @@ const BottomNavigation = () => {
       path: "/buy-sell-hub",
     },
     {
+      id: "swap",
+      label: "Swap",
+      icon: ArrowUpDown,
+      path: "/swap",
+    },
+    {
       id: "lending",
       label: "Lending",
       icon: TrendingUp,
@@ -32,7 +38,7 @@ const BottomNavigation = () => {
     },
     {
       id: "settings",
-      label: "Settings",
+      label: "Profile",
       icon: Settings,
       path: "/settings",
     },
