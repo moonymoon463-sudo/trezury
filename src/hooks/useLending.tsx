@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { LendingService } from "@/services/lendingService";
-import { Lock, PoolStats, Chain, Token } from "@/types/lending";
+import { Lock, Chain, Token } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 
 export function useLending() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [locks, setLocks] = useState<Lock[]>([]);
-  const [poolStats, setPoolStats] = useState<PoolStats[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchUserLocks = async () => {
@@ -30,14 +29,7 @@ export function useLending() {
     }
   };
 
-  const fetchPoolStats = async () => {
-    try {
-      const stats = await LendingService.getPoolStats();
-      setPoolStats(stats);
-    } catch (error) {
-      console.error('Error fetching pool stats:', error);
-    }
-  };
+  // Pool stats removed - sensitive data no longer accessible from frontend
 
   const createLock = async (
     chain: Chain,
@@ -65,7 +57,6 @@ export function useLending() {
       });
 
       await fetchUserLocks();
-      await fetchPoolStats();
       
       return newLock;
     } catch (error) {
@@ -138,20 +129,15 @@ export function useLending() {
 
   useEffect(() => {
     fetchUserLocks();
-    fetchPoolStats();
   }, [user]);
 
   return {
     locks,
-    poolStats,
     loading,
     createLock,
     exitEarly,
     claimLock,
     calculateAPY,
-    refetch: () => {
-      fetchUserLocks();
-      fetchPoolStats();
-    }
+    refetch: fetchUserLocks
   };
 }

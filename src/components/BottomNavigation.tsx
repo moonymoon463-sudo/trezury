@@ -50,7 +50,7 @@ const BottomNavigation = () => {
   };
 
   return (
-    <nav className="bg-[#2C2C2E] px-6 py-4">
+    <nav className="bg-card px-6 py-4">
       <div className="flex justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -64,10 +64,10 @@ const BottomNavigation = () => {
             >
               <Icon 
                 size={20} 
-                className={active ? "text-[#f9b006]" : "text-gray-400"} 
+                className={active ? "text-primary" : "text-muted-foreground"} 
               />
               <span 
-                className={`text-xs ${active ? "text-[#f9b006]" : "text-gray-400"}`}
+                className={`text-xs ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>

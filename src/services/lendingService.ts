@@ -1,17 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Chain, Token, Lock, PoolStats, LockTerm, LOCK_TERMS } from "@/types/lending";
+import { Chain, Token, Lock, LockTerm, LOCK_TERMS } from "@/types/lending";
 
 export class LendingService {
-  static async getPoolStats(chain?: Chain, token?: Token): Promise<PoolStats[]> {
-    let query = supabase.from('pool_stats').select('*');
-    
-    if (chain) query = query.eq('chain', chain);
-    if (token) query = query.eq('token', token);
-    
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []) as PoolStats[];
-  }
+  // Pool stats removed - sensitive data now backend-only
 
   static async getUserLocks(userId: string): Promise<Lock[]> {
     const { data, error } = await supabase
@@ -25,30 +16,26 @@ export class LendingService {
   }
 
   static async calculateAPY(chain: Chain, token: Token, termDays: number): Promise<number> {
-    // Get pool utilization
-    const poolStats = await this.getPoolStats(chain, token);
-    const pool = poolStats[0];
-    
-    if (!pool) {
-      // Default to low utilization if no pool data
+    // Use backend function for secure APY calculation
+    try {
+      const response = await supabase.functions.invoke('lending-rates', {
+        body: { chain, token, termDays }
+      });
+
+      if (response.error) {
+        console.error('Error calling lending-rates function:', response.error);
+        // Fallback to minimum APY
+        const term = LOCK_TERMS.find(t => t.days === termDays);
+        return term ? term.apyMin : 0;
+      }
+
+      return response.data?.apy || 0;
+    } catch (error) {
+      console.error('Error calculating APY:', error);
+      // Fallback to minimum APY
       const term = LOCK_TERMS.find(t => t.days === termDays);
       return term ? term.apyMin : 0;
     }
-
-    // Find the term configuration
-    const term = LOCK_TERMS.find(t => t.days === termDays);
-    if (!term) throw new Error('Invalid lock term');
-
-    // Calculate APY based on utilization
-    // utilization = totalBorrowed / totalDeposits
-    const utilization = pool.total_deposits_dec > 0 
-      ? pool.total_borrowed_dec / pool.total_deposits_dec 
-      : 0;
-
-    // Map utilization to APY within the band
-    const apy = term.apyMin + Math.min(utilization, 1) * (term.apyMax - term.apyMin);
-    
-    return Math.round(apy * 100) / 100; // Round to 2 decimal places
   }
 
   static async createLock(
@@ -89,8 +76,7 @@ export class LendingService {
 
     if (error) throw error;
     
-    // Update pool stats
-    await this.updatePoolStats(chain, token, amount, 0);
+    // Pool stats updates handled by backend accrual function
     
     return data as Lock;
   }
@@ -154,36 +140,7 @@ export class LendingService {
     if (payoutError) throw payoutError;
   }
 
-  private static async updatePoolStats(
-    chain: Chain, 
-    token: Token, 
-    depositChange: number, 
-    borrowChange: number
-  ): Promise<void> {
-    const { data: currentStats } = await supabase
-      .from('pool_stats')
-      .select('*')
-      .eq('chain', chain)
-      .eq('token', token)
-      .single();
-
-    if (currentStats) {
-      const newDeposits = Math.max(0, currentStats.total_deposits_dec + depositChange);
-      const newBorrowed = Math.max(0, currentStats.total_borrowed_dec + borrowChange);
-      const newUtilization = newDeposits > 0 ? newBorrowed / newDeposits : 0;
-
-      await supabase
-        .from('pool_stats')
-        .update({
-          total_deposits_dec: newDeposits,
-          total_borrowed_dec: newBorrowed,
-          utilization_fp: newUtilization,
-          updated_ts: new Date().toISOString()
-        })
-        .eq('chain', chain)
-        .eq('token', token);
-    }
-  }
+  // Pool stats management removed - sensitive data handled by backend only
 
   static getMaturityDate(startDate: Date, termDays: number): Date {
     return new Date(startDate.getTime() + termDays * 24 * 60 * 60 * 1000);

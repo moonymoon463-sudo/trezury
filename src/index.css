@@ -43,6 +43,20 @@ All colors MUST be HSL.
     --aurum-dark: 28 25 23; /* #1C1917 */
     --aurum-gray: 0 0% 31%; /* gray-800 */
     --aurum-text-muted: 0 0% 64%; /* gray-400 */
+    
+    /* Additional semantic tokens for comprehensive design system */
+    --chart-primary: 38 92% 50%; /* Gold */
+    --chart-secondary: 0 0% 50%; /* Gray */
+    --chart-positive: 142 76% 36%; /* Green */
+    --chart-negative: 0 84% 60%; /* Red */
+    
+    --status-success: 142 76% 36%;
+    --status-warning: 45 93% 58%;
+    --status-error: 0 84% 60%;
+    --status-info: 213 94% 68%;
+    
+    --surface-elevated: 0 0% 15%; /* Slightly lighter than background */
+    --surface-overlay: 0 0% 20%; /* For modals, dropdowns */
 
     --sidebar-background: 28 25 23;
     --sidebar-foreground: 0 0% 100%;

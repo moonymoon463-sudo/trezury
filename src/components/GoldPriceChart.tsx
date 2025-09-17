@@ -79,12 +79,12 @@ const GoldPriceChart = () => {
   };
 
   return (
-    <div className="bg-[#2C2C2E] rounded-xl p-4">
+    <div className="bg-card rounded-xl p-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
           Gold Price Chart
         </h3>
-        <div className="flex bg-[#1A1A1A] rounded-lg p-1">
+        <div className="flex bg-surface-elevated rounded-lg p-1">
           <button 
             className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
               timeframe === '24h' 
@@ -161,8 +161,8 @@ const GoldPriceChart = () => {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full bg-[#1A1A1A] rounded-lg flex items-center justify-center">
-            <p className="text-gray-400 text-sm">Loading chart data...</p>
+          <div className="h-full bg-surface-elevated rounded-lg flex items-center justify-center">
+            <p className="text-muted-foreground text-sm">Loading chart data...</p>
           </div>
         )}
       </div>

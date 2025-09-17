@@ -37,7 +37,7 @@ export const PaymentStatusModal = ({
       case 'processing':
         return <Clock className="text-blue-500" size={48} />;
       default:
-        return <CreditCard className="text-gray-500" size={48} />;
+        return <CreditCard className="text-muted-foreground" size={48} />;
     }
   };
 
@@ -72,7 +72,7 @@ export const PaymentStatusModal = ({
       case 'processing':
         return 'text-blue-600';
       default:
-        return 'text-gray-600';
+        return 'text-muted-foreground';
     }
   };
 
