@@ -80,16 +80,15 @@ const KYCVerification = () => {
       });
 
       const { data, error } = await supabase
-        .from('secure_profiles')
-        .select('*')
-        .eq('id', user!.id)
-        .single();
+        .rpc('get_secure_profile');
 
       if (error) throw error;
-      setProfile(data);
+      
+      const profileData = data?.[0];
+      setProfile(profileData);
 
       // If already verified, redirect
-      if (data.kyc_status === 'verified') {
+      if (profileData?.kyc_status === 'verified') {
         toast({
           title: "Already Verified",
           description: "Your identity has already been verified"

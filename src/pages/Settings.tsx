@@ -45,15 +45,13 @@ const Settings = () => {
       });
 
       const { data, error } = await supabase
-        .from('secure_profiles')
-        .select('*')
-        .eq('id', user!.id)
-        .single();
+        .rpc('get_secure_profile');
 
       if (error) throw error;
       
-      setProfile(data);
-      setPhone(data.phone || "");
+      const profileData = data?.[0];
+      setProfile(profileData);
+      setPhone(profileData?.phone || "");
     } catch (error) {
       console.error('Failed to fetch profile:', error);
       toast({

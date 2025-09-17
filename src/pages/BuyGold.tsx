@@ -29,13 +29,10 @@ const BuyGold = () => {
       });
 
       const { data, error } = await supabase
-        .from('secure_profiles')
-        .select('kyc_status')
-        .eq('id', user!.id)
-        .single();
+        .rpc('get_secure_profile');
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data?.[0] || null);
     } catch (error) {
       console.error('Failed to fetch profile:', error);
     } finally {

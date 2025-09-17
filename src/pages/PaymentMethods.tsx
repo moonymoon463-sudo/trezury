@@ -50,15 +50,14 @@ const PaymentMethods = () => {
       });
 
       const { data, error } = await supabase
-        .from('secure_profiles')
-        .select('kyc_status')
-        .eq('id', user!.id)
-        .single();
+        .rpc('get_secure_profile');
 
       if (error) throw error;
-      setProfile(data);
+      
+      const profileData = data?.[0];
+      setProfile(profileData);
 
-      if (data.kyc_status !== 'verified') {
+      if (profileData?.kyc_status !== 'verified') {
         toast({
           variant: "destructive",
           title: "Verification Required",
