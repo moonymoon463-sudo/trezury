@@ -924,6 +924,16 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      log_pii_access: {
+        Args: {
+          p_access_granted: boolean
+          p_fields_accessed: string[]
+          p_operation: string
+          p_target_user_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       log_sensitive_access: {
         Args: {
           p_metadata?: Json
