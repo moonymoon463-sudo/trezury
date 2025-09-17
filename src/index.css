@@ -8,13 +8,13 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 28 25 23; /* #1C1917 */
+    --background: 0 0% 9%; /* #171717 - clean dark gray */
     --foreground: 0 0% 100%; /* white */
 
-    --card: 28 25 23;
+    --card: 0 0% 12%; /* #1f1f1f - slightly lighter gray */
     --card-foreground: 0 0% 100%;
 
-    --popover: 28 25 23;
+    --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
 
     --primary: 38 92% 50%; /* #f9b006 - gold */
@@ -40,7 +40,7 @@ All colors MUST be HSL.
 
     /* Aurum specific colors */
     --aurum-gold: 38 92% 50%; /* #f9b006 */
-    --aurum-dark: 28 25 23; /* #1C1917 */
+    --aurum-dark: 0 0% 9%; /* Clean dark gray */
     --aurum-gray: 0 0% 31%; /* gray-800 */
     --aurum-text-muted: 0 0% 64%; /* gray-400 */
     
@@ -58,7 +58,7 @@ All colors MUST be HSL.
     --surface-elevated: 0 0% 15%; /* Slightly lighter than background */
     --surface-overlay: 0 0% 20%; /* For modals, dropdowns */
 
-    --sidebar-background: 28 25 23;
+    --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 38 92% 50%;
     --sidebar-primary-foreground: 0 0% 0%;
@@ -69,13 +69,13 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 28 25 23;
+    --background: 0 0% 9%;
     --foreground: 0 0% 100%;
 
-    --card: 28 25 23;
+    --card: 0 0% 12%;
     --card-foreground: 0 0% 100%;
 
-    --popover: 28 25 23;
+    --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
 
     --primary: 38 92% 50%;
@@ -96,7 +96,7 @@ All colors MUST be HSL.
     --border: 0 0% 31%;
     --input: 0 0% 31%;
     --ring: 38 92% 50%;
-    --sidebar-background: 28 25 23;
+    --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 38 92% 50%;
     --sidebar-primary-foreground: 0 0% 0%;
