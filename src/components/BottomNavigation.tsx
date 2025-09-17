@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingBag, ArrowUpDown, Clock, Settings } from "lucide-react";
+import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, TrendingUp } from "lucide-react";
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
@@ -19,10 +19,10 @@ const BottomNavigation = () => {
       path: "/buy-sell-hub",
     },
     {
-      id: "swap",
-      label: "Swap",
-      icon: ArrowUpDown,
-      path: "/swap",
+      id: "lending",
+      label: "Lending",
+      icon: TrendingUp,
+      path: "/lending",
     },
     {
       id: "history",

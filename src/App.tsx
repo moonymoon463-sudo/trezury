@@ -31,6 +31,7 @@ import AddPaymentMethod from "./pages/AddPaymentMethod";
 import AddUSDC from "./pages/AddUSDC";
 import AdminFees from "./pages/AdminFees";
 import WalletManagement from "./pages/WalletManagement";
+import Lending from "./pages/Lending";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +102,11 @@ const App = () => (
             <Route path="/swap" element={
               <ProtectedRoute>
                 <Swap />
+              </ProtectedRoute>
+            } />
+            <Route path="/lending" element={
+              <ProtectedRoute>
+                <Lending />
               </ProtectedRoute>
             } />
             <Route path="/wallet" element={

@@ -198,6 +198,66 @@ export type Database = {
           },
         ]
       }
+      locks: {
+        Row: {
+          accrued_interest_dec: number
+          amount_dec: number
+          apy_applied: number
+          apy_max: number
+          apy_min: number
+          autocompound: boolean
+          chain: string
+          created_at: string
+          deposit_tx: string | null
+          end_ts: string
+          id: string
+          start_ts: string
+          status: Database["public"]["Enums"]["lock_status"]
+          token: string
+          updated_at: string
+          user_id: string
+          withdraw_tx: string | null
+        }
+        Insert: {
+          accrued_interest_dec?: number
+          amount_dec: number
+          apy_applied: number
+          apy_max: number
+          apy_min: number
+          autocompound?: boolean
+          chain: string
+          created_at?: string
+          deposit_tx?: string | null
+          end_ts: string
+          id?: string
+          start_ts: string
+          status?: Database["public"]["Enums"]["lock_status"]
+          token: string
+          updated_at?: string
+          user_id: string
+          withdraw_tx?: string | null
+        }
+        Update: {
+          accrued_interest_dec?: number
+          amount_dec?: number
+          apy_applied?: number
+          apy_max?: number
+          apy_min?: number
+          autocompound?: boolean
+          chain?: string
+          created_at?: string
+          deposit_tx?: string | null
+          end_ts?: string
+          id?: string
+          start_ts?: string
+          status?: Database["public"]["Enums"]["lock_status"]
+          token?: string
+          updated_at?: string
+          user_id?: string
+          withdraw_tx?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string
@@ -335,6 +395,80 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      payouts: {
+        Row: {
+          chain: string
+          id: string
+          interest_dec: number
+          lock_id: string | null
+          principal_dec: number
+          token: string
+          ts: string
+          tx_hash: string | null
+        }
+        Insert: {
+          chain: string
+          id?: string
+          interest_dec: number
+          lock_id?: string | null
+          principal_dec: number
+          token: string
+          ts?: string
+          tx_hash?: string | null
+        }
+        Update: {
+          chain?: string
+          id?: string
+          interest_dec?: number
+          lock_id?: string | null
+          principal_dec?: number
+          token?: string
+          ts?: string
+          tx_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_lock_id_fkey"
+            columns: ["lock_id"]
+            isOneToOne: false
+            referencedRelation: "locks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pool_stats: {
+        Row: {
+          chain: string
+          id: string
+          reserve_balance_dec: number
+          token: string
+          total_borrowed_dec: number
+          total_deposits_dec: number
+          updated_ts: string
+          utilization_fp: number
+        }
+        Insert: {
+          chain: string
+          id?: string
+          reserve_balance_dec?: number
+          token: string
+          total_borrowed_dec?: number
+          total_deposits_dec?: number
+          updated_ts?: string
+          utilization_fp?: number
+        }
+        Update: {
+          chain?: string
+          id?: string
+          reserve_balance_dec?: number
+          token?: string
+          total_borrowed_dec?: number
+          total_deposits_dec?: number
+          updated_ts?: string
+          utilization_fp?: number
         }
         Relationships: []
       }
@@ -586,7 +720,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      lock_status: "active" | "matured" | "exited_early"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -713,6 +847,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lock_status: ["active", "matured", "exited_early"],
+    },
   },
 } as const
