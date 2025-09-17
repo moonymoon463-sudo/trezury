@@ -867,7 +867,7 @@ export type Database = {
           ssn_last_four: string | null
           state: string | null
           updated_at: string | null
-          zip_code: string | null
+          zip_zip_code: string | null
         }
         Insert: {
           address?: never
@@ -887,7 +887,7 @@ export type Database = {
           ssn_last_four?: never
           state?: never
           updated_at?: string | null
-          zip_code?: never
+          zip_zip_code?: never
         }
         Update: {
           address?: never
@@ -907,7 +907,7 @@ export type Database = {
           ssn_last_four?: never
           state?: never
           updated_at?: string | null
-          zip_code?: never
+          zip_zip_code?: never
         }
         Relationships: []
       }

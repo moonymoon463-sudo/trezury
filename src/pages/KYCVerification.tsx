@@ -73,8 +73,14 @@ const KYCVerification = () => {
 
   const fetchProfile = async () => {
     try {
+      // Log profile access for security audit
+      await supabase.rpc('log_profile_access', {
+        target_user_id: user!.id,
+        accessed_fields: ['kyc_status', 'personal_info']
+      });
+
       const { data, error } = await supabase
-        .from('profiles')
+        .from('secure_profiles')
         .select('*')
         .eq('id', user!.id)
         .single();
