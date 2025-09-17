@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { secureWalletService } from "@/services/secureWalletService";
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [newUserPassword, setNewUserPassword] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -27,6 +29,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Create wallet for new users after authentication
+        if (event === 'SIGNED_IN' && session?.user && newUserPassword) {
+          setTimeout(async () => {
+            try {
+              await secureWalletService.generateDeterministicWallet(
+                session.user.id,
+                { userPassword: newUserPassword }
+              );
+              toast({
+                title: "Wallet Created",
+                description: "Your secure wallet has been created successfully",
+              });
+            } catch (error) {
+              console.error('Failed to create wallet:', error);
+              toast({
+                variant: "destructive",
+                title: "Wallet Creation Failed",
+                description: "There was an issue creating your wallet. Please contact support.",
+              });
+            } finally {
+              setNewUserPassword(null);
+            }
+          }, 1000);
+        }
       }
     );
 
@@ -38,10 +65,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [newUserPassword, toast]);
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
+    
+    // Store password temporarily for wallet creation
+    setNewUserPassword(password);
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -52,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) {
+      setNewUserPassword(null); // Clear password on error
       toast({
         variant: "destructive",
         title: "Sign Up Error",
@@ -60,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       toast({
         title: "Check your email",
-        description: "Please check your email for a verification link.",
+        description: "Please check your email for a verification link. A secure wallet will be created upon first login.",
       });
     }
 
