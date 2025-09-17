@@ -41,20 +41,20 @@ function LockCard({ lock, onClaim, onExitEarly }: {
   };
 
   return (
-    <Card>
+    <Card className="bg-[#2C2C2E] border-[#2C2C2E]">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">
+            <CardTitle className="text-lg text-white">
               {LendingService.formatAmount(lock.amount_dec, lock.token)}
             </CardTitle>
-            <Badge variant="outline">{chainConfig.displayName}</Badge>
+            <Badge variant="outline" className="border-gray-600 text-gray-300">{chainConfig.displayName}</Badge>
           </div>
-          <Badge variant={getStatusColor()}>
+          <Badge variant={getStatusColor()} className="bg-[#f9b006] text-black">
             {getStatusText()}
           </Badge>
         </div>
-        <CardDescription>
+        <CardDescription className="text-gray-400">
           APY: {LendingService.formatAPY(lock.apy_applied)} • 
           Started {startDate.toLocaleDateString()}
         </CardDescription>
@@ -65,25 +65,25 @@ function LockCard({ lock, onClaim, onExitEarly }: {
           <>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 text-gray-300">
                   <Clock className="h-4 w-4" />
                   {isMatured ? 'Ready to claim' : `${daysRemaining} days remaining`}
                 </span>
-                <span>{endDate.toLocaleDateString()}</span>
+                <span className="text-gray-300">{endDate.toLocaleDateString()}</span>
               </div>
               <Progress value={progressPercent} className="h-2" />
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground">Accrued Interest</p>
-                <p className="font-medium">
+                <p className="text-gray-400">Accrued Interest</p>
+                <p className="font-medium text-white">
                   {LendingService.formatAmount(lock.accrued_interest_dec, lock.token)}
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Total Return</p>
-                <p className="font-medium">
+                <p className="text-gray-400">Total Return</p>
+                <p className="font-medium text-white">
                   {LendingService.formatAmount(lock.amount_dec + lock.accrued_interest_dec, lock.token)}
                 </p>
               </div>
@@ -92,7 +92,7 @@ function LockCard({ lock, onClaim, onExitEarly }: {
         )}
 
         {lock.status === 'exited_early' && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-gray-400">
             <AlertCircle className="h-4 w-4" />
             <span>Interest forfeited due to early exit</span>
           </div>
@@ -100,7 +100,7 @@ function LockCard({ lock, onClaim, onExitEarly }: {
 
         <div className="flex gap-2">
           {lock.status === 'active' && isMatured && (
-            <Button onClick={() => onClaim(lock.id)} className="flex-1">
+            <Button onClick={() => onClaim(lock.id)} className="flex-1 bg-[#f9b006] text-black hover:bg-[#f9b006]/90">
               <DollarSign className="h-4 w-4 mr-1" />
               Claim
             </Button>
@@ -110,14 +110,14 @@ function LockCard({ lock, onClaim, onExitEarly }: {
             <Button 
               variant="outline" 
               onClick={() => onExitEarly(lock.id)}
-              className="flex-1"
+              className="flex-1 bg-[#2C2C2E] border-[#2C2C2E] text-white hover:bg-[#2C2C2E]/80"
             >
               Exit Early
             </Button>
           )}
 
           {explorerUrl && (
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" asChild className="bg-[#2C2C2E] border-[#2C2C2E] text-white hover:bg-[#2C2C2E]/80">
               <a href={explorerUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4" />
               </a>
@@ -131,13 +131,13 @@ function LockCard({ lock, onClaim, onExitEarly }: {
 
 function PoolStatsCard({ stats }: { stats: PoolStats[] }) {
   return (
-    <Card>
+    <Card className="bg-[#2C2C2E] border-[#2C2C2E]">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2 text-white">
+          <TrendingUp className="h-5 w-5 text-[#f9b006]" />
           Pool Statistics
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-gray-400">
           Real-time lending pool data across all chains
         </CardDescription>
       </CardHeader>
@@ -147,33 +147,33 @@ function PoolStatsCard({ stats }: { stats: PoolStats[] }) {
           {stats.map((pool) => {
             const chainConfig = CHAIN_CONFIGS[pool.chain];
             return (
-              <div key={`${pool.chain}-${pool.token}`} className="border rounded-lg p-4">
+              <div key={`${pool.chain}-${pool.token}`} className="bg-[#1A1A1A] border border-gray-600 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{pool.token}</span>
-                    <Badge variant="outline">{chainConfig.displayName}</Badge>
+                    <span className="font-medium text-white">{pool.token}</span>
+                    <Badge variant="outline" className="border-gray-600 text-gray-300">{chainConfig.displayName}</Badge>
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-gray-400">
                     {(pool.utilization_fp * 100).toFixed(1)}% utilized
                   </span>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">TVL</p>
-                    <p className="font-medium">
+                    <p className="text-gray-400">TVL</p>
+                    <p className="font-medium text-white">
                       {LendingService.formatAmount(pool.total_deposits_dec, pool.token)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Borrowed</p>
-                    <p className="font-medium">
+                    <p className="text-gray-400">Borrowed</p>
+                    <p className="font-medium text-white">
                       {LendingService.formatAmount(pool.total_borrowed_dec, pool.token)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Reserves</p>
-                    <p className="font-medium">
+                    <p className="text-gray-400">Reserves</p>
+                    <p className="font-medium text-white">
                       {LendingService.formatAmount(pool.reserve_balance_dec, pool.token)}
                     </p>
                   </div>
@@ -195,9 +195,9 @@ export function LendingProfile() {
 
   if (!user) {
     return (
-      <Card>
+      <Card className="bg-[#2C2C2E] border-[#2C2C2E]">
         <CardContent className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Please sign in to view your lending profile</p>
+          <p className="text-gray-400">Please sign in to view your lending profile</p>
         </CardContent>
       </Card>
     );
@@ -209,33 +209,33 @@ export function LendingProfile() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Lending Profile</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-2xl font-bold tracking-tight text-white">Lending Profile</h2>
+        <p className="text-gray-400">
           Manage your active locks and view historical performance
         </p>
       </div>
 
       <Tabs defaultValue="active" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="active">
+        <TabsList className="bg-[#2C2C2E] border-0">
+          <TabsTrigger value="active" className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400">
             Active Locks ({activeLocks.length})
           </TabsTrigger>
-          <TabsTrigger value="history">
+          <TabsTrigger value="history" className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400">
             History ({completedLocks.length})
           </TabsTrigger>
-          <TabsTrigger value="pools">
+          <TabsTrigger value="pools" className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400">
             Pool Stats
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
           {activeLocks.length === 0 ? (
-            <Card>
+            <Card className="bg-[#2C2C2E] border-[#2C2C2E]">
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">No Active Locks</h3>
-                  <p className="text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2 text-white">No Active Locks</h3>
+                  <p className="text-gray-400">
                     Create your first lock to start earning yield
                   </p>
                 </div>
@@ -257,12 +257,12 @@ export function LendingProfile() {
 
         <TabsContent value="history" className="space-y-4">
           {completedLocks.length === 0 ? (
-            <Card>
+            <Card className="bg-[#2C2C2E] border-[#2C2C2E]">
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">No History</h3>
-                  <p className="text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-medium mb-2 text-white">No History</h3>
+                  <p className="text-gray-400">
                     Completed locks will appear here
                   </p>
                 </div>

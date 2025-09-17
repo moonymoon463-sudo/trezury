@@ -186,12 +186,12 @@ export function LendingDeposit() {
             </ol>
           </div>
 
-          <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
+          <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-[#f9b006] mt-0.5 flex-shrink-0" />
               <div className="space-y-1 text-sm">
-                <p className="font-medium text-amber-200">Important</p>
-                <ul className="space-y-1 text-amber-300/80">
+                <p className="font-medium text-[#f9b006]">Important</p>
+                <ul className="space-y-1 text-gray-300">
                   <li>• Double-check the deposit address and network</li>
                   <li>• Include the Lock ID as memo/reference</li>
                   <li>• Your lock activates after deposit confirmation</li>
@@ -345,14 +345,14 @@ export function LendingDeposit() {
           </div>
 
           {/* Risk Disclosure */}
-          <div className="bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
+          <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-[#f9b006] mt-0.5 flex-shrink-0" />
               <div className="space-y-2 text-sm">
-                <p className="font-medium text-amber-200">
+                <p className="font-medium text-[#f9b006]">
                   Important Disclosures
                 </p>
-                <ul className="space-y-1 text-amber-300/80">
+                <ul className="space-y-1 text-gray-300">
                   <li>• Early exit returns principal only; all interest is forfeited</li>
                   <li>• APY varies with pool utilization and safety reserves</li>
                   <li>• Real yield from borrower interest; capital at risk</li>
