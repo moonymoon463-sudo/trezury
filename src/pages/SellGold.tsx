@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import AurumLogo from "@/components/AurumLogo";
 
 const SellGold = () => {
   const navigate = useNavigate();
@@ -19,7 +20,9 @@ const SellGold = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Sell Gold</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 

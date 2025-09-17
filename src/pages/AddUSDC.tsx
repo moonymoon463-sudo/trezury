@@ -11,6 +11,7 @@ import { useMoonPayBuy } from "@/hooks/useMoonPayBuy";
 import BottomNavigation from "@/components/BottomNavigation";
 import QRCode from "qrcode";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
+import AurumLogo from "@/components/AurumLogo";
 
 const AddUSDC = () => {
   const navigate = useNavigate();
@@ -135,7 +136,9 @@ const AddUSDC = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Add USDC</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 

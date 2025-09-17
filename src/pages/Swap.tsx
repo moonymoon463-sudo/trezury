@@ -8,6 +8,7 @@ import { useBuyQuote } from "@/hooks/useBuyQuote";
 import { useTransactionExecution } from "@/hooks/useTransactionExecution";
 import { useToast } from "@/hooks/use-toast";
 import { swapFeeService } from "@/services/swapFeeService";
+import AurumLogo from "@/components/AurumLogo";
 
 const Swap = () => {
   const navigate = useNavigate();
@@ -140,7 +141,9 @@ const Swap = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Swap</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 

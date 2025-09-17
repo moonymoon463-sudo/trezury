@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowUpRight, ArrowDownLeft, RefreshCw, DollarSign } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useTransactions } from "@/hooks/useTransactions";
+import AurumLogo from "@/components/AurumLogo";
 
 const Transactions = () => {
   const navigate = useNavigate();
@@ -70,7 +71,9 @@ const Transactions = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">History</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 

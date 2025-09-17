@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LendingDeposit } from "@/components/lending/LendingDeposit";
 import { LendingProfile } from "@/components/lending/LendingProfile";
 import BottomNavigation from "@/components/BottomNavigation";
+import AurumLogo from "@/components/AurumLogo";
 
 export default function Lending() {
   const [searchParams] = useSearchParams();
@@ -24,7 +25,9 @@ export default function Lending() {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Lending</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 

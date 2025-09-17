@@ -5,6 +5,7 @@ import { ArrowLeft, CreditCard, DollarSign, AlertTriangle } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import AurumLogo from "@/components/AurumLogo";
 
 const BuyGold = () => {
   const navigate = useNavigate();
@@ -71,7 +72,9 @@ const BuyGold = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Buy Gold</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 
