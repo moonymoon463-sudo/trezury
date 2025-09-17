@@ -2,9 +2,32 @@ import React from 'react';
 
 interface TrezuryLogoProps {
   className?: string;
+  compact?: boolean;
 }
 
-const AurumLogo: React.FC<TrezuryLogoProps> = ({ className = '' }) => {
+const AurumLogo: React.FC<TrezuryLogoProps> = ({ className = '', compact = false }) => {
+  if (compact) {
+    return (
+      <div className={`flex items-center gap-2 ${className}`}>
+        {/* Compact Vault Symbol */}
+        <div className="border-2 border-[hsl(var(--aurum-gold))] p-1 bg-slate-900/50 rounded">
+          <div className="grid grid-cols-3 gap-1 w-6 h-4">
+            <div className="col-start-2 w-1 h-1 bg-[hsl(var(--aurum-gold))] rounded-full"></div>
+            <div className="w-1 h-1 bg-[hsl(var(--aurum-gold))] rounded-full"></div>
+            <div className="w-1 h-1 bg-[hsl(var(--aurum-gold))] rounded-full"></div>
+            <div className="w-1 h-1 bg-[hsl(var(--aurum-gold))] rounded-full"></div>
+            <div className="col-start-2 w-1 h-1 bg-[hsl(var(--aurum-gold))] rounded-full"></div>
+          </div>
+        </div>
+        
+        {/* Compact Company Name */}
+        <div className="font-bold text-lg tracking-wider text-[hsl(var(--aurum-gold))]">
+          TREZURY
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col items-center ${className}`}>
       {/* Vault Door Symbol */}

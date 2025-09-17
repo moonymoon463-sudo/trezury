@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, TrendingUp, DollarSign, ArrowRightLeft } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
+import AurumLogo from "@/components/AurumLogo";
 
 const BuySellHub = () => {
   const navigate = useNavigate();
@@ -21,7 +22,9 @@ const BuySellHub = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Buy & Sell</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 

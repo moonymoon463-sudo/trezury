@@ -46,7 +46,7 @@ const Index = () => {
         <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10">
           <div className="w-12"></div>
           <div className="flex-1 flex justify-center">
-            <AurumLogo className="scale-75" />
+            <AurumLogo compact />
           </div>
           <div className="flex w-12 items-center justify-end">
             <button 
