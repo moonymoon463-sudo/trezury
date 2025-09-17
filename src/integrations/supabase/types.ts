@@ -80,6 +80,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "balance_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "secure_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       config: {
@@ -232,6 +239,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "kyc_documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "secure_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       locks: {
@@ -328,6 +342,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "secure_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -474,6 +495,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pii_access_rate_limit: {
+        Row: {
+          access_count: number | null
+          user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          access_count?: number | null
+          user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          access_count?: number | null
+          user_id?: string
+          window_start?: string | null
+        }
+        Relationships: []
       }
       pool_stats: {
         Row: {
@@ -625,6 +664,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quotes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "secure_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       swap_quotes: {
@@ -752,6 +798,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "secure_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       wallets: {
@@ -784,13 +837,81 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "secure_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      secure_profiles: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string | null
+          id: string | null
+          kyc_status: string | null
+          last_name: string | null
+          phone: string | null
+          ssn_last_four: string | null
+          state: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: never
+          city?: never
+          country?: string | null
+          created_at?: string | null
+          date_of_birth?: never
+          email?: string | null
+          first_name?: string | null
+          id?: string | null
+          kyc_status?: string | null
+          last_name?: string | null
+          phone?: never
+          ssn_last_four?: never
+          state?: never
+          updated_at?: string | null
+          zip_code?: never
+        }
+        Update: {
+          address?: never
+          city?: never
+          country?: string | null
+          created_at?: string | null
+          date_of_birth?: never
+          email?: string | null
+          first_name?: string | null
+          id?: string | null
+          kyc_status?: string | null
+          last_name?: string | null
+          phone?: never
+          ssn_last_four?: never
+          state?: never
+          updated_at?: string | null
+          zip_code?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      can_access_sensitive_pii: {
+        Args: { target_user_id: string; user_uuid: string }
+        Returns: boolean
+      }
+      check_pii_rate_limit: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
       execute_transaction: {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
@@ -812,8 +933,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      mask_address: {
+        Args: { address_value: string }
+        Returns: string
+      }
+      mask_phone: {
+        Args: { phone_value: string }
+        Returns: string
+      }
+      mask_ssn: {
+        Args: { ssn_value: string }
+        Returns: string
+      }
       validate_kyc_document_access: {
         Args: { doc_status: string; doc_user_id: string }
+        Returns: boolean
+      }
+      validate_profile_access_pattern: {
+        Args: { user_uuid: string }
         Returns: boolean
       }
     }
