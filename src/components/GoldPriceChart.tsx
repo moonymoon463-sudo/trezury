@@ -81,15 +81,15 @@ const GoldPriceChart = () => {
   return (
     <div className="bg-[#2C2C2E] rounded-xl p-4">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
+        <h3 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
           Gold Price Chart
         </h3>
         <div className="flex bg-[#1A1A1A] rounded-lg p-1">
           <button 
             className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
               timeframe === '24h' 
-                ? 'bg-[#f9b006] text-black' 
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-primary text-primary-foreground' 
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setTimeframe('24h')}
           >
@@ -98,8 +98,8 @@ const GoldPriceChart = () => {
           <button 
             className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
               timeframe === '7d' 
-                ? 'bg-[#f9b006] text-black' 
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-primary text-primary-foreground' 
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setTimeframe('7d')}
           >
@@ -110,7 +110,7 @@ const GoldPriceChart = () => {
       
       {currentPrice && (
         <div className="mb-4">
-          <p className="text-white text-2xl font-bold">
+          <p className="text-foreground text-2xl font-bold">
             ${currentPrice.usd_per_oz.toFixed(2)}
           </p>
           <p className={`text-sm ${

@@ -8,7 +8,7 @@ export interface UseSecureWalletReturn {
   loading: boolean;
   createWallet: (password: string) => Promise<SecureWalletInfo | null>;
   validateAccess: (password: string) => Promise<boolean>;
-  signTransaction: (transactionData: any, password: string) => Promise<string | null>;
+  signTransaction: (transactionData: Record<string, unknown>, password: string) => Promise<string | null>;
   getWalletAddress: () => Promise<string | null>;
 }
 
@@ -85,7 +85,7 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
   }, [user]);
 
   const signTransaction = useCallback(async (
-    transactionData: any, 
+    transactionData: Record<string, unknown>, 
     password: string
   ): Promise<string | null> => {
     if (!user?.id) {
