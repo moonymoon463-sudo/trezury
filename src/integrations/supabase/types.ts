@@ -84,7 +84,7 @@ export type Database = {
             foreignKeyName: "balance_snapshots_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "safe_profiles"
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -243,7 +243,7 @@ export type Database = {
             foreignKeyName: "kyc_documents_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "safe_profiles"
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -348,7 +348,7 @@ export type Database = {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "safe_profiles"
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -668,7 +668,7 @@ export type Database = {
             foreignKeyName: "quotes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "safe_profiles"
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -802,7 +802,7 @@ export type Database = {
             foreignKeyName: "transactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "safe_profiles"
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -841,64 +841,64 @@ export type Database = {
             foreignKeyName: "wallets_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "safe_profiles"
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
       }
     }
     Views: {
-      safe_profiles: {
+      public_profiles: {
         Row: {
-          address: string | null
-          city: string | null
+          address_display: string | null
+          city_display: string | null
           country: string | null
           created_at: string | null
-          date_of_birth: string | null
+          date_of_birth_display: string | null
           email: string | null
           first_name: string | null
           id: string | null
           kyc_status: string | null
           last_name: string | null
-          phone: string | null
-          ssn_last_four: string | null
-          state: string | null
+          phone_display: string | null
+          ssn_display: string | null
+          state_display: string | null
           updated_at: string | null
-          zip_code: string | null
+          zip_display: string | null
         }
         Insert: {
-          address?: never
-          city?: never
+          address_display?: never
+          city_display?: never
           country?: string | null
           created_at?: string | null
-          date_of_birth?: never
+          date_of_birth_display?: never
           email?: string | null
           first_name?: string | null
           id?: string | null
           kyc_status?: string | null
           last_name?: string | null
-          phone?: never
-          ssn_last_four?: never
-          state?: never
+          phone_display?: never
+          ssn_display?: never
+          state_display?: never
           updated_at?: string | null
-          zip_code?: never
+          zip_display?: never
         }
         Update: {
-          address?: never
-          city?: never
+          address_display?: never
+          city_display?: never
           country?: string | null
           created_at?: string | null
-          date_of_birth?: never
+          date_of_birth_display?: never
           email?: string | null
           first_name?: string | null
           id?: string | null
           kyc_status?: string | null
           last_name?: string | null
-          phone?: never
-          ssn_last_four?: never
-          state?: never
+          phone_display?: never
+          ssn_display?: never
+          state_display?: never
           updated_at?: string | null
-          zip_code?: never
+          zip_display?: never
         }
         Relationships: []
       }
@@ -954,6 +954,10 @@ export type Database = {
       mask_ssn: {
         Args: { ssn_value: string }
         Returns: string
+      }
+      user_can_see_sensitive_data: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       validate_kyc_document_access: {
         Args: { doc_status: string; doc_user_id: string }
