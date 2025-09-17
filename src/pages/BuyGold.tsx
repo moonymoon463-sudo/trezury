@@ -50,16 +50,16 @@ const BuyGold = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f9b006]"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -67,97 +67,99 @@ const BuyGold = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-foreground hover:bg-accent"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Buy Gold</h1>
+          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Buy Gold</h1>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-8">
-        <h2 className="text-2xl font-bold text-foreground mb-6">Payment Method</h2>
-        
-        <div className="space-y-4">
-          {/* Credit Card/Bank Option */}
-          <label className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
-            paymentMethod === "credit_card" 
-              ? "border-primary bg-accent" 
-              : "border-border bg-card"
-          }`}>
-            <div className="flex items-center gap-4">
-              <CreditCard className="text-muted-foreground" size={24} />
-              <div>
-                <span className="text-foreground font-medium block">Credit Card/Bank</span>
-                {profile?.kyc_status !== 'verified' && (
-                  <span className="text-xs text-muted-foreground">Requires identity verification</span>
-                )}
-              </div>
-            </div>
-            <input
-              type="radio"
-              name="payment_method"
-              value="credit_card"
-              checked={paymentMethod === "credit_card"}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="h-5 w-5 text-primary focus:ring-primary"
-            />
-          </label>
-
-          {/* KYC Warning for Credit Card */}
-          {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+      <main className="flex-1 px-4 pb-4">
+        <div className="max-w-md mx-auto space-y-6">
+          <h2 className="text-2xl font-bold text-white mb-6">Payment Method</h2>
+          
+          <div className="space-y-4">
+            {/* Credit Card/Bank Option */}
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
+              paymentMethod === "credit_card" 
+                ? "bg-[#f9b006]/20 border-2 border-[#f9b006]" 
+                : "bg-[#2C2C2E] border border-gray-600"
+            }`}>
+              <div className="flex items-center gap-4">
+                <CreditCard className="text-gray-400" size={24} />
                 <div>
-                  <p className="font-semibold text-yellow-800 text-sm">Identity Verification Required</p>
-                  <p className="text-yellow-700 text-sm mt-1">
-                    To buy gold with a credit card, you need to complete identity verification first. 
-                    This helps us comply with financial regulations.
-                  </p>
+                  <span className="text-white font-medium block">Credit Card/Bank</span>
+                  {profile?.kyc_status !== 'verified' && (
+                    <span className="text-xs text-gray-400">Requires identity verification</span>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+              <input
+                type="radio"
+                name="payment_method"
+                value="credit_card"
+                checked={paymentMethod === "credit_card"}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="h-5 w-5 text-[#f9b006] focus:ring-[#f9b006] bg-transparent border-gray-400"
+              />
+            </label>
 
-          {/* USDC Option */}
-          <label className={`flex items-center justify-between rounded-xl border p-4 cursor-pointer transition-all ${
-            paymentMethod === "usdc" 
-              ? "border-primary bg-accent" 
-              : "border-border bg-card"
-          }`}>
-            <div className="flex items-center gap-4">
-              <DollarSign className="text-muted-foreground" size={24} />
-              <div>
-                <span className="text-foreground font-medium block">USDC</span>
-                <span className="text-xs text-muted-foreground">Use existing wallet balance</span>
+            {/* KYC Warning for Credit Card */}
+            {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' && (
+              <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-[#f9b006] mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-[#f9b006] text-sm">Identity Verification Required</p>
+                    <p className="text-gray-300 text-sm mt-1">
+                      To buy gold with a credit card, you need to complete identity verification first. 
+                      This helps us comply with financial regulations.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <input
-              type="radio"
-              name="payment_method"
-              value="usdc"
-              checked={paymentMethod === "usdc"}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="h-5 w-5 text-primary focus:ring-primary"
-            />
-          </label>
+            )}
+
+            {/* USDC Option */}
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
+              paymentMethod === "usdc" 
+                ? "bg-[#f9b006]/20 border-2 border-[#f9b006]" 
+                : "bg-[#2C2C2E] border border-gray-600"
+            }`}>
+              <div className="flex items-center gap-4">
+                <DollarSign className="text-gray-400" size={24} />
+                <div>
+                  <span className="text-white font-medium block">USDC</span>
+                  <span className="text-xs text-gray-400">Use existing wallet balance</span>
+                </div>
+              </div>
+              <input
+                type="radio"
+                name="payment_method"
+                value="usdc"
+                checked={paymentMethod === "usdc"}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="h-5 w-5 text-[#f9b006] focus:ring-[#f9b006] bg-transparent border-gray-400"
+              />
+            </label>
+          </div>
+
+          {/* Continue Button */}
+          <div className="pt-4">
+            <Button 
+              className="w-full bg-[#f9b006] text-black font-bold h-14 text-lg rounded-xl hover:bg-[#f9b006]/90"
+              onClick={handleContinue}
+            >
+              {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 
+                ? "Verify Identity & Continue" 
+                : "Continue"
+              }
+            </Button>
+          </div>
         </div>
       </main>
-
-      {/* Continue Button */}
-      <div className="px-4 py-6">
-        <Button 
-          className="w-full h-14 font-bold text-lg rounded-xl"
-          onClick={handleContinue}
-        >
-          {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 
-            ? "Verify Identity & Continue" 
-            : "Continue"
-          }
-        </Button>
-      </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation />
