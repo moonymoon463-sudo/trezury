@@ -1,37 +1,72 @@
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LendingDeposit } from "@/components/lending/LendingDeposit";
 import { LendingProfile } from "@/components/lending/LendingProfile";
+import BottomNavigation from "@/components/BottomNavigation";
 
 export default function Lending() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const defaultTab = searchParams.get('tab') || 'deposit';
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Multi-Chain Lending</h1>
-          <p className="text-lg text-muted-foreground mt-2">
-            Lock stablecoins across multiple chains to earn competitive yields. 
-            No lock = 0% APY.
-          </p>
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+      {/* Header */}
+      <header className="p-4">
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => navigate("/")}
+            className="text-white hover:bg-gray-800"
+          >
+            <ArrowLeft size={24} />
+          </Button>
+          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Lending</h1>
         </div>
+      </header>
 
-        <Tabs defaultValue={defaultTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="deposit">Deposit</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-          </TabsList>
+      {/* Content */}
+      <main className="flex-1 px-4 pb-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-6">
+            <p className="text-gray-400 text-center">
+              Lock stablecoins across multiple chains to earn competitive yields. 
+              No lock = 0% APY.
+            </p>
+          </div>
 
-          <TabsContent value="deposit">
-            <LendingDeposit />
-          </TabsContent>
+          <Tabs defaultValue={defaultTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto bg-[#2C2C2E] border-0">
+              <TabsTrigger 
+                value="deposit" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
+              >
+                Deposit
+              </TabsTrigger>
+              <TabsTrigger 
+                value="profile"
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
+              >
+                Profile
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="profile">
-            <LendingProfile />
-          </TabsContent>
-        </Tabs>
-      </div>
+            <TabsContent value="deposit" className="mt-8">
+              <LendingDeposit />
+            </TabsContent>
+
+            <TabsContent value="profile" className="mt-8">
+              <LendingProfile />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
     </div>
   );
 }
