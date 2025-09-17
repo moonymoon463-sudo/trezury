@@ -84,7 +84,7 @@ export type Database = {
             foreignKeyName: "balance_snapshots_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "secure_profiles"
+            referencedRelation: "safe_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -243,7 +243,7 @@ export type Database = {
             foreignKeyName: "kyc_documents_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "secure_profiles"
+            referencedRelation: "safe_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -348,7 +348,7 @@ export type Database = {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "secure_profiles"
+            referencedRelation: "safe_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -668,7 +668,7 @@ export type Database = {
             foreignKeyName: "quotes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "secure_profiles"
+            referencedRelation: "safe_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -802,7 +802,7 @@ export type Database = {
             foreignKeyName: "transactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "secure_profiles"
+            referencedRelation: "safe_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -841,14 +841,14 @@ export type Database = {
             foreignKeyName: "wallets_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "secure_profiles"
+            referencedRelation: "safe_profiles"
             referencedColumns: ["id"]
           },
         ]
       }
     }
     Views: {
-      secure_profiles: {
+      safe_profiles: {
         Row: {
           address: string | null
           city: string | null
