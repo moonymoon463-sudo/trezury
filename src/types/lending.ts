@@ -65,8 +65,8 @@ export interface TokenConfig {
 }
 
 export const LOCK_TERMS: LockTerm[] = [
-  { days: 30, label: '30 days', apyMin: 3, apyMax: 5 },
-  { days: 90, label: '90 days', apyMin: 6, apyMax: 8 },
+  { days: 30, label: '30 days', apyMin: 1, apyMax: 3 },
+  { days: 90, label: '90 days', apyMin: 1, apyMax: 3 },
   { days: 180, label: '6 months', apyMin: 8, apyMax: 10 },
   { days: 365, label: '12 months', apyMin: 10, apyMax: 16 },
   { days: 540, label: '18 months', apyMin: 12, apyMax: 19 },
@@ -109,5 +109,29 @@ export const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {
       { symbol: 'USDC', address: 'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8', decimals: 6 }
     ],
     explorerUrl: 'https://tronscan.org'
+  }
+};
+
+// Deposit wallet addresses for receiving lending funds
+export const LENDING_DEPOSIT_WALLETS: Record<Chain, Record<Token, string>> = {
+  ethereum: {
+    USDC: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12', // Platform USDC deposit wallet
+    USDT: '0x2b3c4d5e6f7890abcdef1234567890abcdef1234', // Platform USDT deposit wallet  
+    DAI: '0x3c4d5e6f7890abcdef1234567890abcdef123456'   // Platform DAI deposit wallet
+  },
+  base: {
+    USDC: '0x4d5e6f7890abcdef1234567890abcdef12345678', // Platform Base USDC wallet
+    USDT: '',
+    DAI: ''
+  },
+  solana: {
+    USDC: 'B1tcZ5xY4D6VGwJh89v8e3KqL5mN7oP2qR8sT9uX3vW4', // Platform Solana USDC wallet
+    USDT: 'C2udA6yE5F7HxKj90w9f4LqN8pQ3rS0tU1vY4xZ5bX6', // Platform Solana USDT wallet
+    DAI: ''
+  },
+  tron: {
+    USDT: 'TLendingPlatformUSDTWalletAddress123456789', // Platform Tron USDT wallet
+    USDC: 'TLendingPlatformUSDCWalletAddress987654321', // Platform Tron USDC wallet
+    DAI: ''
   }
 };
