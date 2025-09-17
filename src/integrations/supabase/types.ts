@@ -80,13 +80,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "balance_snapshots_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       config: {
@@ -239,13 +232,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "kyc_documents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       locks: {
@@ -342,13 +328,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -664,13 +643,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "quotes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       swap_quotes: {
@@ -798,13 +770,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       wallets: {
@@ -837,71 +802,11 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "wallets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
     Views: {
-      public_profiles: {
-        Row: {
-          address_display: string | null
-          city_display: string | null
-          country: string | null
-          created_at: string | null
-          date_of_birth_display: string | null
-          email: string | null
-          first_name: string | null
-          id: string | null
-          kyc_status: string | null
-          last_name: string | null
-          phone_display: string | null
-          ssn_display: string | null
-          state_display: string | null
-          updated_at: string | null
-          zip_display: string | null
-        }
-        Insert: {
-          address_display?: never
-          city_display?: never
-          country?: string | null
-          created_at?: string | null
-          date_of_birth_display?: never
-          email?: string | null
-          first_name?: string | null
-          id?: string | null
-          kyc_status?: string | null
-          last_name?: string | null
-          phone_display?: never
-          ssn_display?: never
-          state_display?: never
-          updated_at?: string | null
-          zip_display?: never
-        }
-        Update: {
-          address_display?: never
-          city_display?: never
-          country?: string | null
-          created_at?: string | null
-          date_of_birth_display?: never
-          email?: string | null
-          first_name?: string | null
-          id?: string | null
-          kyc_status?: string | null
-          last_name?: string | null
-          phone_display?: never
-          ssn_display?: never
-          state_display?: never
-          updated_at?: string | null
-          zip_display?: never
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       can_access_sensitive_pii: {
