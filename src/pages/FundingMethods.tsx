@@ -113,16 +113,23 @@ export default function FundingMethods() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-4">
+      <div className="min-h-screen bg-[#1C1C1E] p-4">
         <div className="mx-auto max-w-md">
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate(-1)}
+              className="text-white hover:bg-gray-800"
+            >
               <ArrowLeft className="h-6 w-6" />
             </Button>
-            <h1 className="text-xl font-semibold text-foreground">Funding Methods</h1>
+            <div className="flex-1 flex justify-center pr-10">
+              <div className="text-white font-bold text-lg">TREZURY</div>
+            </div>
           </div>
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f9b006]"></div>
           </div>
         </div>
       </div>
@@ -130,14 +137,21 @@ export default function FundingMethods() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-[#1C1C1E] p-4">
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(-1)}
+            className="text-white hover:bg-gray-800"
+          >
             <ArrowLeft className="h-6 w-6" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">Funding Methods</h1>
+          <div className="flex-1 flex justify-center pr-10">
+            <div className="text-white font-bold text-lg">TREZURY</div>
+          </div>
         </div>
 
         {/* Tabs */}

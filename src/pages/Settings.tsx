@@ -144,9 +144,9 @@ const Settings = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f9b006]"></div>
         </div>
       </div>
     );
@@ -154,10 +154,10 @@ const Settings = () => {
 
   if (!profile) {
     return (
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-xl font-bold text-foreground mb-4">Profile Not Found</h2>
+            <h2 className="text-xl font-bold text-white mb-4">Profile Not Found</h2>
             <Button onClick={() => navigate("/")}>Back to Dashboard</Button>
           </div>
         </div>
@@ -169,7 +169,7 @@ const Settings = () => {
   const IconComponent = kycInfo.icon;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -177,7 +177,7 @@ const Settings = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-foreground hover:bg-accent"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
@@ -190,133 +190,128 @@ const Settings = () => {
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
         {/* Profile Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User size={20} />
-              Profile Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <User size={20} />
+            Profile Information
+          </h3>
+          <div className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-400 text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={profile.email}
                 disabled
-                className="bg-muted"
+                className="bg-[#1C1C1E] border-gray-600 text-white mt-2"
               />
             </div>
             <div>
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone" className="text-gray-400 text-sm">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Enter your phone number"
+                className="bg-[#1C1C1E] border-gray-600 text-white mt-2"
               />
             </div>
-            <Button onClick={updateProfile} disabled={saving} className="w-full">
+            <Button 
+              onClick={updateProfile} 
+              disabled={saving} 
+              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+            >
               {saving ? "Updating..." : "Update Profile"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* KYC Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield size={20} />
-              Identity Verification
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${kycInfo.bgColor}`}>
-                <IconComponent size={20} className={kycInfo.color} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-foreground">KYC Status</span>
-                  <Badge variant={profile.kyc_status === 'verified' ? 'default' : 'secondary'}>
-                    {kycInfo.label}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{kycInfo.description}</p>
-              </div>
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <Shield size={20} />
+            Identity Verification
+          </h3>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${kycInfo.bgColor}`}>
+              <IconComponent size={20} className={kycInfo.color} />
             </div>
-            
-            {profile.kyc_status !== 'verified' && (
-              <Button 
-                onClick={() => navigate("/kyc-verification")}
-                className="w-full"
-                variant={profile.kyc_status === 'failed' ? 'destructive' : 'default'}
-              >
-                {profile.kyc_status === 'failed' ? 'Retry Verification' : 'Start Verification'}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-white">KYC Status</span>
+                <Badge 
+                  variant={profile.kyc_status === 'verified' ? 'default' : 'secondary'}
+                  className={profile.kyc_status === 'verified' ? 'bg-[#f9b006] text-black' : 'bg-[#1C1C1E] text-gray-400'}
+                >
+                  {kycInfo.label}
+                </Badge>
+              </div>
+              <p className="text-sm text-gray-400">{kycInfo.description}</p>
+            </div>
+          </div>
+          
+          {profile.kyc_status !== 'verified' && (
+            <Button 
+              onClick={() => navigate("/kyc-verification")}
+              className={`w-full ${profile.kyc_status === 'failed' 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'bg-[#f9b006] text-black hover:bg-[#f9b006]/90'
+              }`}
+            >
+              {profile.kyc_status === 'failed' ? 'Retry Verification' : 'Start Verification'}
+            </Button>
+          )}
+        </div>
 
         {/* Payment Methods */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard size={20} />
-              Payment Methods
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              {profile.kyc_status === 'verified' 
-                ? "Manage your payment methods for buying gold"
-                : "Complete identity verification to add payment methods"
-              }
-            </p>
-            <Button 
-              onClick={() => navigate("/payment-methods")}
-              disabled={profile.kyc_status !== 'verified'}
-              className="w-full"
-              variant="outline"
-            >
-              Manage Payment Methods
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <CreditCard size={20} />
+            Payment Methods
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">
+            {profile.kyc_status === 'verified' 
+              ? "Manage your payment methods for buying gold"
+              : "Complete identity verification to add payment methods"
+            }
+          </p>
+          <Button 
+            onClick={() => navigate("/payment-methods")}
+            disabled={profile.kyc_status !== 'verified'}
+            className="w-full bg-[#1C1C1E] border border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+          >
+            Manage Payment Methods
+          </Button>
+        </div>
 
         {/* Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell size={20} />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Manage your notification preferences
-            </p>
-            <Button variant="outline" className="w-full" disabled>
-              Coming Soon
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <Bell size={20} />
+            Notifications
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Manage your notification preferences
+          </p>
+          <Button 
+            disabled 
+            className="w-full bg-[#1C1C1E] border border-gray-600 text-gray-500 opacity-50"
+          >
+            Coming Soon
+          </Button>
+        </div>
 
         {/* Account Actions */}
-        <Card>
-          <CardContent className="pt-6">
-            <Button 
-              onClick={handleSignOut}
-              variant="destructive"
-              className="w-full flex items-center gap-2"
-            >
-              <LogOut size={16} />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <Button 
+            onClick={handleSignOut}
+            className="w-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </Button>
+        </div>
       </main>
 
       {/* Bottom Navigation */}

@@ -7,6 +7,7 @@ import { ArrowLeft, CreditCard, Plus, Trash2, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import AurumLogo from "@/components/AurumLogo";
 
 interface PaymentMethod {
   id: string;
@@ -136,9 +137,9 @@ const PaymentMethods = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f9b006]"></div>
         </div>
       </div>
     );
@@ -146,34 +147,37 @@ const PaymentMethods = () => {
 
   if (profile?.kyc_status !== 'verified') {
     return (
-      <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <header className="p-4">
           <div className="flex items-center">
             <Button 
               variant="ghost" 
               size="icon"
               onClick={() => navigate("/settings")}
-              className="text-foreground hover:bg-accent"
+              className="text-white hover:bg-gray-800"
             >
               <ArrowLeft size={24} />
             </Button>
-            <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Payment Methods</h1>
+            <div className="flex-1 flex justify-center pr-6">
+              <AurumLogo compact />
+            </div>
           </div>
         </header>
         
         <div className="flex-1 flex items-center justify-center px-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="text-center py-8">
-              <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-xl font-bold text-foreground mb-2">Verification Required</h2>
-              <p className="text-muted-foreground mb-6">
-                Complete identity verification to add and manage payment methods for card purchases.
-              </p>
-              <Button onClick={() => navigate("/kyc-verification")} className="w-full">
-                Start Verification
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="bg-[#2C2C2E] rounded-xl p-8 w-full max-w-md text-center">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <h2 className="text-xl font-bold text-white mb-2">Verification Required</h2>
+            <p className="text-gray-400 mb-6">
+              Complete identity verification to add and manage payment methods for card purchases.
+            </p>
+            <Button 
+              onClick={() => navigate("/kyc-verification")} 
+              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+            >
+              Start Verification
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -182,7 +186,7 @@ const PaymentMethods = () => {
   const activePaymentMethods = paymentMethods.filter(pm => pm.is_active);
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -190,113 +194,110 @@ const PaymentMethods = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/settings")}
-            className="text-foreground hover:bg-accent"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Payment Methods</h1>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
         {/* Add Payment Method */}
-        <Card className="border-dashed border-2">
-          <CardContent className="text-center py-8">
-            <Plus className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="font-semibold text-foreground mb-2">Add Payment Method</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Add a credit card or bank account to buy gold instantly
-            </p>
-            <Button onClick={() => navigate("/add-payment-method")} className="w-full">
-              Add Payment Method
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="bg-[#2C2C2E] rounded-xl p-6 border-2 border-dashed border-gray-600 text-center">
+          <Plus className="h-8 w-8 mx-auto mb-4 text-gray-400" />
+          <h3 className="font-semibold text-white mb-2">Add Payment Method</h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Add a credit card or bank account to buy gold instantly
+          </p>
+          <Button 
+            onClick={() => navigate("/add-payment-method")} 
+            className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+          >
+            Add Payment Method
+          </Button>
+        </div>
 
         {/* Existing Payment Methods */}
         {activePaymentMethods.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">Your Payment Methods</h2>
+            <h2 className="text-lg font-semibold text-white">Your Payment Methods</h2>
             {activePaymentMethods.map((method) => (
-              <Card key={method.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">
-                        {method.type === 'card' 
-                          ? getCardIcon(method.metadata.brand || '') 
-                          : getBankIcon(method.metadata.account_type || '')
-                        }
-                      </div>
-                      <div>
-                        {method.type === 'card' ? (
-                          <>
-                            <p className="font-semibold text-foreground">
-                              {method.metadata.brand} •••• {method.metadata.last4}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Expires {method.metadata.exp_month}/{method.metadata.exp_year}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-semibold text-foreground">
-                              {method.metadata.bank_name}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {method.metadata.account_type} •••• {method.metadata.last4}
-                            </p>
-                          </>
-                        )}
-                        <Badge variant="secondary" className="text-xs mt-1">
-                          {method.provider}
-                        </Badge>
-                      </div>
+              <div key={method.id} className="bg-[#2C2C2E] rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">
+                      {method.type === 'card' 
+                        ? getCardIcon(method.metadata.brand || '') 
+                        : getBankIcon(method.metadata.account_type || '')
+                      }
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deletePaymentMethod(method.id)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
+                    <div>
+                      {method.type === 'card' ? (
+                        <>
+                          <p className="font-semibold text-white">
+                            {method.metadata.brand} •••• {method.metadata.last4}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            Expires {method.metadata.exp_month}/{method.metadata.exp_year}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-white">
+                            {method.metadata.bank_name}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {method.metadata.account_type} •••• {method.metadata.last4}
+                          </p>
+                        </>
+                      )}
+                      <Badge variant="secondary" className="text-xs mt-1 bg-[#1C1C1E] text-gray-400">
+                        {method.provider}
+                      </Badge>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deletePaymentMethod(method.id)}
+                    className="text-gray-400 hover:text-red-500 hover:bg-red-500/10"
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         )}
 
         {/* Empty State */}
         {activePaymentMethods.length === 0 && (
-          <Card>
-            <CardContent className="text-center py-12">
-              <CreditCard className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Payment Methods</h3>
-              <p className="text-muted-foreground">
-                Add a payment method to start buying gold with your card or bank account
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-[#2C2C2E] rounded-xl p-12 text-center">
+            <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-semibold text-white mb-2">No Payment Methods</h3>
+            <p className="text-gray-400">
+              Add a payment method to start buying gold with your card or bank account
+            </p>
+          </div>
         )}
 
         {/* Security Notice */}
-        <Card className="bg-muted/30">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <Shield className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-foreground mb-1">Secure & Protected</h4>
-                <p className="text-sm text-muted-foreground">
-                  Your payment information is encrypted and processed through our secure payment partners. 
-                  We never store your full card details.
-                </p>
-              </div>
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Shield className="h-5 w-5 text-[#f9b006] mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-white mb-1">Secure & Protected</h4>
+              <p className="text-sm text-gray-400">
+                Your payment information is encrypted and processed through our secure payment partners. 
+                We never store your full card details.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -10,6 +10,7 @@ import { ArrowLeft, CreditCard, Building2, Shield, AlertTriangle } from "lucide-
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import AurumLogo from "@/components/AurumLogo";
 
 const AddPaymentMethod = () => {
   const navigate = useNavigate();
@@ -203,17 +204,19 @@ const AddPaymentMethod = () => {
     <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/payment-methods")}
-            className="text-white hover:bg-gray-800"
-          >
-            <ArrowLeft size={24} />
-          </Button>
-          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Add Payment Method</h1>
-        </div>
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/payment-methods")}
+              className="text-white hover:bg-gray-800"
+            >
+              <ArrowLeft size={24} />
+            </Button>
+            <div className="flex-1 flex justify-center pr-6">
+              <AurumLogo compact />
+            </div>
+          </div>
       </header>
 
       {/* Main Content */}
