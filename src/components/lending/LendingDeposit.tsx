@@ -120,26 +120,26 @@ export function LendingDeposit() {
     );
 
     return (
-      <Card className="w-full max-w-2xl mx-auto bg-[#2C2C2E] border-[#2C2C2E]">
+      <Card className="w-full max-w-2xl mx-auto bg-card border-border">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <CheckCircle className="h-5 w-5 text-[#f9b006]" />
+          <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <CheckCircle className="h-5 w-5 text-primary" />
             Lock Created - Send Deposit
           </CardTitle>
-          <CardDescription className="text-gray-400">
+          <CardDescription className="text-muted-foreground">
             Send your {selectedToken} to activate your lending lock
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <div className="bg-[#1A1A1A] rounded-xl p-4 space-y-4">
+          <div className="bg-surface-elevated rounded-xl p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-white">Deposit Address:</span>
+              <span className="text-sm font-medium text-card-foreground">Deposit Address:</span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => copyToClipboard(depositInfo.depositAddress)}
-                className="ml-2 bg-[#2C2C2E] border-[#2C2C2E] text-white hover:bg-[#2C2C2E]/80"
+                className="ml-2"
               >
                 {copiedAddress ? (
                   <CheckCircle className="h-4 w-4" />
@@ -148,50 +148,50 @@ export function LendingDeposit() {
                 )}
               </Button>
             </div>
-            <div className="font-mono text-sm bg-[#2C2C2E] p-3 rounded border border-[#2C2C2E] break-all text-white">
+            <div className="font-mono text-sm bg-card p-3 rounded border border-border break-all text-card-foreground">
               {depositInfo.depositAddress}
             </div>
             
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-400">Amount:</span>
-                <p className="font-medium text-white">{depositInfo.amount} {depositInfo.token}</p>
+                <span className="text-muted-foreground">Amount:</span>
+                <p className="font-medium text-card-foreground">{depositInfo.amount} {depositInfo.token}</p>
               </div>
               <div>
-                <span className="text-gray-400">Network:</span>
-                <p className="font-medium capitalize text-white">{depositInfo.chain}</p>
+                <span className="text-muted-foreground">Network:</span>
+                <p className="font-medium capitalize text-card-foreground">{depositInfo.chain}</p>
               </div>
               <div>
-                <span className="text-gray-400">Lock ID:</span>
-                <p className="font-mono text-xs text-white">{depositInfo.memo}</p>
+                <span className="text-muted-foreground">Lock ID:</span>
+                <p className="font-mono text-xs text-card-foreground">{depositInfo.memo}</p>
               </div>
               <div>
-                <span className="text-gray-400">APY:</span>
-                <p className="font-medium text-[#f9b006]">{LendingService.formatAPY(currentAPY)}</p>
+                <span className="text-muted-foreground">APY:</span>
+                <p className="font-medium text-primary">{LendingService.formatAPY(currentAPY)}</p>
               </div>
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="font-medium text-white">Deposit Instructions:</h4>
+            <h4 className="font-medium text-card-foreground">Deposit Instructions:</h4>
             <ol className="text-sm space-y-2">
               {depositInfo.instructions.map((instruction, index) => (
                 <li key={index} className="flex gap-2">
-                  <span className="text-gray-400 font-mono text-xs mt-0.5">
+                  <span className="text-muted-foreground font-mono text-xs mt-0.5">
                     {String(index + 1).padStart(2, '0')}.
                   </span>
-                  <span className="text-gray-400">{instruction.replace(/^\d+\.\s*/, '')}</span>
+                  <span className="text-muted-foreground">{instruction.replace(/^\d+\.\s*/, '')}</span>
                 </li>
               ))}
             </ol>
           </div>
 
-          <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-lg p-4">
+          <div className="bg-card border border-primary/30 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-[#f9b006] mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
               <div className="space-y-1 text-sm">
-                <p className="font-medium text-[#f9b006]">Important</p>
-                <ul className="space-y-1 text-gray-300">
+                <p className="font-medium text-primary">Important</p>
+                <ul className="space-y-1 text-card-foreground">
                   <li>• Double-check the deposit address and network</li>
                   <li>• Include the Lock ID as memo/reference</li>
                   <li>• Your lock activates after deposit confirmation</li>
@@ -205,13 +205,13 @@ export function LendingDeposit() {
             <Button 
               onClick={resetForm} 
               variant="outline" 
-              className="flex-1 bg-[#2C2C2E] border-[#2C2C2E] text-white hover:bg-[#2C2C2E]/80"
+              className="flex-1"
             >
               Create Another Lock
             </Button>
             <Button 
               onClick={() => setShowDepositInfo(false)} 
-              className="flex-1 bg-[#f9b006] text-black hover:bg-[#f9b006]/90"
+              className="flex-1"
             >
               View My Locks
             </Button>
@@ -221,30 +221,30 @@ export function LendingDeposit() {
     );
   }
 
-  return (
-    <Card className="w-full max-w-2xl mx-auto bg-[#2C2C2E] border-[#2C2C2E]">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <TrendingUp className="h-5 w-5 text-[#f9b006]" />
-          Stablecoin Lending
-        </CardTitle>
-        <CardDescription className="text-gray-400">
-          Lock stablecoins to earn yield. No lock = 0% APY.
-        </CardDescription>
-      </CardHeader>
+    return (
+      <Card className="w-full max-w-2xl mx-auto bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-card-foreground">
+            <TrendingUp className="h-5 w-5 text-primary" />
+            Stablecoin Lending
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Lock stablecoins to earn yield. No lock = 0% APY.
+          </CardDescription>
+        </CardHeader>
       
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Chain Selection */}
           <div className="space-y-2">
-            <Label htmlFor="chain" className="text-white">Blockchain</Label>
+            <Label htmlFor="chain" className="text-foreground">Blockchain</Label>
             <Select value={selectedChain} onValueChange={(value: Chain) => setSelectedChain(value)}>
-              <SelectTrigger className="bg-[#1A1A1A] border-[#2C2C2E] text-white">
+              <SelectTrigger className="bg-surface-elevated border-border text-foreground">
                 <SelectValue placeholder="Select chain" />
               </SelectTrigger>
-              <SelectContent className="bg-[#2C2C2E] border-[#2C2C2E]">
+              <SelectContent className="bg-surface-overlay border-border">
                 {Object.entries(CHAIN_CONFIGS).map(([key, config]) => (
-                  <SelectItem key={key} value={key} className="text-white focus:bg-[#1A1A1A] focus:text-white">
+                  <SelectItem key={key} value={key} className="text-foreground focus:bg-surface-elevated focus:text-foreground">
                     {config.displayName}
                   </SelectItem>
                 ))}
@@ -254,17 +254,17 @@ export function LendingDeposit() {
 
           {/* Token Selection */}
           <div className="space-y-2">
-            <Label htmlFor="token" className="text-white">Stablecoin</Label>
+            <Label htmlFor="token" className="text-foreground">Stablecoin</Label>
             <Select value={selectedToken} onValueChange={(value: Token) => setSelectedToken(value)}>
-              <SelectTrigger className="bg-[#1A1A1A] border-[#2C2C2E] text-white">
+              <SelectTrigger className="bg-surface-elevated border-border text-foreground">
                 <SelectValue placeholder="Select token" />
               </SelectTrigger>
-              <SelectContent className="bg-[#2C2C2E] border-[#2C2C2E]">
+              <SelectContent className="bg-surface-overlay border-border">
                 {availableTokenConfigs.map((token) => (
-                  <SelectItem key={token.symbol} value={token.symbol} className="text-white focus:bg-[#1A1A1A] focus:text-white">
+                  <SelectItem key={token.symbol} value={token.symbol} className="text-foreground focus:bg-surface-elevated focus:text-foreground">
                     {token.symbol}
                     {!LendingWalletService.isSupported(selectedChain, token.symbol) && 
-                      <Badge variant="secondary" className="ml-2 bg-gray-700 text-gray-300">Coming Soon</Badge>
+                      <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
                     }
                   </SelectItem>
                 ))}
@@ -274,7 +274,7 @@ export function LendingDeposit() {
 
           {/* Amount Input */}
           <div className="space-y-2">
-            <Label htmlFor="amount" className="text-white">Amount</Label>
+            <Label htmlFor="amount" className="text-foreground">Amount</Label>
             <Input
               id="amount"
               type="number"
@@ -284,24 +284,20 @@ export function LendingDeposit() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              className="bg-[#1A1A1A] border-[#2C2C2E] text-white placeholder:text-gray-500"
+              className="bg-surface-elevated border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Lock Term Selection */}
           <div className="space-y-3">
-            <Label className="text-white">Lock Term</Label>
+            <Label className="text-foreground">Lock Term</Label>
             <div className="grid grid-cols-2 gap-2">
               {LOCK_TERMS.map((term) => (
                 <Button
                   key={term.days}
                   type="button"
                   variant={selectedTerm === term.days ? "default" : "outline"}
-                  className={`flex flex-col items-center p-4 h-auto ${
-                    selectedTerm === term.days 
-                      ? "bg-[#f9b006] text-black hover:bg-[#f9b006]/90" 
-                      : "bg-[#2C2C2E] border-[#2C2C2E] text-white hover:bg-[#2C2C2E]/80"
-                  }`}
+                  className="flex flex-col items-center p-4 h-auto"
                   onClick={() => setSelectedTerm(term.days)}
                 >
                   <span className="font-medium">{term.label}</span>
@@ -315,16 +311,16 @@ export function LendingDeposit() {
 
           {/* Current APY Display */}
           {selectedTermConfig && (
-            <div className="bg-[#1A1A1A] rounded-lg p-4">
+            <div className="bg-surface-elevated rounded-lg p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-white">Current APY</span>
-                <Badge variant="secondary" className="text-lg font-bold bg-[#f9b006] text-black">
+                <span className="text-sm font-medium text-foreground">Current APY</span>
+                <Badge variant="secondary" className="text-lg font-bold bg-primary text-primary-foreground">
                   {LendingService.formatAPY(currentAPY)}
                 </Badge>
               </div>
               <div className="flex items-center justify-between mt-2">
-                <span className="text-sm text-gray-400">Maturity Date</span>
-                <span className="text-sm text-white">
+                <span className="text-sm text-muted-foreground">Maturity Date</span>
+                <span className="text-sm text-foreground">
                   {maturityDate.toLocaleDateString()}
                 </span>
               </div>
@@ -337,22 +333,21 @@ export function LendingDeposit() {
               id="autocompound"
               checked={autocompound}
               onCheckedChange={(checked) => setAutocompound(checked === true)}
-              className="border-[#2C2C2E] data-[state=checked]:bg-[#f9b006] data-[state=checked]:border-[#f9b006]"
             />
-            <Label htmlFor="autocompound" className="text-sm text-white">
+            <Label htmlFor="autocompound" className="text-sm text-foreground">
               Auto-compound at maturity (relock at new APY)
             </Label>
           </div>
 
           {/* Risk Disclosure */}
-          <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-lg p-4">
+          <div className="bg-card border border-primary/30 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-[#f9b006] mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
               <div className="space-y-2 text-sm">
-                <p className="font-medium text-[#f9b006]">
+                <p className="font-medium text-primary">
                   Important Disclosures
                 </p>
-                <ul className="space-y-1 text-gray-300">
+                <ul className="space-y-1 text-card-foreground">
                   <li>• Early exit returns principal only; all interest is forfeited</li>
                   <li>• APY varies with pool utilization and safety reserves</li>
                   <li>• Real yield from borrower interest; capital at risk</li>
@@ -365,7 +360,7 @@ export function LendingDeposit() {
           {/* Submit Button */}
           <Button 
             type="submit" 
-            className="w-full bg-[#f9b006] text-black hover:bg-[#f9b006]/90 font-bold" 
+            className="w-full font-bold" 
             size="lg"
             disabled={!amount || parseFloat(amount) <= 0 || loading || !LendingWalletService.isSupported(selectedChain, selectedToken)}
           >

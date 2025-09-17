@@ -201,7 +201,7 @@ const AddPaymentMethod = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
           <div className="flex items-center">
@@ -209,7 +209,7 @@ const AddPaymentMethod = () => {
               variant="ghost" 
               size="icon"
               onClick={() => navigate("/payment-methods")}
-              className="text-white hover:bg-gray-800"
+              className="text-foreground hover:bg-surface-elevated"
             >
               <ArrowLeft size={24} />
             </Button>
@@ -427,13 +427,13 @@ const AddPaymentMethod = () => {
         </Card>
 
         {/* Important Notice */}
-        <Card className="bg-yellow-50 border border-yellow-200 mt-4">
+        <Card className="bg-status-warning/10 border border-status-warning/20 mt-4">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-status-warning mt-0.5" />
               <div>
-                <h4 className="font-semibold text-yellow-800 mb-1">Demo Mode</h4>
-                <p className="text-sm text-yellow-700">
+                <h4 className="font-semibold text-status-warning mb-1">Demo Mode</h4>
+                <p className="text-sm text-muted-foreground">
                   This is a demo version. No real payment methods will be charged. 
                   In production, this would integrate with MoonPay or similar payment processors.
                 </p>
