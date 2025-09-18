@@ -648,6 +648,45 @@ export type Database = {
           },
         ]
       }
+      security_audit: {
+        Row: {
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          operation: string
+          risk_score: number | null
+          sensitive_fields: string[] | null
+          table_name: string
+          timestamp: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          operation: string
+          risk_score?: number | null
+          sensitive_fields?: string[] | null
+          table_name: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          operation?: string
+          risk_score?: number | null
+          sensitive_fields?: string[] | null
+          table_name?: string
+          timestamp?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       swap_quotes: {
         Row: {
           created_at: string
@@ -820,6 +859,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      encrypt_sensitive_field: {
+        Args: { input_text: string }
+        Returns: string
+      }
       execute_transaction: {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
@@ -854,6 +897,15 @@ export type Database = {
       is_kyc_verified: {
         Args: { user_uuid: string }
         Returns: boolean
+      }
+      log_high_risk_operation: {
+        Args: {
+          fields?: string[]
+          operation_type: string
+          risk_level?: number
+          target_table: string
+        }
+        Returns: undefined
       }
       log_pii_access: {
         Args: {
