@@ -15,6 +15,7 @@ serve(async (req) => {
     const alphaVantageApiKey = Deno.env.get('ALPHA_VANTAGE_API_KEY');
     
     if (!alphaVantageApiKey) {
+      console.log('ALPHA_VANTAGE_API_KEY not configured, using fallback data');
       throw new Error('ALPHA_VANTAGE_API_KEY is not configured');
     }
 
@@ -22,16 +23,26 @@ serve(async (req) => {
     const response = await fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=XAU&to_currency=USD&apikey=${alphaVantageApiKey}`);
     
     if (!response.ok) {
+      console.log(`Alpha Vantage API HTTP error: ${response.status}`);
       throw new Error(`Alpha Vantage API error: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Alpha Vantage API response:', JSON.stringify(data, null, 2));
     
-    if (data['Error Message'] || data['Note']) {
-      throw new Error(data['Error Message'] || data['Note'] || 'Failed to fetch gold price');
+    // Handle rate limiting gracefully
+    if (data['Note'] && data['Note'].includes('API rate limit')) {
+      console.log('API rate limit exceeded, using fallback data');
+      throw new Error('Rate limit exceeded');
+    }
+    
+    if (data['Error Message']) {
+      console.log('Alpha Vantage API error:', data['Error Message']);
+      throw new Error(data['Error Message']);
     }
 
     if (!data['Realtime Currency Exchange Rate']) {
+      console.log('Invalid response format, full response:', JSON.stringify(data, null, 2));
       throw new Error('Invalid response format from Alpha Vantage');
     }
 

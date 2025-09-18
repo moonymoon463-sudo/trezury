@@ -541,6 +541,7 @@ export type Database = {
           kyc_submitted_at: string | null
           kyc_verified_at: string | null
           last_name: string | null
+          metadata: Json | null
           phone: string | null
           ssn_last_four: string | null
           state: string | null
@@ -561,6 +562,7 @@ export type Database = {
           kyc_submitted_at?: string | null
           kyc_verified_at?: string | null
           last_name?: string | null
+          metadata?: Json | null
           phone?: string | null
           ssn_last_four?: string | null
           state?: string | null
@@ -581,6 +583,7 @@ export type Database = {
           kyc_submitted_at?: string | null
           kyc_verified_at?: string | null
           last_name?: string | null
+          metadata?: Json | null
           phone?: string | null
           ssn_last_four?: string | null
           state?: string | null
@@ -864,6 +867,10 @@ export type Database = {
       }
       log_profile_access: {
         Args: { accessed_fields: string[]; target_user_id: string }
+        Returns: undefined
+      }
+      log_security_event: {
+        Args: { event_data?: Json; event_type: string }
         Returns: undefined
       }
       log_sensitive_access: {

@@ -40,9 +40,11 @@ All colors MUST be HSL.
 
     /* Aurum specific colors */
     --aurum-gold: 38 92% 50%; /* #f9b006 */
-    --aurum-dark: 0 0% 9%; /* Clean dark gray */
+    --aurum-dark: 30 35% 11%; /* #352C18 equivalent */
     --aurum-gray: 0 0% 31%; /* gray-800 */
     --aurum-text-muted: 0 0% 64%; /* gray-400 */
+    --aurum-muted: 37 35% 65%; /* #CCBA8E equivalent */
+    --aurum-border: 37 25% 40%; /* #6a582f equivalent */
     
     /* Additional semantic tokens for comprehensive design system */
     --chart-primary: 38 92% 50%; /* Gold */
