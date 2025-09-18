@@ -26,6 +26,8 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import FundingMethods from "./pages/FundingMethods";
 import Settings from "./pages/Settings";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import KYCVerification from "./pages/KYCVerification";
 import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
@@ -139,6 +141,16 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/privacy-policy" element={
+              <ProtectedRoute>
+                <PrivacyPolicy />
+              </ProtectedRoute>
+            } />
+            <Route path="/terms-of-service" element={
+              <ProtectedRoute>
+                <TermsOfService />
               </ProtectedRoute>
             } />
             <Route path="/kyc-verification" element={

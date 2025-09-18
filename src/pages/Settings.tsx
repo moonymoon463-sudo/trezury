@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -304,6 +304,30 @@ const Settings = () => {
           >
             Coming Soon
           </Button>
+        </div>
+
+        {/* Legal */}
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <FileText size={20} />
+            Legal
+          </h3>
+          <div className="space-y-3">
+            <Button 
+              onClick={() => navigate("/privacy-policy")}
+              className="w-full bg-[#1C1C1E] border border-gray-600 text-white hover:bg-gray-700 justify-start"
+              variant="outline"
+            >
+              Privacy Policy
+            </Button>
+            <Button 
+              onClick={() => navigate("/terms-of-service")}
+              className="w-full bg-[#1C1C1E] border border-gray-600 text-white hover:bg-gray-700 justify-start"
+              variant="outline"
+            >
+              Terms of Service
+            </Button>
+          </div>
         </div>
 
         {/* Account Actions */}
