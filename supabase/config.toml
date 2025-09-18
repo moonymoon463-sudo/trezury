@@ -25,6 +25,9 @@ max_connections = 100
 [functions.gold-price-api]
 verify_jwt = false
 
+[functions.metals-price-api]
+verify_jwt = false
+
 [functions.moonpay-buy]
 verify_jwt = true
 

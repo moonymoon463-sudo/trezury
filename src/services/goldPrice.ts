@@ -20,10 +20,22 @@ class GoldPriceService {
 
   async getCurrentPrice(): Promise<GoldPrice> {
     try {
-      const { data, error } = await supabase.functions.invoke('gold-price-api');
+      // Try new metals price API first, fallback to original
+      const { data, error } = await supabase.functions.invoke('metals-price-api');
       
       if (error) {
-        console.error('Failed to fetch gold price:', error);
+        console.error('Metals price API error:', error);
+        // Fallback to original gold-price-api
+        try {
+          const fallbackResult = await supabase.functions.invoke('gold-price-api');
+          if (fallbackResult.data?.gold) {
+            this.currentPrice = fallbackResult.data.gold;
+            this.notifySubscribers(fallbackResult.data.gold);
+            return fallbackResult.data.gold;
+          }
+        } catch (fallbackError) {
+          console.error('Fallback API also failed:', fallbackError);
+        }
         return this.getMockPrice();
       }
 
