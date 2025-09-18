@@ -30,9 +30,14 @@ serve(async (req) => {
     const data = await response.json();
     console.log('Alpha Vantage API response:', JSON.stringify(data, null, 2));
     
-    // Handle rate limiting gracefully
+    // Handle rate limiting and information messages gracefully
     if (data['Note'] && data['Note'].includes('API rate limit')) {
       console.log('API rate limit exceeded, using fallback data');
+      throw new Error('Rate limit exceeded');
+    }
+    
+    if (data['Information'] && data['Information'].includes('rate limit')) {
+      console.log('Alpha Vantage daily rate limit reached, using fallback data');
       throw new Error('Rate limit exceeded');
     }
     
