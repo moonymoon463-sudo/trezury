@@ -3,9 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
 import BuyGoldAmount from "./pages/BuyGoldAmount";
@@ -38,6 +39,69 @@ import Lending from "./pages/Lending";
 
 const queryClient = new QueryClient();
 
+// App Routes Component that uses auth context
+const AppRoutes = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold">Loading...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  // Show landing page for non-authenticated users
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
+    );
+  }
+
+  // Show app routes for authenticated users
+  return (
+    <Routes>
+      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/auth" element={<Index />} />
+      <Route path="/buy-sell-hub" element={<ProtectedRoute><BuySellHub /></ProtectedRoute>} />
+      <Route path="/buy-gold" element={<ProtectedRoute><BuyGold /></ProtectedRoute>} />
+      <Route path="/buy-gold/amount" element={<ProtectedRoute><BuyGoldAmount /></ProtectedRoute>} />
+      <Route path="/buy-gold/asset" element={<ProtectedRoute><BuyGoldAsset /></ProtectedRoute>} />
+      <Route path="/buy-gold/quote" element={<ProtectedRoute><BuyGoldQuote /></ProtectedRoute>} />
+      <Route path="/buy-gold/confirmation" element={<ProtectedRoute><BuyGoldConfirmation /></ProtectedRoute>} />
+      <Route path="/sell-gold" element={<ProtectedRoute><SellGold /></ProtectedRoute>} />
+      <Route path="/sell-gold/amount" element={<ProtectedRoute><SellGoldAmount /></ProtectedRoute>} />
+      <Route path="/sell-gold/payout" element={<ProtectedRoute><SellGoldPayout /></ProtectedRoute>} />
+      <Route path="/sell-gold/confirmation" element={<ProtectedRoute><SellGoldConfirmation /></ProtectedRoute>} />
+      <Route path="/swap" element={<ProtectedRoute><Swap /></ProtectedRoute>} />
+      <Route path="/lending" element={<ProtectedRoute><Lending /></ProtectedRoute>} />
+      <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+      <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+      <Route path="/transaction-detail/:id" element={<ProtectedRoute><TransactionDetail /></ProtectedRoute>} />
+      <Route path="/transactions/success" element={<ProtectedRoute><TransactionSuccess /></ProtectedRoute>} />
+      <Route path="/funding-methods" element={<ProtectedRoute><FundingMethods /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} />
+      <Route path="/kyc-verification" element={<ProtectedRoute><KYCVerification /></ProtectedRoute>} />
+      <Route path="/payment-methods" element={<ProtectedRoute><PaymentMethods /></ProtectedRoute>} />
+      <Route path="/add-payment-method" element={<ProtectedRoute><AddPaymentMethod /></ProtectedRoute>} />
+      <Route path="/add-usdc" element={<ProtectedRoute><AddUSDC /></ProtectedRoute>} />
+      <Route path="/admin/fees" element={<ProtectedRoute><AdminFees /></ProtectedRoute>} />
+      <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -46,146 +110,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <ScrollToTop />
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/buy-sell-hub" element={
-              <ProtectedRoute>
-                <BuySellHub />
-              </ProtectedRoute>
-            } />
-            <Route path="/buy-gold" element={
-              <ProtectedRoute>
-                <BuyGold />
-              </ProtectedRoute>
-            } />
-            <Route path="/buy-gold/amount" element={
-              <ProtectedRoute>
-                <BuyGoldAmount />
-              </ProtectedRoute>
-            } />
-            <Route path="/buy-gold/asset" element={
-              <ProtectedRoute>
-                <BuyGoldAsset />
-              </ProtectedRoute>
-            } />
-            <Route path="/buy-gold/quote" element={
-              <ProtectedRoute>
-                <BuyGoldQuote />
-              </ProtectedRoute>
-            } />
-            <Route path="/buy-gold/confirmation" element={
-              <ProtectedRoute>
-                <BuyGoldConfirmation />
-              </ProtectedRoute>
-            } />
-            <Route path="/sell-gold" element={
-              <ProtectedRoute>
-                <SellGold />
-              </ProtectedRoute>
-            } />
-            <Route path="/sell-gold/amount" element={
-              <ProtectedRoute>
-                <SellGoldAmount />
-              </ProtectedRoute>
-            } />
-            <Route path="/sell-gold/payout" element={
-              <ProtectedRoute>
-                <SellGoldPayout />
-              </ProtectedRoute>
-            } />
-            <Route path="/sell-gold/confirmation" element={
-              <ProtectedRoute>
-                <SellGoldConfirmation />
-              </ProtectedRoute>
-            } />
-            <Route path="/swap" element={
-              <ProtectedRoute>
-                <Swap />
-              </ProtectedRoute>
-            } />
-            <Route path="/lending" element={
-              <ProtectedRoute>
-                <Lending />
-              </ProtectedRoute>
-            } />
-            <Route path="/wallet" element={
-              <ProtectedRoute>
-                <Wallet />
-              </ProtectedRoute>
-            } />
-            <Route path="/transactions" element={
-              <ProtectedRoute>
-                <Transactions />
-              </ProtectedRoute>
-            } />
-            <Route path="/transaction-detail/:id" element={
-              <ProtectedRoute>
-                <TransactionDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/transactions/success" element={
-              <ProtectedRoute>
-                <TransactionSuccess />
-              </ProtectedRoute>
-            } />
-            <Route path="/funding-methods" element={
-              <ProtectedRoute>
-                <FundingMethods />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/privacy-policy" element={
-              <ProtectedRoute>
-                <PrivacyPolicy />
-              </ProtectedRoute>
-            } />
-            <Route path="/terms-of-service" element={
-              <ProtectedRoute>
-                <TermsOfService />
-              </ProtectedRoute>
-            } />
-            <Route path="/kyc-verification" element={
-              <ProtectedRoute>
-                <KYCVerification />
-              </ProtectedRoute>
-            } />
-            <Route path="/payment-methods" element={
-              <ProtectedRoute>
-                <PaymentMethods />
-              </ProtectedRoute>
-            } />
-            <Route path="/add-payment-method" element={
-              <ProtectedRoute>
-                <AddPaymentMethod />
-              </ProtectedRoute>
-            } />
-            <Route path="/add-usdc" element={
-              <ProtectedRoute>
-                <AddUSDC />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/fees" element={
-              <ProtectedRoute>
-                <AdminFees />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/wallet" element={
-              <ProtectedRoute>
-                <WalletManagement />
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
