@@ -103,7 +103,7 @@ const PrivacyPolicy = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">6. Contact Us</h2>
               <div className="space-y-3 text-muted-foreground">
                 <p>If you have questions about this Privacy Policy, please contact us at:</p>
-                <p>Email: privacy@trezury.com</p>
+                <p>Email: privacy@trezury.app</p>
               </div>
             </section>
           </div>

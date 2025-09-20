@@ -228,6 +228,193 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* Gold Backing Section */}
+      <section className="py-20 px-4 bg-surface-elevated/30">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            1:1 Gold Backing
+          </h2>
+          <p className="text-xl text-muted-foreground mb-12">
+            Every digital gold token is backed by physical gold stored securely
+          </p>
+          
+          <div className="grid md:grid-cols-3 gap-8 text-left">
+            <div className="space-y-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Physical Reserves</h3>
+              <p className="text-muted-foreground">Each token represents real gold stored in LBMA-approved vaults</p>
+            </div>
+            <div className="space-y-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center mb-4">
+                <Lock className="h-6 w-6 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Secure Storage</h3>
+              <p className="text-muted-foreground">Gold is held in professional, insured vaults with full transparency</p>
+            </div>
+            <div className="space-y-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center mb-4">
+                <TrendingUp className="h-6 w-6 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Regular Audits</h3>
+              <p className="text-muted-foreground">Independent verification ensures complete backing of all tokens</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Security & Compliance Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            Security & Compliance
+          </h2>
+          <p className="text-xl text-muted-foreground mb-12">
+            Built with enterprise-grade security and regulatory compliance
+          </p>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Shield className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">AML/KYC Compliant</h3>
+              <p className="text-muted-foreground text-sm">Full regulatory compliance</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Lock className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Multi-signature Security</h3>
+              <p className="text-muted-foreground text-sm">Enhanced wallet protection</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Zap className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">End-to-end Encryption</h3>
+              <p className="text-muted-foreground text-sm">Data protection at all levels</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Shield className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Regular Security Audits</h3>
+              <p className="text-muted-foreground text-sm">Continuous security monitoring</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 bg-surface-elevated/30">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Get answers to common questions about digital gold trading
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">What is digital gold?</h3>
+              <p className="text-muted-foreground">Digital gold tokens are blockchain-based assets backed 1:1 by physical gold, allowing you to own and trade gold without physical storage.</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">How is my gold stored?</h3>
+              <p className="text-muted-foreground">Your physical gold is stored in LBMA-approved vaults with full insurance and regular third-party audits to ensure security.</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">What are the fees?</h3>
+              <p className="text-muted-foreground">We charge competitive transaction fees for buying and selling. All fees are transparently displayed before you complete any transaction.</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">Is my investment secure?</h3>
+              <p className="text-muted-foreground">Yes, we use multi-signature wallets, end-to-end encryption, and comply with all regulatory requirements to protect your assets.</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">How do I withdraw funds?</h3>
+              <p className="text-muted-foreground">You can sell your gold tokens back to USDC and withdraw to your bank account or cryptocurrency wallet at any time.</p>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">Can I earn yield on gold?</h3>
+              <p className="text-muted-foreground">Yes, our lending platform allows you to earn competitive yields by lending your gold tokens to other users.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Customer Support Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            24/7 Customer Support
+          </h2>
+          <p className="text-xl text-muted-foreground mb-12">
+            Our dedicated support team is here to help you succeed
+          </p>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Smartphone className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Live Chat</h3>
+              <p className="text-muted-foreground">24/7 instant support via in-app chat</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Zap className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Fast Response</h3>
+              <p className="text-muted-foreground">Average response time under 2 hours</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-aurum/20 to-aurum-glow/20 rounded-full flex items-center justify-center">
+                <Shield className="h-8 w-8 text-aurum" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Help Center</h3>
+              <p className="text-muted-foreground">Comprehensive knowledge base and guides</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Information Section */}
+      <section className="py-20 px-4 bg-surface-elevated/30">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            Get In Touch
+          </h2>
+          <p className="text-xl text-muted-foreground mb-12">
+            Need help? Contact our support team
+          </p>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Support Email</h3>
+              <p className="text-muted-foreground">support@trezury.app</p>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-2">General Contact</h3>
+              <p className="text-muted-foreground">contact@trezury.app</p>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Phone Support</h3>
+              <p className="text-muted-foreground">+1 (555) 123-4567</p>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Business Hours</h3>
+              <p className="text-muted-foreground">Mon-Fri 9AM-6PM EST</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Call to Action */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl text-center">

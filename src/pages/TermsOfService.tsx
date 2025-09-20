@@ -117,7 +117,7 @@ const TermsOfService = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">8. Contact Information</h2>
               <div className="space-y-3 text-muted-foreground">
                 <p>For questions about these Terms of Service, contact us at:</p>
-                <p>Email: legal@trezury.com</p>
+                <p>Email: legal@trezury.app</p>
               </div>
             </section>
           </div>
