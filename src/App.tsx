@@ -34,6 +34,7 @@ import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
 import AddUSDC from "./pages/AddUSDC";
 import AdminFees from "./pages/AdminFees";
+import AdminFeesNew from "./pages/AdminFeesNew";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSetup from "./pages/AdminSetup";
 import AdminUsers from "./pages/AdminUsers";
@@ -106,6 +107,7 @@ const AppRoutes = () => {
       <Route path="/admin/kyc" element={<ProtectedRoute><AdminKYC /></ProtectedRoute>} />
       <Route path="/admin/transactions" element={<ProtectedRoute><AdminTransactions /></ProtectedRoute>} />
       <Route path="/admin/fees" element={<ProtectedRoute><AdminFees /></ProtectedRoute>} />
+      <Route path="/admin/fees-external" element={<ProtectedRoute><AdminFeesNew /></ProtectedRoute>} />
       <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

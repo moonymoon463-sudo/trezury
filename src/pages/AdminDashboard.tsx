@@ -214,7 +214,7 @@ const AdminDashboard = () => {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/admin/users')}
@@ -248,7 +248,16 @@ const AdminDashboard = () => {
                 className="h-20 flex flex-col gap-2"
               >
                 <DollarSign className="h-6 w-6" />
-                <span className="text-sm">Fee Management</span>
+                <span className="text-sm">Internal Fees</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/fees-external')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <Receipt className="h-6 w-6" />
+                <span className="text-sm">External Wallets</span>
               </Button>
             </div>
           </CardContent>
