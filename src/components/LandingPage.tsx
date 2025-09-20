@@ -33,12 +33,12 @@ const LandingPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface-elevated">
       {/* Header */}
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <AurumLogo />
+            <AurumLogo compact />
           </div>
           <Link to="/auth">
-            <Button variant="outline" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10">
+            <Button variant="outline" size="sm" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10">
               Get Started
             </Button>
           </Link>
