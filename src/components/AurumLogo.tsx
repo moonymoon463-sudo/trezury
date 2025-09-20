@@ -8,20 +8,20 @@ interface TrezuryLogoProps {
 const AurumLogo: React.FC<TrezuryLogoProps> = ({ className = '', compact = false }) => {
   if (compact) {
     return (
-      <div className={`flex items-center gap-1.5 ${className}`}>
+      <div className={`flex items-center gap-2 ${className}`}>
         {/* Compact Vault Symbol */}
-        <div className="border border-primary p-0.5 bg-surface-elevated rounded">
-          <div className="grid grid-cols-3 gap-0.5 w-3 h-2">
-            <div className="col-start-2 w-0.5 h-0.5 bg-primary rounded-full"></div>
-            <div className="w-0.5 h-0.5 bg-primary rounded-full"></div>
-            <div className="w-0.5 h-0.5 bg-primary rounded-full"></div>
-            <div className="w-0.5 h-0.5 bg-primary rounded-full"></div>
-            <div className="col-start-2 w-0.5 h-0.5 bg-primary rounded-full"></div>
+        <div className="border border-primary p-1 bg-surface-elevated rounded">
+          <div className="grid grid-cols-3 gap-0.5 w-4 h-3">
+            <div className="col-start-2 w-1 h-1 bg-primary rounded-full"></div>
+            <div className="w-1 h-1 bg-primary rounded-full"></div>
+            <div className="w-1 h-1 bg-primary rounded-full"></div>
+            <div className="w-1 h-1 bg-primary rounded-full"></div>
+            <div className="col-start-2 w-1 h-1 bg-primary rounded-full"></div>
           </div>
         </div>
         
         {/* Compact Company Name */}
-        <div className="font-bold text-sm tracking-wide text-primary">
+        <div className="font-bold text-base tracking-wide text-primary">
           TREZURY
         </div>
       </div>
