@@ -74,6 +74,15 @@ export default {
           positive: "hsl(var(--chart-positive))",
           negative: "hsl(var(--chart-negative))",
         },
+        // Aurum brand colors
+        aurum: {
+          DEFAULT: "hsl(var(--aurum-gold))",
+          glow: "hsl(var(--aurum-glow))",
+          dark: "hsl(var(--aurum-dark))",
+          gray: "hsl(var(--aurum-gray))",
+          muted: "hsl(var(--aurum-muted))",
+          border: "hsl(var(--aurum-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

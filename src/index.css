@@ -40,6 +40,7 @@ All colors MUST be HSL.
 
     /* Aurum specific colors */
     --aurum-gold: 38 92% 50%; /* #f9b006 */
+    --aurum-glow: 38 92% 65%; /* Lighter gold for gradients */
     --aurum-dark: 30 35% 11%; /* #352C18 equivalent */
     --aurum-gray: 0 0% 31%; /* gray-800 */
     --aurum-text-muted: 0 0% 64%; /* gray-400 */
