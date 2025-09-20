@@ -3,23 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trezury</title>
-    <meta name="description" content="Buy Sell & Hold Gold Securely">
-    <meta name="author" content="Lovable" />
+    <title>Trezury - Digital Gold Wallet</title>
+    <meta name="description" content="Buy, sell & hold gold securely with Trezury. Digital gold wallet with instant transactions and secure storage.">
+    <meta name="author" content="Trezury" />
+    <meta name="keywords" content="gold, digital gold, cryptocurrency, wallet, buy gold, sell gold, precious metals">
+    
+    <!-- Theme color for mobile browsers -->
+    <meta name="theme-color" content="#f9b006">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Trezury">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png">
 
-    <meta property="og:title" content="gold-guardian-wallet" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <!-- Open Graph -->
+    <meta property="og:title" content="Trezury - Digital Gold Wallet" />
+    <meta property="og:description" content="Buy, sell & hold gold securely with instant transactions" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:url" content="https://trezury.app" />
 
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="Trezury - Digital Gold Wallet" />
+    <meta name="twitter:description" content="Buy, sell & hold gold securely" />
+    <meta name="twitter:image" content="/icon-512.png" />
+    
+    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="https://storage.googleapis.com/gpt-engineer-file-uploads/aYLXYBYgvQUTbqztlGvx26p1jPj2/uploads/1758136822565-trezury_horizontal_light.svg">
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://auntkvllzejtfqmousxg.supabase.co">
 </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
