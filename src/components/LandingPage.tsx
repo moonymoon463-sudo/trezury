@@ -35,8 +35,8 @@ const LandingPage = () => {
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="h-12 sm:h-14 flex items-center">
-              <AurumLogo className="h-10 sm:h-12 w-auto" />
+            <div className="h-8 sm:h-10 flex items-center">
+              <AurumLogo className="h-6 sm:h-8 w-auto" />
             </div>
           </div>
           <Link to="/auth">
