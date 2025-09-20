@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import AurumLogo from "@/components/AurumLogo";
-import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock } from "lucide-react";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock, Download, Apple } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const LandingPage = () => {
@@ -196,6 +197,60 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* Download App Section */}
+      <section className="py-20 px-4 bg-surface-elevated/50">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            Download the Trezury App
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Get instant access to your gold wallet on any device
+          </p>
+          
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8">
+            {/* PWA Install Button */}
+            <Button 
+              size="lg" 
+              className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-8 py-4 text-lg"
+              onClick={() => {
+                if ('serviceWorker' in navigator) {
+                  const event = new CustomEvent('showInstallPrompt');
+                  window.dispatchEvent(event);
+                }
+              }}
+            >
+              <Smartphone className="w-5 h-5 mr-2" />
+              Install Web App
+            </Button>
+            
+            {/* Coming Soon Buttons */}
+            <Button 
+              variant="outline" 
+              size="lg" 
+              disabled 
+              className="border-border text-muted-foreground px-8 py-4 text-lg opacity-50"
+            >
+              <Apple className="w-5 h-5 mr-2" />
+              iOS App (Coming Soon)
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="lg" 
+              disabled 
+              className="border-border text-muted-foreground px-8 py-4 text-lg opacity-50"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              Android APK (Coming Soon)
+            </Button>
+          </div>
+          
+          <p className="text-sm text-muted-foreground">
+            For now, install our Progressive Web App for the full mobile experience
+          </p>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl text-center">
@@ -228,6 +283,9 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+      
+      {/* Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 };

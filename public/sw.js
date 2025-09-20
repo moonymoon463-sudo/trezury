@@ -1,9 +1,13 @@
-const CACHE_NAME = 'trezury-v1';
+const CACHE_NAME = 'trezury-v2';
 const urlsToCache = [
   '/',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/screenshot-mobile.png',
+  '/screenshot-desktop.png',
+  '/static/js/bundle.js',
+  '/static/css/main.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -19,7 +23,24 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        return response || fetch(event.request);
+        if (response) {
+          return response;
+        }
+        return fetch(event.request).then((response) => {
+          // Don't cache non-successful responses
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          
+          // Clone the response for caching
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          
+          return response;
+        });
       }
     )
   );
