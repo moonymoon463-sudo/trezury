@@ -352,6 +352,9 @@ const AdminFeesNew = () => {
           </CardContent>
         </Card>
 
+        {/* Test Data Management - Commented out for now */}
+        {/* <TestDataManager /> */}
+
         {/* Instructions */}
         <Card className="bg-[#2C2C2E] border-gray-700">
           <CardHeader>

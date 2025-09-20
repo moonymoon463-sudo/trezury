@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { blockchainService } from "./blockchainService";
+import { chainValidationService } from "./chainValidationService";
 
 export interface UncollectedFee {
   transaction_id: string;

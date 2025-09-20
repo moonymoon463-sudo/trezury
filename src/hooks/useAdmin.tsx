@@ -281,7 +281,7 @@ export const useAdmin = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('admin_get_fee_analytics', {
+      const { data, error } = await supabase.rpc('admin_get_fee_analytics_with_chains', {
         start_date: startDate,
         end_date: endDate
       });

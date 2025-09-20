@@ -103,6 +103,12 @@ export class LendingService {
     if (fetchError) throw fetchError;
     if (!lock) throw new Error('Lock not found');
 
+    // Validate chain
+    const validChains = ['ethereum', 'base', 'solana', 'tron'];
+    if (!validChains.includes(lock.chain)) {
+      throw new Error(`Invalid chain: ${lock.chain}`);
+    }
+
     const now = new Date();
     const endDate = new Date(lock.end_ts);
     
@@ -149,8 +155,18 @@ export class LendingService {
     if (platformFee > 0) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Import platform fee wallets
+        // Import platform fee wallets and chain validation
         const { PLATFORM_FEE_WALLETS } = await import('@/types/lending');
+        const { chainValidationService } = await import('@/services/chainValidationService');
+        
+        // Validate chain and asset
+        try {
+          chainValidationService.validateFeeCollectionRequest(lock.chain, lock.token, platformFee);
+        } catch (validationError: any) {
+          console.error('Fee collection validation failed:', validationError.message);
+          throw new Error(`Fee collection validation failed: ${validationError.message}`);
+        }
+        
         const chainFeeWallet = PLATFORM_FEE_WALLETS[lock.chain as Chain];
         
         const { error: feeRequestError } = await supabase

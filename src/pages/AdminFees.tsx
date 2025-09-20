@@ -253,6 +253,14 @@ const AdminFees = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6 mt-6">
+            {/* Chain Analytics Component */}
+            {feeAnalytics?.chain_analytics && (
+              <ChainAnalytics 
+                chainAnalytics={feeAnalytics.chain_analytics}
+                chainBreakdown={feeAnalytics.collection_status?.chain_breakdown || {}}
+              />
+            )}
+
             {/* Recent Activity */}
             <Card>
               <CardHeader>
