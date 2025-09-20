@@ -902,6 +902,10 @@ export type Database = {
         Args: { end_date?: string; start_date?: string }
         Returns: Json
       }
+      admin_get_fee_analytics_with_chains: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: Json
+      }
       admin_get_users: {
         Args: Record<PropertyKey, never>
         Returns: {
