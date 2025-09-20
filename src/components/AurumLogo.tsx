@@ -8,9 +8,9 @@ interface AurumLogoProps {
 
 const sizeMap = {
   header: {
-    vaultBorder: 'border-2 p-2',
-    gridWrap: 'grid grid-cols-6 gap-1 w-12 h-8',
-    dot: 'w-2 h-2',
+    vaultBorder: 'border-2 p-3',
+    gridWrap: 'grid grid-cols-6 gap-1 w-16 h-10',
+    dot: 'w-2.5 h-2.5',
     vaultSpacing: 'mb-2',
     nameWrapPad: 'px-4 py-2',
     nameStripeW: 'w-24',
