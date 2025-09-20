@@ -35,7 +35,6 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <AurumLogo />
-            <span className="text-2xl font-bold text-aurum">Trezury</span>
           </div>
           <Link to="/auth">
             <Button variant="outline" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10">
@@ -219,7 +218,6 @@ const LandingPage = () => {
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <AurumLogo />
-            <span className="text-xl font-bold text-aurum">Trezury</span>
           </div>
           <p className="text-muted-foreground mb-4">
             Secure Gold Trading Platform
