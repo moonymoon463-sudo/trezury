@@ -247,6 +247,7 @@ export type Database = {
           deposit_tx: string | null
           end_ts: string
           id: string
+          platform_fee_rate: number | null
           start_ts: string
           status: Database["public"]["Enums"]["lock_status"]
           token: string
@@ -266,6 +267,7 @@ export type Database = {
           deposit_tx?: string | null
           end_ts: string
           id?: string
+          platform_fee_rate?: number | null
           start_ts: string
           status?: Database["public"]["Enums"]["lock_status"]
           token: string
@@ -285,6 +287,7 @@ export type Database = {
           deposit_tx?: string | null
           end_ts?: string
           id?: string
+          platform_fee_rate?: number | null
           start_ts?: string
           status?: Database["public"]["Enums"]["lock_status"]
           token?: string
@@ -440,6 +443,7 @@ export type Database = {
           id: string
           interest_dec: number
           lock_id: string | null
+          platform_fee_dec: number | null
           principal_dec: number
           token: string
           ts: string
@@ -450,6 +454,7 @@ export type Database = {
           id?: string
           interest_dec: number
           lock_id?: string | null
+          platform_fee_dec?: number | null
           principal_dec: number
           token: string
           ts?: string
@@ -460,6 +465,7 @@ export type Database = {
           id?: string
           interest_dec?: number
           lock_id?: string | null
+          platform_fee_dec?: number | null
           principal_dec?: number
           token?: string
           ts?: string

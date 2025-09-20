@@ -28,13 +28,11 @@ export interface Quote {
 }
 
 class QuoteEngineService {
-  private readonly BASE_FEE_BPS = 50; // 0.5% base fee
-  private readonly PLATFORM_FEE_BPS = 100; // 1% platform fee 
-  private readonly TOTAL_FEE_BPS = this.BASE_FEE_BPS + this.PLATFORM_FEE_BPS; // 1.5% total
+  private readonly TOTAL_FEE_BPS = 100; // Simplified 1% total fee
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
   private readonly GRAMS_PER_TROY_OUNCE = 31.1035;
   private readonly QUOTE_VALIDITY_MINUTES = 2;
-  private readonly PLATFORM_FEE_WALLET = 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom'; // Platform fee collection wallet
+  private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // Platform fee collection wallet
 
   async generateQuote(request: QuoteRequest, userId: string): Promise<Quote> {
     const goldPrice = await goldPriceService.getCurrentPrice();
@@ -92,10 +90,10 @@ class QuoteEngineService {
       ? (inputAmount * this.TOTAL_FEE_BPS) / 10000
       : (outputAmount * this.TOTAL_FEE_BPS) / (10000 - this.TOTAL_FEE_BPS);
     
-    // Calculate platform fee portion
+    // Calculate platform fee portion (simplified - same as total fee)
     const platformFeeUsd = request.side === 'buy'
-      ? (inputAmount * this.PLATFORM_FEE_BPS) / 10000
-      : (outputAmount * this.PLATFORM_FEE_BPS) / (10000 - this.TOTAL_FEE_BPS);
+      ? (inputAmount * this.TOTAL_FEE_BPS) / 10000
+      : (outputAmount * this.TOTAL_FEE_BPS) / (10000 - this.TOTAL_FEE_BPS);
 
     const slippageAmount = (outputAmount * this.SLIPPAGE_BPS) / 10000;
     const minimumReceived = outputAmount - slippageAmount;

@@ -8,7 +8,7 @@ export interface SwapFeeCalculation {
 }
 
 class SwapFeeService {
-  private readonly PLATFORM_FEE_BPS = 100; // 1% platform fee
+  private readonly PLATFORM_FEE_BPS = 100; // Simplified 1% platform fee
   private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   /**
@@ -85,19 +85,14 @@ class SwapFeeService {
    * Calculate total fees including base + platform fees
    */
   calculateTotalFees(baseAmount: number): {
-    baseFee: number;
-    platformFee: number;
     totalFee: number;
     netAmount: number;
   } {
-    const baseFee = (baseAmount * 50) / 10000; // 0.5% base fee
-    const platformFee = (baseAmount * this.PLATFORM_FEE_BPS) / 10000; // 1% platform fee
-    const totalFee = baseFee + platformFee;
+    // Simplified 1% total fee
+    const totalFee = (baseAmount * this.PLATFORM_FEE_BPS) / 10000;
     const netAmount = baseAmount - totalFee;
 
     return {
-      baseFee: Number(baseFee.toFixed(6)),
-      platformFee: Number(platformFee.toFixed(6)),
       totalFee: Number(totalFee.toFixed(6)),
       netAmount: Number(netAmount.toFixed(6))
     };

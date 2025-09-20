@@ -65,15 +65,24 @@ serve(async (req) => {
       let apy = term.apyMin;
 
       if (poolStats && poolStats.total_deposits_dec > 0) {
-        // Calculate APY based on pool utilization
+        // Calculate gross APY based on pool utilization
         const utilization = poolStats.total_borrowed_dec / poolStats.total_deposits_dec;
         apy = term.apyMin + Math.min(utilization, 1) * (term.apyMax - term.apyMin);
       }
 
-      // Round to 2 decimal places
-      apy = Math.round(apy * 100) / 100;
+      // Apply platform fee (1.8% of earned interest) to show net APY to users
+      const platformFeeRate = 0.018; // 1.8% of earned interest
+      const grossApy = apy;
+      const netApy = grossApy * (1 - platformFeeRate);
 
-      return new Response(JSON.stringify({ apy }), {
+      // Round to 2 decimal places
+      const finalApy = Math.round(netApy * 100) / 100;
+
+      return new Response(JSON.stringify({ 
+        apy: finalApy,
+        gross_apy: Math.round(grossApy * 100) / 100,
+        platform_fee_rate: platformFeeRate 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

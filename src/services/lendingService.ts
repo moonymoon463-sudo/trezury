@@ -113,14 +113,19 @@ export class LendingService {
     // Calculate final interest
     const daysLocked = Math.floor((endDate.getTime() - new Date(lock.start_ts).getTime()) / (24 * 60 * 60 * 1000));
     const dailyRate = lock.apy_applied / 365 / 100;
-    const totalInterest = lock.amount_dec * dailyRate * daysLocked;
+    const grossInterest = lock.amount_dec * dailyRate * daysLocked;
+    
+    // Calculate platform fee (1.8% of earned interest)
+    const platformFeeRate = lock.platform_fee_rate || 0.018; // Default to 1.8%
+    const platformFee = grossInterest * platformFeeRate;
+    const netInterest = grossInterest - platformFee;
 
     // Update lock status
     const { error: updateError } = await supabase
       .from('locks')
       .update({
         status: 'matured',
-        accrued_interest_dec: totalInterest
+        accrued_interest_dec: netInterest
       })
       .eq('id', lockId);
 
@@ -132,12 +137,41 @@ export class LendingService {
       .insert({
         lock_id: lockId,
         principal_dec: lock.amount_dec,
-        interest_dec: totalInterest,
+        interest_dec: netInterest,
+        platform_fee_dec: platformFee,
         chain: lock.chain,
         token: lock.token
       });
 
     if (payoutError) throw payoutError;
+
+    // Create fee collection request for platform fee
+    if (platformFee > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error: feeRequestError } = await supabase
+          .from('fee_collection_requests')
+          .insert({
+            user_id: user.id,
+            transaction_id: lockId, // Use lock ID as transaction reference
+            amount: platformFee,
+            asset: lock.token,
+            from_address: user.id, // Will be replaced with actual wallet address
+            to_address: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
+            status: 'pending',
+            metadata: {
+              fee_type: 'lending_completion',
+              lock_id: lockId,
+              gross_interest: grossInterest,
+              platform_fee_rate: platformFeeRate
+            }
+          });
+
+        if (feeRequestError) {
+          console.error('Failed to create fee collection request:', feeRequestError);
+        }
+      }
+    }
   }
 
   // Pool stats management removed - sensitive data handled by backend only

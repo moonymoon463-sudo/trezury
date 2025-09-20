@@ -11,6 +11,7 @@ interface Lock {
   end_ts: string;
   status: string;
   accrued_interest_dec: number;
+  platform_fee_rate: number;
 }
 
 const corsHeaders = {
@@ -86,18 +87,16 @@ Deno.serve(async (req) => {
             const dailyRate = lock.apy_applied / 365 / 100;
             const accruedInterest = lock.amount_dec * dailyRate * daysElapsed;
             
-            // Apply reserve cut (7% default)
-            const reserveCut = 0.07;
-            const netInterest = accruedInterest * (1 - reserveCut);
+            // No platform fee during accrual - fees collected at claim time
             
             await supabase
               .from('locks')
               .update({
-                accrued_interest_dec: netInterest
+                accrued_interest_dec: accruedInterest
               })
               .eq('id', lock.id);
               
-            console.log(`Updated lock ${lock.id} with accrued interest: ${netInterest}`);
+            console.log(`Updated lock ${lock.id} with accrued interest: ${accruedInterest}`);
             updatedLocks.push(lock.id);
           }
         }

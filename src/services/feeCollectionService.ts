@@ -17,7 +17,7 @@ export interface FeeCollectionSummary {
 }
 
 class FeeCollectionService {
-  private readonly PLATFORM_FEE_WALLET = 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom';
+  private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   /**
    * Get all collected platform fees
