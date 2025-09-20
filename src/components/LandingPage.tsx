@@ -35,7 +35,7 @@ const LandingPage = () => {
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <AurumLogo />
+            <AurumLogo compact={true} />
           </div>
           <Link to="/auth">
             <Button variant="outline" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10">
@@ -249,7 +249,7 @@ const LandingPage = () => {
       <footer className="border-t border-border/40 bg-background/80 py-12 px-4">
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <AurumLogo />
+            <AurumLogo compact={true} />
           </div>
           <p className="text-muted-foreground mb-4">
             Secure Gold Trading Platform
