@@ -49,12 +49,12 @@ const LandingPage = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
-            Secure Gold Trading
+            Digital Gold Trading
             <br />
-            <span className="text-4xl md:text-6xl">in Your Pocket</span>
+            <span className="text-4xl md:text-6xl">Made Simple</span>
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Trade, hold, and earn with digital gold. Your gateway to precious metals investing with the security of blockchain technology.
+          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Trade and earn with digital gold on a secure blockchain platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
             <Link to="/auth">
