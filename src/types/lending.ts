@@ -1,5 +1,5 @@
 export type Chain = 'ethereum' | 'base' | 'solana' | 'tron';
-export type Token = 'USDC' | 'USDT' | 'DAI';
+export type Token = 'USDC' | 'USDT' | 'DAI' | 'XAUT' | 'AURU';
 export type LockStatus = 'active' | 'matured' | 'exited_early';
 
 export interface LockTerm {
@@ -80,7 +80,9 @@ export const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {
     tokens: [
       { symbol: 'USDC', address: '0xA0b86a33E6441E93C736Ef19a0d0CeBed7A5e8c6', decimals: 6 },
       { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
-      { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', decimals: 18 }
+      { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', decimals: 18 },
+      { symbol: 'XAUT', address: '0x68749665FF8D2d112Fa859AA293F07A622782F38', decimals: 6 },
+      { symbol: 'AURU', address: '0x0000000000000000000000000000000000000000', decimals: 18 } // Placeholder - update with actual contract
     ],
     explorerUrl: 'https://etherscan.io'
   },
@@ -88,7 +90,11 @@ export const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {
     name: 'base',
     displayName: 'Base',
     tokens: [
-      { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 }
+      { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+      { symbol: 'USDT', address: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2', decimals: 6 },
+      { symbol: 'DAI', address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 18 },
+      { symbol: 'XAUT', address: '0x0000000000000000000000000000000000000000', decimals: 6 }, // Placeholder - XAUT not on Base yet
+      { symbol: 'AURU', address: '0x0000000000000000000000000000000000000000', decimals: 18 } // Placeholder - update with actual contract
     ],
     explorerUrl: 'https://basescan.org'
   },
@@ -97,7 +103,10 @@ export const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {
     displayName: 'Solana',
     tokens: [
       { symbol: 'USDC', address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
-      { symbol: 'USDT', address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', decimals: 6 }
+      { symbol: 'USDT', address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', decimals: 6 },
+      { symbol: 'DAI', address: '0x0000000000000000000000000000000000000000', decimals: 18 }, // Placeholder - DAI not common on Solana
+      { symbol: 'XAUT', address: '0x0000000000000000000000000000000000000000', decimals: 6 }, // Placeholder - XAUT not on Solana
+      { symbol: 'AURU', address: '0x0000000000000000000000000000000000000000', decimals: 18 } // Placeholder - update with actual contract
     ],
     explorerUrl: 'https://explorer.solana.com'
   },
@@ -106,7 +115,10 @@ export const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {
     displayName: 'Tron',
     tokens: [
       { symbol: 'USDT', address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 6 },
-      { symbol: 'USDC', address: 'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8', decimals: 6 }
+      { symbol: 'USDC', address: 'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8', decimals: 6 },
+      { symbol: 'DAI', address: '0x0000000000000000000000000000000000000000', decimals: 18 }, // Placeholder - DAI not common on Tron
+      { symbol: 'XAUT', address: '0x0000000000000000000000000000000000000000', decimals: 6 }, // Placeholder - XAUT not on Tron
+      { symbol: 'AURU', address: '0x0000000000000000000000000000000000000000', decimals: 18 } // Placeholder - update with actual contract
     ],
     explorerUrl: 'https://tronscan.org'
   }
@@ -117,22 +129,30 @@ export const LENDING_DEPOSIT_WALLETS: Record<Chain, Record<Token, string>> = {
   ethereum: {
     USDC: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform USDC deposit wallet
     USDT: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform USDT deposit wallet  
-    DAI: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06'   // Platform DAI deposit wallet
+    DAI: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06',   // Platform DAI deposit wallet
+    XAUT: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06',  // Platform XAUT deposit wallet
+    AURU: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06'   // Platform AURU governance token wallet
   },
   base: {
     USDC: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform Base USDC wallet
-    USDT: '',
-    DAI: ''
+    USDT: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06', // Platform Base USDT wallet
+    DAI: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06',  // Platform Base DAI wallet
+    XAUT: '',  // XAUT not available on Base yet
+    AURU: '0x5CCcCD2973Bf4198a0E1487FeaFe05B5119eFC06'  // Platform Base AURU wallet
   },
   solana: {
     USDC: '4zVpkkUx5f3c84mGCmbxHxbZhbUQ9yixm2NsAU4zrcj7', // Platform Solana USDC wallet
     USDT: '4zVpkkUx5f3c84mGCmbxHxbZhbUQ9yixm2NsAU4zrcj7', // Platform Solana USDT wallet
-    DAI: ''
+    DAI: '',   // DAI not common on Solana
+    XAUT: '',  // XAUT not available on Solana
+    AURU: '4zVpkkUx5f3c84mGCmbxHxbZhbUQ9yixm2NsAU4zrcj7'  // Platform Solana AURU wallet
   },
   tron: {
     USDT: 'TFLY2RJXohwZp1ppxiUdySstHUHZ2wc1Zm', // Platform Tron USDT wallet
     USDC: 'TFLY2RJXohwZp1ppxiUdySstHUHZ2wc1Zm', // Platform Tron USDC wallet
-    DAI: ''
+    DAI: '',   // DAI not common on Tron
+    XAUT: '',  // XAUT not available on Tron
+    AURU: 'TFLY2RJXohwZp1ppxiUdySstHUHZ2wc1Zm'  // Platform Tron AURU wallet
   }
 };
 
