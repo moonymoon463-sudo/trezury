@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { ethers } from "https://esm.sh/ethers@6.13.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,8 +13,25 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Blockchain configuration from secrets
+const ETHEREUM_RPC_URL = Deno.env.get('ETHEREUM_RPC_URL')!;
+const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY')!;
+const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY');
+
+// Contract addresses
+const USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C';
+const XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38';
+
+// ERC20 ABI for basic operations
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function decimals() view returns (uint8)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)"
+];
+
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_rpc_url';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -24,6 +42,9 @@ interface BlockchainOperationRequest {
   to?: string;
   transactionId?: string;
   paymentMethod?: string;
+  address?: string;
+  asset?: string;
+  feeAmount?: number;
 }
 
 serve(async (req) => {
@@ -44,20 +65,23 @@ serve(async (req) => {
       from, 
       to, 
       transactionId,
-      paymentMethod 
+      paymentMethod,
+      address,
+      asset,
+      feeAmount
     }: BlockchainOperationRequest = await req.json();
 
     console.log(`Processing blockchain operation: ${operation} for user ${userId || 'unknown'}`);
 
-    // Contract addresses on Ethereum mainnet
-    const USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C';
-    const XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold
-    const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
-
-    // Get platform wallet private key from environment (for real implementation)
-    const platformPrivateKey = Deno.env.get('PLATFORM_PRIVATE_KEY');
+    // Initialize provider with secure RPC URL
+    const rpcUrl = ETHEREUM_RPC_URL.includes('infura') 
+      ? ETHEREUM_RPC_URL.replace('YOUR_PROJECT_ID', INFURA_API_KEY)
+      : ETHEREUM_RPC_URL;
     
-    if (!platformPrivateKey) {
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+    
+    if (!PLATFORM_PRIVATE_KEY) {
       console.warn('Platform private key not configured - running in simulation mode');
     }
 
@@ -68,6 +92,44 @@ serve(async (req) => {
     let result = {};
 
     switch (operation) {
+      case 'get_rpc_url':
+        // Provide safe RPC URL for frontend read operations
+        result = {
+          rpc_url: 'https://eth-mainnet.g.alchemy.com/v2/demo' // Safe demo URL for reads
+        };
+        break;
+
+      case 'get_balance':
+        try {
+          console.log('Getting balance for address:', address, 'asset:', asset);
+          
+          const contractAddress = asset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
+          
+          // Get balance and decimals
+          const [balanceWei, decimals] = await Promise.all([
+            contract.balanceOf(address),
+            contract.decimals()
+          ]);
+          
+          // Convert to human-readable amount
+          const balance = ethers.formatUnits(balanceWei, decimals);
+          
+          result = {
+            success: true,
+            balance: parseFloat(balance),
+            asset: asset,
+            address: address
+          };
+        } catch (error) {
+          console.error('Balance query failed:', error);
+          result = {
+            success: false,
+            error: error.message,
+            balance: 0
+          };
+        }
+        break;
       case 'execute_transaction':
         console.log(`Executing transaction for quote: ${quoteId}, payment method: ${paymentMethod}`);
         
@@ -170,7 +232,11 @@ serve(async (req) => {
         break;
 
       case 'transfer':
-        console.log(`Executing transfer: ${amount} ${inputAsset || 'tokens'} from ${from} to ${to}`);
+        console.log(`Executing transfer: ${amount} ${asset || inputAsset || 'tokens'} from ${from} to ${to}`);
+        
+        // For now, simulate transfers
+        // TODO: Implement real transfers when PLATFORM_PRIVATE_KEY is available
+        const transferStatus = PLATFORM_PRIVATE_KEY ? 'pending' : 'simulated';
         
         result = {
           success: true,
@@ -178,8 +244,8 @@ serve(async (req) => {
           from: from || PLATFORM_WALLET,
           to: to || PLATFORM_WALLET,
           amount,
-          asset: inputAsset,
-          status: 'confirmed',
+          asset: asset || inputAsset,
+          status: transferStatus,
           blockNumber,
           timestamp,
           gasUsed: Math.floor(Math.random() * 50000) + 21000,
@@ -188,15 +254,18 @@ serve(async (req) => {
         break;
 
       case 'collect_fee':
-        console.log(`Collecting fee: ${amount} ${inputAsset}`);
+        console.log(`Collecting fee: ${feeAmount || amount} ${asset || inputAsset} from user ${userId}`);
+        
+        const feeAmountToCollect = feeAmount || amount;
+        const feeAsset = asset || inputAsset;
         
         // Record fee collection in balance snapshots
         const { error: feeError } = await supabase
           .from('balance_snapshots')
           .insert({
             user_id: userId,
-            asset: inputAsset,
-            amount: -amount, // Negative for fee deduction
+            asset: feeAsset,
+            amount: -feeAmountToCollect, // Negative for fee deduction
             snapshot_at: timestamp
           });
 
@@ -213,8 +282,8 @@ serve(async (req) => {
                 platformFeeCollected: true,
                 feeTransactionHash: txHash,
                 feeCollectedAt: timestamp,
-                feeAmount: amount,
-                feeAsset: inputAsset
+                feeAmount: feeAmountToCollect,
+                feeAsset: feeAsset
               }
             })
             .eq('id', transactionId);
@@ -224,14 +293,16 @@ serve(async (req) => {
           }
         }
 
+        const feeStatus = PLATFORM_PRIVATE_KEY ? 'pending' : 'simulated';
+        
         result = {
           success: true,
           hash: txHash,
-          from: from || 'user_wallet',
+          from: userAddress || 'user_wallet',
           to: PLATFORM_WALLET,
-          amount,
-          asset: inputAsset,
-          status: 'confirmed',
+          amount: feeAmountToCollect,
+          asset: feeAsset,
+          status: feeStatus,
           blockNumber,
           timestamp,
           gasUsed: 50000,

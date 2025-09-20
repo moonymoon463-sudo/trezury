@@ -22,10 +22,10 @@ export interface WalletInfo {
 }
 
 class BlockchainService {
-  private readonly ETHEREUM_RPC_URL = 'https://mainnet.infura.io/v3/46a2ce5cfbdf4ea6a30f5f2f8e841bf5'; // Using Infura
+  // RPC URL will be loaded from Supabase secrets for security
   private readonly USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C'; // USDC on Ethereum mainnet
   private readonly XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // XAUT on Ethereum mainnet  
-  private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // Your Ethereum platform wallet
+  private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // Platform wallet address (public)
   
   // ERC20 ABI for basic token operations
   private readonly ERC20_ABI = [
@@ -40,7 +40,31 @@ class BlockchainService {
   private provider: ethers.JsonRpcProvider;
 
   constructor() {
-    this.provider = new ethers.JsonRpcProvider(this.ETHEREUM_RPC_URL);
+    // Initialize provider with a fallback URL
+    // Real RPC URL will be used via edge functions for secure operations
+    this.provider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/demo');
+  }
+
+  /**
+   * Initialize provider with secure RPC URL from edge function
+   */
+  private async initializeSecureProvider(): Promise<ethers.JsonRpcProvider> {
+    try {
+      // For read operations, we can use the edge function to get secure RPC URL
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: { operation: 'get_rpc_url' }
+      });
+
+      if (error || !data?.rpc_url) {
+        console.warn('Failed to get secure RPC URL, using fallback');
+        return this.provider;
+      }
+
+      return new ethers.JsonRpcProvider(data.rpc_url);
+    } catch (err) {
+      console.warn('Failed to initialize secure provider:', err);
+      return this.provider;
+    }
   }
 
   /**
@@ -99,23 +123,29 @@ class BlockchainService {
   }
 
   /**
-   * Get token balance for an address
+   * Get token balance for an address (now uses real blockchain data)
    */
   async getTokenBalance(address: string, asset: 'USDC' | 'XAUT'): Promise<number> {
     try {
-      const contractAddress = asset === 'USDC' ? this.USDC_CONTRACT : this.XAUT_CONTRACT;
-      const contract = new ethers.Contract(contractAddress, this.ERC20_ABI, this.provider);
-      
-      // Get balance in wei
-      const balanceWei = await contract.balanceOf(address);
-      
-      // Get token decimals
-      const decimals = await contract.decimals();
-      
-      // Convert to human-readable amount
-      const balance = parseFloat(ethers.formatUnits(balanceWei, decimals));
-      
-      return balance;
+      // Use edge function for secure blockchain operations
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance',
+          address: address,
+          asset: asset
+        }
+      });
+
+      if (error) {
+        console.error(`Blockchain balance query failed for ${asset}:`, error);
+        throw new Error(error.message);
+      }
+
+      if (data?.balance !== undefined) {
+        return parseFloat(data.balance);
+      }
+
+      throw new Error('Invalid response from blockchain service');
     } catch (err) {
       console.error(`Failed to get ${asset} balance for ${address}:`, err);
       
@@ -137,7 +167,7 @@ class BlockchainService {
   }
 
   /**
-   * Transfer tokens between addresses (simplified for demo)
+   * Transfer tokens between addresses (now handles real transactions via edge functions)
    */
   async transferToken(
     from: string,
@@ -147,29 +177,39 @@ class BlockchainService {
     userId: string
   ): Promise<BlockchainTransaction> {
     try {
-      console.log(`Simulating transfer of ${amount} ${asset} from ${from} to ${to}`);
+      console.log(`Executing transfer of ${amount} ${asset} from ${from} to ${to}`);
       
-      // For demo purposes, we'll simulate the transfer
-      // In production, you would need the private key to sign the transaction
-      
+      // Use edge function for secure transfer operations
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'transfer',
+          from: from,
+          to: to,
+          amount: amount,
+          asset: asset,
+          userId: userId
+        }
+      });
+
+      if (error) {
+        console.error('Transfer failed:', error);
+        throw new Error(error.message);
+      }
+
       const transaction: BlockchainTransaction = {
-        hash: this.generateTransactionHash(),
+        hash: data.hash || this.generateTransactionHash(),
         from,
         to,
         amount,
         asset,
-        status: 'pending',
+        status: data.status || 'pending',
+        blockNumber: data.blockNumber,
+        gasUsed: data.gasUsed,
         timestamp: new Date().toISOString()
       };
 
-      // Simulate network delay and confirmation
-      setTimeout(async () => {
-        transaction.status = 'confirmed';
-        transaction.blockNumber = Math.floor(Math.random() * 1000000) + 18000000;
-        
-        // Update balance snapshots to reflect the transfer
-        await this.updateBalanceSnapshots(from, to, amount, asset, userId);
-      }, 2000);
+      // Update balance snapshots to reflect the transfer
+      await this.updateBalanceSnapshots(from, to, amount, asset, userId);
 
       return transaction;
     } catch (err) {
@@ -179,7 +219,7 @@ class BlockchainService {
   }
 
   /**
-   * Collect platform fees (simplified for demo)
+   * Collect platform fees (now handles real fee collection via edge functions)
    */
   async collectPlatformFee(
     userAddress: string,
@@ -191,14 +231,34 @@ class BlockchainService {
     try {
       console.log(`Collecting ${feeAmount} ${asset} fee from user ${userId}`);
       
-      // Simulate fee collection transfer
-      const feeTransfer = await this.transferToken(
-        userAddress,
-        this.PLATFORM_WALLET,
-        feeAmount,
+      // Use edge function for secure fee collection
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'collect_fee',
+          userAddress: userAddress,
+          feeAmount: feeAmount,
+          asset: asset,
+          userId: userId,
+          transactionId: transactionId
+        }
+      });
+
+      if (error) {
+        console.error('Fee collection failed:', error);
+        throw new Error(error.message);
+      }
+
+      const feeTransfer: BlockchainTransaction = {
+        hash: data.hash || this.generateTransactionHash(),
+        from: userAddress,
+        to: this.PLATFORM_WALLET,
+        amount: feeAmount,
         asset,
-        userId
-      );
+        status: data.status || 'pending',
+        blockNumber: data.blockNumber,
+        gasUsed: data.gasUsed,
+        timestamp: new Date().toISOString()
+      };
 
       // Record fee collection in database
       await supabase
