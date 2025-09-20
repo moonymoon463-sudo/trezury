@@ -90,7 +90,7 @@ const LandingPage = () => {
                   Install Mobile App
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Progressive Web App - Works like a native mobile app
+                  Install to your phone for quick access
                 </p>
               </div>
 
@@ -118,11 +118,7 @@ const LandingPage = () => {
                 {/* Google Play Badge */}
                 <button 
                   disabled
-                  className="flex items-center justify-center rounded-lg px-4 py-2 opacity-60 cursor-not-allowed shadow-sm min-h-[60px] flex-1"
-                  style={{
-                    background: 'linear-gradient(135deg, #1a73e8 0%, #4285f4 100%)',
-                    border: '1px solid #1557b0'
-                  }}
+                  className="flex items-center justify-center rounded-lg px-4 py-2 opacity-60 cursor-not-allowed shadow-sm min-h-[60px] flex-1 bg-surface-elevated border border-border"
                 >
                   <svg className="w-7 h-7 mr-3 text-white" viewBox="0 0 24 24" fill="white">
                     <path d="M3.609 1.814L13.792 12L3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.5 12.707l2.198-2.198zM5.864 2.658L16.802 8.99 14.5 11.293 5.864 2.658z"/>
