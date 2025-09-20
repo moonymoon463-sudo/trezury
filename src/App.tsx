@@ -4,8 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { PWAProvider } from "@/hooks/usePWA";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -117,14 +121,19 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
+      <PWAProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ScrollToTop />
+            <AppRoutes />
+            <InstallPrompt />
+            <UpdatePrompt />
+            <OfflineIndicator />
+          </BrowserRouter>
+        </TooltipProvider>
+      </PWAProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
