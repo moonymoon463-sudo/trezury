@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import AurumLogo from "@/components/AurumLogo";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock } from "lucide-react";
+import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock, Download, Apple } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const LandingPage = () => {
@@ -35,8 +35,8 @@ const LandingPage = () => {
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="h-8 sm:h-10 flex items-center">
-              <AurumLogo className="h-6 sm:h-8 w-auto" />
+            <div className="h-14 sm:h-16 overflow-hidden flex items-center">
+              <AurumLogo className="scale-[0.6] sm:scale-[0.7] origin-left" />
             </div>
           </div>
           <Link to="/auth">
