@@ -221,18 +221,32 @@ serve(async (req) => {
             throw feeError;
           }
           
-          // Update transaction metadata
-          const { error: updateError } = await supabase
-            .from('transactions')
-            .update({
-              metadata: {
-                fee_collection_status: 'completed',
-                fee_collection_hash: feeHash,
-                platform_fee_wallet: PLATFORM_WALLET,
-                live_mode: true
-              }
-            })
-            .eq('id', transactionId);
+           // Get current metadata and update it
+           const { data: currentTx, error: fetchError } = await supabase
+             .from('transactions')
+             .select('metadata')
+             .eq('id', transactionId)
+             .single();
+             
+           if (fetchError) {
+             console.error('Failed to fetch transaction for metadata update:', fetchError);
+             throw fetchError;
+           }
+           
+           // Update transaction metadata with correct field name
+           const updatedMetadata = {
+             ...(currentTx.metadata || {}),
+             platform_fee_collected: true,
+             fee_collection_status: 'completed',
+             fee_collection_hash: feeHash,
+             platform_fee_wallet: PLATFORM_WALLET,
+             live_mode: true
+           };
+           
+           const { error: updateError } = await supabase
+             .from('transactions')
+             .update({ metadata: updatedMetadata })
+             .eq('id', transactionId);
             
           if (updateError) {
             console.error('Error updating transaction metadata:', updateError);

@@ -20,7 +20,7 @@ export interface FeeCollectionResult {
 
 class FeeCollectionBot {
   private readonly COLLECTION_INTERVAL_MS = 300000; // 5 minutes
-  private readonly PLATFORM_WALLET = 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom';
+  private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
   private isRunning = false;
 
   /**
@@ -175,7 +175,7 @@ class FeeCollectionBot {
           profiles!inner(id)
         `)
         .not('metadata->platform_fee_usd', 'is', null)
-        .is('metadata->platformFeeCollected', null)
+        .is('metadata->platform_fee_collected', null)
         .eq('status', 'completed')
         .order('created_at', { ascending: true })
         .limit(50); // Process in batches
@@ -247,9 +247,9 @@ class FeeCollectionBot {
       // Merge new fee collection data with existing metadata
       const updatedMetadata = {
         ...(currentTransaction.metadata as any || {}),
-        platformFeeCollected: true,
-        feeTransactionHash: transferHash,
-        feeCollectedAt: new Date().toISOString()
+        platform_fee_collected: true,
+        fee_transaction_hash: transferHash,
+        fee_collected_at: new Date().toISOString()
       };
 
       const { error } = await supabase
@@ -331,7 +331,7 @@ class FeeCollectionBot {
 
       for (const tx of transactions) {
         const feeAmount = parseFloat((tx.metadata as any)?.platform_fee_usd || '0');
-        const isCollected = (tx.metadata as any)?.platformFeeCollected;
+        const isCollected = (tx.metadata as any)?.platform_fee_collected;
 
         if (isCollected) {
           totalCollected += feeAmount;
