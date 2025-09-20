@@ -536,6 +536,7 @@ export type Database = {
           email: string
           first_name: string | null
           id: string
+          kyc_inquiry_id: string | null
           kyc_rejection_reason: string | null
           kyc_status: string | null
           kyc_submitted_at: string | null
@@ -557,6 +558,7 @@ export type Database = {
           email: string
           first_name?: string | null
           id: string
+          kyc_inquiry_id?: string | null
           kyc_rejection_reason?: string | null
           kyc_status?: string | null
           kyc_submitted_at?: string | null
@@ -578,6 +580,7 @@ export type Database = {
           email?: string
           first_name?: string | null
           id?: string
+          kyc_inquiry_id?: string | null
           kyc_rejection_reason?: string | null
           kyc_status?: string | null
           kyc_submitted_at?: string | null
