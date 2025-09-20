@@ -41,11 +41,13 @@ interface BlockchainOperationRequest {
   userAddress?: string;
   from?: string;
   to?: string;
+  toAddress?: string; // Chain-specific fee collection address
   transactionId?: string;
   paymentMethod?: string;
   address?: string;
   asset?: string;
   feeAmount?: number;
+  chain?: string; // For multi-chain fee collection
 }
 
 serve(async (req) => {
@@ -197,10 +199,26 @@ serve(async (req) => {
 
       case 'collect_fee':
         try {
-          const { userAddress, feeAmount, asset, userId, transactionId } = body;
-          console.log(`Executing LIVE fee collection: ${feeAmount} ${asset} from ${userAddress}`);
+          const { userAddress, feeAmount, asset, userId, transactionId, chain = 'ethereum', toAddress } = body;
           
-          // Record fee collection in database (live mode)
+          // Determine target wallet based on chain
+          const chainWallets: Record<string, string> = {
+            ethereum: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
+            base: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
+            solana: 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom',
+            tron: 'TJChKfcNH9YamKfhvhiHhfDzMtBwNq9wnQ'
+          };
+          
+          const targetWallet = toAddress || chainWallets[chain] || PLATFORM_WALLET;
+          
+          console.log(`Executing LIVE fee collection: ${feeAmount} ${asset} from ${userAddress} to ${targetWallet} on ${chain}`);
+          
+          // Validate chain support
+          if (!['ethereum', 'base', 'solana', 'tron'].includes(chain)) {
+            throw new Error(`Unsupported chain for fee collection: ${chain}`);
+          }
+          
+          // Record fee collection in database (live mode) with chain info
           const feeHash = generateTransactionHash();
           const { error: feeError } = await supabase
             .from('fee_collection_requests')
@@ -208,12 +226,19 @@ serve(async (req) => {
               user_id: userId,
               transaction_id: transactionId,
               from_address: userAddress,
-              to_address: PLATFORM_WALLET,
+              to_address: targetWallet,
               asset: asset,
+              chain: chain,
               amount: feeAmount,
               status: 'completed',
               external_tx_hash: feeHash,
-              completed_at: new Date().toISOString()
+              completed_at: new Date().toISOString(),
+              metadata: {
+                collection_method: 'automated',
+                chain: chain,
+                target_wallet: targetWallet,
+                processed_at: new Date().toISOString()
+              }
             });
             
           if (feeError) {
@@ -233,13 +258,14 @@ serve(async (req) => {
              throw fetchError;
            }
            
-           // Update transaction metadata with correct field name
+           // Update transaction metadata with correct field name and chain info
            const updatedMetadata = {
              ...(currentTx.metadata || {}),
              platform_fee_collected: true,
              fee_collection_status: 'completed',
              fee_collection_hash: feeHash,
-             platform_fee_wallet: PLATFORM_WALLET,
+             platform_fee_wallet: targetWallet,
+             fee_collection_chain: chain,
              live_mode: true
            };
            
@@ -253,15 +279,16 @@ serve(async (req) => {
             throw updateError;
           }
           
-          console.log(`LIVE fee collection recorded: ${feeHash}`);
+          console.log(`LIVE fee collection recorded: ${feeHash} on ${chain}`);
           
           result = {
             success: true,
             hash: feeHash,
             feeAmount,
             asset: asset,
+            chain: chain,
             from: userAddress,
-            to: PLATFORM_WALLET,
+            to: targetWallet,
             status: 'success'
           };
         } catch (error) {

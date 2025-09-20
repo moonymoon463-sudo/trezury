@@ -8,6 +8,9 @@ export interface UncollectedFee {
   fee_asset: 'USDC' | 'XAUT';
   user_address: string;
   created_at: string;
+  fee_type: 'trading' | 'lending' | 'swap';
+  chain: string;
+  to_address?: string;
 }
 
 export interface FeeCollectionResult {
@@ -101,10 +104,22 @@ class FeeCollectionBot {
   }
 
   /**
-   * Collect a single platform fee
+   * Collect a single platform fee (chain-aware)
    */
   private async collectSingleFee(fee: UncollectedFee): Promise<FeeCollectionResult> {
     try {
+      console.log(`Collecting ${fee.fee_type} fee: ${fee.fee_amount_usd} ${fee.fee_asset} on ${fee.chain}`);
+
+      // Validate chain support
+      if (!this.isChainSupported(fee.chain)) {
+        return {
+          success: false,
+          error: `Unsupported chain: ${fee.chain}`,
+          fee_amount: fee.fee_amount_usd,
+          asset: fee.fee_asset
+        };
+      }
+
       // Verify user has sufficient balance before attempting collection
       const userBalance = await blockchainService.getTokenBalance(fee.user_address, fee.fee_asset);
       
@@ -117,38 +132,23 @@ class FeeCollectionBot {
         };
       }
 
-      // Use edge function for secure blockchain operations
-      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'collect_fee',
-          from: fee.user_address,
-          amount: fee.fee_amount_usd,
-          asset: fee.fee_asset,
-          userId: fee.user_id,
-          transactionId: fee.transaction_id
-        }
-      });
-
-      if (error) {
-        throw new Error(`Blockchain operation failed: ${error.message}`);
+      let result;
+      if (fee.fee_type === 'lending') {
+        // Handle lending fees through fee_collection_requests
+        result = await this.collectLendingFee(fee);
+      } else {
+        // Handle trading/swap fees through blockchain operations
+        result = await this.collectTradingFee(fee);
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Fee collection failed');
+      if (!result.success) {
+        return result;
       }
 
-      // Mark fee as collected in the transaction record
-      await this.markFeeAsCollected(fee.transaction_id, data.hash);
-
-      // Send notification to user (optional)
+      // Send notification to user
       await this.sendFeeCollectionNotification(fee.user_id, fee.fee_amount_usd, fee.fee_asset);
 
-      return {
-        success: true,
-        transaction_hash: data.hash,
-        fee_amount: fee.fee_amount_usd,
-        asset: fee.fee_asset
-      };
+      return result;
     } catch (err) {
       return {
         success: false,
@@ -159,13 +159,79 @@ class FeeCollectionBot {
     }
   }
 
+  private isChainSupported(chain: string): boolean {
+    return ['ethereum', 'base', 'solana', 'tron'].includes(chain);
+  }
+
+  private async collectTradingFee(fee: UncollectedFee): Promise<FeeCollectionResult> {
+    const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+      body: {
+        operation: 'collect_fee',
+        from: fee.user_address,
+        amount: fee.fee_amount_usd,
+        asset: fee.fee_asset,
+        chain: fee.chain,
+        toAddress: fee.to_address,
+        userId: fee.user_id,
+        transactionId: fee.transaction_id
+      }
+    });
+
+    if (error) {
+      throw new Error(`Blockchain operation failed: ${error.message}`);
+    }
+
+    if (!data.success) {
+      throw new Error(data.error || 'Trading fee collection failed');
+    }
+
+    // Mark trading fee as collected in transaction metadata
+    await this.markFeeAsCollected(fee.transaction_id, data.hash);
+
+    return {
+      success: true,
+      transaction_hash: data.hash,
+      fee_amount: fee.fee_amount_usd,
+      asset: fee.fee_asset
+    };
+  }
+
+  private async collectLendingFee(fee: UncollectedFee): Promise<FeeCollectionResult> {
+    // For now, simulate lending fee collection - in production this would interact with the appropriate blockchain
+    const mockHash = `lending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Update fee_collection_requests status
+    const { error } = await supabase
+      .from('fee_collection_requests')
+      .update({
+        status: 'completed',
+        external_tx_hash: mockHash,
+        completed_at: new Date().toISOString()
+      })
+      .eq('transaction_id', fee.transaction_id)
+      .eq('status', 'pending');
+
+    if (error) {
+      throw new Error(`Failed to update lending fee status: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      transaction_hash: mockHash,
+      fee_amount: fee.fee_amount_usd,
+      asset: fee.fee_asset
+    };
+  }
+
   /**
-   * Get all uncollected fees from the database
+   * Get all uncollected fees from the database (trading + lending)
    */
   private async getUncollectedFees(): Promise<UncollectedFee[]> {
     try {
-      // Query transactions that have platform fees but haven't been collected yet
-      const { data: transactions, error } = await supabase
+      const uncollectedFees: UncollectedFee[] = [];
+
+      // Get uncollected trading fees from transactions
+      const { data: transactions, error: txError } = await supabase
         .from('transactions')
         .select(`
           id,
@@ -178,48 +244,97 @@ class FeeCollectionBot {
         .is('metadata->platform_fee_collected', null)
         .eq('status', 'completed')
         .order('created_at', { ascending: true })
-        .limit(50); // Process in batches
+        .limit(25); // Process in smaller batches
 
-      if (error) throw error;
+      if (txError) {
+        console.error('Error fetching trading fees:', txError);
+      } else if (transactions && transactions.length > 0) {
+        for (const tx of transactions) {
+          try {
+            const platformFeeUsd = parseFloat((tx.metadata as any)?.platform_fee_usd || '0');
+            
+            if (platformFeeUsd <= 0) continue;
 
-      if (!transactions || transactions.length === 0) {
-        return [];
-      }
+            // Get user's wallet address
+            const { data: addresses } = await supabase
+              .from('onchain_addresses')
+              .select('address')
+              .eq('user_id', tx.user_id)
+              .eq('asset', 'USDC')
+              .limit(1);
 
-      const uncollectedFees: UncollectedFee[] = [];
+            if (!addresses || addresses.length === 0) {
+              console.warn(`No wallet address found for user ${tx.user_id}`);
+              continue;
+            }
 
-      for (const tx of transactions) {
-        try {
-          const platformFeeUsd = parseFloat((tx.metadata as any)?.platform_fee_usd || '0');
-          
-          if (platformFeeUsd <= 0) continue;
-
-          // Get user's wallet address
-          const { data: addresses } = await supabase
-            .from('onchain_addresses')
-            .select('address')
-            .eq('user_id', tx.user_id)
-            .eq('asset', 'USDC') // Default to USDC address
-            .limit(1);
-
-          if (!addresses || addresses.length === 0) {
-            console.warn(`No wallet address found for user ${tx.user_id}`);
-            continue;
+            uncollectedFees.push({
+              transaction_id: tx.id,
+              user_id: tx.user_id,
+              fee_amount_usd: platformFeeUsd,
+              fee_asset: 'USDC',
+              user_address: addresses[0].address,
+              created_at: tx.created_at,
+              fee_type: 'trading',
+              chain: 'ethereum', // Default for legacy trading transactions
+              to_address: this.PLATFORM_WALLET
+            });
+          } catch (err) {
+            console.error(`Error processing transaction ${tx.id}:`, err);
           }
-
-          uncollectedFees.push({
-            transaction_id: tx.id,
-            user_id: tx.user_id,
-            fee_amount_usd: platformFeeUsd,
-            fee_asset: 'USDC', // Platform fees collected in USDC
-            user_address: addresses[0].address,
-            created_at: tx.created_at
-          });
-        } catch (err) {
-          console.error(`Error processing transaction ${tx.id}:`, err);
         }
       }
 
+      // Get uncollected lending fees from fee_collection_requests
+      const { data: feeRequests, error: feeError } = await supabase
+        .from('fee_collection_requests')
+        .select(`
+          id,
+          user_id,
+          transaction_id,
+          amount,
+          asset,
+          chain,
+          to_address,
+          created_at
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(25);
+
+      if (feeError) {
+        console.error('Error fetching lending fees:', feeError);
+      } else if (feeRequests && feeRequests.length > 0) {
+        for (const req of feeRequests) {
+          try {
+            // Get user's wallet address for the specific chain
+            const { data: addresses } = await supabase
+              .from('onchain_addresses')
+              .select('address')
+              .eq('user_id', req.user_id)
+              .eq('asset', req.asset)
+              .limit(1);
+
+            const userAddress = addresses?.[0]?.address || 'unknown';
+
+            uncollectedFees.push({
+              transaction_id: req.transaction_id,
+              user_id: req.user_id,
+              fee_amount_usd: parseFloat(req.amount.toString()),
+              fee_asset: req.asset as 'USDC' | 'XAUT',
+              user_address: userAddress,
+              created_at: req.created_at,
+              fee_type: 'lending',
+              chain: req.chain || 'ethereum',
+              to_address: req.to_address
+            });
+          } catch (err) {
+            console.error(`Error processing fee request ${req.id}:`, err);
+          }
+        }
+      }
+
+      console.log(`Found ${uncollectedFees.length} uncollected fees (${transactions?.length || 0} trading, ${feeRequests?.length || 0} lending)`);
       return uncollectedFees;
     } catch (err) {
       console.error('Error fetching uncollected fees:', err);

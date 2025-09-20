@@ -135,3 +135,11 @@ export const LENDING_DEPOSIT_WALLETS: Record<Chain, Record<Token, string>> = {
     DAI: ''
   }
 };
+
+// Platform fee collection wallets for each chain
+export const PLATFORM_FEE_WALLETS: Record<Chain, string> = {
+  ethereum: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835', // Ethereum fee collection wallet
+  base: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',     // Base fee collection wallet  
+  solana: 'BzSNDYfdEf8Q2wpr3rvrqQyreAWqB25AnmQA6XohUNom',   // Solana fee collection wallet
+  tron: 'TJChKfcNH9YamKfhvhiHhfDzMtBwNq9wnQ'              // Tron fee collection wallet
+};

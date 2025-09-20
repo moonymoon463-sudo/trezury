@@ -149,6 +149,7 @@ export type Database = {
         Row: {
           amount: number
           asset: string
+          chain: string | null
           completed_at: string | null
           created_at: string
           external_tx_hash: string | null
@@ -164,6 +165,7 @@ export type Database = {
         Insert: {
           amount: number
           asset: string
+          chain?: string | null
           completed_at?: string | null
           created_at?: string
           external_tx_hash?: string | null
@@ -179,6 +181,7 @@ export type Database = {
         Update: {
           amount?: number
           asset?: string
+          chain?: string | null
           completed_at?: string | null
           created_at?: string
           external_tx_hash?: string | null

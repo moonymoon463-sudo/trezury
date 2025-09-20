@@ -145,10 +145,14 @@ export class LendingService {
 
     if (payoutError) throw payoutError;
 
-    // Create fee collection request for platform fee
+    // Create fee collection request for platform fee with chain-aware address
     if (platformFee > 0) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Import platform fee wallets
+        const { PLATFORM_FEE_WALLETS } = await import('@/types/lending');
+        const chainFeeWallet = PLATFORM_FEE_WALLETS[lock.chain as Chain];
+        
         const { error: feeRequestError } = await supabase
           .from('fee_collection_requests')
           .insert({
@@ -156,14 +160,16 @@ export class LendingService {
             transaction_id: lockId, // Use lock ID as transaction reference
             amount: platformFee,
             asset: lock.token,
+            chain: lock.chain, // Include chain for proper fee collection
             from_address: user.id, // Will be replaced with actual wallet address
-            to_address: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
+            to_address: chainFeeWallet, // Use chain-specific fee wallet
             status: 'pending',
             metadata: {
               fee_type: 'lending_completion',
               lock_id: lockId,
               gross_interest: grossInterest,
-              platform_fee_rate: platformFeeRate
+              platform_fee_rate: platformFeeRate,
+              original_chain: lock.chain // Track original deposit chain
             }
           });
 

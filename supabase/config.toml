@@ -40,6 +40,9 @@ verify_jwt = false
 [functions.lending-accrual]
 verify_jwt = false
 
+[functions.lending-rates]
+verify_jwt = false
+
 [functions.blockchain-operations]
 verify_jwt = false
 
