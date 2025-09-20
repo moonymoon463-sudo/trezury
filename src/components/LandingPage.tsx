@@ -197,74 +197,73 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Download App Section */}
-      <section className="py-20 px-4 bg-surface-elevated/50">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
-            Download the Trezury App
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Get instant access to your gold wallet on any device
-          </p>
-          
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8">
-            {/* PWA Install Button */}
-            <Button 
-              size="lg" 
-              className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-8 py-4 text-lg"
-              onClick={() => {
-                if ('serviceWorker' in navigator) {
-                  const event = new CustomEvent('showInstallPrompt');
-                  window.dispatchEvent(event);
-                }
-              }}
-            >
-              <Smartphone className="w-5 h-5 mr-2" />
-              Install Web App
-            </Button>
-            
-            {/* Coming Soon Buttons */}
-            <Button 
-              variant="outline" 
-              size="lg" 
-              disabled 
-              className="border-border text-muted-foreground px-8 py-4 text-lg opacity-50"
-            >
-              <Apple className="w-5 h-5 mr-2" />
-              iOS App (Coming Soon)
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="lg" 
-              disabled 
-              className="border-border text-muted-foreground px-8 py-4 text-lg opacity-50"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              Android APK (Coming Soon)
-            </Button>
-          </div>
-          
-          <p className="text-sm text-muted-foreground">
-            For now, install our Progressive Web App for the full mobile experience
-          </p>
-        </div>
-      </section>
-
-      {/* CTA Section */}
+      {/* Download App & CTA Section */}
       <section className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
-            Ready to Start Trading?
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Join thousands of users who trust Trezury for their gold investments
-          </p>
-          <Link to="/auth">
-            <Button size="lg" className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-12 py-6 text-xl">
-              Get Started Now
-            </Button>
-          </Link>
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            {/* Call to Action */}
+            <div className="text-center md:text-left">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+                Ready to Start Trading?
+              </h2>
+              <p className="text-xl text-muted-foreground mb-8">
+                Join thousands of users who trust Trezury for their gold investments
+              </p>
+              <Link to="/auth">
+                <Button size="lg" className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-12 py-6 text-xl">
+                  Get Started Now
+                </Button>
+              </Link>
+            </div>
+            
+            {/* Download App */}
+            <div className="text-center">
+              <h3 className="text-2xl md:text-3xl font-bold mb-4 text-foreground">
+                Download the App
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Install our PWA for the full mobile experience
+              </p>
+              
+              <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                {/* PWA Install Button */}
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold"
+                  onClick={() => {
+                    if ('serviceWorker' in navigator) {
+                      const event = new CustomEvent('showInstallPrompt');
+                      window.dispatchEvent(event);
+                    }
+                  }}
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  Install Web App
+                </Button>
+                
+                {/* Coming Soon Buttons */}
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  disabled 
+                  className="border-border text-muted-foreground opacity-50"
+                >
+                  <Apple className="w-5 h-5 mr-2" />
+                  iOS - Coming Soon
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  disabled 
+                  className="border-border text-muted-foreground opacity-50"
+                >
+                  <Download className="w-5 h-5 mr-2" />
+                  Android - Coming Soon
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
