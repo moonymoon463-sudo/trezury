@@ -484,6 +484,42 @@ export type Database = {
           },
         ]
       }
+      pii_access_control: {
+        Row: {
+          access_level: string
+          access_reason: string | null
+          authorized_by: string | null
+          created_at: string | null
+          encryption_required: boolean | null
+          expires_at: string | null
+          field_name: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: string
+          access_reason?: string | null
+          authorized_by?: string | null
+          created_at?: string | null
+          encryption_required?: boolean | null
+          expires_at?: string | null
+          field_name: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          access_reason?: string | null
+          authorized_by?: string | null
+          created_at?: string | null
+          encryption_required?: boolean | null
+          expires_at?: string | null
+          field_name?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pii_access_rate_limit: {
         Row: {
           access_count: number | null
@@ -541,8 +577,10 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          data_classification: string | null
           date_of_birth: string | null
           email: string
+          encryption_metadata: Json | null
           first_name: string | null
           id: string
           kyc_inquiry_id: string | null
@@ -551,6 +589,7 @@ export type Database = {
           kyc_submitted_at: string | null
           kyc_verified_at: string | null
           last_name: string | null
+          last_pii_access: string | null
           metadata: Json | null
           phone: string | null
           ssn_last_four: string | null
@@ -563,8 +602,10 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          data_classification?: string | null
           date_of_birth?: string | null
           email: string
+          encryption_metadata?: Json | null
           first_name?: string | null
           id: string
           kyc_inquiry_id?: string | null
@@ -573,6 +614,7 @@ export type Database = {
           kyc_submitted_at?: string | null
           kyc_verified_at?: string | null
           last_name?: string | null
+          last_pii_access?: string | null
           metadata?: Json | null
           phone?: string | null
           ssn_last_four?: string | null
@@ -585,8 +627,10 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          data_classification?: string | null
           date_of_birth?: string | null
           email?: string
+          encryption_metadata?: Json | null
           first_name?: string | null
           id?: string
           kyc_inquiry_id?: string | null
@@ -595,6 +639,7 @@ export type Database = {
           kyc_submitted_at?: string | null
           kyc_verified_at?: string | null
           last_name?: string | null
+          last_pii_access?: string | null
           metadata?: Json | null
           phone?: string | null
           ssn_last_four?: string | null
@@ -931,6 +976,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      create_security_alert: {
+        Args: { alert_type: string; details?: Json; severity?: string }
+        Returns: undefined
+      }
       encrypt_sensitive_field: {
         Args: { input_text: string }
         Returns: string
@@ -938,6 +987,10 @@ export type Database = {
       execute_transaction: {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
+      }
+      get_encrypted_profile_field: {
+        Args: { field_name: string; target_user_id?: string }
+        Returns: string
       }
       get_public_config: {
         Args: { key_name: string }
