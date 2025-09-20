@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import TestDataManager from "@/components/admin/TestDataManager";
 import SystemMonitor from "@/components/admin/SystemMonitor";
+import SecurityAuditDashboard from "@/components/admin/SecurityAuditDashboard";
 
 interface FeeCollectionRequest {
   id: string;
@@ -356,6 +357,9 @@ const AdminFeesNew = () => {
 
         {/* System Monitoring */}
         <SystemMonitor />
+
+        {/* Security Audit Dashboard */}
+        <SecurityAuditDashboard />
 
         {/* Test Data Management */}
         <TestDataManager />
