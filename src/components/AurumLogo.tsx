@@ -1,11 +1,11 @@
 import React from 'react';
 
-interface TrezuryLogoProps {
+interface AurumLogoProps {
   className?: string;
   compact?: boolean;
 }
 
-const AurumLogo: React.FC<TrezuryLogoProps> = ({ className = '', compact = false }) => {
+const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false }) => {
   if (compact) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
