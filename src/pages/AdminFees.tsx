@@ -9,17 +9,20 @@ import { feeCollectionService, FeeCollectionSummary, PlatformFeeRecord } from "@
 import { feeCollectionBot } from "@/services/feeCollectionBot";
 import { blockchainService } from "@/services/blockchainService";
 import { adminFeeAnalyticsService, FeeAnalytics, FeeTypeMetrics } from "@/services/adminFeeAnalyticsService";
+import { useAdmin } from "@/hooks/useAdmin";
+import ChainAnalytics from "@/components/admin/ChainAnalytics";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminFees = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { getFeeAnalytics } = useAdmin();
   const [summary, setSummary] = useState<FeeCollectionSummary | null>(null);
   const [recentFees, setRecentFees] = useState<PlatformFeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [botStats, setBotStats] = useState<any>(null);
   const [collectingFees, setCollectingFees] = useState(false);
-  const [feeAnalytics, setFeeAnalytics] = useState<FeeAnalytics | null>(null);
+  const [feeAnalytics, setFeeAnalytics] = useState<any>(null);
   const [feeTypeMetrics, setFeeTypeMetrics] = useState<FeeTypeMetrics[]>([]);
   const [collectionHealth, setCollectionHealth] = useState<any>(null);
   const [realtimeMonitoring, setRealtimeMonitoring] = useState<any>(null);
@@ -43,7 +46,7 @@ const AdminFees = () => {
         feeCollectionService.getFeeCollectionSummary(),
         feeCollectionService.getCollectedFees(),
         feeCollectionBot.getFeeCollectionStats(),
-        adminFeeAnalyticsService.getFeeAnalytics(),
+        getFeeAnalytics(), // Use the updated chain-aware function
         adminFeeAnalyticsService.getFeeTypeMetrics(),
         adminFeeAnalyticsService.getCollectionHealth(),
         adminFeeAnalyticsService.getRealtimeMonitoring()
