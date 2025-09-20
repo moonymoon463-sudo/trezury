@@ -34,6 +34,11 @@ import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
 import AddUSDC from "./pages/AddUSDC";
 import AdminFees from "./pages/AdminFees";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminSetup from "./pages/AdminSetup";
+import AdminUsers from "./pages/AdminUsers";
+import AdminKYC from "./pages/AdminKYC";
+import AdminTransactions from "./pages/AdminTransactions";
 import WalletManagement from "./pages/WalletManagement";
 import Lending from "./pages/Lending";
 
@@ -95,6 +100,11 @@ const AppRoutes = () => {
       <Route path="/payment-methods" element={<ProtectedRoute><PaymentMethods /></ProtectedRoute>} />
       <Route path="/add-payment-method" element={<ProtectedRoute><AddPaymentMethod /></ProtectedRoute>} />
       <Route path="/add-usdc" element={<ProtectedRoute><AddUSDC /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+      <Route path="/admin/kyc" element={<ProtectedRoute><AdminKYC /></ProtectedRoute>} />
+      <Route path="/admin/transactions" element={<ProtectedRoute><AdminTransactions /></ProtectedRoute>} />
       <Route path="/admin/fees" element={<ProtectedRoute><AdminFees /></ProtectedRoute>} />
       <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />

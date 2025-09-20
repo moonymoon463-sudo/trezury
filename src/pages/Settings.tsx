@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText } from "lucide-react";
+import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -24,6 +25,7 @@ interface UserProfile {
 const Settings = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { isAdmin } = useAdmin();
   const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -267,6 +269,25 @@ const Settings = () => {
             </Button>
           )}
         </div>
+
+        {/* Admin Section */}
+        {isAdmin && (
+          <div className="bg-[#2C2C2E] rounded-xl p-4 border border-[#f9b006]/30">
+            <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+              <Crown size={20} className="text-[#f9b006]" />
+              Admin Panel
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Access administrative functions and system management
+            </p>
+            <Button 
+              onClick={() => navigate('/admin')}
+              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+            >
+              Access Admin Dashboard
+            </Button>
+          </div>
+        )}
 
         {/* Payment Methods */}
         <div className="bg-[#2C2C2E] rounded-xl p-4">
