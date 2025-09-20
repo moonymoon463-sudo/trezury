@@ -74,31 +74,42 @@ const LandingPage = () => {
             <h3 className="text-2xl font-semibold mb-4 text-foreground">Download Our Mobile App</h3>
             <p className="text-muted-foreground mb-6">Trade gold on the go with our secure mobile application</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a 
-                href="#" 
-                className="flex items-center justify-center bg-card hover:bg-surface-elevated border border-border rounded-lg px-6 py-3 transition-colors group"
+              {/* PWA Install Button */}
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-6 py-3"
+                onClick={() => {
+                  if ('serviceWorker' in navigator) {
+                    const event = new CustomEvent('showInstallPrompt');
+                    window.dispatchEvent(event);
+                  }
+                }}
               >
-                <svg className="w-8 h-8 mr-3" viewBox="0 0 24 24" fill="none">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="currentColor"/>
-                </svg>
-                <div className="text-left">
-                  <div className="text-xs text-muted-foreground">Download on the</div>
-                  <div className="text-lg font-semibold text-foreground group-hover:text-aurum transition-colors">App Store</div>
-                </div>
-              </a>
+                <Smartphone className="w-5 h-5 mr-2" />
+                Install Web App
+              </Button>
               
-              <a 
-                href="#" 
-                className="flex items-center justify-center bg-card hover:bg-surface-elevated border border-border rounded-lg px-6 py-3 transition-colors group"
+              <button 
+                disabled
+                className="flex items-center justify-center bg-card/50 border border-border rounded-lg px-6 py-3 opacity-50 cursor-not-allowed"
               >
-                <svg className="w-8 h-8 mr-3" viewBox="0 0 24 24" fill="none">
-                  <path d="M3.609 1.814L13.792 12L3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.198l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L15.5 12.707l2.198-2.198zM5.864 2.658L16.802 8.99 14.5 11.293 5.864 2.658z" fill="currentColor"/>
-                </svg>
+                <Apple className="w-8 h-8 mr-3" />
                 <div className="text-left">
-                  <div className="text-xs text-muted-foreground">Get it on</div>
-                  <div className="text-lg font-semibold text-foreground group-hover:text-aurum transition-colors">Google Play</div>
+                  <div className="text-xs text-muted-foreground">iOS App</div>
+                  <div className="text-lg font-semibold text-foreground">Coming Soon</div>
                 </div>
-              </a>
+              </button>
+              
+              <button 
+                disabled
+                className="flex items-center justify-center bg-card/50 border border-border rounded-lg px-6 py-3 opacity-50 cursor-not-allowed"
+              >
+                <Download className="w-8 h-8 mr-3" />
+                <div className="text-left">
+                  <div className="text-xs text-muted-foreground">Android App</div>
+                  <div className="text-lg font-semibold text-foreground">Coming Soon</div>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -197,73 +208,20 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Download App & CTA Section */}
+      {/* Call to Action */}
       <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Call to Action */}
-            <div className="text-center md:text-left">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
-                Ready to Start Trading?
-              </h2>
-              <p className="text-xl text-muted-foreground mb-8">
-                Join thousands of users who trust Trezury for their gold investments
-              </p>
-              <Link to="/auth">
-                <Button size="lg" className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-12 py-6 text-xl">
-                  Get Started Now
-                </Button>
-              </Link>
-            </div>
-            
-            {/* Download App */}
-            <div className="text-center">
-              <h3 className="text-2xl md:text-3xl font-bold mb-4 text-foreground">
-                Download the App
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                Install our PWA for the full mobile experience
-              </p>
-              
-              <div className="flex flex-col gap-3 max-w-sm mx-auto">
-                {/* PWA Install Button */}
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold"
-                  onClick={() => {
-                    if ('serviceWorker' in navigator) {
-                      const event = new CustomEvent('showInstallPrompt');
-                      window.dispatchEvent(event);
-                    }
-                  }}
-                >
-                  <Smartphone className="w-5 h-5 mr-2" />
-                  Install Web App
-                </Button>
-                
-                {/* Coming Soon Buttons */}
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  disabled 
-                  className="border-border text-muted-foreground opacity-50"
-                >
-                  <Apple className="w-5 h-5 mr-2" />
-                  iOS - Coming Soon
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  disabled 
-                  className="border-border text-muted-foreground opacity-50"
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  Android - Coming Soon
-                </Button>
-              </div>
-            </div>
-          </div>
+        <div className="container mx-auto max-w-4xl text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            Ready to Start Trading?
+          </h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Join thousands of users who trust Trezury for their gold investments
+          </p>
+          <Link to="/auth">
+            <Button size="lg" className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-12 py-6 text-xl">
+              Get Started Now
+            </Button>
+          </Link>
         </div>
       </section>
 
