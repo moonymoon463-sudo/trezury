@@ -7,6 +7,8 @@ import { feeCollectionService, FeeCollectionSummary, PlatformFeeRecord } from "@
 import { externalWalletFeeCollectionBot } from "@/services/externalWalletFeeCollectionBot";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import TestDataManager from "@/components/admin/TestDataManager";
+import SystemMonitor from "@/components/admin/SystemMonitor";
 
 interface FeeCollectionRequest {
   id: string;
@@ -352,8 +354,11 @@ const AdminFeesNew = () => {
           </CardContent>
         </Card>
 
-        {/* Test Data Management - Commented out for now */}
-        {/* <TestDataManager /> */}
+        {/* System Monitoring */}
+        <SystemMonitor />
+
+        {/* Test Data Management */}
+        <TestDataManager />
 
         {/* Instructions */}
         <Card className="bg-[#2C2C2E] border-gray-700">
