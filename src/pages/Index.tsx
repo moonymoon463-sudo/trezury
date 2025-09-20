@@ -6,7 +6,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import GoldPriceChart from "@/components/GoldPriceChart";
-import trezuryLogo from "@/assets/trezury_logo.svg";
+import AurumLogo from "@/components/AurumLogo";
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -46,7 +46,7 @@ const Index = () => {
         <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10">
           <div className="w-12"></div>
           <div className="flex-1 flex justify-center">
-            <img src={trezuryLogo} alt="Trezury logo" className="h-8 w-auto md:h-9" />
+            <AurumLogo compact={true} />
           </div>
           <div className="flex w-12 items-center justify-end">
             <button 
