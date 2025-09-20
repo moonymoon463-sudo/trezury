@@ -31,6 +31,9 @@ verify_jwt = false
 [functions.moonpay-buy]
 verify_jwt = true
 
+[functions.moonpay-sell]
+verify_jwt = true
+
 [functions.moonpay-webhook]
 verify_jwt = false
 

@@ -1,9 +1,15 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { X, ChevronRight, Home, DollarSign, ArrowLeftRight, History, Settings, CircleDollarSign, Building2 } from "lucide-react";
 
 const SellGoldPayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedMethod, setSelectedMethod] = useState<'usdc' | 'bank' | null>(null);
+  
+  const quote = location.state?.quote;
+  const asset = location.state?.asset || 'GOLD';
 
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col justify-between overflow-x-hidden bg-[#111111] text-white">
@@ -28,7 +34,14 @@ const SellGoldPayout = () => {
           
           <div className="space-y-4">
             {/* USDC Option */}
-            <button className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left">
+            <button 
+              className={`flex items-center gap-4 rounded-lg p-4 transition-colors w-full text-left ${
+                selectedMethod === 'usdc' 
+                  ? 'bg-[#f9b006]/20 border-2 border-[#f9b006]' 
+                  : 'bg-[#1C1C1E] hover:bg-[#2C2C2E]'
+              }`}
+              onClick={() => setSelectedMethod('usdc')}
+            >
               <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#2C2C2E]">
                 <CircleDollarSign size={24} className="text-[#f9b006]" />
               </div>
@@ -39,13 +52,20 @@ const SellGoldPayout = () => {
               <ChevronRight size={20} className="text-gray-500" />
             </button>
 
-            {/* Bank via Ramp Option */}
-            <button className="flex items-center gap-4 rounded-lg bg-[#1C1C1E] p-4 transition-colors hover:bg-[#2C2C2E] w-full text-left">
+            {/* Bank via MoonPay Option */}
+            <button 
+              className={`flex items-center gap-4 rounded-lg p-4 transition-colors w-full text-left ${
+                selectedMethod === 'bank' 
+                  ? 'bg-[#f9b006]/20 border-2 border-[#f9b006]' 
+                  : 'bg-[#1C1C1E] hover:bg-[#2C2C2E]'
+              }`}
+              onClick={() => setSelectedMethod('bank')}
+            >
               <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#2C2C2E]">
                 <Building2 size={24} className="text-[#f9b006]" />
               </div>
               <div className="flex-grow">
-                <p className="text-base font-semibold">Bank via Ramp</p>
+                <p className="text-base font-semibold">Bank via MoonPay</p>
                 <p className="text-sm text-gray-400">Receive USD in your bank account</p>
               </div>
               <ChevronRight size={20} className="text-gray-500" />
@@ -58,9 +78,16 @@ const SellGoldPayout = () => {
       <div className="p-6">
         <Button 
           className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
-          onClick={() => navigate("/sell-gold/confirmation")}
+          disabled={!selectedMethod}
+          onClick={() => {
+            if (selectedMethod === 'usdc') {
+              navigate("/sell-gold/confirmation", { state: { quote, asset, payoutMethod: 'usdc' } });
+            } else if (selectedMethod === 'bank') {
+              navigate("/sell-gold/confirmation", { state: { quote, asset, payoutMethod: 'bank' } });
+            }
+          }}
         >
-          Complete Sale
+          {selectedMethod === 'bank' ? 'Continue with MoonPay' : 'Complete Sale'}
         </Button>
       </div>
 

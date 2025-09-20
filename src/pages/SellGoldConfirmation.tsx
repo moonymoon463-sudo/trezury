@@ -5,16 +5,19 @@ import { ArrowLeft, Copy, Clock, TrendingDown, Loader2 } from "lucide-react";
 import { Quote } from "@/services/quoteEngine";
 import { useToast } from "@/hooks/use-toast";
 import { useTransactionExecution } from "@/hooks/useTransactionExecution";
+import { useMoonPaySell } from "@/hooks/useMoonPaySell";
 
 const SellGoldConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { executeTransaction, loading: executionLoading } = useTransactionExecution();
+  const { initiateSell, loading: moonPayLoading } = useMoonPaySell();
   const [isExecuting, setIsExecuting] = useState(false);
   
   const quote = location.state?.quote as Quote;
   const asset = location.state?.asset || 'GOLD';
+  const payoutMethod = location.state?.payoutMethod || 'usdc';
 
   const handleCopyQuoteId = () => {
     if (quote?.id) {
@@ -33,26 +36,46 @@ const SellGoldConfirmation = () => {
 
     setIsExecuting(true);
     try {
-      const result = await executeTransaction(quote.id);
-      
-      if (result.success) {
-        toast({
-          title: "Sale Successful!",
-          description: "Your gold sale has been completed.",
+      if (payoutMethod === 'bank') {
+        // Handle MoonPay sell for bank payout
+        const result = await initiateSell({
+          amount: quote.outputAmount,
+          currency: 'USD'
         });
-        navigate("/transactions/success", { 
-          state: { 
-            transaction: result,
-            type: 'sell',
-            asset
-          } 
-        });
+
+        if (result.success && result.redirectUrl) {
+          // Redirect to MoonPay for bank details and processing
+          window.location.href = result.redirectUrl;
+        } else {
+          toast({
+            title: "MoonPay Sell Failed",
+            description: result.error || "Failed to initiate bank payout.",
+            variant: "destructive"
+          });
+        }
       } else {
-        toast({
-          title: "Sale Failed",
-          description: result.error || "Transaction could not be completed.",
-          variant: "destructive"
-        });
+        // Handle regular USDC transaction
+        const result = await executeTransaction(quote.id);
+        
+        if (result.success) {
+          toast({
+            title: "Sale Successful!",
+            description: "Your gold sale has been completed.",
+          });
+          navigate("/transactions/success", { 
+            state: { 
+              transaction: result,
+              type: 'sell',
+              asset
+            } 
+          });
+        } else {
+          toast({
+            title: "Sale Failed",
+            description: result.error || "Transaction could not be completed.",
+            variant: "destructive"
+          });
+        }
       }
     } catch (error) {
       toast({
@@ -182,16 +205,18 @@ const SellGoldConfirmation = () => {
         <Button 
           variant="destructive"
           className="w-full h-14 font-bold text-lg rounded-xl"
-          disabled={timeRemaining === 0 || isExecuting || executionLoading}
+          disabled={timeRemaining === 0 || isExecuting || executionLoading || moonPayLoading}
           onClick={handleExecuteTransaction}
         >
-          {isExecuting || executionLoading ? (
+          {isExecuting || executionLoading || moonPayLoading ? (
             <>
               <Loader2 size={20} className="animate-spin mr-2" />
-              Processing...
+              {payoutMethod === 'bank' ? 'Redirecting to MoonPay...' : 'Processing...'}
             </>
           ) : timeRemaining === 0 ? (
             "Quote Expired"
+          ) : payoutMethod === 'bank' ? (
+            "Continue with MoonPay"
           ) : (
             "Confirm Sale"
           )}
