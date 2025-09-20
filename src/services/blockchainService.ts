@@ -11,6 +11,7 @@ export interface BlockchainTransaction {
   status: 'pending' | 'confirmed' | 'failed';
   blockNumber?: number;
   gasUsed?: number;
+  confirmations?: number;
   timestamp: string;
 }
 
@@ -22,12 +23,11 @@ export interface WalletInfo {
 }
 
 class BlockchainService {
-  // RPC URL will be loaded from Supabase secrets for security
-  private readonly USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C'; // USDC on Ethereum mainnet
-  private readonly XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // XAUT on Ethereum mainnet  
-  private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // Platform wallet address (public)
+  // Live contract addresses on Ethereum mainnet
+  private readonly USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C';
+  private readonly XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38';
+  private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
   
-  // ERC20 ABI for basic token operations
   private readonly ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
     "function transfer(address to, uint256 amount) returns (bool)",
@@ -40,42 +40,44 @@ class BlockchainService {
   private provider: ethers.JsonRpcProvider;
 
   constructor() {
-    // Initialize provider with a fallback URL
-    // Real RPC URL will be used via edge functions for secure operations
+    // Initialize with demo provider - real RPC will be loaded via edge functions
     this.provider = new ethers.JsonRpcProvider('https://eth-mainnet.g.alchemy.com/v2/demo');
+    this.initializeSecureProvider();
   }
 
   /**
-   * Initialize provider with secure RPC URL from edge function
+   * Initialize provider with live RPC URL from edge function
    */
-  private async initializeSecureProvider(): Promise<ethers.JsonRpcProvider> {
+  async initializeSecureProvider(): Promise<void> {
     try {
-      // For read operations, we can use the edge function to get secure RPC URL
       const { data, error } = await supabase.functions.invoke('blockchain-operations', {
         body: { operation: 'get_rpc_url' }
       });
 
-      if (error || !data?.rpc_url) {
-        console.warn('Failed to get secure RPC URL, using fallback');
-        return this.provider;
+      if (error) {
+        console.error('Failed to get live RPC URL:', error);
+        throw new Error('Cannot initialize live blockchain provider');
       }
 
-      return new ethers.JsonRpcProvider(data.rpc_url);
-    } catch (err) {
-      console.warn('Failed to initialize secure provider:', err);
-      return this.provider;
+      if (data?.rpcUrl) {
+        this.provider = new ethers.JsonRpcProvider(data.rpcUrl);
+        console.log('✅ Blockchain service initialized with LIVE provider');
+      } else {
+        throw new Error('No RPC URL received from edge function');
+      }
+    } catch (error) {
+      console.error('Failed to initialize live provider:', error);
+      throw error;
     }
   }
 
   /**
    * DEPRECATED: Use secureWalletService instead
-   * This method is kept for compatibility but should not be used for new wallets
    */
   async generateWalletAddress(userId: string): Promise<string> {
     console.warn('DEPRECATED: Use secureWalletService.generateDeterministicWallet() instead');
     
     try {
-      // Check if user already has a wallet address
       const { data: existingAddress } = await supabase
         .from('onchain_addresses')
         .select('address')
@@ -87,12 +89,9 @@ class BlockchainService {
         return existingAddress.address;
       }
 
-      // For backward compatibility, generate a simple address
-      // NOTE: This should be replaced with secureWalletService usage
       const wallet = ethers.Wallet.createRandom();
       const address = wallet.address;
     
-      // Store ONLY the address (NO private keys)
       const { error } = await supabase
         .from('onchain_addresses')
         .insert([
@@ -112,9 +111,7 @@ class BlockchainService {
 
       if (error) throw error;
 
-      // SECURITY FIX: NO private key storage anywhere
-      console.warn('Wallet generated without private key storage - user must use secureWalletService for transactions');
-      
+      console.warn('Wallet generated - user must use secureWalletService for transactions');
       return address;
     } catch (err) {
       console.error('Failed to generate wallet address:', err);
@@ -123,51 +120,35 @@ class BlockchainService {
   }
 
   /**
-   * Get token balance for an address (now uses real blockchain data)
+   * Get LIVE token balance from blockchain
    */
   async getTokenBalance(address: string, asset: 'USDC' | 'XAUT'): Promise<number> {
     try {
-      // Use edge function for secure blockchain operations
+      console.log(`🔴 Getting LIVE ${asset} balance for ${address}`);
+      
       const { data, error } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'get_balance',
-          address: address,
-          asset: asset
+          address,
+          asset
         }
       });
 
       if (error) {
-        console.error(`Blockchain balance query failed for ${asset}:`, error);
-        throw new Error(error.message);
+        console.error('LIVE balance retrieval error:', error);
+        throw new Error(`Failed to get live ${asset} balance: ${error.message}`);
       }
 
-      if (data?.balance !== undefined) {
-        return parseFloat(data.balance);
-      }
-
-      throw new Error('Invalid response from blockchain service');
-    } catch (err) {
-      console.error(`Failed to get ${asset} balance for ${address}:`, err);
-      
-      // Fallback to database balance if blockchain call fails
-      try {
-        const { data: snapshots } = await supabase
-          .from('balance_snapshots')
-          .select('amount')
-          .eq('asset', asset)
-          .order('snapshot_at', { ascending: false })
-          .limit(1);
-
-        return Number(snapshots?.[0]?.amount || 0);
-      } catch (dbErr) {
-        console.error('Database fallback failed:', dbErr);
-        return 0;
-      }
+      console.log(`✅ LIVE ${asset} balance: ${data?.balance}`);
+      return data?.balance || 0;
+    } catch (error) {
+      console.error(`Error getting live ${asset} balance for ${address}:`, error);
+      throw error;
     }
   }
 
   /**
-   * Transfer tokens between addresses (now handles real transactions via edge functions)
+   * Execute LIVE token transfer via edge function
    */
   async transferToken(
     from: string,
@@ -177,49 +158,69 @@ class BlockchainService {
     userId: string
   ): Promise<BlockchainTransaction> {
     try {
-      console.log(`Executing transfer of ${amount} ${asset} from ${from} to ${to}`);
+      console.log(`🔴 Executing LIVE transfer: ${amount} ${asset} from ${from} to ${to}`);
       
-      // Use edge function for secure transfer operations
       const { data, error } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'transfer',
-          from: from,
-          to: to,
-          amount: amount,
-          asset: asset,
-          userId: userId
+          from,
+          to,
+          amount,
+          asset,
+          userId
         }
       });
 
       if (error) {
-        console.error('Transfer failed:', error);
-        throw new Error(error.message);
+        throw new Error(`Live transfer failed: ${error.message}`);
       }
 
       const transaction: BlockchainTransaction = {
-        hash: data.hash || this.generateTransactionHash(),
-        from,
-        to,
-        amount,
-        asset,
-        status: data.status || 'pending',
-        blockNumber: data.blockNumber,
-        gasUsed: data.gasUsed,
+        hash: data.hash,
+        from: data.from,
+        to: data.to,
+        amount: data.amount,
+        asset: data.asset,
+        status: data.status,
+        confirmations: data.confirmations || 0,
         timestamp: new Date().toISOString()
       };
 
-      // Update balance snapshots to reflect the transfer
+      // Record live transaction in database
+      const { error: dbError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          type: 'transfer',
+          asset,
+          quantity: amount,
+          status: 'completed',
+          tx_hash: data.hash,
+          metadata: {
+            from,
+            to,
+            transfer_type: 'LIVE_TOKEN_TRANSFER',
+            blockchain_confirmations: data.confirmations,
+            live_mode: true
+          }
+        });
+
+      if (dbError) {
+        console.error('Failed to record live transaction:', dbError);
+      }
+
       await this.updateBalanceSnapshots(from, to, amount, asset, userId);
 
+      console.log(`✅ LIVE transfer completed: ${data.hash}`);
       return transaction;
-    } catch (err) {
-      console.error('Failed to transfer token:', err);
-      throw new Error(`Token transfer failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } catch (error) {
+      console.error(`LIVE transfer error:`, error);
+      throw error;
     }
   }
 
   /**
-   * Collect platform fees (now handles real fee collection via edge functions)
+   * Execute LIVE platform fee collection
    */
   async collectPlatformFee(
     userAddress: string,
@@ -229,63 +230,72 @@ class BlockchainService {
     transactionId: string
   ): Promise<BlockchainTransaction> {
     try {
-      console.log(`Collecting ${feeAmount} ${asset} fee from user ${userId}`);
+      console.log(`🔴 Executing LIVE fee collection: ${feeAmount} ${asset} from user ${userId}`);
       
-      // Use edge function for secure fee collection
       const { data, error } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'collect_fee',
-          userAddress: userAddress,
-          feeAmount: feeAmount,
-          asset: asset,
-          userId: userId,
-          transactionId: transactionId
+          userAddress,
+          feeAmount,
+          asset,
+          userId,
+          transactionId
         }
       });
 
       if (error) {
-        console.error('Fee collection failed:', error);
-        throw new Error(error.message);
+        throw new Error(`Live fee collection failed: ${error.message}`);
       }
 
-      const feeTransfer: BlockchainTransaction = {
-        hash: data.hash || this.generateTransactionHash(),
-        from: userAddress,
-        to: this.PLATFORM_WALLET,
-        amount: feeAmount,
-        asset,
-        status: data.status || 'pending',
-        blockNumber: data.blockNumber,
-        gasUsed: data.gasUsed,
+      const transaction: BlockchainTransaction = {
+        hash: data.hash,
+        from: data.from,
+        to: data.to,
+        amount: data.feeAmount,
+        asset: data.asset,
+        status: data.status,
+        confirmations: 1,
         timestamp: new Date().toISOString()
       };
 
-      // Record fee collection in database
+      // Record live fee collection transaction
+      const { error: dbError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: userId,
+          type: 'fee_collection',
+          asset,
+          quantity: feeAmount,
+          status: 'completed',
+          tx_hash: data.hash,
+          metadata: {
+            platform_fee: true,
+            original_transaction_id: transactionId,
+            fee_collection_type: 'LIVE_PLATFORM_FEE',
+            blockchain_hash: data.hash,
+            live_mode: true
+          }
+        });
+
+      if (dbError) {
+        console.error('Failed to record live fee collection transaction:', dbError);
+      }
+
+      // Update platform balance with live fee
       await supabase
         .from('balance_snapshots')
         .insert({
           user_id: userId,
           asset,
-          amount: -feeAmount, // Negative amount for fee deduction
+          amount: feeAmount,
           snapshot_at: new Date().toISOString()
         });
 
-      // Update transaction metadata to mark fee as collected
-      await supabase
-        .from('transactions')
-        .update({
-          metadata: {
-            platformFeeCollected: true,
-            feeTransactionHash: feeTransfer.hash,
-            feeCollectedAt: new Date().toISOString()
-          }
-        })
-        .eq('id', transactionId);
-
-      return feeTransfer;
-    } catch (err) {
-      console.error('Failed to collect platform fee:', err);
-      throw new Error(`Fee collection failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.log(`✅ LIVE fee collection completed: ${data.hash}`);
+      return transaction;
+    } catch (error) {
+      console.error(`LIVE fee collection error:`, error);
+      throw error;
     }
   }
 
@@ -295,18 +305,14 @@ class BlockchainService {
   async monitorIncomingTransactions(address: string): Promise<BlockchainTransaction[]> {
     try {
       const transactions: BlockchainTransaction[] = [];
+      console.log(`🔴 Monitoring LIVE transactions for address: ${address}`);
       
-      // For production implementation, you would:
-      // 1. Use ethers.js event listeners or WebSocket connections
-      // 2. Query recent Transfer events from ERC20 contracts
-      // 3. Filter events for the specific address
-      
-      // This is a simplified version that queries recent blocks
-      console.log(`Monitoring transactions for address: ${address}`);
+      // In production, you would use ethers.js event listeners
+      // For now, return empty array as monitoring is handled separately
       
       return transactions;
     } catch (err) {
-      console.error('Failed to monitor transactions:', err);
+      console.error('Failed to monitor live transactions:', err);
       return [];
     }
   }
@@ -316,7 +322,6 @@ class BlockchainService {
    */
   async getTransactionHistory(address: string): Promise<BlockchainTransaction[]> {
     try {
-      // For now, return database transactions only
       const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
@@ -348,7 +353,6 @@ class BlockchainService {
     try {
       const timestamp = new Date().toISOString();
       
-      // Deduct from sender (if it's a user transaction)
       if (from !== this.PLATFORM_WALLET) {
         await supabase
           .from('balance_snapshots')
@@ -360,7 +364,6 @@ class BlockchainService {
           });
       }
 
-      // Add to receiver (if it's a user receiving)
       if (to !== this.PLATFORM_WALLET) {
         await supabase
           .from('balance_snapshots')
@@ -377,7 +380,6 @@ class BlockchainService {
   }
 
   private generateTransactionHash(): string {
-    // Generate a valid Ethereum transaction hash format (0x + 64 hex characters)
     const chars = '0123456789abcdef';
     let result = '0x';
     for (let i = 0; i < 64; i++) {

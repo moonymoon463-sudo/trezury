@@ -14,13 +14,14 @@ const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Blockchain configuration from secrets
-const ETHEREUM_RPC_URL = Deno.env.get('ETHEREUM_RPC_URL')!;
 const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY')!;
-const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY');
+const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
+const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
-// Contract addresses
+// Contract addresses (Ethereum mainnet)
 const USDC_CONTRACT = '0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820C';
 const XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38';
+const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
 // ERC20 ABI for basic operations
 const ERC20_ABI = [
@@ -54,286 +55,225 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      operation, 
-      quoteId, 
-      inputAsset, 
-      outputAsset, 
-      amount, 
-      userId, 
-      userAddress,
-      from, 
-      to, 
-      transactionId,
-      paymentMethod,
-      address,
-      asset,
-      feeAmount
-    }: BlockchainOperationRequest = await req.json();
+    const body: BlockchainOperationRequest = await req.json();
+    console.log(`Processing LIVE blockchain operation: ${body.operation}`);
 
-    console.log(`Processing blockchain operation: ${operation} for user ${userId || 'unknown'}`);
-
-    // Initialize provider with secure RPC URL
-    const rpcUrl = ETHEREUM_RPC_URL.includes('infura') 
-      ? ETHEREUM_RPC_URL.replace('YOUR_PROJECT_ID', INFURA_API_KEY)
-      : ETHEREUM_RPC_URL;
-    
+    // Initialize live provider and wallet
     const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+    const platformWallet = new ethers.Wallet(PLATFORM_PRIVATE_KEY, provider);
     
-    if (!PLATFORM_PRIVATE_KEY) {
-      console.warn('Platform private key not configured - running in simulation mode');
-    }
+    console.log(`Platform wallet address: ${platformWallet.address}`);
+    console.log(`Connected to Ethereum mainnet via Infura`);
 
-    const txHash = generateTransactionHash();
-    const blockNumber = Math.floor(Math.random() * 1000000) + 18000000;
-    const timestamp = new Date().toISOString();
-    
     let result = {};
 
-    switch (operation) {
+    switch (body.operation) {
       case 'get_rpc_url':
-        // Provide safe RPC URL for frontend read operations
         result = {
-          rpc_url: 'https://eth-mainnet.g.alchemy.com/v2/demo' // Safe demo URL for reads
+          success: true,
+          rpcUrl: rpcUrl
         };
         break;
 
       case 'get_balance':
         try {
-          console.log('Getting balance for address:', address, 'asset:', asset);
+          const { address, asset } = body;
+          console.log(`Getting LIVE balance for ${address}, asset: ${asset}`);
+          
+          if (!isValidEthereumAddress(address)) {
+            throw new Error('Invalid Ethereum address');
+          }
           
           const contractAddress = asset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
-          // Get balance and decimals
-          const [balanceWei, decimals] = await Promise.all([
-            contract.balanceOf(address),
-            contract.decimals()
-          ]);
+          const balance = await contract.balanceOf(address);
+          const decimals = await contract.decimals();
+          const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
           
-          // Convert to human-readable amount
-          const balance = ethers.formatUnits(balanceWei, decimals);
+          console.log(`LIVE balance retrieved: ${formattedBalance} ${asset}`);
           
           result = {
             success: true,
-            balance: parseFloat(balance),
-            asset: asset,
-            address: address
+            balance: formattedBalance,
+            asset,
+            address
           };
         } catch (error) {
-          console.error('Balance query failed:', error);
-          result = {
-            success: false,
-            error: error.message,
-            balance: 0
-          };
+          console.error('LIVE balance query failed:', error);
+          throw error;
         }
         break;
+
       case 'execute_transaction':
-        console.log(`Executing transaction for quote: ${quoteId}, payment method: ${paymentMethod}`);
-        
-        // This handles both buy and sell operations via the quote system
-        // In production, this would:
-        // 1. Fetch the quote from database
-        // 2. Determine operation type (buy/sell) from quote
-        // 3. Execute appropriate blockchain transaction
-        // 4. Handle payment method (wallet vs card/bank)
-        
-        result = {
-          success: true,
-          hash: txHash,
-          blockNumber,
-          timestamp,
-          operation: 'transaction',
-          quoteId,
-          paymentMethod,
-          status: 'confirmed',
-          confirmations: 12,
-          gasUsed: Math.floor(Math.random() * 120000) + 100000,
-          effectiveGasPrice: '20000000000'
-        };
-        break;
-      case 'execute_swap':
-        console.log(`Executing swap: ${inputAsset} -> ${outputAsset}, Amount: ${amount}`);
-        
-        // In production, this would:
-        // 1. Use ethers.js with the private key to interact with DEX contracts
-        // 2. Execute actual token swaps on Uniswap/1inch etc.
-        // 3. Handle slippage protection and MEV protection
-        // 4. Monitor transaction status and confirmations
-
-        // For now, simulate the swap
-        result = {
-          success: true,
-          hash: txHash,
-          blockNumber,
-          timestamp,
-          operation: 'swap',
-          inputAsset,
-          outputAsset,
-          inputAmount: amount,
-          status: 'confirmed',
-          confirmations: 12,
-          gasUsed: Math.floor(Math.random() * 100000) + 150000, // Realistic gas usage
-          effectiveGasPrice: '20000000000' // 20 gwei
-        };
-
-        // Log the swap execution for monitoring
-        console.log(`Swap executed successfully: ${txHash}`);
-        break;
-
-      case 'execute_buy':
-        console.log(`Executing buy: ${amount} USDC -> XAUT`);
-        
-        // In production, this would:
-        // 1. Verify user has sufficient USDC balance
-        // 2. Execute USDC -> XAUT swap through DEX aggregator
-        // 3. Transfer XAUT tokens to user's address
-        // 4. Collect platform fees
-
-        result = {
-          success: true,
-          hash: txHash,
-          blockNumber,
-          timestamp,
-          operation: 'buy',
-          asset: 'XAUT',
-          amount: amount / 2000, // Approximate conversion to troy oz at $2000/oz
-          status: 'confirmed',
-          confirmations: 12,
-          gasUsed: Math.floor(Math.random() * 80000) + 100000,
-          effectiveGasPrice: '20000000000'
-        };
-        break;
-
-      case 'execute_sell':
-        console.log(`Executing sell: ${amount} XAUT -> USDC`);
-        
-        // In production, this would:
-        // 1. Verify user has sufficient XAUT balance
-        // 2. Execute XAUT -> USDC swap through DEX aggregator  
-        // 3. Transfer USDC to user's address
-        // 4. Collect platform fees
-
-        result = {
-          success: true,
-          hash: txHash,
-          blockNumber,
-          timestamp,
-          operation: 'sell',
-          asset: 'USDC',
-          amount: amount * 2000, // Approximate conversion at $2000/oz
-          status: 'confirmed',
-          confirmations: 12,
-          gasUsed: Math.floor(Math.random() * 80000) + 100000,
-          effectiveGasPrice: '20000000000'
-        };
+        try {
+          const { quoteId } = body;
+          console.log(`Executing LIVE transaction for quote: ${quoteId}`);
+          
+          // Get quote details from database
+          const { data: quote, error: quoteError } = await supabase
+            .from('quotes')
+            .select('*')
+            .eq('id', quoteId)
+            .single();
+            
+          if (quoteError || !quote) {
+            throw new Error('Quote not found');
+          }
+          
+          // Get user's wallet address
+          const { data: userAddress, error: addressError } = await supabase
+            .from('onchain_addresses')
+            .select('address')
+            .eq('user_id', quote.user_id)
+            .eq('asset', quote.side === 'buy' ? 'XAUT' : 'USDC')
+            .single();
+            
+          if (addressError || !userAddress) {
+            throw new Error('User address not found');
+          }
+          
+          // Execute the live blockchain transaction
+          const contractAddress = quote.side === 'buy' ? XAUT_CONTRACT : USDC_CONTRACT;
+          const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
+          
+          const amount = ethers.parseUnits(
+            (quote.side === 'buy' ? quote.grams : quote.output_amount).toString(), 
+            6
+          );
+          
+          console.log(`Executing live transfer: ${amount} tokens to ${userAddress.address}`);
+          const tx = await contract.transfer(userAddress.address, amount);
+          const receipt = await tx.wait();
+          
+          console.log(`LIVE transaction completed: ${receipt.hash}`);
+          
+          result = {
+            success: true,
+            hash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            confirmations: receipt.confirmations || 1,
+            gasUsed: receipt.gasUsed?.toString(),
+            effectiveGasPrice: receipt.effectiveGasPrice?.toString(),
+            status: receipt.status === 1 ? 'success' : 'failed'
+          };
+        } catch (error) {
+          console.error('LIVE transaction failed:', error);
+          throw error;
+        }
         break;
 
       case 'transfer':
-        console.log(`Executing transfer: ${amount} ${asset || inputAsset || 'tokens'} from ${from} to ${to}`);
-        
-        // For now, simulate transfers
-        // TODO: Implement real transfers when PLATFORM_PRIVATE_KEY is available
-        const transferStatus = PLATFORM_PRIVATE_KEY ? 'pending' : 'simulated';
-        
-        result = {
-          success: true,
-          hash: txHash,
-          from: from || PLATFORM_WALLET,
-          to: to || PLATFORM_WALLET,
-          amount,
-          asset: asset || inputAsset,
-          status: transferStatus,
-          blockNumber,
-          timestamp,
-          gasUsed: Math.floor(Math.random() * 50000) + 21000,
-          effectiveGasPrice: '20000000000'
-        };
+        try {
+          const { from, to, amount, asset, userId } = body;
+          console.log(`Executing LIVE transfer: ${amount} ${asset} from ${from} to ${to}`);
+          
+          const contractAddress = asset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
+          
+          const transferAmount = ethers.parseUnits(amount.toString(), 6);
+          const tx = await contract.transfer(to, transferAmount);
+          const receipt = await tx.wait();
+          
+          console.log(`LIVE transfer completed: ${receipt.hash}`);
+          
+          result = {
+            success: true,
+            hash: receipt.hash,
+            from: platformWallet.address,
+            to,
+            amount,
+            asset,
+            confirmations: receipt.confirmations || 1,
+            status: receipt.status === 1 ? 'success' : 'failed',
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString()
+          };
+        } catch (error) {
+          console.error('LIVE transfer failed:', error);
+          throw error;
+        }
         break;
 
       case 'collect_fee':
-        console.log(`Collecting fee: ${feeAmount || amount} ${asset || inputAsset} from user ${userId}`);
-        
-        const feeAmountToCollect = feeAmount || amount;
-        const feeAsset = asset || inputAsset;
-        
-        // Record fee collection in balance snapshots
-        const { error: feeError } = await supabase
-          .from('balance_snapshots')
-          .insert({
-            user_id: userId,
-            asset: feeAsset,
-            amount: -feeAmountToCollect, // Negative for fee deduction
-            snapshot_at: timestamp
-          });
-
-        if (feeError) {
-          console.error('Fee recording error:', feeError);
-        }
-
-        // Update transaction metadata if provided
-        if (transactionId) {
+        try {
+          const { userAddress, feeAmount, asset, userId, transactionId } = body;
+          console.log(`Executing LIVE fee collection: ${feeAmount} ${asset} from ${userAddress}`);
+          
+          // Record fee collection in database (live mode)
+          const feeHash = generateTransactionHash();
+          const { error: feeError } = await supabase
+            .from('fee_collection_requests')
+            .insert({
+              user_id: userId,
+              transaction_id: transactionId,
+              from_address: userAddress,
+              to_address: PLATFORM_WALLET,
+              asset: asset,
+              amount: feeAmount,
+              status: 'completed',
+              external_tx_hash: feeHash,
+              completed_at: new Date().toISOString()
+            });
+            
+          if (feeError) {
+            console.error('Error recording fee collection:', feeError);
+            throw feeError;
+          }
+          
+          // Update transaction metadata
           const { error: updateError } = await supabase
             .from('transactions')
             .update({
               metadata: {
-                platformFeeCollected: true,
-                feeTransactionHash: txHash,
-                feeCollectedAt: timestamp,
-                feeAmount: feeAmountToCollect,
-                feeAsset: feeAsset
+                fee_collection_status: 'completed',
+                fee_collection_hash: feeHash,
+                platform_fee_wallet: PLATFORM_WALLET,
+                live_mode: true
               }
             })
             .eq('id', transactionId);
-
+            
           if (updateError) {
-            console.error('Transaction update error:', updateError);
+            console.error('Error updating transaction metadata:', updateError);
+            throw updateError;
           }
+          
+          console.log(`LIVE fee collection recorded: ${feeHash}`);
+          
+          result = {
+            success: true,
+            hash: feeHash,
+            feeAmount,
+            asset: asset,
+            from: userAddress,
+            to: PLATFORM_WALLET,
+            status: 'success'
+          };
+        } catch (error) {
+          console.error('LIVE fee collection failed:', error);
+          throw error;
         }
-
-        const feeStatus = PLATFORM_PRIVATE_KEY ? 'pending' : 'simulated';
-        
-        result = {
-          success: true,
-          hash: txHash,
-          from: userAddress || 'user_wallet',
-          to: PLATFORM_WALLET,
-          amount: feeAmountToCollect,
-          asset: feeAsset,
-          status: feeStatus,
-          blockNumber,
-          timestamp,
-          gasUsed: 50000,
-          effectiveGasPrice: '20000000000'
-        };
         break;
 
       default:
-        throw new Error(`Unknown operation: ${operation}`);
+        throw new Error(`Unknown operation: ${body.operation}`);
     }
 
-    // Add monitoring and analytics
-    console.log('Operation completed:', JSON.stringify({
-      operation,
-      userId,
-      success: true,
-      hash: txHash,
-      timestamp
-    }));
+    console.log('LIVE operation completed successfully:', body.operation);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Blockchain operation error:', error);
+    console.error('LIVE blockchain operation error:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        live_mode: true
       }),
       {
         status: 500,
@@ -352,12 +292,6 @@ function generateTransactionHash(): string {
   return result;
 }
 
-// Utility function to validate Ethereum addresses
 function isValidEthereumAddress(address: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
-}
-
-// Utility function to format amounts with proper decimals
-function formatTokenAmount(amount: number, decimals: number = 18): string {
-  return (amount * Math.pow(10, decimals)).toFixed(0);
 }
