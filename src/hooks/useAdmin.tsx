@@ -20,6 +20,10 @@ export interface AdminStats {
   total_locked_value: number;
   pending_kyc: number;
   recent_signups: number;
+  total_fees_collected: number;
+  fees_this_month: number;
+  pending_fee_collections: number;
+  fee_collection_rate: number;
 }
 
 export const useAdmin = () => {
@@ -269,6 +273,35 @@ export const useAdmin = () => {
     }
   };
 
+  const getFeeAnalytics = async (startDate?: string, endDate?: string) => {
+    if (!isAdmin) {
+      toast.error('Admin access required');
+      return null;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_get_fee_analytics', {
+        start_date: startDate,
+        end_date: endDate
+      });
+      
+      if (error) {
+        console.error('Error fetching fee analytics:', error);
+        toast.error('Failed to fetch fee analytics');
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error fetching fee analytics:', error);
+      toast.error('Failed to fetch fee analytics');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     isAdmin,
     loading,
@@ -278,6 +311,7 @@ export const useAdmin = () => {
     removeRole,
     getTransactions,
     getKYCSubmissions,
-    updateKYCStatus
+    updateKYCStatus,
+    getFeeAnalytics
   };
 };

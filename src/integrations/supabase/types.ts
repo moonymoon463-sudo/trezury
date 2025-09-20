@@ -895,6 +895,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      admin_get_fee_analytics: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: Json
+      }
       admin_get_users: {
         Args: Record<PropertyKey, never>
         Returns: {

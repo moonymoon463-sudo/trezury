@@ -13,7 +13,9 @@ import {
   UserCheck,
   AlertTriangle,
   Activity,
-  Lock
+  Lock,
+  Receipt,
+  Clock
 } from 'lucide-react';
 import { useAdmin, AdminStats } from '@/hooks/useAdmin';
 import BottomNavigation from '@/components/BottomNavigation';
@@ -102,7 +104,7 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 p-4 overflow-y-auto">
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -151,6 +153,32 @@ const AdminDashboard = () => {
               <div className="text-2xl font-bold">{formatCurrency(stats?.total_locked_value || 0)}</div>
               <p className="text-xs text-muted-foreground">
                 {stats?.active_locks || 0} active locks
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Fees Collected</CardTitle>
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats?.total_fees_collected || 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                All platform fees
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Fees This Month</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats?.fees_this_month || 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats?.fee_collection_rate?.toFixed(1) || 0}% collection rate
               </p>
             </CardContent>
           </Card>
