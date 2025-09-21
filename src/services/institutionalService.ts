@@ -167,35 +167,32 @@ export class InstitutionalService {
     period: { start: Date; end: Date }
   ): Promise<ComplianceReport> {
     try {
-      // Fetch transaction data for the period
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('institutional_id', institutionalId)
-        .gte('created_at', period.start.toISOString())
-        .lte('created_at', period.end.toISOString());
+      // Mock transaction data for demo - replace with actual queries when institutional tables are available
+      const transactions = [
+        { quantity: 1000, unit_price_usd: 1, fee_usd: 10 },
+        { quantity: 2000, unit_price_usd: 1.5, fee_usd: 15 }
+      ];
 
-      // Fetch health factor data
-      const { data: healthFactors } = await supabase
-        .from('user_health_factors')
-        .select('*')
-        .eq('institutional_id', institutionalId)
-        .gte('last_calculated_at', period.start.toISOString())
-        .lte('last_calculated_at', period.end.toISOString());
+      // Mock health factor data for demo
+      const healthFactors = [
+        { health_factor: 2.5 },
+        { health_factor: 3.0 },
+        { health_factor: 2.8 }
+      ];
 
-      const totalVolume = transactions?.reduce((sum, tx) => 
-        sum + (tx.quantity * (tx.unit_price_usd || 0)), 0) || 0;
+      const totalVolume = transactions.reduce((sum, tx) => 
+        sum + (tx.quantity * (tx.unit_price_usd || 0)), 0);
       
-      const totalFees = transactions?.reduce((sum, tx) => sum + (tx.fee_usd || 0), 0) || 0;
+      const totalFees = transactions.reduce((sum, tx) => sum + (tx.fee_usd || 0), 0);
       
-      const avgHealthFactor = healthFactors?.reduce((sum, hf) => 
-        sum + hf.health_factor, 0) / (healthFactors?.length || 1) || 0;
+      const avgHealthFactor = healthFactors.reduce((sum, hf) => 
+        sum + hf.health_factor, 0) / healthFactors.length;
 
       const report: ComplianceReport = {
         id: `report-${Date.now()}`,
         type,
         period,
-        transactions: transactions?.length || 0,
+        transactions: transactions.length,
         volume: totalVolume,
         fees: totalFees,
         riskMetrics: {
