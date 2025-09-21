@@ -36,24 +36,24 @@ export interface NetworkConfig {
   };
 }
 
-// Default contract configurations for each supported chain
+// Testnet configurations for development and testing
 export const NETWORK_CONFIGS: Record<Chain, NetworkConfig> = {
   ethereum: {
-    chainId: 1,
-    name: "Ethereum Mainnet",
-    rpcUrl: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-    blockExplorer: "https://etherscan.io",
+    chainId: 11155111, // Sepolia testnet
+    name: "Ethereum Sepolia",
+    rpcUrl: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+    blockExplorer: "https://sepolia.etherscan.io",
     nativeCurrency: {
-      name: "Ether",
+      name: "SepoliaETH",
       symbol: "ETH",
       decimals: 18
     }
   },
   base: {
-    chainId: 8453,
-    name: "Base",
-    rpcUrl: "https://mainnet.base.org",
-    blockExplorer: "https://basescan.org",
+    chainId: 84532, // Base Sepolia testnet
+    name: "Base Sepolia",
+    rpcUrl: "https://sepolia.base.org",
+    blockExplorer: "https://sepolia.basescan.org",
     nativeCurrency: {
       name: "Ether",
       symbol: "ETH",

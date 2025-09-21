@@ -45,43 +45,47 @@ export function useContractDeployment() {
     setIsDeploying(true);
     try {
       toast({
-        title: "Setting Up Demo Contracts",
-        description: `Creating mock lending protocol for ${chain}...`
+        title: "Deploying Real Contracts 🚀",
+        description: `Deploying smart contracts to ${chain} blockchain...`
       });
 
-      // Call the mock deployment edge function
+      // Get RPC URLs for real testnets
+      const rpcUrls = {
+        ethereum: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+        base: "https://sepolia.base.org",
+        solana: "https://api.devnet.solana.com",
+        tron: "https://api.trongrid.io"
+      };
+
+      // Test private key (replace with your own funded testnet account)
+      const testPrivateKey = "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a";
+      
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
           operation: 'deploy',
-          chain: chain,
-          privateKey: "demo", // Not used for mock deployment
-          rpcUrl: "demo" // Not used for mock deployment
+          chain,
+          privateKey: testPrivateKey,
+          rpcUrl: rpcUrls[chain]
         }
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Mock deployment failed');
+      if (error || !data.success) {
+        throw new Error(data?.error || error?.message || 'Real deployment failed');
       }
 
       toast({
-        title: "Demo Setup Complete",
-        description: `Mock contracts ready for ${chain}! You can now test lending features.`
+        title: "Real Deployment Success! 🎉",
+        description: `Contracts deployed to ${chain}! Gas used: ${data.gasUsed || 'Unknown'}`
       });
 
-      // Update deployment status
       setDeploymentStatus(prev => ({ ...prev, [chain]: true }));
-      
       return true;
     } catch (error) {
-      console.error(`Failed to setup mock contracts for ${chain}:`, error);
+      console.error(`Real deployment failed for ${chain}:`, error);
       toast({
         variant: "destructive",
-        title: "Setup Failed",
-        description: `Failed to setup demo contracts for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        title: "Deployment Failed",
+        description: error instanceof Error ? error.message : 'Unknown error'
       });
       return false;
     } finally {
