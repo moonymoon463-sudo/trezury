@@ -599,38 +599,6 @@ async function handleGetDeploymentInfo() {
     });
   }
 }
-    
-    if (!deployerPrivateKey) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'DEPLOYMENT_PRIVATE_KEY not configured'
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      });
-    }
-
-    const wallet = new ethers.Wallet(deployerPrivateKey);
-    
-    return new Response(JSON.stringify({
-      success: true,
-      deployer_address: wallet.address,
-      estimated_gas_cost: "0.05 ETH",
-      balance_check_url: `https://sepolia.etherscan.io/address/${wallet.address}`
-    }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
-
-  } catch (error) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders }
-    });
-  }
-}
 
 async function handleDiagnose(chain: string) {
   const results = {
