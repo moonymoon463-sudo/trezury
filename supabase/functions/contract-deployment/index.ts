@@ -111,6 +111,10 @@ function validateDeploymentChain(chain: string): chain is 'ethereum' {
   return DEPLOYMENT_CHAINS.includes(chain);
 }
 
+function safeStringify(value: any) {
+  return JSON.stringify(value, (_key, val) => typeof val === 'bigint' ? val.toString() : val);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -340,7 +344,7 @@ async function deployRealContracts(chain: string, privateKey: string, provider: 
 async function deployContract(signer: any, bytecode: string, abi: any[], constructorArgs: any[] = []) {
   try {
     console.log(`📦 Deploying contract with bytecode length: ${bytecode.length} bytes`);
-    console.log(`📦 Constructor arguments (${constructorArgs.length}): ${JSON.stringify(constructorArgs).substring(0, 200)}`);
+    console.log(`📦 Constructor arguments (${constructorArgs.length}): ${safeStringify(constructorArgs).substring(0, 200)}`);
     
     // Pre-deployment checks
     const balance = await signer.provider.getBalance(signer.address);
@@ -368,7 +372,7 @@ async function deployContract(signer: any, bytecode: string, abi: any[], constru
       }
       
       if (gasError.info && gasError.info.error) {
-        console.error(`RPC error details:`, JSON.stringify(gasError.info.error));
+        console.error(`RPC error details:`, safeStringify(gasError.info.error));
       }
       
       // Use fallback gas limits based on contract type
@@ -406,11 +410,11 @@ async function deployContract(signer: any, bytecode: string, abi: any[], constru
     
     // Enhanced error logging
     if (error.error) {
-      console.error('Provider error details:', JSON.stringify(error.error));
+      console.error('Provider error details:', safeStringify(error.error));
     }
     
     if (error.info) {
-      console.error('Transaction info:', JSON.stringify(error.info));
+      console.error('Transaction info:', safeStringify(error.info));
     }
     
     // Re-throw with more context

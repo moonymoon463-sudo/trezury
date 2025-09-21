@@ -284,7 +284,7 @@ export function ContractDeploymentStatus() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleClientDeploy(chain)}
-                        disabled={isDeploying || clientDeploymentState.isDeploying || !wallet.isConnected || wallet.chainId !== 11155111}
+                        disabled={isDeploying || clientDeploymentState.isDeploying || !wallet.isConnected}
                         className="min-w-[120px]"
                       >
                         {clientDeploymentState.isDeploying ? (
