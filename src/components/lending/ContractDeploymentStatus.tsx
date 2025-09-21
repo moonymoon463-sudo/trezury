@@ -469,6 +469,13 @@ export function ContractDeploymentStatus() {
         {/* Wallet Funding Info */}
         <WalletFundingInfo />
 
+        {/* Test Token Faucets - Only show when contracts are ready */}
+        {deployedCount === totalChains && (
+          <div className="mt-4">
+            <TestTokenFaucet chain="ethereum" />
+          </div>
+        )}
+
         {/* Deployment Complete */}
         {deployedCount === totalChains && (
           <div className="p-3 rounded-lg bg-success/10 border border-success/20">
@@ -476,7 +483,7 @@ export function ContractDeploymentStatus() {
               <CheckCircle className="h-4 w-4 text-success" />
               <div>
                 <p className="text-sm text-success font-medium">
-                  All contracts deployed successfully!
+                  Pre-deployed contracts ready! 🚀
                 </p>
                 <p className="text-xs text-success/80">
                   You can now use all lending features across all supported chains.
