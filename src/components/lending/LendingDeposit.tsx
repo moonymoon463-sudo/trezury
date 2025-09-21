@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Zap, Store } from "lucide-react";
 
 export function LendingDeposit() {
-  const [currentView, setCurrentView] = useState<'quickactions' | 'marketplace' | 'form'>('quickactions');
+  const [currentView, setCurrentView] = useState<'quickactions' | 'marketplace' | 'form'>('marketplace');
   const [selectedToken, setSelectedToken] = useState<{
     chain: Chain;
     token: Token;
@@ -20,7 +20,7 @@ export function LendingDeposit() {
   };
 
   const handleBack = () => {
-    setCurrentView('quickactions');
+    setCurrentView('marketplace');
     setSelectedToken(null);
   };
 
@@ -46,7 +46,7 @@ export function LendingDeposit() {
             className="flex items-center gap-2"
           >
             <Zap className="h-4 w-4" />
-            Quick Actions
+            Developer Tools
           </Button>
           <Button
             variant="secondary"
@@ -54,7 +54,7 @@ export function LendingDeposit() {
             className="flex items-center gap-2"
           >
             <Store className="h-4 w-4" />
-            Market Explorer
+            Market
           </Button>
         </div>
         <TokenMarketplace onSelectToken={handleTokenSelect} />
@@ -71,7 +71,7 @@ export function LendingDeposit() {
           className="flex items-center gap-2"
         >
           <Zap className="h-4 w-4" />
-          Quick Actions
+          Developer Tools
         </Button>
         <Button
           variant="outline"
@@ -80,7 +80,7 @@ export function LendingDeposit() {
           className="flex items-center gap-2"
         >
           <Store className="h-4 w-4" />
-          Market Explorer
+          Market
         </Button>
       </div>
       <QuickActions />
