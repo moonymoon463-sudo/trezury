@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Shield, AlertTriangle, DollarSign, Plus, Activity, Target, BarChart3, ArrowUpRight } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Shield, AlertTriangle, DollarSign, Plus, Activity, Target, BarChart3, ArrowUpRight, Globe, TrendingDownIcon, TrendingUpIcon, Network } from "lucide-react";
 import { useValidatedLending } from "@/hooks/useValidatedLending";
 import { AaveStyleLendingService } from "@/services/aaveStyleLendingService";
 import { HealthFactorIndicator } from "@/components/lending/HealthFactorIndicator";
@@ -13,6 +13,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useRealtimeLending } from "@/hooks/useRealtimeLending";
 import { EnhancedLendingService } from "@/services/enhancedLendingService";
+import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
+import { RiskManagementDashboard } from "@/components/lending/RiskManagementDashboard";
+import { CrossChainDashboard } from "@/components/lending/CrossChainDashboard";
+import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
+import { HistoricalAnalyticsService } from "@/services/historicalAnalyticsService";
+import { useEffect, useState } from "react";
 
 function SupplyPositionCard({ supply, onWithdraw, onToggleCollateral }: {
   supply: any;
@@ -208,6 +214,9 @@ function BorrowPositionCard({ borrow, onRepay }: {
 export function LendingProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [historicalData, setHistoricalData] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("supplies");
+  
   const { 
     userSupplies, 
     userBorrows, 
@@ -226,6 +235,38 @@ export function LendingProfile() {
     loading: realtimeLoading,
     metrics: realtimeMetrics
   } = useRealtimeLending();
+
+  const {
+    portfolioAssets,
+    portfolioSummary,
+    portfolioPerformance,
+    portfolioHistory,
+    assetsByType,
+    loading: portfolioLoading
+  } = usePortfolioMonitoring();
+
+  // Load historical data on component mount
+  useEffect(() => {
+    const loadHistoricalData = async () => {
+      if (user) {
+        try {
+          const data = await HistoricalAnalyticsService.getPositionHistory(user.id, 30); // Last 30 days
+          // Transform the data to the expected format
+          const transformedData = {
+            totalGrowth: data.reduce((sum, pos) => sum + pos.pnl_usd, 0),
+            totalGrowthPercent: data.length > 0 ? (data[data.length - 1].pnl_usd / Math.max(data[0].supplied_amount, 1)) * 100 : 0,
+            totalInterestEarned: data.reduce((sum, pos) => sum + Math.max(pos.pnl_usd, 0), 0),
+            avgHealthFactor: data.length > 0 ? data.reduce((sum, pos) => sum + pos.health_factor, 0) / data.length : 0
+          };
+          setHistoricalData(transformedData);
+        } catch (error) {
+          console.error('Failed to load historical data:', error);
+        }
+      }
+    };
+    
+    loadHistoricalData();
+  }, [user]);
 
   if (!user) {
     return (
@@ -381,19 +422,27 @@ export function LendingProfile() {
         </Card>
       )}
 
-      <Tabs defaultValue="supplies" className="space-y-6">
-        <TabsList className="bg-surface-elevated border border-border w-full">
-          <TabsTrigger value="supplies" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="bg-surface-elevated border border-border w-full grid grid-cols-5">
+          <TabsTrigger value="supplies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
             <TrendingUp className="h-4 w-4 mr-2" />
-            Supply Positions
+            Supply
             <Badge variant="secondary" className="ml-2 bg-primary/10 text-primary">{userSupplies.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="borrows" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+          <TabsTrigger value="borrows" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
             <TrendingDown className="h-4 w-4 mr-2" />
-            Borrow Positions
+            Borrow
             <Badge variant="secondary" className="ml-2 bg-destructive/10 text-destructive">{userBorrows.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="overview" className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+          <TabsTrigger value="risk" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+            <Shield className="h-4 w-4 mr-2" />
+            Risk
+          </TabsTrigger>
+          <TabsTrigger value="crosschain" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+            <Network className="h-4 w-4 mr-2" />
+            Multi-Chain
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
           </TabsTrigger>
@@ -480,166 +529,16 @@ export function LendingProfile() {
           )}
         </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6">
-          <ValidationStatus />
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card className="bg-surface-elevated border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                  </div>
-                  Supply Analytics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">Total Value</p>
-                    <p className="text-lg font-bold text-primary">${totalSuppliedUSD.toFixed(2)}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">Positions</p>
-                    <p className="text-lg font-bold text-foreground">{userSupplies.length}</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Used as Collateral</span>
-                    <span className="font-medium text-foreground">
-                      {userSupplies.filter(s => s.used_as_collateral).length} / {userSupplies.length}
-                    </span>
-                  </div>
-                  <Progress 
-                    value={userSupplies.length > 0 ? (userSupplies.filter(s => s.used_as_collateral).length / userSupplies.length) * 100 : 0} 
-                    className="h-2" 
-                  />
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="risk" className="space-y-6">
+          <RiskManagementDashboard />
+        </TabsContent>
 
-            <Card className="bg-surface-elevated border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <div className="p-2 rounded-lg bg-destructive/10">
-                    <TrendingDown className="h-5 w-5 text-destructive" />
-                  </div>
-                  Borrow Analytics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">Total Debt</p>
-                    <p className="text-lg font-bold text-destructive">${totalBorrowedUSD.toFixed(2)}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">Positions</p>
-                    <p className="text-lg font-bold text-foreground">{userBorrows.length}</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Variable Rate Borrows</span>
-                    <span className="font-medium text-foreground">
-                      {userBorrows.filter(b => b.rate_mode === 'variable').length} / {userBorrows.length}
-                    </span>
-                  </div>
-                  <Progress 
-                    value={userBorrows.length > 0 ? (userBorrows.filter(b => b.rate_mode === 'variable').length / userBorrows.length) * 100 : 0} 
-                    className="h-2" 
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="crosschain" className="space-y-6">
+          <CrossChainDashboard />
+        </TabsContent>
 
-          {/* Portfolio Performance */}
-          <Card className="bg-surface-elevated border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <div className="p-2 rounded-lg bg-blue-500/10">
-                  <Target className="h-5 w-5 text-blue-600" />
-                </div>
-                Portfolio Insights
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <p className="text-sm text-muted-foreground mb-2">Net Portfolio Value</p>
-                  <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    ${Math.abs(netWorth).toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {netWorth >= 0 ? 'Positive' : 'Negative'} equity
-                  </p>
-                </div>
-                
-                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <p className="text-sm text-muted-foreground mb-2">Borrowing Efficiency</p>
-                  <p className="text-2xl font-bold text-foreground">{borrowUtilization.toFixed(1)}%</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Capital utilization
-                  </p>
-                </div>
-                
-                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <p className="text-sm text-muted-foreground mb-2">Risk Level</p>
-                  <p className={`text-2xl font-bold ${
-                    !userHealthFactor ? 'text-muted-foreground' :
-                    userHealthFactor.health_factor > 2 ? 'text-green-600' :
-                    userHealthFactor.health_factor > 1.5 ? 'text-yellow-600' : 'text-destructive'
-                  }`}>
-                    {!userHealthFactor ? 'N/A' : 
-                     userHealthFactor.health_factor > 2 ? 'Low' :
-                     userHealthFactor.health_factor > 1.5 ? 'Medium' : 'High'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Liquidation risk
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Risk Warnings */}
-          {userHealthFactor && userHealthFactor.health_factor < 1.5 && (
-            <Card className="bg-destructive/5 border-destructive/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="h-5 w-5" />
-                  Risk Alert: Low Health Factor
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <p className="text-muted-foreground">
-                    Your current health factor of {userHealthFactor.health_factor.toFixed(3)} indicates high liquidation risk.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => navigate('/lending?tab=supply')} 
-                      size="sm" 
-                      className="bg-primary"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Collateral
-                    </Button>
-                    <Button 
-                      onClick={() => navigate('/lending?tab=borrow')} 
-                      size="sm" 
-                      variant="outline"
-                      className="border-destructive/20 text-destructive hover:bg-destructive/10"
-                    >
-                      <ArrowUpRight className="h-4 w-4 mr-2" />
-                      Repay Debt
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="analytics" className="space-y-6">
+          <EnhancedPortfolioAnalytics />
         </TabsContent>
       </Tabs>
     </div>
