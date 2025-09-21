@@ -8,10 +8,11 @@ const corsHeaders = {
 };
 
 interface DeploymentRequest {
-  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status';
+  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'health_check';
   chain?: string;
   privateKey?: string;
   rpcUrl?: string;
+  fallbackRpcs?: string[];
 }
 
 // Add chain validation for contract deployment
@@ -33,7 +34,7 @@ serve(async (req) => {
     );
 
     const requestBody: DeploymentRequest = await req.json();
-    const { operation, chain, privateKey, rpcUrl } = requestBody;
+    const { operation, chain, privateKey, rpcUrl, fallbackRpcs } = requestBody;
 
     console.log(`Processing contract deployment operation: ${operation}`);
 
@@ -52,7 +53,7 @@ serve(async (req) => {
             }
           );
         }
-        return await handleDeploy(supabase, chain!, privateKey!, rpcUrl!);
+        return await handleDeploy(supabase, chain!, privateKey!, rpcUrl!, fallbackRpcs);
       
       case 'verify':
         if (!validateDeploymentChain(chain!)) {
@@ -117,7 +118,7 @@ serve(async (req) => {
   }
 });
 
-async function handleDeploy(supabase: any, chain: string, privateKey: string = "", rpcUrl: string) {
+async function handleDeploy(supabase: any, chain: string, privateKey: string = "", rpcUrl: string, fallbackRpcs: string[] = []) {
   console.log(`🚀 Deploying contracts to ${chain} blockchain...`);
 
   try {
@@ -130,25 +131,48 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
       }
     }
 
-    // Initialize ethers provider with retry logic
-    const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
-      staticNetwork: true,
-      batchMaxCount: 1
-    });
+    // Initialize ethers provider with RPC fallback system
+    let provider: any = null;
+    let connectedRpcUrl = "";
     
-    // Test connection with retry
-    let networkConnected = false;
-    let retries = 3;
-    while (!networkConnected && retries > 0) {
+    // Try primary RPC first, then fallbacks
+    const rpcUrls = [rpcUrl, ...(fallbackRpcs || [])];
+    console.log(`Attempting connection to ${rpcUrls.length} RPC endpoints...`);
+    
+    for (let i = 0; i < rpcUrls.length; i++) {
+      const currentRpcUrl = rpcUrls[i];
+      console.log(`Trying RPC ${i + 1}/${rpcUrls.length}: ${currentRpcUrl}`);
+      
       try {
-        await provider.getBlockNumber();
-        networkConnected = true;
+        const testProvider = new ethers.JsonRpcProvider(currentRpcUrl, undefined, {
+          staticNetwork: true,
+          batchMaxCount: 1
+        });
+        
+        // Test connection with timeout
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Connection timeout')), 10000)
+        );
+        
+        await Promise.race([
+          testProvider.getBlockNumber(),
+          timeoutPromise
+        ]);
+        
+        provider = testProvider;
+        connectedRpcUrl = currentRpcUrl;
+        console.log(`✅ Successfully connected to: ${currentRpcUrl}`);
+        break;
       } catch (error) {
-        console.log(`Connection attempt failed, retrying... (${retries} left)`);
-        retries--;
-        if (retries === 0) throw new Error(`Failed to connect to ${chain} network: ${error.message}`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`❌ RPC connection failed for ${currentRpcUrl}: ${error.message}`);
+        if (i === rpcUrls.length - 1) {
+          throw new Error(`All RPC endpoints failed. Last error: ${error.message}`);
+        }
       }
+    }
+    
+    if (!provider) {
+      throw new Error(`Failed to connect to any RPC endpoint for ${chain}`);
     }
 
     const deployer = new ethers.Wallet(deploymentPrivateKey, provider);

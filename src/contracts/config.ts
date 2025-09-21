@@ -36,12 +36,12 @@ export interface NetworkConfig {
   };
 }
 
-// Testnet configurations for development and testing
+// Testnet configurations for development and testing with RPC fallbacks
 export const NETWORK_CONFIGS: Record<Chain, NetworkConfig> = {
   ethereum: {
     chainId: 11155111, // Sepolia testnet
     name: "Ethereum Sepolia",
-    rpcUrl: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+    rpcUrl: "https://rpc.ankr.com/eth_sepolia",
     blockExplorer: "https://sepolia.etherscan.io",
     nativeCurrency: {
       name: "SepoliaETH",
@@ -222,4 +222,26 @@ export const GAS_CONFIGS = {
   STANDARD: 20,
   FAST: 30,
   INSTANT: 50
+};
+
+// RPC fallback endpoints for each chain
+export const RPC_FALLBACKS: Record<Chain, string[]> = {
+  ethereum: [
+    "https://rpc.ankr.com/eth_sepolia",
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://sepolia.gateway.tenderly.co",
+    "https://rpc.sepolia.dev"
+  ],
+  base: [
+    "https://sepolia.base.org",
+    "https://rpc.ankr.com/base_sepolia"
+  ],
+  solana: [
+    "https://api.devnet.solana.com",
+    "https://rpc.ankr.com/solana_devnet"
+  ],
+  tron: [
+    "https://api.trongrid.io",
+    "https://rpc.ankr.com/tron"
+  ]
 };

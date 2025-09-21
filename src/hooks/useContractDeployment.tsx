@@ -71,13 +71,10 @@ export function useContractDeployment() {
         description: `Deploying smart contracts to ${chain} blockchain with enhanced security...`
       });
 
-      // Get RPC URLs for real testnets
-      const rpcUrls = {
-        ethereum: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-        base: "https://sepolia.base.org", 
-        solana: "https://api.devnet.solana.com",
-        tron: "https://api.trongrid.io"
-      };
+      // Import RPC configuration with fallbacks
+      const { NETWORK_CONFIGS, RPC_FALLBACKS } = await import("@/contracts/config");
+      const primaryRpcUrl = NETWORK_CONFIGS[chain as keyof typeof NETWORK_CONFIGS]?.rpcUrl;
+      const fallbackRpcs = RPC_FALLBACKS[chain as keyof typeof RPC_FALLBACKS] || [];
 
       // Use secure deployment (private key handled securely in edge function)
       console.log(`Invoking contract-deployment function for ${chain}...`);
@@ -86,7 +83,8 @@ export function useContractDeployment() {
         body: {
           operation: 'deploy',
           chain,
-          rpcUrl: rpcUrls[chain]
+          rpcUrl: primaryRpcUrl,
+          fallbackRpcs: fallbackRpcs
         }
       });
 
