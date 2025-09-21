@@ -108,7 +108,7 @@ export function CrossChainDashboard() {
 
   const filteredPositions = selectedChain === 'all' 
     ? Object.entries(summary.positions_by_chain).flatMap(([chain, positions]) => 
-        positions.map(pos => ({ ...pos, chain }))
+        positions.map(pos => ({ ...pos, chain: chain as Chain }))
       )
     : summary.positions_by_chain[selectedChain as Chain] || [];
 
