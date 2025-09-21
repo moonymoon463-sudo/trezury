@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Shield, AlertTriangle, DollarSign, Plus, Activity, Target, BarChart3, ArrowUpRight, Globe, TrendingDownIcon, TrendingUpIcon, Network } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Shield, AlertTriangle, DollarSign, Plus, Activity, Target, BarChart3, ArrowUpRight, Globe, TrendingDownIcon, TrendingUpIcon, Network, Brain, Building2 } from "lucide-react";
 import { useValidatedLending } from "@/hooks/useValidatedLending";
 import { AaveStyleLendingService } from "@/services/aaveStyleLendingService";
 import { HealthFactorIndicator } from "@/components/lending/HealthFactorIndicator";
@@ -19,6 +19,8 @@ import { CrossChainDashboard } from "@/components/lending/CrossChainDashboard";
 import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
 import { AdvancedTradingHub } from "@/components/lending/AdvancedTradingHub";
 import { ProductionOptimizations } from "@/components/lending/ProductionOptimizations";
+import { AIAnalyticsDashboard } from "@/components/lending/AIAnalyticsDashboard";
+import { InstitutionalDashboard } from "@/components/lending/InstitutionalDashboard";
 import { HistoricalAnalyticsService } from "@/services/historicalAnalyticsService";
 import { useEffect, useState } from "react";
 
@@ -425,7 +427,7 @@ export function LendingProfile() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-surface-elevated border border-border w-full grid grid-cols-5">
+        <TabsList className="bg-surface-elevated border border-border w-full grid grid-cols-7">
           <TabsTrigger value="supplies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
             <TrendingUp className="h-4 w-4 mr-2" />
             Supply
@@ -447,6 +449,14 @@ export function LendingProfile() {
           <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+            <Target className="h-4 w-4 mr-2" />
+            Advanced
+          </TabsTrigger>
+          <TabsTrigger value="system" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground transition-all">
+            <Activity className="h-4 w-4 mr-2" />
+            System
           </TabsTrigger>
         </TabsList>
 
@@ -540,7 +550,21 @@ export function LendingProfile() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          <EnhancedPortfolioAnalytics />
+          <Tabs defaultValue="portfolio" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="portfolio">Portfolio Analytics</TabsTrigger>
+              <TabsTrigger value="ai">
+                <Brain className="h-4 w-4 mr-1" />
+                AI Insights
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="portfolio" className="space-y-6">
+              <EnhancedPortfolioAnalytics />
+            </TabsContent>
+            <TabsContent value="ai" className="space-y-6">
+              <AIAnalyticsDashboard />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="advanced" className="space-y-6">
@@ -548,7 +572,21 @@ export function LendingProfile() {
         </TabsContent>
 
         <TabsContent value="system" className="space-y-6">
-          <ProductionOptimizations />
+          <Tabs defaultValue="optimization" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="optimization">System Optimization</TabsTrigger>
+              <TabsTrigger value="institutional">
+                <Building2 className="h-4 w-4 mr-1" />
+                Institutional
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="optimization" className="space-y-6">
+              <ProductionOptimizations />
+            </TabsContent>
+            <TabsContent value="institutional" className="space-y-6">
+              <InstitutionalDashboard />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
