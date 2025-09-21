@@ -87,118 +87,105 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="px-4 pt-6 pb-4 space-y-6">
-          {/* Gold Price Section */}
-          <div className="bg-[#2C2C2E] rounded-xl p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-                Gold Price
-              </h3>
+        <div className="px-4 pt-4 pb-4 space-y-3">
+          {/* Action Buttons - Moved to Top */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90 text-sm"
+              onClick={() => navigate("/buy-sell-hub")}
+            >
+              <ShoppingCart size={14} />
+              Buy Gold
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80 text-sm"
+              onClick={() => navigate("/buy-sell-hub")}
+            >
+              <DollarSign size={14} />
+              Sell/Cash Out
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80 text-sm"
+              onClick={() => navigate("/swap")}
+            >
+              <ArrowRightLeft size={14} />
+              Swap
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80 text-sm"
+              onClick={() => navigate("/lending?tab=supply")}
+            >
+              <TrendingUp size={14} />
+              Earn Interest
+            </Button>
+          </div>
+
+          {/* Compact Gold Price Banner */}
+          <div className="bg-[#2C2C2E] rounded-xl p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-[#f9b006] font-bold text-sm">Gold Price</span>
+                <div className="text-white font-semibold text-sm">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}/oz` : "N/A"}
+                </div>
+              </div>
               {priceLoading ? (
                 <div className="animate-pulse">
-                  <div className="h-4 w-16 bg-gray-600 rounded"></div>
+                  <div className="h-3 w-12 bg-gray-600 rounded"></div>
                 </div>
               ) : goldPrice && (
                 <div className="flex items-center gap-1 text-[#f9b006]">
-                  <TrendingUp size={16} />
-                  <span className="text-sm font-medium">
+                  <TrendingUp size={12} />
+                  <span className="text-xs font-medium">
                     {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
                   </span>
                 </div>
               )}
             </div>
-            <div className="space-y-1">
-              <div className="flex justify-between gap-x-6 py-1">
-                <p className="text-gray-400 text-sm font-normal">USD/oz</p>
-                <p className="text-white text-sm font-semibold text-right">
-                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
-                </p>
-              </div>
-              <div className="flex justify-between gap-x-6 py-1">
-                <p className="text-gray-400 text-sm font-normal">USD/g</p>
-                <p className="text-white text-sm font-semibold text-right">
-                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
-                </p>
-              </div>
-            </div>
           </div>
 
-          {/* Portfolio Summary with Asset Allocation */}
+          {/* Portfolio Summary with Asset Allocation - Optimized */}
           {!portfolioLoading && (
-            <PortfolioSummaryCard 
-              summary={portfolioSummary} 
-              performance={portfolioPerformance}
-              assets={portfolioAssets}
-            />
-          )}
-
-          {/* Portfolio Positions */}
-          {!portfolioLoading && (
-            <div className="bg-[#2C2C2E] rounded-xl p-4">
-              <PositionsCard assetsByType={assetsByType} />
+            <div className="bg-[#2C2C2E] rounded-xl p-3">
+              <PortfolioSummaryCard 
+                summary={portfolioSummary} 
+                performance={portfolioPerformance}
+                assets={portfolioAssets}
+              />
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button 
-              className="bg-[#f9b006] text-black font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
-              onClick={() => navigate("/buy-sell-hub")}
-            >
-              <ShoppingCart size={16} />
-              Buy Gold
-            </Button>
-            <Button 
-              className="bg-[#2C2C2E] text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/buy-sell-hub")}
-            >
-              <DollarSign size={16} />
-              Sell/Cash Out
-            </Button>
-            <Button 
-              className="bg-[#2C2C2E] text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/swap")}
-            >
-              <ArrowRightLeft size={16} />
-              Swap
-            </Button>
-            <Button 
-              className="bg-[#2C2C2E] text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/lending?tab=supply")}
-            >
-              <TrendingUp size={16} />
-              Earn Interest
-            </Button>
-          </div>
-
-          {/* Your Tokens */}
-          <div>
-            <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] mb-4">
-              Your Tokens
-            </h3>
-            <div className="space-y-3">
+          {/* Consolidated Token Overview */}
+          <div className="bg-[#2C2C2E] rounded-xl p-3">
+            <h3 className="text-white text-sm font-bold mb-2">Your Assets</h3>
+            <div className="grid grid-cols-2 gap-2">
               {tokens.map((token, index) => (
-                <div key={index} className="bg-[#2C2C2E] rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center text-xl">
-                      {token.icon}
-                    </div>
-                    <div>
-                      <p className="text-white font-semibold">{token.name}</p>
-                      <p className="text-gray-400 text-sm">{token.symbol}</p>
-                    </div>
+                <div key={index} className="bg-[#1A1A1A] rounded-lg p-2 flex items-center gap-2">
+                  <div className="w-6 h-6 bg-[#2C2C2E] rounded-full flex items-center justify-center text-xs">
+                    {token.icon}
                   </div>
-                  <div className="text-right">
-                    <p className="text-white font-semibold">{token.amount}</p>
-                    <p className="text-gray-400 text-sm">{token.value}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium text-xs truncate">{token.amount} {token.symbol}</p>
+                    <p className="text-gray-400 text-xs">{token.value}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Gold Price Chart */}
-          <GoldPriceChart />
+          {/* Compact Portfolio Positions */}
+          {!portfolioLoading && (
+            <div className="bg-[#2C2C2E] rounded-xl p-3">
+              <PositionsCard assetsByType={assetsByType} />
+            </div>
+          )}
+
+          {/* Compact Gold Price Chart */}
+          <div className="bg-[#2C2C2E] rounded-xl p-3">
+            <div className="h-48">
+              <GoldPriceChart />
+            </div>
+          </div>
         </div>
       </div>
 
