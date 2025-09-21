@@ -88,39 +88,7 @@ const Index = () => {
         </div>
 
         <div className="px-4 pt-6 pb-4 space-y-3">
-          {/* Action Buttons - Moved to top */}
-          <div className="grid grid-cols-2 gap-2">
-            <Button 
-              className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
-              onClick={() => navigate("/buy-sell-hub")}
-            >
-              <ShoppingCart size={14} />
-              Buy Gold
-            </Button>
-            <Button 
-              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/buy-sell-hub")}
-            >
-              <DollarSign size={14} />
-              Sell/Cash Out
-            </Button>
-            <Button 
-              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/swap")}
-            >
-              <ArrowRightLeft size={14} />
-              Swap
-            </Button>
-            <Button 
-              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/lending?tab=supply")}
-            >
-              <TrendingUp size={14} />
-              Earn Interest
-            </Button>
-          </div>
-
-          {/* Compact Gold Price Banner */}
+          {/* Gold Price Section */}
           <div className="bg-[#2C2C2E] rounded-xl p-3">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-white text-base font-bold">Gold Price</h3>
@@ -153,17 +121,39 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Portfolio Summary with Asset Allocation */}
-          {!portfolioLoading && (
-            <PortfolioSummaryCard 
-              summary={portfolioSummary} 
-              performance={portfolioPerformance}
-              assets={portfolioAssets}
-              compact={true}
-            />
-          )}
+          {/* Action Buttons - Buy Options */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
+              onClick={() => navigate("/buy-sell-hub")}
+            >
+              <ShoppingCart size={14} />
+              Buy Gold
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
+              onClick={() => navigate("/buy-sell-hub")}
+            >
+              <DollarSign size={14} />
+              Sell/Cash Out
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
+              onClick={() => navigate("/swap")}
+            >
+              <ArrowRightLeft size={14} />
+              Swap
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
+              onClick={() => navigate("/lending?tab=supply")}
+            >
+              <TrendingUp size={14} />
+              Earn Interest
+            </Button>
+          </div>
 
-          {/* Your Assets - Consolidated */}
+          {/* Your Assets - Wallet Options */}
           <div className="bg-[#2C2C2E] rounded-xl p-3">
             <h3 className="text-white text-base font-bold mb-3">Your Assets</h3>
             <div className="space-y-2">
@@ -187,12 +177,23 @@ const Index = () => {
             </div>
           </div>
 
+          {/* Gold Price Chart */}
+          <GoldPriceChart />
+
+          {/* Portfolio Summary with Asset Allocation */}
+          {!portfolioLoading && (
+            <PortfolioSummaryCard 
+              summary={portfolioSummary} 
+              performance={portfolioPerformance}
+              assets={portfolioAssets}
+              compact={true}
+            />
+          )}
+
           {/* Portfolio Positions */}
           {!portfolioLoading && (
             <PositionsCard assetsByType={assetsByType} />
           )}
-          {/* Gold Price Chart */}
-          <GoldPriceChart />
         </div>
       </div>
 
