@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank } from "lucide-react";
 import { PortfolioSummary, PortfolioPerformance, PortfolioAsset } from "@/hooks/usePortfolioMonitoring";
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useMemo } from 'react';
 
 interface PortfolioSummaryCardProps {
@@ -33,12 +33,36 @@ export function PortfolioSummaryCard({ summary, performance, assets }: Portfolio
 
   const getAssetColor = (asset: string) => {
     const colors = {
-      'GOLD': '#f9b006',
-      'USDC': '#2775CA',
-      'ETH': '#627EEA',
-      'BTC': '#F7931A',
+      'GOLD': 'hsl(var(--warning))',
+      'USDC': 'hsl(var(--info))',
+      'ETH': 'hsl(var(--accent))',
+      'BTC': 'hsl(var(--primary))',
     };
-    return colors[asset as keyof typeof colors] || '#6366f1';
+    return colors[asset as keyof typeof colors] || 'hsl(var(--primary))';
+  };
+
+  // Calculate percentages for legend
+  const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
+  const topAssets = chartData.slice(0, 3).map(asset => ({
+    ...asset,
+    percentage: totalValue > 0 ? (asset.value / totalValue) * 100 : 0
+  }));
+
+  // Custom tooltip component
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload[0]) {
+      const data = payload[0].payload;
+      const percentage = totalValue > 0 ? (data.value / totalValue) * 100 : 0;
+      return (
+        <div className="bg-popover border border-border rounded-lg p-2 shadow-md">
+          <p className="text-sm font-medium">{data.name}</p>
+          <p className="text-sm text-muted-foreground">
+            ${data.value.toLocaleString('en-US', { maximumFractionDigits: 0 })} ({percentage.toFixed(1)}%)
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -50,8 +74,8 @@ export function PortfolioSummaryCard({ summary, performance, assets }: Portfolio
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Total Portfolio Value with Mini Chart */}
-        <div className="flex items-center justify-between">
+        {/* Total Portfolio Value with Asset Mix */}
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
             <p className="text-3xl font-bold text-foreground">
@@ -71,32 +95,54 @@ export function PortfolioSummaryCard({ summary, performance, assets }: Portfolio
             </div>
           </div>
           
-          {/* Mini Asset Allocation Chart */}
+          {/* Asset Mix Chart */}
           {chartData.length > 0 && (
-            <div className="w-16 h-16 flex-shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={16}
-                    outerRadius={28}
-                    strokeWidth={0}
-                    dataKey="value"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={getAssetColor(entry.name)} 
-                      />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="flex flex-col items-center">
+              <p className="text-xs text-muted-foreground mb-2">Asset Mix</p>
+              <div className="w-20 h-20 relative bg-surface-elevated rounded-full p-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={20}
+                      outerRadius={35}
+                      strokeWidth={0}
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={getAssetColor(entry.name)}
+                          className="hover:opacity-80 cursor-pointer transition-opacity"
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Asset Mix Legend */}
+        {topAssets.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-center text-xs">
+            {topAssets.map((asset, index) => (
+              <div key={asset.name} className="flex items-center gap-1">
+                <div 
+                  className="w-2 h-2 rounded-full" 
+                  style={{ backgroundColor: getAssetColor(asset.name) }}
+                />
+                <span className="text-muted-foreground">
+                  {asset.name} {asset.percentage.toFixed(0)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Portfolio Breakdown */}
         <div className="grid grid-cols-2 gap-4">
