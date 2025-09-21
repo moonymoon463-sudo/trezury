@@ -8,9 +8,10 @@ interface PortfolioSummaryCardProps {
   summary: PortfolioSummary;
   performance: PortfolioPerformance;
   assets: PortfolioAsset[];
+  compact?: boolean;
 }
 
-export function PortfolioSummaryCard({ summary, performance, assets }: PortfolioSummaryCardProps) {
+export function PortfolioSummaryCard({ summary, performance, assets, compact = false }: PortfolioSummaryCardProps) {
   const isPositiveChange = performance.change24hPercent >= 0;
 
   // Process assets for mini donut chart
@@ -67,13 +68,13 @@ export function PortfolioSummaryCard({ summary, performance, assets }: Portfolio
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Wallet className="h-5 w-5 text-primary" />
+      <CardHeader className={compact ? "pb-2" : "pb-3"}>
+        <CardTitle className={`flex items-center gap-2 ${compact ? "text-base" : "text-lg"}`}>
+          <Wallet className={`${compact ? "h-4 w-4" : "h-5 w-5"} text-primary`} />
           Portfolio Overview
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 p-4">
+      <CardContent className={`${compact ? "space-y-3 p-3" : "space-y-4 p-4"}`}>
         {/* Total Portfolio Value with Asset Mix */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
@@ -97,17 +98,17 @@ export function PortfolioSummaryCard({ summary, performance, assets }: Portfolio
           
           {/* Asset Mix Chart */}
           {chartData.length > 0 && (
-            <div className="flex flex-col items-center">
-              <p className="text-xs text-muted-foreground mb-2">Asset Mix</p>
-              <div className="w-20 h-20 relative bg-surface-elevated rounded-full p-1">
+              <div className="flex flex-col items-center">
+                <p className="text-xs text-muted-foreground mb-2">Asset Mix</p>
+                <div className={`${compact ? "w-16 h-16" : "w-20 h-20"} relative bg-surface-elevated rounded-full p-1`}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={chartData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={20}
-                      outerRadius={35}
+                      innerRadius={compact ? 16 : 20}
+                      outerRadius={compact ? 28 : 35}
                       strokeWidth={0}
                       dataKey="value"
                     >

@@ -26,9 +26,9 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
   const navigate = useNavigate();
 
   const AssetRow = ({ asset, showActions = false }: { asset: PortfolioAsset; showActions?: boolean }) => (
-    <div className="flex items-center justify-between p-3 bg-surface-elevated rounded-lg">
+    <div className="flex items-center justify-between p-2 bg-surface-elevated rounded-lg">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+        <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center">
           <span className="text-xs font-bold text-primary">{asset.asset}</span>
         </div>
         <div>
@@ -83,12 +83,12 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Positions</CardTitle>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Positions</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3">
         <Tabs defaultValue="wallet" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3 h-8 text-sm mt-2">
             <TabsTrigger value="wallet" className="flex items-center gap-1">
               <Wallet className="h-4 w-4" />
               Wallet
@@ -119,9 +119,9 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
                 </Button>
               </>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No wallet assets</p>
+              <div className="text-center py-6 text-muted-foreground">
+                <Wallet className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No wallet assets</p>
               </div>
             )}
           </TabsContent>
@@ -142,9 +142,9 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
                 </Button>
               </>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <PiggyBank className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No supplied assets</p>
+              <div className="text-center py-6 text-muted-foreground">
+                <PiggyBank className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No supplied assets</p>
                 <Button 
                   onClick={() => navigate('/lending?tab=supply')}
                   variant="outline" 
@@ -173,9 +173,9 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
                 </Button>
               </>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No borrowed assets</p>
+              <div className="text-center py-6 text-muted-foreground">
+                <CreditCard className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No borrowed assets</p>
                 {assetsByType.supplied.length > 0 && (
                   <Button 
                     onClick={() => navigate('/lending?tab=borrow')}

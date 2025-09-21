@@ -80,13 +80,13 @@ const GoldPriceChart = () => {
 
   return (
     <div className="bg-card rounded-xl p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-foreground text-base font-bold leading-tight tracking-[-0.015em]">
           Gold Price Chart
         </h3>
-        <div className="flex bg-surface-elevated rounded-lg p-1">
+        <div className="flex bg-surface-elevated rounded-lg p-0.5">
           <button 
-            className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
+            className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-colors ${
               timeframe === '24h' 
                 ? 'bg-primary text-primary-foreground' 
                 : 'text-muted-foreground hover:text-foreground'
@@ -96,7 +96,7 @@ const GoldPriceChart = () => {
             24h
           </button>
           <button 
-            className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
+            className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-colors ${
               timeframe === '7d' 
                 ? 'bg-primary text-primary-foreground' 
                 : 'text-muted-foreground hover:text-foreground'
@@ -109,8 +109,8 @@ const GoldPriceChart = () => {
       </div>
       
       {currentPrice && (
-        <div className="mb-4">
-          <p className="text-foreground text-2xl font-bold">
+        <div className="mb-2">
+          <p className="text-foreground text-lg font-bold">
             ${currentPrice.usd_per_oz.toFixed(2)}
           </p>
           <p className={`text-sm ${
