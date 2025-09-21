@@ -187,6 +187,7 @@ const Index = () => {
               performance={portfolioPerformance}
               assets={portfolioAssets}
               compact={true}
+              interactive={true}
             />
           )}
 
