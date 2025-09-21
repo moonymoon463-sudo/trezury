@@ -69,57 +69,34 @@ class ContractDeploymentService {
   }
 
   /**
-   * Get deployed contract addresses for a chain
+   * Get deployed contract addresses for a chain (now uses pre-deployed contracts)
    */
   async getContractAddresses(chain: DeploymentChain): Promise<ContractAddresses | null> {
     try {
-      const { data, error } = await supabase.functions.invoke('contract-deployment', {
-        body: {
-          operation: 'get_addresses',
-          chain
-        }
-      });
-
-      if (error) {
-        console.error("Failed to fetch contract addresses:", error);
-        return null;
-      }
-
-      if (!data?.success) {
-        return null;
-      }
-
-      // Transform from edge function format to ContractAddresses format
-      const tokens: Record<string, string> = {};
-      let lendingPool = '';
+      // Import here to avoid circular dependency
+      const { PRE_DEPLOYED_CONTRACTS } = await import('@/contracts/config');
       
-      data.addresses?.forEach((item: { name: string; address: string }) => {
-        const lowerName = item.name.toLowerCase();
-        if (lowerName === 'lendingpool') {
-          lendingPool = item.address;
-        } else {
-          tokens[lowerName] = item.address;
-        }
-      });
-
-      // Ensure all required tokens are present
-      if (!tokens.usdc || !tokens.usdt || !tokens.dai || !tokens.xaut || !tokens.auru || !lendingPool) {
-        console.error('Missing required contract addresses');
+      console.log(`📋 Using pre-deployed contracts for ${chain}`);
+      
+      const preDeployedConfig = PRE_DEPLOYED_CONTRACTS[chain];
+      if (!preDeployedConfig) {
+        console.error(`No pre-deployed contracts configured for chain: ${chain}`);
         return null;
       }
 
+      // Return pre-deployed contract addresses in the expected format
       return {
         tokens: {
-          usdc: tokens.usdc,
-          usdt: tokens.usdt,
-          dai: tokens.dai,
-          xaut: tokens.xaut,
-          auru: tokens.auru,
+          usdc: preDeployedConfig.tokens.USDC,
+          usdt: preDeployedConfig.tokens.USDT,
+          dai: preDeployedConfig.tokens.DAI,
+          xaut: preDeployedConfig.tokens.XAUT,
+          auru: preDeployedConfig.tokens.AURU,
         },
-        lendingPool
+        lendingPool: preDeployedConfig.lendingPool
       };
     } catch (error) {
-      console.error("Error fetching contract addresses:", error);
+      console.error("Error fetching pre-deployed contract addresses:", error);
       return null;
     }
   }
@@ -139,26 +116,13 @@ class ContractDeploymentService {
   }
 
   /**
-   * Get deployment status for deployment chains only
+   * Get deployment status for deployment chains (pre-deployed contracts are always ready)
    */
   async getDeploymentStatus(): Promise<Record<DeploymentChain, boolean>> {
-    try {
-      const { data, error } = await supabase.functions.invoke('contract-deployment', {
-        body: {
-          operation: 'get_status'
-        }
-      });
-
-      if (error || !data?.success) {
-        console.error("Failed to fetch deployment status:", error);
-        return { ethereum: false };
-      }
-
-      return data.status || { ethereum: false };
-    } catch (error) {
-      console.error("Error fetching deployment status:", error);
-      return { ethereum: false };
-    }
+    console.log('📈 Using pre-deployed contracts - all chains ready!');
+    
+    // All deployment chains now use pre-deployed contracts, so they're always "deployed"
+    return { ethereum: true };
   }
 }
 

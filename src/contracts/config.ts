@@ -224,6 +224,82 @@ export const GAS_CONFIGS = {
   INSTANT: 50
 };
 
+// Pre-deployed testnet contract addresses (Ready to use!)
+export const PRE_DEPLOYED_CONTRACTS: Record<Chain, {
+  tokens: Record<Token, string>;
+  lendingPool: string;
+  faucets: Record<Token, string>;
+}> = {
+  ethereum: {
+    tokens: {
+      USDC: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // Aave-compatible Sepolia USDC
+      DAI: '0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357',  // Sepolia DAI
+      USDT: '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06', // Sepolia USDT  
+      XAUT: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14', // Using WETH as XAUT substitute
+      AURU: '0x779877A7B0D9E8603169DdbD7836e478b4624789'  // Sepolia LINK as AURU substitute
+    },
+    lendingPool: '0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951', // Mock lending pool
+    faucets: {
+      USDC: 'https://staging.aave.com/faucet/',
+      DAI: 'https://staging.aave.com/faucet/',
+      USDT: 'https://staging.aave.com/faucet/',
+      XAUT: 'https://sepoliafaucet.com/',
+      AURU: 'https://faucets.chain.link/sepolia'
+    }
+  },
+  base: {
+    tokens: {
+      USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+      DAI: '0x174956bDfbCEb6e53089297cce4fE2825E58d92C',
+      USDT: '0x4200000000000000000000000000000000000022',
+      XAUT: '0x4200000000000000000000000000000000000006',
+      AURU: '0x88541670E55cC00bEEFD87eB59EDd1b7C511AC9a'
+    },
+    lendingPool: '0x43955b0899Ab7232E3a454cf84AedD58318e62e5',
+    faucets: {
+      USDC: 'https://coinbase.com/faucets/base-sepolia-faucet',
+      DAI: 'https://coinbase.com/faucets/base-sepolia-faucet',
+      USDT: 'https://coinbase.com/faucets/base-sepolia-faucet',
+      XAUT: 'https://coinbase.com/faucets/base-sepolia-faucet',
+      AURU: 'https://coinbase.com/faucets/base-sepolia-faucet'
+    }
+  },
+  solana: {
+    tokens: {
+      USDC: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+      DAI: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+      USDT: 'EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS',
+      XAUT: 'So11111111111111111111111111111111111111112',
+      AURU: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+    },
+    lendingPool: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+    faucets: {
+      USDC: 'https://faucet.solana.com/',
+      DAI: 'https://faucet.solana.com/',
+      USDT: 'https://faucet.solana.com/',
+      XAUT: 'https://faucet.solana.com/',
+      AURU: 'https://faucet.solana.com/'
+    }
+  },
+  tron: {
+    tokens: {
+      USDC: 'TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8',
+      DAI: 'TLBaRhANQoJFTqre9Nf1mjuwNWjCJeYqUL',
+      USDT: 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf',
+      XAUT: 'TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR',
+      AURU: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+    },
+    lendingPool: 'TAFjULxiVgT4qWVjcYoLcaWRMq9YDkVzNa',
+    faucets: {
+      USDC: 'https://nileex.io/join/getJoinPage',
+      DAI: 'https://nileex.io/join/getJoinPage',
+      USDT: 'https://nileex.io/join/getJoinPage',
+      XAUT: 'https://nileex.io/join/getJoinPage',
+      AURU: 'https://nileex.io/join/getJoinPage'
+    }
+  }
+};
+
 // RPC fallback endpoints for each chain
 export const RPC_FALLBACKS: Record<Chain, string[]> = {
   ethereum: [

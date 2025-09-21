@@ -26,6 +26,7 @@ import { useClientDeployment } from "@/hooks/useClientDeployment";
 import { Chain, DeploymentChain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 import { WalletFundingInfo } from "@/components/WalletFundingInfo";
+import { TestTokenFaucet } from "./TestTokenFaucet";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
