@@ -1,4 +1,5 @@
 export type Chain = 'ethereum' | 'base' | 'solana' | 'tron';
+export type DeploymentChain = 'ethereum'; // Only EVM-compatible chains for smart contracts
 export type Token = 'USDC' | 'USDT' | 'DAI' | 'XAUT' | 'AURU';
 export type LockStatus = 'active' | 'matured' | 'exited_early';
 

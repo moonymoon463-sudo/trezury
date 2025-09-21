@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { supabase } from "@/integrations/supabase/client";
-import { Chain, Token } from "@/types/lending";
+import { Chain, DeploymentChain, Token } from "@/types/lending";
 import LendingPoolABI from "@/contracts/abis/LendingPool.json";
 import ERC20ABI from "@/contracts/abis/ERC20.json";
 import { contractDeploymentService, ContractAddresses } from "./contractDeploymentService";
@@ -66,12 +66,12 @@ class SmartContractService {
   }
 
   /**
-   * Load deployed contract addresses from database
+   * Load deployed contract addresses from database for deployment chains only
    */
   private async loadContractAddresses(): Promise<void> {
-    const chains: Chain[] = ['ethereum', 'base'];
+    const deploymentChains: DeploymentChain[] = ['ethereum'];
     
-    for (const chain of chains) {
+    for (const chain of deploymentChains) {
       const addresses = await contractDeploymentService.getContractAddresses(chain);
       this.contractAddresses[chain] = addresses;
       

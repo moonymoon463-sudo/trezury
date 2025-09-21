@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useContractDeployment } from "@/hooks/useContractDeployment";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
-import { Chain } from "@/types/lending";
+import { Chain, DeploymentChain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 import { WalletFundingInfo } from "@/components/WalletFundingInfo";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,16 +33,13 @@ export function ContractDeploymentStatus() {
     checkDeploymentStatus
   } = useContractDeployment();
 
-  const [deployingChain, setDeployingChain] = useState<Chain | null>(null);
-  const [gasEstimates, setGasEstimates] = useState<Record<Chain, string>>({
-    ethereum: "",
-    base: "",
-    solana: "",
-    tron: ""
+  const [deployingChain, setDeployingChain] = useState<DeploymentChain | null>(null);
+  const [gasEstimates, setGasEstimates] = useState<Record<DeploymentChain, string>>({
+    ethereum: ""
   });
   const [deployerBalance, setDeployerBalance] = useState<string>("");
 
-  const chains: Chain[] = ['ethereum', 'base'];
+  const chains: DeploymentChain[] = ['ethereum'];
   const deployedCount = Object.values(deploymentStatus).filter(Boolean).length;
   const totalChains = chains.length;
   const deploymentProgress = (deployedCount / totalChains) * 100;
@@ -70,7 +67,7 @@ export function ContractDeploymentStatus() {
     }
   };
 
-  const handleDeploy = async (chain: Chain) => {
+  const handleDeploy = async (chain: DeploymentChain) => {
     if (!wallet.isConnected) {
       toast({
         variant: "destructive",
@@ -89,7 +86,7 @@ export function ContractDeploymentStatus() {
     }
   };
 
-  const handleVerify = async (chain: Chain) => {
+  const handleVerify = async (chain: DeploymentChain) => {
     const success = await verifyContracts(chain);
     if (success) {
       await checkDeploymentStatus();

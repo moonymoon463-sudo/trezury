@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { supabase } from "@/integrations/supabase/client";
-import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
+import { Chain, DeploymentChain, Token, CHAIN_CONFIGS } from "@/types/lending";
 import LendingPoolABI from "@/contracts/abis/LendingPool.json";
 import ERC20ABI from "@/contracts/abis/ERC20.json";
 
@@ -9,7 +9,7 @@ export interface DeployedContract {
   abi: any[];
   deploymentTx: string;
   deployedAt: string;
-  chain: Chain;
+  chain: DeploymentChain;
   contractType: string;
   verified: boolean;
 }
@@ -60,7 +60,7 @@ class ContractDeploymentService {
   /**
    * Deploy all lending protocol contracts for a specific chain
    */
-  async deployLendingProtocol(chain: Chain): Promise<ContractAddresses> {
+  async deployLendingProtocol(chain: DeploymentChain): Promise<ContractAddresses> {
     if (!this.provider || !this.deployer) {
       throw new Error("Deployment service not initialized");
     }
@@ -104,7 +104,7 @@ class ContractDeploymentService {
   /**
    * Deploy test ERC20 tokens for development
    */
-  private async deployTestTokens(chain: Chain, contracts: ContractAddresses): Promise<void> {
+  private async deployTestTokens(chain: DeploymentChain, contracts: ContractAddresses): Promise<void> {
     const chainConfig = CHAIN_CONFIGS[chain];
     if (!chainConfig) throw new Error(`Unsupported chain: ${chain}`);
 
@@ -147,7 +147,7 @@ class ContractDeploymentService {
   /**
    * Deploy core protocol contracts
    */
-  private async deployProtocolContracts(chain: Chain, contracts: ContractAddresses): Promise<void> {
+  private async deployProtocolContracts(chain: DeploymentChain, contracts: ContractAddresses): Promise<void> {
     console.log("🏗️ Deploying core protocol contracts...");
 
     // Deploy AddressesProvider
@@ -202,7 +202,7 @@ class ContractDeploymentService {
   /**
    * Initialize protocol with proper configuration
    */
-  private async initializeProtocol(chain: Chain, contracts: ContractAddresses): Promise<void> {
+  private async initializeProtocol(chain: DeploymentChain, contracts: ContractAddresses): Promise<void> {
     console.log("⚙️ Initializing protocol configuration...");
 
     // Initialize each token as a reserve in the lending pool
@@ -232,7 +232,7 @@ class ContractDeploymentService {
   /**
    * Store deployed contract addresses in database
    */
-  private async storeContractAddresses(chain: Chain, contracts: ContractAddresses): Promise<void> {
+  private async storeContractAddresses(chain: DeploymentChain, contracts: ContractAddresses): Promise<void> {
     try {
       console.log("💾 Storing contract addresses in database...");
 
@@ -272,7 +272,7 @@ class ContractDeploymentService {
   /**
    * Get deployed contract addresses for a chain
    */
-  async getContractAddresses(chain: Chain): Promise<ContractAddresses | null> {
+  async getContractAddresses(chain: DeploymentChain): Promise<ContractAddresses | null> {
     try {
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
@@ -297,7 +297,7 @@ class ContractDeploymentService {
   /**
    * Verify contracts on block explorer
    */
-  async verifyContracts(chain: Chain): Promise<boolean> {
+  async verifyContracts(chain: DeploymentChain): Promise<boolean> {
     try {
       console.log(`🔍 Verifying contracts on ${chain}...`);
       
@@ -316,20 +316,15 @@ class ContractDeploymentService {
   }
 
   /**
-   * Get deployment status for all chains
+   * Get deployment status for deployment chains only
    */
-  async getDeploymentStatus(): Promise<Record<Chain, boolean>> {
-    const status: Record<Chain, boolean> = {
-      ethereum: false,
-      base: false,
-      solana: false,
-      tron: false
+  async getDeploymentStatus(): Promise<Record<DeploymentChain, boolean>> {
+    const status: Record<DeploymentChain, boolean> = {
+      ethereum: false
     };
 
-    for (const chain of Object.keys(status) as Chain[]) {
-      const contracts = await this.getContractAddresses(chain);
-      status[chain] = !!contracts?.lendingPool;
-    }
+    const contracts = await this.getContractAddresses('ethereum');
+    status.ethereum = !!contracts?.lendingPool;
 
     return status;
   }

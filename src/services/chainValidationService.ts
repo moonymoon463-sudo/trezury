@@ -1,4 +1,4 @@
-import { Chain } from '@/types/lending';
+import { Chain, DeploymentChain } from '@/types/lending';
 
 export interface ChainValidationService {
   validateChain(chain: string): chain is Chain;

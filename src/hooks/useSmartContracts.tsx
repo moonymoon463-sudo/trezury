@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { smartContractService } from "@/services/smartContractService";
 import { contractDeploymentService } from "@/services/contractDeploymentService";
-import { Chain, Token } from "@/types/lending";
+import { Chain, DeploymentChain, Token } from "@/types/lending";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { useToast } from "@/hooks/use-toast";
 import { ethers } from "ethers";
@@ -33,10 +33,18 @@ export function useSmartContracts() {
 
   // Query for contract addresses on a specific chain
   const useContractAddresses = (chain: Chain) => {
+    // Only allow contract address queries for deployment chains
+    const isDeploymentChain = chain === 'ethereum';
+    
     return useQuery({
       queryKey: ['contract-addresses', chain],
-      queryFn: () => contractDeploymentService.getContractAddresses(chain),
-      enabled: !!chain
+      queryFn: () => {
+        if (!isDeploymentChain) {
+          throw new Error(`Smart contracts not supported on ${chain}`);
+        }
+        return contractDeploymentService.getContractAddresses(chain as DeploymentChain);
+      },
+      enabled: !!chain && isDeploymentChain
     });
   };
 

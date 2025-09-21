@@ -14,6 +14,12 @@ interface DeploymentRequest {
   rpcUrl?: string;
 }
 
+// Add chain validation for contract deployment
+function validateDeploymentChain(chain: string): chain is 'ethereum' {
+  const DEPLOYMENT_CHAINS = ['ethereum'];
+  return DEPLOYMENT_CHAINS.includes(chain);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -33,9 +39,35 @@ serve(async (req) => {
 
     switch (operation) {
       case 'deploy':
+        if (!validateDeploymentChain(chain!)) {
+          console.error('Invalid deployment chain:', chain);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Unsupported chain for deployment: ${chain}. Only Ethereum is currently supported.` 
+            }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
         return await handleDeploy(supabase, chain!, privateKey!, rpcUrl!);
       
       case 'verify':
+        if (!validateDeploymentChain(chain!)) {
+          console.error('Invalid chain for verification:', chain);
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Unsupported chain for verification: ${chain}. Only Ethereum is currently supported.` 
+            }),
+            { 
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
         return await handleVerify(supabase, chain!);
       
       case 'get_addresses':

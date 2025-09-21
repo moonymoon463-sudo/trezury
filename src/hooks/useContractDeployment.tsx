@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { contractDeploymentService } from "@/services/contractDeploymentService";
-import { Chain } from "@/types/lending";
+import { DeploymentChain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,11 +9,8 @@ export function useContractDeployment() {
   const { wallet } = useWalletConnection();
   const { toast } = useToast();
   const [isDeploying, setIsDeploying] = useState(false);
-  const [deploymentStatus, setDeploymentStatus] = useState<Record<Chain, boolean>>({
-    ethereum: false,
-    base: false,
-    solana: false,
-    tron: false
+  const [deploymentStatus, setDeploymentStatus] = useState<Record<DeploymentChain, boolean>>({
+    ethereum: false
   });
 
   // Initialize deployment service when wallet is connected
@@ -57,7 +54,7 @@ export function useContractDeployment() {
     }
   };
 
-  const deployToChain = async (chain: Chain) => {
+  const deployToChain = async (chain: DeploymentChain) => {
     if (!wallet.isConnected) {
       toast({
         variant: "destructive", 
@@ -137,7 +134,7 @@ export function useContractDeployment() {
     }
   };
 
-  const getContractAddresses = async (chain: Chain) => {
+  const getContractAddresses = async (chain: DeploymentChain) => {
     try {
       return await contractDeploymentService.getContractAddresses(chain);
     } catch (error) {
@@ -146,7 +143,7 @@ export function useContractDeployment() {
     }
   };
 
-  const verifyContracts = async (chain: Chain) => {
+  const verifyContracts = async (chain: DeploymentChain) => {
     try {
       const success = await contractDeploymentService.verifyContracts(chain);
       if (success) {
