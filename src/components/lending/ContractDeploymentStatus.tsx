@@ -67,7 +67,7 @@ export function ContractDeploymentStatus() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   const chains: DeploymentChain[] = ['ethereum'];
-  const deployedCount = Object.values(deploymentStatus).filter(Boolean).length;
+  const deployedCount = Object.values(deploymentStatus || {}).filter(Boolean).length;
   const totalChains = chains.length;
   const deploymentProgress = (deployedCount / totalChains) * 100;
 
@@ -527,7 +527,7 @@ export function ContractDeploymentStatus() {
               <div>
                 <p className="font-medium mb-1">Secrets Configuration:</p>
                 <div className="grid grid-cols-2 gap-1">
-                  {Object.entries(diagnosticsResults.secretsStatus).map(([key, value]) => (
+                  {diagnosticsResults.secretsStatus && Object.entries(diagnosticsResults.secretsStatus).map(([key, value]) => (
                     <div key={key} className="flex items-center gap-1">
                       {value ? <CheckCircle className="h-3 w-3 text-success" /> : <AlertCircle className="h-3 w-3 text-destructive" />}
                       <span className={value ? "text-success" : "text-destructive"}>
@@ -644,7 +644,7 @@ export function ContractDeploymentStatus() {
                             </span>
                           </div>
                           <p className="text-foreground mb-2">{log.message}</p>
-                          {log.details && Object.keys(log.details).length > 0 && (
+                          {log.details && Object.keys(log.details || {}).length > 0 && (
                             <details className="mt-2">
                               <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                                 View details
