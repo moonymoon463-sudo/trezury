@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LendingDeposit } from "@/components/lending/LendingDeposit";
 import { LendingBorrow } from "@/components/lending/LendingBorrow";
 import { LendingProfile } from "@/components/lending/LendingProfile";
+import { ContractDeploymentStatus } from "@/components/lending/ContractDeploymentStatus";
 import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
@@ -36,10 +37,11 @@ export default function Lending() {
       {/* Content */}
       <main className="flex-1 px-4 pb-4">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
+          <div className="mb-6 space-y-4">
             <p className="text-gray-400 text-center">
               Supply assets to earn yield or borrow against your collateral across multiple chains.
             </p>
+            <ContractDeploymentStatus />
           </div>
 
           <Tabs defaultValue={defaultTab} className="space-y-6">
