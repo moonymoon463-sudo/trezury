@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSecureWallet } from "@/hooks/useSecureWallet";
+import { useLendingWallet } from "@/hooks/useLendingWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   PoolReserve, 
@@ -14,41 +14,19 @@ import { Chain, Token } from "@/types/lending";
 export function useAaveStyleLending() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { walletAddress, createWallet, getWalletAddress } = useSecureWallet();
+  const { wallet, getAddress } = useLendingWallet();
   
   const [poolReserves, setPoolReserves] = useState<PoolReserve[]>([]);
   const [userSupplies, setUserSupplies] = useState<UserSupply[]>([]);
   const [userBorrows, setUserBorrows] = useState<UserBorrow[]>([]);
   const [userHealthFactor, setUserHealthFactor] = useState<UserHealthFactor | null>(null);
   const [loading, setLoading] = useState(false);
-  
-  // Auto-setup internal wallet on mount
-  useEffect(() => {
-    const setupInternalWallet = async () => {
-      if (!user) return;
-      
-      try {
-        // Try to get existing wallet address first
-        let address = await getWalletAddress();
-        
-        if (!address) {
-          console.log('No internal wallet found, user will need to create one when needed');
-        } else {
-          console.log('✅ Internal wallet address loaded:', address);
-        }
-      } catch (error) {
-        console.error('Internal wallet setup failed:', error);
-      }
-    };
-    
-    setupInternalWallet();
-  }, [user, getWalletAddress]);
 
   const fetchPoolReserves = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch real pool reserves from Supabase - no wallet connection required for viewing
+      // Fetch real pool reserves from Supabase
       const { data: reserves, error } = await supabase
         .from('pool_reserves')
         .select('*')
@@ -124,11 +102,11 @@ export function useAaveStyleLending() {
         .select('*')
         .eq('user_id', user.id)
         .eq('chain', 'ethereum')
-        .single();
+        .maybeSingle();
 
       if (suppliesError) console.error('Error fetching supplies:', suppliesError);
       if (borrowsError) console.error('Error fetching borrows:', borrowsError);
-      if (healthError && healthError.code !== 'PGRST116') console.error('Error fetching health factor:', healthError);
+      if (healthError) console.error('Error fetching health factor:', healthError);
       
       // Transform data to match the expected format
       setUserSupplies(supplies?.map(supply => ({
@@ -196,6 +174,11 @@ export function useAaveStyleLending() {
     }
   }, [user, toast]);
 
+  const createWallet = useCallback(async () => {
+    // Wallet is automatically created by useLendingWallet
+    return wallet;
+  }, [wallet]);
+
   const supply = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
     console.log(`💰 Starting supply process: ${amount} ${asset} on ${chain}`);
     
@@ -212,21 +195,13 @@ export function useAaveStyleLending() {
     try {
       setLoading(true);
 
-      // Auto-create internal wallet if needed (seamless UX)
-      let currentWalletAddress = walletAddress;
-      if (!currentWalletAddress) {
-        console.log('🔧 Auto-creating internal wallet...');
-        const walletInfo = await createWallet();
-        currentWalletAddress = walletInfo?.address;
-        
-        if (!currentWalletAddress) {
-          throw new Error('Failed to create internal wallet');
-        }
-        console.log('✅ Internal wallet auto-created:', currentWalletAddress);
+      const walletAddress = getAddress();
+      if (!walletAddress) {
+        throw new Error('Wallet not available');
       }
 
       console.log('✅ All validations passed, calling edge function...');
-      console.log('📡 Using wallet address:', currentWalletAddress);
+      console.log('📡 Using wallet address:', walletAddress);
 
       // Call the supply-withdraw edge function
       const { data, error } = await supabase.functions.invoke('supply-withdraw', {
@@ -235,7 +210,7 @@ export function useAaveStyleLending() {
           asset: asset,
           amount: amount,
           chain: chain,
-          wallet_address: currentWalletAddress // Pass wallet address for blockchain integration
+          wallet_address: walletAddress
         }
       });
 
@@ -255,7 +230,7 @@ export function useAaveStyleLending() {
       
       toast({
         title: "Supply Successful",
-        description: `Successfully supplied ${amount} ${asset} on testnet`
+        description: `Successfully supplied ${amount} ${asset}`
       });
 
       console.log('🔄 Refreshing user and pool data...');
@@ -272,7 +247,7 @@ export function useAaveStyleLending() {
       setLoading(false);
       console.log('💰 Supply process completed');
     }
-  }, [user, walletAddress, createWallet, toast, fetchUserData, fetchPoolReserves]);
+  }, [user, getAddress, toast, fetchUserData, fetchPoolReserves]);
 
   const withdraw = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
     if (!user) {
@@ -344,7 +319,7 @@ export function useAaveStyleLending() {
     if (!user) {
       toast({
         variant: "destructive",
-        title: "Authentication Required",
+        title: "Authentication Required", 
         description: "Please sign in to repay assets"
       });
       return;
@@ -471,7 +446,7 @@ export function useAaveStyleLending() {
     refetchPools: fetchPoolReserves,
     
     // Internal wallet info
-    walletAddress,
+    walletAddress: getAddress(),
     createWallet
   };
 }
