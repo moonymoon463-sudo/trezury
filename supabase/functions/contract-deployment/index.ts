@@ -301,7 +301,7 @@ async function deployRealContracts(deployer: any, chain: string) {
           config.symbol, 
           config.decimals,
           totalSupply
-        ).then(tx => provider.estimateGas(tx));
+        ).then(tx => deployer.provider.estimateGas(tx));
         
         console.log(`Estimated gas for ${config.symbol}: ${estimatedGas}`);
         
@@ -489,15 +489,40 @@ async function handleGetDeploymentInfo() {
       tron: "~100 TRX"
     };
 
-    // Try to get actual balance from Ethereum Sepolia
+    // Try to get actual balance from Ethereum Sepolia with RPC fallbacks
     let deployerBalance = "Checking...";
     try {
-      const provider = new ethers.JsonRpcProvider("https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161");
-      const balance = await provider.getBalance(deployerAddress);
-      deployerBalance = `${ethers.formatEther(balance)} ETH`;
+      // Use the same RPC fallback system as deployment
+      const rpcUrls = [
+        "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+        "https://rpc.ankr.com/eth_sepolia",
+        "https://ethereum-sepolia.publicnode.com",
+        "https://sepolia.drpc.org"
+      ];
+      
+      let provider = null;
+      for (const rpcUrl of rpcUrls) {
+        try {
+          const testProvider = new ethers.JsonRpcProvider(rpcUrl);
+          await testProvider.getBlockNumber(); // Test connection
+          provider = testProvider;
+          break;
+        } catch (rpcError) {
+          console.log(`RPC ${rpcUrl} failed, trying next...`);
+        }
+      }
+      
+      if (provider) {
+        const balance = await provider.getBalance(deployerAddress);
+        const balanceEth = ethers.formatEther(balance);
+        const isLowBalance = balance < ethers.parseEther("0.005");
+        deployerBalance = `${balanceEth} ETH${isLowBalance ? " (LOW - fund needed)" : ""}`;
+      } else {
+        deployerBalance = "Unable to check (all RPCs failed)";
+      }
     } catch (error) {
       console.log("Could not fetch balance:", error);
-      deployerBalance = "Unable to check";
+      deployerBalance = "Error checking balance";
     }
 
     return new Response(

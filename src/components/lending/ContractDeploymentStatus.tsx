@@ -13,7 +13,9 @@ import {
   Code,
   Wallet,
   Fuel,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  Copy
 } from "lucide-react";
 import { useContractDeployment } from "@/hooks/useContractDeployment";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
@@ -38,6 +40,7 @@ export function ContractDeploymentStatus() {
     ethereum: ""
   });
   const [deployerBalance, setDeployerBalance] = useState<string>("");
+  const [deployerAddress, setDeployerAddress] = useState<string>("");
 
   const chains: DeploymentChain[] = ['ethereum'];
   const deployedCount = Object.values(deploymentStatus).filter(Boolean).length;
@@ -61,6 +64,9 @@ export function ContractDeploymentStatus() {
       }
       if (data?.deployerBalance) {
         setDeployerBalance(data.deployerBalance);
+      }
+      if (data?.deployerAddress) {
+        setDeployerAddress(data.deployerAddress);
       }
     } catch (error) {
       console.error('Failed to fetch deployment info:', error);
@@ -92,7 +98,9 @@ export function ContractDeploymentStatus() {
     setDeployingChain(null);
     
     if (success) {
+      // Refresh deployment status and fetch updated contract addresses
       await checkDeploymentStatus();
+      await fetchDeploymentInfo(); // Refresh deployer balance too
     }
   };
 
@@ -100,6 +108,7 @@ export function ContractDeploymentStatus() {
     const success = await verifyContracts(chain);
     if (success) {
       await checkDeploymentStatus();
+      await fetchDeploymentInfo();
     }
   };
 
@@ -276,6 +285,61 @@ export function ContractDeploymentStatus() {
           </div>
         </div>
 
+        {/* Deployer Address Info */}
+        {deployerAddress && (
+          <div className="p-3 rounded-lg border border-border bg-surface-elevated">
+            <div className="flex items-center gap-2 mb-2">
+              <Code className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Deployer Wallet</p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-surface px-2 py-1 rounded font-mono">
+                  {deployerAddress}
+                </code>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    navigator.clipboard.writeText(deployerAddress);
+                    toast({ title: "Address copied!" });
+                  }}
+                  className="h-6 w-6 p-0"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => window.open(`https://sepolia.etherscan.io/address/${deployerAddress}`, '_blank')}
+                  className="h-6 w-6 p-0"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Balance: {deployerBalance}
+              </p>
+              {deployerBalance.includes("LOW") && (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3 text-warning" />
+                  <p className="text-xs text-warning">
+                    Fund with Sepolia ETH from: 
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => window.open('https://sepoliafaucet.com/', '_blank')}
+                      className="h-auto p-0 ml-1 text-xs text-primary"
+                    >
+                      sepoliafaucet.com
+                    </Button>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Wallet Funding Info */}
         <WalletFundingInfo />
 
@@ -295,6 +359,19 @@ export function ContractDeploymentStatus() {
             </div>
           </div>
         )}
+
+        {/* View Logs Link */}
+        <div className="flex items-center justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open('https://supabase.com/dashboard/project/auntkvllzejtfqmousxg/functions/contract-deployment/logs', '_blank')}
+            className="flex items-center gap-2"
+          >
+            <Eye className="h-3 w-3" />
+            View Deployment Logs
+          </Button>
+        </div>
 
         {/* Information */}
         <div className="pt-2 border-t border-border">

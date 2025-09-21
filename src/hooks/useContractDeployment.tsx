@@ -102,12 +102,14 @@ export function useContractDeployment() {
       }
 
       if (!data || !data.success) {
-        // Enhanced error messages
+        // Enhanced error messages with deployer address
         let errorMessage = data?.error || 'Deployment failed';
         if (errorMessage.includes("Insufficient ETH")) {
-          errorMessage += ". Please fund the deployment wallet or contact support.";
+          errorMessage += " Please fund deployer: 0xeDBd9A02dea7b35478e3b2Ee1fd90378346101Cb with Sepolia ETH from faucet: https://sepoliafaucet.com/";
         } else if (errorMessage.includes("network")) {
           errorMessage += ". Please check your internet connection and try again.";
+        } else if (errorMessage.includes("all RPCs failed") || errorMessage.includes("RPC")) {
+          errorMessage += ". Network connectivity issues detected. Please try again in a moment.";
         }
         throw new Error(errorMessage);
       }
@@ -117,6 +119,8 @@ export function useContractDeployment() {
         description: `Contracts deployed to ${chain}! Gas used: ${data.gasUsed || 'Unknown'} | Deployer: ${data.deployer?.substring(0,8)}...`
       });
 
+      // Refresh deployment status to show updated info
+      await checkDeploymentStatus();
       setDeploymentStatus(prev => ({ ...prev, [chain]: true }));
       return true;
     } catch (error) {
