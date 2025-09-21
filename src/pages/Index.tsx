@@ -1,14 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus, RefreshCw } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AurumLogo from "@/components/AurumLogo";
-import { QuickPositions } from "@/components/portfolio/QuickPositions";
+import { PositionsCard } from "@/components/portfolio/PositionsCard";
 import { PortfolioSummaryCard } from "@/components/portfolio/PortfolioSummaryCard";
 import { useState } from "react";
 
@@ -25,7 +25,6 @@ const Index = () => {
     loading: portfolioLoading 
   } = usePortfolioMonitoring();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showChart, setShowChart] = useState(false);
 
   // Get real balances
   const usdcBalance = getBalance('USDC');
@@ -88,47 +87,41 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="px-4 pt-4 pb-4 space-y-4">
-          {/* Compact Gold Price Header */}
-          <div className="bg-gradient-to-r from-[#f9b006]/10 to-[#f9b006]/5 border border-[#f9b006]/20 rounded-lg p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[#f9b006] text-sm font-medium">Gold Price</span>
-                <button
-                  onClick={() => setShowChart(!showChart)}
-                  className="text-[#f9b006] hover:text-[#f9b006]/80 transition-colors"
-                >
-                  {showChart ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
+        <div className="px-4 pt-6 pb-4 space-y-6">
+          {/* Gold Price Section */}
+          <div className="bg-[#2C2C2E] rounded-xl p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
+                Gold Price
+              </h3>
+              {priceLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-4 w-16 bg-gray-600 rounded"></div>
+                </div>
+              ) : goldPrice && (
+                <div className="flex items-center gap-1 text-[#f9b006]">
+                  <TrendingUp size={16} />
+                  <span className="text-sm font-medium">
+                    {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between gap-x-6 py-1">
+                <p className="text-gray-400 text-sm font-normal">USD/oz</p>
+                <p className="text-white text-sm font-semibold text-right">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
+                </p>
               </div>
-              <div className="text-right">
-                {priceLoading ? (
-                  <div className="animate-pulse">
-                    <div className="h-4 w-20 bg-gray-600 rounded"></div>
-                  </div>
-                ) : goldPrice ? (
-                  <div className="space-y-0.5">
-                    <p className="text-white text-lg font-bold">${goldPrice.usd_per_oz.toFixed(2)}/oz</p>
-                    <div className="flex items-center gap-1 justify-end">
-                      <TrendingUp size={12} className="text-[#f9b006]" />
-                      <span className="text-[#f9b006] text-xs font-medium">
-                        {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}% (24h)
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-gray-400 text-sm">N/A</p>
-                )}
+              <div className="flex justify-between gap-x-6 py-1">
+                <p className="text-gray-400 text-sm font-normal">USD/g</p>
+                <p className="text-white text-sm font-semibold text-right">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Collapsible Gold Price Chart */}
-          {showChart && (
-            <div className="transform transition-all duration-300 ease-in-out">
-              <GoldPriceChart />
-            </div>
-          )}
 
           {/* Portfolio Summary with Asset Allocation */}
           {!portfolioLoading && (
@@ -139,10 +132,10 @@ const Index = () => {
             />
           )}
 
-          {/* Quick Positions */}
+          {/* Portfolio Positions */}
           {!portfolioLoading && (
-            <div className="bg-card rounded-xl p-4">
-              <QuickPositions assetsByType={assetsByType} />
+            <div className="bg-[#2C2C2E] rounded-xl p-4">
+              <PositionsCard assetsByType={assetsByType} />
             </div>
           )}
 
@@ -178,6 +171,34 @@ const Index = () => {
             </Button>
           </div>
 
+          {/* Your Tokens */}
+          <div>
+            <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] mb-4">
+              Your Tokens
+            </h3>
+            <div className="space-y-3">
+              {tokens.map((token, index) => (
+                <div key={index} className="bg-[#2C2C2E] rounded-xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center text-xl">
+                      {token.icon}
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">{token.name}</p>
+                      <p className="text-gray-400 text-sm">{token.symbol}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-semibold">{token.amount}</p>
+                    <p className="text-gray-400 text-sm">{token.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Gold Price Chart */}
+          <GoldPriceChart />
         </div>
       </div>
 
