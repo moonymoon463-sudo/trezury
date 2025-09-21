@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSmartContracts } from "@/hooks/useSmartContracts";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   PoolReserve, 
@@ -15,14 +14,7 @@ import { Chain, Token } from "@/types/lending";
 export function useAaveStyleLending() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { wallet } = useWalletConnection();
-  const {
-    deploymentStatus,
-    useUserAccountData,
-    useReserveData,
-    isContractDeployed,
-    getContractAddresses
-  } = useSmartContracts();
+  const { walletAddress, createWallet, getWalletAddress } = useSecureWallet();
   
   const [poolReserves, setPoolReserves] = useState<PoolReserve[]>([]);
   const [userSupplies, setUserSupplies] = useState<UserSupply[]>([]);
@@ -30,29 +22,27 @@ export function useAaveStyleLending() {
   const [userHealthFactor, setUserHealthFactor] = useState<UserHealthFactor | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // Deploy contracts if not deployed
+  // Auto-setup internal wallet on mount
   useEffect(() => {
-    const deployContracts = async () => {
-      if (!wallet.isConnected) return;
+    const setupInternalWallet = async () => {
+      if (!user) return;
       
       try {
-        const chains: Chain[] = ['ethereum'];
-        for (const chain of chains) {
-          const isDeployed = await isContractDeployed(chain);
-          if (!isDeployed) {
-            toast({
-              title: "Deploying Contracts",
-              description: `Deploying lending contracts on ${chain}...`
-            });
-          }
+        // Try to get existing wallet address first
+        let address = await getWalletAddress();
+        
+        if (!address) {
+          console.log('No internal wallet found, user will need to create one when needed');
+        } else {
+          console.log('✅ Internal wallet address loaded:', address);
         }
       } catch (error) {
-        console.error('Contract deployment check failed:', error);
+        console.error('Internal wallet setup failed:', error);
       }
     };
     
-    deployContracts();
-  }, [wallet.isConnected, isContractDeployed, toast]);
+    setupInternalWallet();
+  }, [user, getWalletAddress]);
 
   const fetchPoolReserves = useCallback(async () => {
     try {
@@ -109,7 +99,7 @@ export function useAaveStyleLending() {
   }, [toast]);
 
   const fetchUserData = useCallback(async () => {
-    if (!user || !wallet.isConnected) return;
+    if (!user) return;
     
     try {
       setLoading(true);
@@ -204,23 +194,29 @@ export function useAaveStyleLending() {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, wallet.isConnected]);
+  }, [user, toast]);
 
   const supply = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
     console.log(`💰 Starting supply process: ${amount} ${asset} on ${chain}`);
-    console.log('Wallet state:', {
-      isConnected: wallet?.isConnected,
-      address: wallet?.address,
-      chainId: wallet?.chainId
-    });
+    console.log('Internal wallet address:', walletAddress);
     console.log('User state:', user ? 'Authenticated' : 'Not authenticated');
     
-    if (!user || !wallet.isConnected) {
-      console.log('❌ Validation failed - user or wallet not connected');
+    if (!user) {
+      console.log('❌ Validation failed - user not authenticated');
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please connect your wallet to supply assets"
+        description: "Please sign in to supply assets"
+      });
+      return;
+    }
+
+    // Auto-create internal wallet if needed
+    if (!walletAddress) {
+      toast({
+        variant: "destructive", 
+        title: "Wallet Setup Required",
+        description: "Please set up your internal wallet first"
       });
       return;
     }
@@ -280,14 +276,14 @@ export function useAaveStyleLending() {
       setLoading(false);
       console.log('💰 Supply process completed');
     }
-  }, [user, wallet.isConnected, toast, fetchUserData, fetchPoolReserves]);
+  }, [user, walletAddress, toast, fetchUserData, fetchPoolReserves]);
 
   const withdraw = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
-    if (!user || !wallet.isConnected) {
+    if (!user) {
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please connect your wallet to withdraw assets"
+        description: "Please sign in to withdraw assets"
       });
       return;
     }
@@ -313,14 +309,14 @@ export function useAaveStyleLending() {
     } finally {
       setLoading(false);
     }
-  }, [user, wallet.isConnected, toast, fetchUserData, fetchPoolReserves]);
+  }, [user, toast, fetchUserData, fetchPoolReserves]);
 
   const borrow = useCallback(async (asset: string, amount: number, rateMode: 'variable' | 'stable', chain: string = 'ethereum') => {
-    if (!user || !wallet.isConnected) {
+    if (!user) {
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please connect your wallet to borrow assets"
+        description: "Please sign in to borrow assets"
       });
       return;
     }
@@ -346,14 +342,14 @@ export function useAaveStyleLending() {
     } finally {
       setLoading(false);
     }
-  }, [user, wallet.isConnected, toast, fetchUserData, fetchPoolReserves]);
+  }, [user, toast, fetchUserData, fetchPoolReserves]);
 
   const repay = useCallback(async (asset: string, amount: number, rateMode: 'variable' | 'stable', chain: string = 'ethereum') => {
-    if (!user || !wallet.isConnected) {
+    if (!user) {
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please connect your wallet to repay assets"
+        description: "Please sign in to repay assets"
       });
       return;
     }
@@ -379,10 +375,10 @@ export function useAaveStyleLending() {
     } finally {
       setLoading(false);
     }
-  }, [user, wallet.isConnected, toast, fetchUserData, fetchPoolReserves]);
+  }, [user, toast, fetchUserData, fetchPoolReserves]);
 
   const setCollateral = useCallback(async (asset: string, useAsCollateral: boolean, chain: string = 'ethereum') => {
-    if (!user || !wallet.isConnected) return;
+    if (!user) return;
 
     try {
       // Update the local state for demo
@@ -407,7 +403,7 @@ export function useAaveStyleLending() {
         description: "Failed to update collateral setting"
       });
     }
-  }, [user, wallet.isConnected, toast, fetchUserData, userSupplies]);
+  }, [user, toast, fetchUserData, userSupplies]);
 
   const getAssetSupplyRate = useCallback((asset: string, chain: string = 'ethereum') => {
     const reserve = poolReserves.find(r => r.asset === asset && r.chain === chain);
@@ -476,6 +472,10 @@ export function useAaveStyleLending() {
     
     // Refresh
     refetch: fetchUserData,
-    refetchPools: fetchPoolReserves
+    refetchPools: fetchPoolReserves,
+    
+    // Internal wallet info
+    walletAddress,
+    createWallet
   };
 }

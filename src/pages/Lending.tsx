@@ -7,7 +7,6 @@ import { LendingBorrow } from "@/components/lending/LendingBorrow";
 import { LendingProfile } from "@/components/lending/LendingProfile";
 import { ContractDeploymentStatus } from "@/components/lending/ContractDeploymentStatus";
 import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
-import { WalletConnector } from "@/components/wallet/WalletConnector";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 
@@ -40,11 +39,8 @@ export default function Lending() {
         <div className="max-w-6xl mx-auto">
           <div className="mb-6 space-y-4">
             <p className="text-gray-400 text-center">
-              Supply assets to earn yield or borrow against your collateral across multiple chains.
+              Supply assets to earn yield or borrow against your collateral using your internal wallet.
             </p>
-            <div className="max-w-2xl mx-auto">
-              <WalletConnector />
-            </div>
             <ContractDeploymentStatus />
           </div>
 

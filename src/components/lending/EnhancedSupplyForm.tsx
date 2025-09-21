@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
-import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { useAuth } from "@/hooks/useAuth";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
@@ -37,9 +36,8 @@ interface EnhancedSupplyFormProps {
 }
 
 export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: EnhancedSupplyFormProps) {
-  const { supply, poolReserves, loading } = useAaveStyleLending();
+  const { supply, poolReserves, loading, walletAddress, createWallet } = useAaveStyleLending();
   const { balances, getBalance } = useWalletBalance();
-  const { wallet, connectWallet, connecting } = useWalletConnection();
   const { user } = useAuth();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
@@ -75,8 +73,7 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
       token,
       chain,
       userAuthenticated: !!user,
-      walletConnected: wallet.isConnected,
-      walletAddress: wallet.address
+      internalWallet: walletAddress
     });
     
     if (!amount || parseFloat(amount) <= 0) {
@@ -106,11 +103,11 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
       return;
     }
 
-    if (!wallet.isConnected) {
+    if (!walletAddress) {
       toast({
         variant: "destructive",
-        title: "Wallet Not Connected",
-        description: "Please connect your wallet first"
+        title: "Internal Wallet Required",
+        description: "Please create your internal wallet first"
       });
       return;
     }
@@ -260,14 +257,14 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
                   type="submit" 
                   className="w-full font-bold" 
                   size="lg"
-                  disabled={!amount || parseFloat(amount) <= 0 || loading || !poolReserve?.is_active || !user || !wallet.isConnected || parseFloat(amount) > walletBalance}
+                  disabled={!amount || parseFloat(amount) <= 0 || loading || !poolReserve?.is_active || !user || !walletAddress || parseFloat(amount) > walletBalance}
                 >
                   {loading ? (
                     "Supplying..."
                   ) : !user ? (
                     "Please Sign In"
-                  ) : !wallet.isConnected ? (
-                    "Connect Wallet First"
+                  ) : !walletAddress ? (
+                    "Setup Internal Wallet"
                   ) : !poolReserve?.is_active ? (
                     "Market Unavailable"
                   ) : parseFloat(amount) > walletBalance ? (

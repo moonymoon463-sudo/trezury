@@ -2,11 +2,14 @@ import { useState } from "react";
 import { TokenMarketplace } from "./TokenMarketplace";
 import { EnhancedSupplyForm } from "./EnhancedSupplyForm";
 import { QuickActions } from "./QuickActions";
+import { InternalWalletSetup } from "./InternalWalletSetup";
 import { Chain, Token } from "@/types/lending";
 import { Button } from "@/components/ui/button";
 import { Zap, Store } from "lucide-react";
+import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 
 export function LendingDeposit() {
+  const { walletAddress } = useAaveStyleLending();
   const [currentView, setCurrentView] = useState<'quickactions' | 'marketplace' | 'form'>('marketplace');
   const [selectedToken, setSelectedToken] = useState<{
     chain: Chain;
@@ -38,6 +41,8 @@ export function LendingDeposit() {
   if (currentView === 'marketplace') {
     return (
       <div className="space-y-4">
+        {!walletAddress && <InternalWalletSetup />}
+        
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -64,6 +69,8 @@ export function LendingDeposit() {
 
   return (
     <div className="space-y-4">
+      {!walletAddress && <InternalWalletSetup />}
+      
       <div className="flex gap-2">
         <Button
           variant="secondary"
