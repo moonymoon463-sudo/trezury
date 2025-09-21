@@ -2,126 +2,71 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Clock, DollarSign, Calendar, ExternalLink, AlertCircle } from "lucide-react";
-import { useLending } from "@/hooks/useLending";
-import { Lock, CHAIN_CONFIGS } from "@/types/lending";
-import { LendingService } from "@/services/lendingService";
+import { Switch } from "@/components/ui/switch";
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Shield, AlertTriangle } from "lucide-react";
+import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
+import { AaveStyleLendingService } from "@/services/aaveStyleLendingService";
+import { HealthFactorIndicator } from "@/components/lending/HealthFactorIndicator";
 import { useAuth } from "@/hooks/useAuth";
 
-function LockCard({ lock, onClaim, onExitEarly }: { 
-  lock: Lock; 
-  onClaim: (id: string) => void;
-  onExitEarly: (id: string) => void;
+function SupplyPositionCard({ supply, onWithdraw, onToggleCollateral }: {
+  supply: any;
+  onWithdraw: (asset: string, amount: number) => void;
+  onToggleCollateral: (asset: string, useAsCollateral: boolean) => void;
 }) {
-  const now = new Date();
-  const startDate = new Date(lock.start_ts);
-  const endDate = new Date(lock.end_ts);
-  const isMatured = now >= endDate;
-  const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
-  const progressPercent = Math.min(100, ((now.getTime() - startDate.getTime()) / (endDate.getTime() - startDate.getTime())) * 100);
-  
-  const chainConfig = CHAIN_CONFIGS[lock.chain];
-  const explorerUrl = lock.deposit_tx ? `${chainConfig.explorerUrl}/tx/${lock.deposit_tx}` : null;
-
-  const getStatusColor = () => {
-    switch (lock.status) {
-      case 'active': return isMatured ? 'default' : 'secondary';
-      case 'matured': return 'default';
-      case 'exited_early': return 'destructive';
-      default: return 'secondary';
-    }
-  };
-
-  const getStatusText = () => {
-    if (lock.status === 'exited_early') return 'Exited Early';
-    if (lock.status === 'matured') return 'Matured';
-    return isMatured ? 'Ready to Claim' : 'Active';
-  };
+  const supplyRate = AaveStyleLendingService.formatAPY(supply.supply_rate_at_deposit);
+  const totalSupplied = AaveStyleLendingService.formatAmount(supply.supplied_amount_dec + supply.accrued_interest_dec, supply.asset);
 
   return (
     <Card className="bg-card border-border">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-lg text-foreground">
-              {LendingService.formatAmount(lock.amount_dec, lock.token)}
-            </CardTitle>
-            <Badge variant="outline" className="border-muted text-muted-foreground">{chainConfig.displayName}</Badge>
+            <CardTitle className="text-lg text-foreground">{totalSupplied} {supply.asset}</CardTitle>
+            <Badge variant="outline" className="border-muted text-muted-foreground">{supply.chain}</Badge>
           </div>
-          <Badge variant={getStatusColor()} className="bg-primary text-primary-foreground">
-            {getStatusText()}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={supply.used_as_collateral}
+              onCheckedChange={(checked) => onToggleCollateral(supply.asset, checked)}
+            />
+            <span className="text-sm text-muted-foreground">Collateral</span>
+          </div>
         </div>
         <CardDescription className="text-muted-foreground">
-          APY: {LendingService.formatAPY(lock.apy_applied)} • 
-          Started {startDate.toLocaleDateString()}
+          Supply APY: {supplyRate} • Earning interest since {new Date(supply.created_at).toLocaleDateString()}
         </CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {lock.status === 'active' && (
-          <>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  {isMatured ? 'Ready to claim' : `${daysRemaining} days remaining`}
-                </span>
-                <span className="text-muted-foreground">{endDate.toLocaleDateString()}</span>
-              </div>
-              <Progress value={progressPercent} className="h-2" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Accrued Interest</p>
-                <p className="font-medium text-foreground">
-                  {LendingService.formatAmount(lock.accrued_interest_dec, lock.token)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total Return</p>
-                <p className="font-medium text-foreground">
-                  {LendingService.formatAmount(lock.amount_dec + lock.accrued_interest_dec, lock.token)}
-                </p>
-              </div>
-            </div>
-          </>
-        )}
-
-        {lock.status === 'exited_early' && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <AlertCircle className="h-4 w-4" />
-            <span>Interest forfeited due to early exit</span>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">Principal</p>
+            <p className="font-medium text-foreground">
+              {AaveStyleLendingService.formatAmount(supply.supplied_amount_dec, supply.asset)} {supply.asset}
+            </p>
           </div>
-        )}
+          <div>
+            <p className="text-muted-foreground">Accrued Interest</p>
+            <p className="font-medium text-primary">
+              +{AaveStyleLendingService.formatAmount(supply.accrued_interest_dec, supply.asset)} {supply.asset}
+            </p>
+          </div>
+        </div>
 
         <div className="flex gap-2">
-          {lock.status === 'active' && isMatured && (
-            <Button onClick={() => onClaim(lock.id)} className="flex-1">
-              <DollarSign className="h-4 w-4 mr-1" />
-              Claim
-            </Button>
-          )}
-          
-          {lock.status === 'active' && !isMatured && (
-            <Button 
-              variant="outline" 
-              onClick={() => onExitEarly(lock.id)}
-              className="flex-1"
-            >
-              Exit Early
-            </Button>
-          )}
-
-          {explorerUrl && (
-            <Button variant="outline" size="sm" asChild>
-              <a href={explorerUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
+          <Button 
+            onClick={() => onWithdraw(supply.asset, supply.supplied_amount_dec + supply.accrued_interest_dec)}
+            className="flex-1"
+          >
+            <TrendingDown className="h-4 w-4 mr-1" />
+            Withdraw
+          </Button>
+          {supply.used_as_collateral && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Shield className="h-3 w-3" />
+              Used as collateral
+            </div>
           )}
         </div>
       </CardContent>
@@ -129,11 +74,67 @@ function LockCard({ lock, onClaim, onExitEarly }: {
   );
 }
 
-// Pool stats removed - sensitive financial data no longer accessible from frontend
+function BorrowPositionCard({ borrow, onRepay }: {
+  borrow: any;
+  onRepay: (asset: string, amount: number, rateMode: 'variable' | 'stable') => void;
+}) {
+  const borrowRate = AaveStyleLendingService.formatAPY(borrow.borrow_rate_at_creation);
+  const totalOwed = AaveStyleLendingService.formatAmount(borrow.borrowed_amount_dec + borrow.accrued_interest_dec, borrow.asset);
+
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg text-foreground">{totalOwed} {borrow.asset}</CardTitle>
+            <Badge variant="outline" className="border-muted text-muted-foreground">{borrow.chain}</Badge>
+          </div>
+          <Badge variant="secondary">{borrow.rate_mode}</Badge>
+        </div>
+        <CardDescription className="text-muted-foreground">
+          Borrow APY: {borrowRate} • Borrowed since {new Date(borrow.created_at).toLocaleDateString()}
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">Principal</p>
+            <p className="font-medium text-foreground">
+              {AaveStyleLendingService.formatAmount(borrow.borrowed_amount_dec, borrow.asset)} {borrow.asset}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Interest Owed</p>
+            <p className="font-medium text-destructive">
+              +{AaveStyleLendingService.formatAmount(borrow.accrued_interest_dec, borrow.asset)} {borrow.asset}
+            </p>
+          </div>
+        </div>
+
+        <Button 
+          onClick={() => onRepay(borrow.asset, borrow.borrowed_amount_dec + borrow.accrued_interest_dec, borrow.rate_mode)}
+          className="w-full"
+        >
+          <CreditCard className="h-4 w-4 mr-1" />
+          Repay
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function LendingProfile() {
   const { user } = useAuth();
-  const { locks, claimLock, exitEarly, loading } = useLending();
+  const { 
+    userSupplies, 
+    userBorrows, 
+    userHealthFactor, 
+    withdraw, 
+    repay, 
+    setCollateral,
+    loading 
+  } = useAaveStyleLending();
 
   if (!user) {
     return (
@@ -145,83 +146,195 @@ export function LendingProfile() {
     );
   }
 
-  const activeLocks = locks.filter(lock => lock.status === 'active');
-  const completedLocks = locks.filter(lock => lock.status !== 'active');
+  const totalSuppliedUSD = userSupplies.reduce((sum, supply) => 
+    sum + (supply.supplied_amount_dec + supply.accrued_interest_dec), 0);
+  const totalBorrowedUSD = userBorrows.reduce((sum, borrow) => 
+    sum + (borrow.borrowed_amount_dec + borrow.accrued_interest_dec), 0);
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Lending Profile</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Lending Dashboard</h2>
         <p className="text-muted-foreground">
-          Manage your active locks and view historical performance
+          Manage your DeFi positions and monitor your financial health
         </p>
       </div>
 
-      <Tabs defaultValue="active" className="space-y-6">
+      {/* Health Factor Display */}
+      {userHealthFactor && (
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Wallet className="h-5 w-5" />
+              Account Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <HealthFactorIndicator current={userHealthFactor.health_factor} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Total Supplied</p>
+                <p className="font-medium text-primary">${userHealthFactor.total_collateral_usd.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Total Borrowed</p>
+                <p className="font-medium text-destructive">${userHealthFactor.total_debt_usd.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Available to Borrow</p>
+                <p className="font-medium text-foreground">${userHealthFactor.available_borrow_usd.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">LTV</p>
+                <p className="font-medium text-foreground">{(userHealthFactor.ltv * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="supplies" className="space-y-6">
         <TabsList className="bg-card border-0">
-          <TabsTrigger value="active" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground">
-            Active Locks ({activeLocks.length})
+          <TabsTrigger value="supplies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground">
+            <TrendingUp className="h-4 w-4 mr-1" />
+            Supply Positions ({userSupplies.length})
           </TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground">
-            History ({completedLocks.length})
+          <TabsTrigger value="borrows" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground">
+            <TrendingDown className="h-4 w-4 mr-1" />
+            Borrow Positions ({userBorrows.length})
+          </TabsTrigger>
+          <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground">
+            <PiggyBank className="h-4 w-4 mr-1" />
+            Overview
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="space-y-4">
-          {activeLocks.length === 0 ? (
+        <TabsContent value="supplies" className="space-y-4">
+          {userSupplies.length === 0 ? (
             <Card className="bg-card border-border">
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2 text-foreground">No Active Locks</h3>
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2 text-foreground">No Supply Positions</h3>
                   <p className="text-muted-foreground">
-                    Create your first lock to start earning yield
+                    Supply assets to start earning interest
                   </p>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
-              {activeLocks.map((lock) => (
-                <LockCard
-                  key={lock.id}
-                  lock={lock}
-                  onClaim={claimLock}
-                  onExitEarly={exitEarly}
+              {userSupplies.map((supply) => (
+                <SupplyPositionCard
+                  key={`${supply.asset}-${supply.chain}`}
+                  supply={supply}
+                  onWithdraw={withdraw}
+                  onToggleCollateral={setCollateral}
                 />
               ))}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
-          {completedLocks.length === 0 ? (
+        <TabsContent value="borrows" className="space-y-4">
+          {userBorrows.length === 0 ? (
             <Card className="bg-card border-border">
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2 text-foreground">No History</h3>
+                  <TrendingDown className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2 text-foreground">No Borrow Positions</h3>
                   <p className="text-muted-foreground">
-                    Completed locks will appear here
+                    Borrow against your collateral when needed
                   </p>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
-              {completedLocks.map((lock) => (
-                <LockCard
-                  key={lock.id}
-                  lock={lock}
-                  onClaim={claimLock}
-                  onExitEarly={exitEarly}
+              {userBorrows.map((borrow) => (
+                <BorrowPositionCard
+                  key={`${borrow.asset}-${borrow.chain}-${borrow.rate_mode}`}
+                  borrow={borrow}
+                  onRepay={repay}
                 />
               ))}
             </div>
           )}
         </TabsContent>
 
-        {/* Pool stats tab removed - sensitive financial data no longer accessible */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Supply Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Supplied</span>
+                    <span className="font-medium text-foreground">${totalSuppliedUSD.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Active Positions</span>
+                    <span className="font-medium text-foreground">{userSupplies.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Used as Collateral</span>
+                    <span className="font-medium text-foreground">
+                      {userSupplies.filter(s => s.used_as_collateral).length}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <TrendingDown className="h-5 w-5 text-destructive" />
+                  Borrow Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Borrowed</span>
+                    <span className="font-medium text-foreground">${totalBorrowedUSD.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Active Positions</span>
+                    <span className="font-medium text-foreground">{userBorrows.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Variable Rate</span>
+                    <span className="font-medium text-foreground">
+                      {userBorrows.filter(b => b.rate_mode === 'variable').length}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {userHealthFactor && userHealthFactor.health_factor < 1.5 && (
+            <Card className="bg-destructive/10 border-destructive/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  Health Factor Warning
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Your health factor is low. Consider repaying debt or adding more collateral to avoid liquidation.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
