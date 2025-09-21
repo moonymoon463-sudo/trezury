@@ -98,11 +98,11 @@ class SecureWalletService {
         .from('onchain_addresses')
         .select('address')
         .eq('user_id', userId)
-        .limit(1)
-        .single();
+        .limit(1);
 
-      return addresses?.address || null;
+      return addresses && addresses.length > 0 ? addresses[0].address : null;
     } catch (err) {
+      console.error('Error fetching wallet address:', err);
       return null;
     }
   }
@@ -160,35 +160,38 @@ class SecureWalletService {
    */
   private async storeWalletAddress(userId: string, address: string): Promise<void> {
     try {
-      // Check if address already exists
+      // Check if user already has a wallet address stored
       const { data: existing } = await supabase
         .from('onchain_addresses')
-        .select('id')
+        .select('id, address')
         .eq('user_id', userId)
-        .eq('address', address)
-        .single();
+        .limit(1);
 
-      if (existing) return; // Address already stored
+      if (existing && existing.length > 0) {
+        console.log('✅ Wallet address already exists for user');
+        return; // Address already stored for this user
+      }
 
-      // Store address for both USDC and XAUT (same address, different assets)
+      // Store a single address record (due to unique constraint on user_id)
       const { error } = await supabase
         .from('onchain_addresses')
-        .insert([
-          {
-            user_id: userId,
-            address: address,
-            chain: 'ethereum',
-            asset: 'USDC'
-          },
-          {
-            user_id: userId,
-            address: address,
-            chain: 'ethereum',
-            asset: 'XAUT'
-          }
-        ]);
+        .insert({
+          user_id: userId,
+          address: address,
+          chain: 'sepolia', // Using Sepolia testnet
+          asset: 'USDC' // Primary asset, same address works for all ERC-20s
+        });
 
-      if (error) throw error;
+      if (error) {
+        // If it's a duplicate key error, that's fine - address already exists
+        if (error.code === '23505') {
+          console.log('✅ Wallet address already exists (duplicate key)');
+          return;
+        }
+        throw error;
+      }
+
+      console.log('✅ Wallet address stored successfully');
     } catch (err) {
       console.error('Failed to store wallet address:', err);
       throw new Error('Failed to store wallet address');

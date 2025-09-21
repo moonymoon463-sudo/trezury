@@ -67,6 +67,13 @@ class BlockchainTestnetService {
   }
 
   /**
+   * Alias for getTokenBalance for compatibility
+   */
+  async getBalance(walletAddress: string, tokenSymbol: string): Promise<number> {
+    return this.getTokenBalance(walletAddress, tokenSymbol);
+  }
+
+  /**
    * Get multiple token balances at once
    */
   async getMultipleBalances(walletAddress: string, tokens: string[]): Promise<Record<string, number>> {

@@ -30,6 +30,14 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
     try {
       setLoading(true);
       
+      // First check if wallet already exists
+      const existingAddress = await secureWalletService.getWalletAddress(user.id);
+      if (existingAddress) {
+        console.log('✅ Using existing internal wallet:', existingAddress);
+        setWalletAddress(existingAddress);
+        return { address: existingAddress, publicKey: '' };
+      }
+      
       // Auto-generate wallet using just user ID - no password needed
       const walletInfo = await secureWalletService.generateDeterministicWallet(user.id);
 
@@ -93,12 +101,21 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
 
     try {
       const address = await secureWalletService.getWalletAddress(user.id);
-      setWalletAddress(address);
+      if (address) {
+        setWalletAddress(address);
+        console.log('✅ Retrieved existing wallet address:', address);
+      } else {
+        console.log('ℹ️ No wallet found, will create one when needed');
+        // Auto-create wallet if none exists
+        const walletInfo = await createWallet();
+        return walletInfo?.address || null;
+      }
       return address;
     } catch (error) {
+      console.error('Error getting wallet address:', error);
       return null;
     }
-  }, [user]);
+  }, [user, createWallet]);
 
   return {
     walletAddress,

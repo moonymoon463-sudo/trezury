@@ -10,8 +10,10 @@ import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 export function LendingDeposit() {
+  const { user } = useAuth();
   const { walletAddress, createWallet } = useAaveStyleLending();
   const { getWalletAddress } = useSecureWallet();
   const { balances, loading: balancesLoading } = useWalletBalance();
@@ -26,19 +28,19 @@ export function LendingDeposit() {
   // Auto-setup internal wallet when user first loads
   useEffect(() => {
     const setupWallet = async () => {
-      if (!walletAddress) {
+      if (!walletAddress && user?.id) {
         try {
-          // This will automatically create wallet using just user ID
-          await createWallet();
-          console.log('✅ Internal wallet auto-setup initiated');
+          // Get existing wallet address or create new one automatically
+          await getWalletAddress();
+          console.log('✅ Wallet setup completed');
         } catch (error) {
-          console.error('Auto wallet setup failed:', error);
+          console.error('Wallet setup failed:', error);
         }
       }
     };
     
     setupWallet();
-  }, [walletAddress, createWallet]);
+  }, [user?.id, walletAddress, getWalletAddress]);
 
   const handleTokenSelect = (chain: Chain, token: Token, apy: number) => {
     setSelectedToken({ chain, token, apy });
