@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PWAProvider } from "@/hooks/usePWA";
+import { WalletConnectionProvider } from "@/contexts/WalletConnectionContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -124,20 +125,22 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <PWAProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ScrollToTop />
-            <AppRoutes />
-            <QuickNavToLending />
-            <InstallPrompt />
-            <UpdatePrompt />
-            <OfflineIndicator />
-          </BrowserRouter>
-        </TooltipProvider>
-      </PWAProvider>
+      <WalletConnectionProvider>
+        <PWAProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <ScrollToTop />
+              <AppRoutes />
+              <QuickNavToLending />
+              <InstallPrompt />
+              <UpdatePrompt />
+              <OfflineIndicator />
+            </BrowserRouter>
+          </TooltipProvider>
+        </PWAProvider>
+      </WalletConnectionProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
