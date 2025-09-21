@@ -19,6 +19,7 @@ import { useContractDeployment } from "@/hooks/useContractDeployment";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { Chain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
+import { WalletFundingInfo } from "@/components/WalletFundingInfo";
 import { supabase } from "@/integrations/supabase/client";
 
 export function ContractDeploymentStatus() {
@@ -216,17 +217,9 @@ export function ContractDeploymentStatus() {
             </p>
           </div>
 
-          {/* Gas & Balance Info */}
-          <div className="p-3 rounded-lg border bg-surface-elevated border-border">
-            <div className="flex items-center gap-2 mb-1">
-              <Fuel className="h-4 w-4 text-primary" />
-              <p className="text-sm font-medium text-foreground">
-                Deployment Cost
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              ~0.005 ETH per chain • Balance: {deployerBalance || "Checking..."}
-            </p>
+          {/* Deployment Wallet Info */}
+          <div className="md:col-span-1">
+            <WalletFundingInfo />
           </div>
         </div>
 

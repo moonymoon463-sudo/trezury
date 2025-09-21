@@ -27,13 +27,7 @@ export function useContractDeployment() {
     try {
       if (!wallet.isConnected) return;
       
-      // For demo purposes, use test private key
-      const privateKey = "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
-      const rpcUrl = "https://sepolia.base.org"; // Base Sepolia public RPC
-      
-      await contractDeploymentService.initialize(privateKey, rpcUrl);
-      
-      // Check deployment status
+      // Check deployment status from edge function
       const status = await contractDeploymentService.getDeploymentStatus();
       setDeploymentStatus(status);
     } catch (error) {
@@ -66,13 +60,12 @@ export function useContractDeployment() {
         tron: "https://api.trongrid.io"
       };
 
-      // Use secure deployment (no private key in frontend)
+      // Use secure deployment (private key handled securely in edge function)
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
           operation: 'deploy',
           chain,
           rpcUrl: rpcUrls[chain]
-          // No private key - handled securely in edge function
         }
       });
 
