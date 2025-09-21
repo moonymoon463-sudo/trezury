@@ -16,9 +16,11 @@ import {
   Clock,
   DollarSign,
   Target,
-  Activity
+  Activity,
+  Wallet
 } from "lucide-react";
 import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,6 +33,7 @@ interface EnhancedSupplyFormProps {
 
 export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: EnhancedSupplyFormProps) {
   const { supply, poolReserves, loading } = useAaveStyleLending();
+  const { balances, getBalance } = useWalletBalance();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
   const [useAsCollateral, setUseAsCollateral] = useState(true);
@@ -38,6 +41,9 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
 
   const chainConfig = CHAIN_CONFIGS[chain];
   const poolReserve = poolReserves.find(r => r.asset === token && r.chain === chain);
+  
+  // Get wallet balance for the token (convert XAUT to GOLD for display)
+  const walletBalance = getBalance(token === 'XAUT' ? 'GOLD' : token);
   
   // Calculate projections
   const amountNum = parseFloat(amount) || 0;
@@ -58,6 +64,15 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
         variant: "destructive",
         title: "Invalid Amount",
         description: "Please enter a valid amount to supply"
+      });
+      return;
+    }
+
+    if (parseFloat(amount) > walletBalance) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Balance",
+        description: `You only have ${walletBalance.toFixed(6)} ${token === 'XAUT' ? 'GOLD' : token} in your wallet`
       });
       return;
     }
@@ -109,13 +124,28 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Amount Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-foreground">Amount to Supply</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="amount" className="text-foreground">Amount to Supply</Label>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Wallet className="h-4 w-4" />
+                      <span>Balance: {walletBalance.toFixed(6)} {token === 'XAUT' ? 'GOLD' : token}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-primary hover:text-primary"
+                        onClick={() => setAmount(walletBalance.toString())}
+                      >
+                        Max
+                      </Button>
+                    </div>
+                  </div>
                   <div className="relative">
                     <Input
                       id="amount"
                       type="number"
                       step="0.000001"
                       min="0"
+                      max={walletBalance}
                       placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
@@ -123,9 +153,14 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
                       className="pr-16 bg-surface-elevated border-border text-foreground text-lg font-medium"
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                      {token}
+                      {token === 'XAUT' ? 'GOLD' : token}
                     </div>
                   </div>
+                  {parseFloat(amount) > walletBalance && (
+                    <p className="text-sm text-destructive">
+                      Insufficient balance. You have {walletBalance.toFixed(6)} {token === 'XAUT' ? 'GOLD' : token} available.
+                    </p>
+                  )}
                 </div>
 
                 {/* Current Market Info */}

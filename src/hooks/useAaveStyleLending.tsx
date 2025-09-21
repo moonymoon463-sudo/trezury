@@ -219,39 +219,22 @@ export function useAaveStyleLending() {
     try {
       setLoading(true);
       
-      // Insert or update user supply in database
-      const { data: existingSupply } = await supabase
-        .from('user_supplies')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('asset', asset)
-        .eq('chain', chain)
-        .single();
+      // Call the supply-withdraw edge function
+      const { data, error } = await supabase.functions.invoke('supply-withdraw', {
+        body: {
+          action: 'supply',
+          asset: asset,
+          amount: amount,
+          chain: chain
+        }
+      });
 
-      if (existingSupply) {
-        // Update existing supply
-        const { error } = await supabase
-          .from('user_supplies')
-          .update({
-            supplied_amount_dec: existingSupply.supplied_amount_dec + amount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSupply.id);
+      if (error) {
+        throw new Error(error.message || 'Failed to supply asset');
+      }
 
-        if (error) throw error;
-      } else {
-        // Create new supply
-        const { error } = await supabase
-          .from('user_supplies')
-          .insert({
-            user_id: user.id,
-            asset: asset,
-            chain: chain,
-            supplied_amount_dec: amount,
-            accrued_interest_dec: 0
-          });
-
-        if (error) throw error;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Supply operation failed');
       }
       
       toast({

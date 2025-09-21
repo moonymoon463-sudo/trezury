@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp, Coins, Filter, ArrowUpDown, ChevronRight, Activity, Wallet } from "lucide-react";
 import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
 
 interface TokenMarketplaceProps {
@@ -26,7 +27,8 @@ interface MarketToken {
 
 export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
   const { poolReserves } = useAaveStyleLending();
-  const { wallet, connectWallet } = useWalletConnection();
+  const { wallet, connectWallet } = useWalletConnection();  
+  const { balances, getBalance } = useWalletBalance();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChain, setSelectedChain] = useState<Chain | "all">("all");
   const [sortBy, setSortBy] = useState<"apy" | "liquidity" | "risk">("apy");
@@ -242,6 +244,18 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
                     </div>
                     <p className="text-xs text-muted-foreground">Supply APY</p>
                   </div>
+
+                  {isWalletConnected && (
+                    <div className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">
+                          {getBalance(token.token === 'XAUT' ? 'GOLD' : token.token).toFixed(4)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Your Balance</p>
+                    </div>
+                  )}
 
                   <div className="text-right hidden sm:block">
                     <p className="text-sm font-medium text-foreground">
