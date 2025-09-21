@@ -41,6 +41,8 @@ export function ContractDeploymentStatus() {
   });
   const [deployerBalance, setDeployerBalance] = useState<string>("");
   const [deployerAddress, setDeployerAddress] = useState<string>("");
+  const [diagnosticsResults, setDiagnosticsResults] = useState<any>(null);
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
 
   const chains: DeploymentChain[] = ['ethereum'];
   const deployedCount = Object.values(deploymentStatus).filter(Boolean).length;
@@ -105,6 +107,34 @@ export function ContractDeploymentStatus() {
     if (success) {
       await checkDeploymentStatus();
       await fetchDeploymentInfo();
+    }
+  };
+
+  const runDiagnostics = async () => {
+    setIsRunningDiagnostics(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-deployment', {
+        body: { operation: 'diagnose', chain: 'ethereum' }
+      });
+      
+      if (error) throw error;
+      
+      setDiagnosticsResults(data);
+      
+      toast({
+        title: "Diagnostics Complete",
+        description: `Health Score: ${data.healthScore}/100`,
+        variant: data.healthScore >= 75 ? "default" : "destructive"
+      });
+    } catch (error) {
+      console.error('Diagnostics failed:', error);
+      toast({
+        title: "Diagnostics Failed",
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive"
+      });
+    } finally {
+      setIsRunningDiagnostics(false);
     }
   };
 
@@ -356,8 +386,19 @@ export function ContractDeploymentStatus() {
           </div>
         )}
 
-        {/* View Logs Link */}
-        <div className="flex items-center justify-center">
+        {/* Diagnostics */}
+        <div className="grid gap-3 md:grid-cols-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runDiagnostics}
+            disabled={isRunningDiagnostics}
+            className="flex items-center gap-2"
+          >
+            <AlertCircle className="h-3 w-3" />
+            {isRunningDiagnostics ? "Running..." : "Run Diagnostics"}
+          </Button>
+          
           <Button
             variant="outline"
             size="sm"
@@ -368,6 +409,74 @@ export function ContractDeploymentStatus() {
             View Deployment Logs
           </Button>
         </div>
+
+        {/* Diagnostics Results */}
+        {diagnosticsResults && (
+          <div className="p-3 rounded-lg border border-border bg-surface-elevated">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                System Diagnostics
+              </h4>
+              <Badge variant={diagnosticsResults.healthScore >= 75 ? "default" : "destructive"}>
+                {diagnosticsResults.healthScore}/100
+              </Badge>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              {/* Secrets Status */}
+              <div>
+                <p className="font-medium mb-1">Secrets Configuration:</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {Object.entries(diagnosticsResults.secretsStatus).map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-1">
+                      {value ? <CheckCircle className="h-3 w-3 text-success" /> : <AlertCircle className="h-3 w-3 text-destructive" />}
+                      <span className={value ? "text-success" : "text-destructive"}>
+                        {key.replace(/_/g, ' ').toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* RPC Tests */}
+              {diagnosticsResults.rpcTests?.length > 0 && (
+                <div>
+                  <p className="font-medium mb-1">RPC Connectivity:</p>
+                  <div className="space-y-1">
+                    {diagnosticsResults.rpcTests.slice(0, 3).map((rpc: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs">
+                        {rpc.status === 'success' ? 
+                          <CheckCircle className="h-3 w-3 text-success" /> : 
+                          <AlertCircle className="h-3 w-3 text-destructive" />
+                        }
+                        <span className={rpc.status === 'success' ? "text-success" : "text-destructive"}>
+                          {rpc.url} {rpc.authenticated ? '[AUTH]' : '[PUBLIC]'} 
+                          {rpc.latency && ` (${rpc.latency})`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {diagnosticsResults.recommendations?.length > 0 && (
+                <div>
+                  <p className="font-medium mb-1 text-warning">Recommendations:</p>
+                  <ul className="space-y-1">
+                    {diagnosticsResults.recommendations.map((rec: string, idx: number) => (
+                      <li key={idx} className="text-xs text-warning flex items-start gap-1">
+                        <span className="text-warning">•</span>
+                        {rec}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Information */}
         <div className="pt-2 border-t border-border">

@@ -8,11 +8,33 @@ const corsHeaders = {
 };
 
 interface DeploymentRequest {
-  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'health_check';
+  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'health_check' | 'diagnose';
   chain?: string;
   privateKey?: string;
   rpcUrl?: string;
   fallbackRpcs?: string[];
+}
+
+// Authenticated RPC URLs with API keys
+function getAuthenticatedRpcUrls(chain: string) {
+  const infuraKey = Deno.env.get('INFURA_API_KEY');
+  const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
+  const ankrKey = Deno.env.get('ANKR_API_KEY');
+
+  const rpcs = {
+    ethereum: [
+      infuraKey ? `https://sepolia.infura.io/v3/${infuraKey}` : null,
+      alchemyKey ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}` : null,
+      ankrKey ? `https://rpc.ankr.com/eth_sepolia/${ankrKey}` : null,
+      // Public fallback RPCs
+      'https://rpc.sepolia.org',
+      'https://ethereum-sepolia-rpc.publicnode.com',
+      'https://sepolia.gateway.tenderly.co',
+      'https://rpc.sepolia.dev'
+    ].filter(Boolean)
+  };
+
+  return rpcs[chain] || [];
 }
 
 // Add chain validation for contract deployment
@@ -79,6 +101,9 @@ serve(async (req) => {
       
       case 'get_deployment_info':
         return await handleGetDeploymentInfo();
+      
+      case 'diagnose':
+        return await handleDiagnose(chain);
         
       case 'health_check':
         console.log('Health check requested');
@@ -143,40 +168,32 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
       }
     }
 
-    // Enhanced RPC fallback system with default endpoints for Ethereum
-    const defaultEthereumRpcs = [
-      'https://eth-sepolia.g.alchemy.com/v2/demo',
-      'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-      'https://rpc.sepolia.org',
-      'https://ethereum-sepolia-rpc.publicnode.com'
-    ];
-
-    let provider: any = null;
-    let connectedRpcUrl = "";
+    // Get authenticated RPC URLs for the chain
+    const authenticatedRpcs = getAuthenticatedRpcUrls(chain);
+    const allRpcs = [...authenticatedRpcs, rpcUrl, ...fallbackRpcs].filter(Boolean);
+    const uniqueRpcs = [...new Set(allRpcs)]; // Remove duplicates
     
-    // Build comprehensive RPC list: user provided + fallbacks + defaults
-    const allRpcs = [];
-    if (rpcUrl) allRpcs.push(rpcUrl);
-    if (fallbackRpcs?.length) allRpcs.push(...fallbackRpcs);
-    if (chain === 'ethereum') allRpcs.push(...defaultEthereumRpcs);
-    
-    // Remove duplicates
-    const uniqueRpcs = [...new Set(allRpcs)];
     console.log(`🔗 Attempting connection to ${uniqueRpcs.length} RPC endpoints for ${chain}...`);
+    console.log(`🔑 ${authenticatedRpcs.length} authenticated RPCs available`);
     
-    for (let i = 0; i < uniqueRpcs.length; i++) {
-      const currentRpcUrl = uniqueRpcs[i];
-      console.log(`🔄 Trying RPC ${i + 1}/${uniqueRpcs.length}: ${currentRpcUrl.substring(0, 50)}...`);
-      
+    let provider = null;
+    let rpcIndex = 0;
+    const rpcResults = [];
+    
+    for (const rpcUrl of uniqueRpcs) {
       try {
-        const testProvider = new ethers.JsonRpcProvider(currentRpcUrl, undefined, {
+        rpcIndex++;
+        const isAuthenticated = authenticatedRpcs.includes(rpcUrl);
+        console.log(`🔄 Trying RPC ${rpcIndex}/${uniqueRpcs.length}: ${rpcUrl.substring(0, 50)}... ${isAuthenticated ? '[AUTH]' : '[PUBLIC]'}`);
+        
+        const testProvider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
           staticNetwork: true,
           batchMaxCount: 1,
           pollingInterval: 12000
         });
         
-        // Test connection with shorter timeout for faster failover
-        const timeoutPromise = new Promise((_, reject) => 
+        // Test connection with a timeout
+        const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Connection timeout after 8s')), 8000)
         );
         
@@ -185,560 +202,490 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
           timeoutPromise
         ]);
         
-        // Additional validation - ensure we can get network info
-        const network = await Promise.race([
-          testProvider.getNetwork(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Network info timeout')), 5000))
-        ]);
-        
+        console.log(`✅ RPC connection successful: ${rpcUrl.substring(0, 50)}... (Block: ${blockNumber})`);
         provider = testProvider;
-        connectedRpcUrl = currentRpcUrl;
-        console.log(`✅ Successfully connected to ${currentRpcUrl.substring(0, 50)}... (Block: ${blockNumber}, ChainId: ${network.chainId})`);
+        rpcResults.push({ url: rpcUrl, status: 'success', authenticated: isAuthenticated, blockNumber });
         break;
-        
       } catch (error) {
-        console.log(`❌ RPC connection failed for ${currentRpcUrl.substring(0, 50)}...: ${error.message}`);
-        if (i === uniqueRpcs.length - 1) {
-          console.error(`💥 All ${uniqueRpcs.length} RPC endpoints failed for ${chain}`);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'RPC connection failed',
-              details: `Unable to connect to ${chain} network. All ${uniqueRpcs.length} RPC endpoints failed. This may be a temporary network issue.`,
-              code: 'RPC_CONNECTION_FAILED',
-              lastError: error.message
-            }),
-            { 
-              status: 503, 
-              headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-            }
-          );
-        }
+        console.log(`❌ RPC connection failed for ${rpcUrl.substring(0, 50)}...: ${error.message}`);
+        rpcResults.push({ url: rpcUrl, status: 'failed', error: error.message, authenticated: authenticatedRpcs.includes(rpcUrl) });
+        continue;
       }
     }
-    
+
     if (!provider) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No provider available',
-          details: `Failed to establish connection to ${chain} network`,
-          code: 'NO_PROVIDER'
-        }),
-        { 
-          status: 503, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    }
-
-    // Initialize deployer wallet with validation
-    let deployer: any;
-    try {
-      deployer = new ethers.Wallet(deploymentPrivateKey, provider);
-      console.log(`💳 Deployer address: ${deployer.address}`);
-    } catch (error) {
-      console.error('❌ Invalid deployment private key');
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid deployment key',
-          details: 'The configured deployment private key is invalid. Please contact support.',
-          code: 'INVALID_PRIVATE_KEY'
-        }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    }
-    
-    // Enhanced balance check with detailed requirements
-    let balance: any;
-    let balanceEth: string;
-    try {
-      balance = await provider.getBalance(deployer.address);
-      balanceEth = ethers.formatEther(balance);
-      console.log(`💰 Deployer balance: ${balanceEth} ETH`);
-    } catch (error) {
-      console.error('❌ Failed to get deployer balance:', error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Balance check failed',
-          details: 'Unable to check deployer wallet balance. Network may be unstable.',
-          code: 'BALANCE_CHECK_FAILED'
-        }),
-        { 
-          status: 503, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    }
-    
-    // Calculate estimated gas requirements with detailed breakdown
-    const estimatedGasEth = "0.01"; // More conservative estimate for full deployment
-    const minimumBalanceEth = "0.005"; // Absolute minimum to attempt deployment
-    
-    if (balance < ethers.parseEther(minimumBalanceEth)) {
-      console.error(`❌ Insufficient balance: ${balanceEth} ETH < ${minimumBalanceEth} ETH (minimum)`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Insufficient funds',
-          details: `Deployer wallet needs at least ${minimumBalanceEth} ETH for deployment. Current balance: ${balanceEth} ETH. Please fund wallet: ${deployer.address}`,
-          code: 'INSUFFICIENT_FUNDS',
-          required: minimumBalanceEth,
-          current: balanceEth,
-          address: deployer.address
-        }),
-        { 
-          status: 402, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    }
-
-    if (balance < ethers.parseEther(estimatedGasEth)) {
-      console.warn(`⚠️  Low balance warning: ${balanceEth} ETH < ${estimatedGasEth} ETH (recommended)`);
-    }
-
-    // Deploy contracts with enhanced error handling
-    console.log('🏗️  Starting contract deployment...');
-    let deployedContracts: any;
-    try {
-      deployedContracts = await deployRealContracts(deployer, chain);
-      console.log('✅ Contract deployment completed successfully');
-    } catch (error) {
-      console.error('❌ Contract deployment failed:', error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Contract deployment failed',
-          details: error.message || 'Unknown deployment error occurred',
-          code: 'DEPLOYMENT_FAILED',
-          deployer: deployer.address,
-          chain: chain
-        }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
-    }
-
-    // Get blockchain info and store in database with error handling
-    let currentBlock: number;
-    let network: any;
-    try {
-      console.log('📊 Fetching blockchain metadata...');
-      currentBlock = await provider.getBlockNumber();
-      network = await provider.getNetwork();
-      console.log(`📊 Current block: ${currentBlock}, Chain ID: ${network.chainId}`);
-    } catch (error) {
-      console.error('❌ Failed to fetch blockchain metadata:', error);
-      currentBlock = 0;
-      network = { chainId: chain === 'ethereum' ? 11155111 : 0 };
-    }
-    
-    console.log('💾 Storing deployment data in database...');
-    const { error: dbError } = await supabase
-      .from('deployed_contracts')
-      .upsert({
-        chain,
-        contracts: deployedContracts,
-        deployed_at: new Date().toISOString(),
-        deployer_address: deployer.address,
-        verified: false, // Will be verified separately
-        metadata: {
-          deployment_type: 'real',
-          deployment_block: currentBlock,
-          network_id: network.chainId.toString(),
-          gas_used: deployedContracts.gasUsed || 0,
-          rpc_endpoint: connectedRpcUrl.substring(0, 50) + '...',
-          deployment_timestamp: new Date().toISOString()
-        }
+      console.error(`💥 All ${uniqueRpcs.length} RPC endpoints failed for ${chain}`);
+      const authenticatedFailed = rpcResults.filter(r => r.authenticated && r.status === 'failed').length;
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: `All ${uniqueRpcs.length} RPC endpoints failed for ${chain}. ${authenticatedFailed > 0 ? `${authenticatedFailed} authenticated RPCs failed - check API keys.` : 'Network connectivity issues detected.'}`,
+        rpcResults,
+        suggestion: authenticatedFailed > 0 ? 'Verify RPC provider API keys are valid' : 'Check network connectivity'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 503
       });
-
-    if (dbError) {
-      console.error('❌ Database storage failed:', dbError);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Database storage failed',
-          details: `Contracts deployed successfully but failed to store in database: ${dbError.message}`,
-          code: 'DATABASE_STORAGE_FAILED',
-          contracts: deployedContracts // Still return the deployed contracts
-        }),
-        { 
-          status: 500, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-        }
-      );
     }
 
-    console.log(`🎉 Deployment completed successfully on ${chain}!`);
-    console.log(`📊 Total gas used: ${deployedContracts.gasUsed || 'Unknown'}`);
-    console.log(`💳 Deployer: ${deployer.address}`);
-    console.log(`🔗 Connected via: ${connectedRpcUrl.substring(0, 50)}...`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        chain,
-        contracts: deployedContracts,
-        deployer: deployer.address,
-        gasUsed: deployedContracts.gasUsed,
-        blockNumber: currentBlock,
-        networkId: network.chainId.toString(),
-        rpcEndpoint: connectedRpcUrl.substring(0, 50) + '...',
-        deployedAt: new Date().toISOString()
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return await deployRealContracts(supabase, chain, deploymentPrivateKey, provider);
 
   } catch (error) {
-    console.error(`💥 Deployment failed on ${chain}:`, error);
-    console.error('Stack trace:', error.stack);
-    
-    // Determine appropriate error code and status
-    let errorCode = 'UNKNOWN_ERROR';
-    let statusCode = 500;
-    let errorMessage = error.message || 'Unknown error occurred during deployment';
-    
-    if (errorMessage.includes('insufficient funds') || errorMessage.includes('balance')) {
-      errorCode = 'INSUFFICIENT_FUNDS';
-      statusCode = 402;
-    } else if (errorMessage.includes('network') || errorMessage.includes('RPC') || errorMessage.includes('connection')) {
-      errorCode = 'NETWORK_ERROR';
-      statusCode = 503;
-    } else if (errorMessage.includes('gas') || errorMessage.includes('transaction')) {
-      errorCode = 'TRANSACTION_FAILED';
-      statusCode = 500;
-    } else if (errorMessage.includes('private key') || errorMessage.includes('key')) {
-      errorCode = 'INVALID_CREDENTIALS';
-      statusCode = 401;
-    }
-    
+    console.error(`💥 Deployment failed for ${chain}:`, error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Deployment failed',
-        details: errorMessage,
-        code: errorCode,
-        chain: chain,
-        timestamp: new Date().toISOString()
+        error: error.message,
+        code: 'DEPLOYMENT_FAILED'
       }),
       { 
-        status: statusCode, 
+        status: 500, 
         headers: { 'Content-Type': 'application/json', ...corsHeaders } 
       }
     );
   }
 }
 
-async function deployRealContracts(deployer: any, chain: string) {
-  const contracts: any = {
-    tokens: {},
-    aTokens: {},
-    variableDebtTokens: {},
-    lendingPool: "",
-    addressesProvider: "",
-    priceOracle: "",
-    interestRateStrategy: "",
-    gasUsed: 0
-  };
+async function deployRealContracts(supabase: any, chain: string, privateKey: string, provider: any) {
+  console.log(`Deploying real contracts to ${chain}`);
 
-  console.log("📝 Deploying test ERC20 tokens...");
+  const wallet = new ethers.Wallet(privateKey, provider);
+  console.log(`Deploying from address: ${wallet.address}`);
 
-  // Deploy test tokens with real bytecode
-  const tokenConfigs = [
-    { symbol: 'USDC', name: 'USD Coin', decimals: 6, supply: '1000000000' },
-    { symbol: 'USDT', name: 'Tether USD', decimals: 6, supply: '1000000000' },
-    { symbol: 'DAI', name: 'Dai Stablecoin', decimals: 18, supply: '1000000000' },
-    { symbol: 'XAUT', name: 'Tether Gold', decimals: 6, supply: '1000000' },
-    { symbol: 'AURU', name: 'Aurum Token', decimals: 18, supply: '100000000' }
-  ];
+  // Load contract ABIs
+  const MockERC20ABI = JSON.parse(await Deno.readTextFile('./abis/MockERC20.json')).abi;
+  const LendingPoolABI = JSON.parse(await Deno.readTextFile('./abis/LendingPool.json')).abi;
 
-  // Optimized ERC20 contract bytecode (smaller, gas-efficient)
-  const ERC20_BYTECODE = "0x608060405234801561001057600080fd5b506040516107dd3803806107dd8339818101604052608081101561003357600080fd5b81019080805160405193929190846401000000008211156100535761005357600080fd5b9083019060208201858111156100685761006857600080fd5b825186602082028301116401000000008211171561008557600080fd5b82525081516020918201928201910280838360005b838110156100b257818101518382015260200161009a565b505050509190910160405250505081516000805460ff191660ff928316179055602083015160018190556040840151600255606090930151600355835191935091506100ff906004906020850190610131565b50805161011390600590602084019061013831565b50505050506101cc565b8280546001816001161561010002031660029004906000526020600020906000855411156101655761016557600080fd5b50600101805460ff191660ff929092169190911790555050565b604051806107dd8339f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c806370a082311161005b57806370a0823114610194578063a9059cbb146101ba578063dd62ed3e146101e6578063f2fde38b1461021457600080fd5b806306fdde031461008d57806308d92f7c1461010a57806323b872dd14610113578063313ce5671461014957600080fd5b3661008857005b600080fd5b61009561023a565b6040805160208082528351818301528351919283929083019185019080838360005b838110156100cf5781810151838201526020016100b7565b50505050905090810190601f1680156100fc5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b610111610308565b005b61013561012136600461032a565b61031c565b604080519115158252519081900360200190f35b6101516103aa565b6040805160ff9092168252519081900360200190f35b61017b6101a2366004610378565b6103b3565b604051611a357f8252519081900360200190f35b6101356101c836600461039a565b6103d8565b61013561015b7366004610378565b61053e565b610111610222366004610378565b6105c8565b610241610646565b6040518080602001828103825283818151815260200191508051906020019080838360008381101561027e57818101518382015260200190610266565b50505050905090810190601f1680156102ab5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b600080549060ff16905090565b6000610329848484610700565b6001600160a01b0385166000908152600360209081526040808320338085529252909120546103999181906103889086906000191161036857fe5b5061087c565b61039988509684906000610896565b50600195945050505050565b6001600160a01b0316600090815260026020526040902054865b9392505050565b60006103cd6338458400101590565b6103d65761053e565b5050565b60006103d68333846108ca565b600160005b82815260200190815260200160002080546001816001161561010002031660029004905b50600080546001600160a01b0390911690819052919091179055565b600081516020830104919050565b6000602082840312156100b057600080fd5b813581526001600160a01b038116811461032057600080fd5b9392505050565b600080600060608486031215610342357600080fd5b833561034e8161030b565b9250602084013561035e8161030b565b929592945050506040919091013590565b60006020828403121561038c57600080fd5b81356103bf8161030b565b90565b600080604083850312156103af57600080fd5b82356103ba8161030b565b946020939093013593505050565b6001600160a01b0383166104075760405162461bcd60e51b815260040180806020018281038252602481526020018061075b6024913960400191505060405180910390fd5b6001600160a01b03821661044c5760405162461bcd60e51b81526004018080602001828103825260228152602001806107396022913960400191505060405180910390fd5b6001600160a01b03808416600081815260026020908152604080832094871680845294825291829020859055815185815291517f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b9259281900390910190a3505050565b6001600160a01b0383166104e15760405162461bcd60e51b815260040180806020018281038252602581526020018061077f6025913960400191505060405180910390fd5b6001600160a01b0382166105265760405162461bcd60e51b81526004018080602001828103825260238152602001806107146023913960400191505060405180910390fd5b610531838383610976565b505050565b60065490565b3f80801561054e57600080fd5b6000546001600160a01b031680156105125760056105a457506105a48161057b565b600680546001600160a01b0319166001600160a01b03928316179055567f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e060405160405180910390a1505050565b60065560006105d6836103b3565b90508082111561061e5760405162461bcd60e51b815260040180806020018281038252602681526020018061076c6026913960400191505060405180910390fd5b506001600160a01b038084166000818152600260209081526040808320948716808452948252918290208590559051855281517fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef929181900390910190a35050565b60048054604080516020601f600260001961010060018816150201909516949094049384018190048102820181019092528281526060939092909183018282801561024157908151815260200191508051906020019080838360008381101561027e57818101518382015260200190610266565b50505050905090810190601f1680156102ab5780820380516001836020036101000a031916815260200191505b509250505060405180910390f3565b6001600160a01b0383166107455760405162461bcd60e51b8152600401610739906001906020018281038252602581526020018061077f6025913960400191505060405180910390fd5b6001600160a01b0382166107755760405162461bcd60e51b815260040180806020018281038252602381526020018061071d6023913960400191505060405180910390fd5b610780838383610976565b6001600160a01b0383166000908152600260205260409020546107a3908261087c565b6001600160a01b0380851660009081526002602052604080822093909355908416815220546107d2908261098b565b6001600160a01b0380841660008181526002602090815260409182902094909455805185815290519193928716927fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef92918290030190a3505050565b600082821115610873576040805162461bcd60e51b815260206004820152601e60248201527f536166654d6174683a207375627472616374696f6e206f766572666c6f770000604482015290519081900360640190fd5b50900390565b6000828201838110156108f0576040805162461bcd60e51b815260206004820152601b60248201527f536166654d6174683a206164646974696f6e206f766572666c6f770000000000604482015290519081900360640190fd5b9392505050565b505050565b60008115806109185750826001600160a01b0316600090815260026020526040902054821190565b60606108f0576040805162461bcd60e51b815260206004820152601f60248201527f5361666545524332303a2063616c6c20746f206e6f6e2d636f6e747261637400604482015290519081900360640190fd5b6000828201838110156103d6576040805162461bcd60e51b815260206004820152601b60248201527f536166654d6174683a206164646974696f6e206f766572666c6f770000000000604482015290519081900360640190fdfea26469706673582212206890f5a918f8df5c9b927b8482be8a0d3f3e3c3d3e3f4041424344454647484950515253545556575859606162636465666768697071727374757677787980818283848586878889909192939495969798a0a1a2a3a4a5a6a7a8a9b0b1b2b3b4b5b6b7b8b9c0c1c2c3c4c5c6c7c8c9d0d1d2d3d4d5d6d7d8d9e0e1e2e3e4e5e6e7e8e9f0f1f2f3f4f5f6f7f8f9";
-
-  const ERC20_ABI = [
-    "constructor(string memory name, string memory symbol, uint8 decimals, uint256 totalSupply)",
-    "function name() view returns (string)",
-    "function symbol() view returns (string)",
-    "function decimals() view returns (uint8)",
-    "function totalSupply() view returns (uint256)",
-    "function balanceOf(address) view returns (uint256)",
-    "function transfer(address to, uint256 amount) returns (bool)",
-    "function transferFrom(address from, address to, uint256 amount) returns (bool)",
-    "function approve(address spender, uint256 amount) returns (bool)",
-    "function allowance(address owner, address spender) view returns (uint256)"
-  ];
-
-  let totalGasUsed = 0;
-
-  for (const config of tokenConfigs) {
-    let retries = 2;
-    while (retries > 0) {
-      try {
-        console.log(`Deploying ${config.symbol}... (${3-retries}/3)`);
-        
-        const tokenFactory = new ethers.ContractFactory(ERC20_ABI, ERC20_BYTECODE, deployer);
-        const totalSupply = ethers.parseUnits(config.supply, config.decimals);
-        
-        // Estimate gas first
-        const estimatedGas = await tokenFactory.getDeployTransaction(
-          config.name,
-          config.symbol, 
-          config.decimals,
-          totalSupply
-        ).then(tx => deployer.provider.estimateGas(tx));
-        
-        console.log(`Estimated gas for ${config.symbol}: ${estimatedGas}`);
-        
-        // Deploy with optimized gas settings
-        const token = await tokenFactory.deploy(
-          config.name,
-          config.symbol,
-          config.decimals,
-          totalSupply,
-          { 
-            gasLimit: estimatedGas * BigInt(120) / BigInt(100), // 20% buffer
-            maxFeePerGas: ethers.parseUnits("20", "gwei"),
-            maxPriorityFeePerGas: ethers.parseUnits("1.5", "gwei")
-          }
-        );
-        
-        const receipt = await token.deploymentTransaction()?.wait();
-        const tokenAddress = await token.getAddress();
-        
-        contracts.tokens[config.symbol] = tokenAddress;
-        totalGasUsed += receipt?.gasUsed ? Number(receipt.gasUsed) : 0;
-        
-        console.log(`✅ ${config.symbol} deployed at: ${tokenAddress}`);
-        console.log(`   Gas used: ${receipt?.gasUsed || 'Unknown'}`);
-        break; // Success, exit retry loop
-        
-      } catch (error) {
-        console.error(`Failed to deploy ${config.symbol} (attempt ${3-retries}):`, error);
-        retries--;
-        if (retries === 0) {
-          throw new Error(`Token deployment failed after 3 attempts: ${config.symbol} - ${error.message}`);
-        }
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-    }
-  }
-
-  console.log("🏗️ Deploying core protocol contracts...");
-
-  // Deploy Price Oracle
-  const PRICE_ORACLE_BYTECODE = "0x608060405234801561001057600080fd5b50610356806100206000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c8063313ce567146100465780634aa4a4fc14610064578063b3596f0714610082575b600080fd5b61004e6100a8565b6040516100599190610295565b60405180910390f35b61006c6100ad565b604051610059919061027b565b610095610090366004610259565b6100b6565b6040516100599190610295565b600881565b60006001905090565b60006001600160a01b0382166100dd57506801158e460913d000006101e8565b6001600160a01b038216737d1afa7b718fb893db30a3abc0cfc608aacfebb057614101205750683635c9adc5dea000006101e8565b6001600160a01b03821673a0b86a33e6776e81f06a6c67bd98fcb5c10e8e057614121525067de0b6b3a76400006101e8565b6001600160a01b03821673068697ee6b1e6fd4a37c12749b1e9c0a74a2eb437614142525067de0b6b3a76400006101e8565b6001600160a01b03821673d533a949740bb3306d119cc777fa900ba034cd5257614162525068d8d726b7177a800006101e8565b6001600160a01b0382167355d398326f99059ff775485246999027b31979555716418252506801158e460913d000006101e8565b506801158e460913d00000565b6000602082840312156101f657600080fd5b81356001600160a01b038116811461020d57600080fd5b9392505050565b6000815180845260005b8381101561023a5760208185018101518683018201520161021e565b8181111561024c576000602083870101525b50601f01601f19169290920160200192915050565b60006020828403121561027357600080fd5b81356001600160a01b038116811461028a57600080fd5b9392505050565b6020815260006102a86020830184610214565b9291505056fea26469706673582212209c8f5c7a3a3b3c3d3e3f4041424344454647484950515253545556575859606162fea2646970667358221220";
-
-  const PRICE_ORACLE_ABI = [
-    "constructor()",
-    "function getAssetPrice(address asset) view returns (uint256)",
-    "function getEthUsdPrice() view returns (uint256)"
-  ];
+  // Contract deployment parameters
+  const initialSupply = ethers.parseUnits("1000000", 18); // 1 million tokens
 
   try {
-    console.log("Deploying PriceOracle...");
-    const oracleFactory = new ethers.ContractFactory(PRICE_ORACLE_ABI, PRICE_ORACLE_BYTECODE, deployer);
-    const priceOracle = await oracleFactory.deploy({ gasLimit: 1000000 });
-    const receipt = await priceOracle.deploymentTransaction()?.wait();
-    
-    contracts.priceOracle = await priceOracle.getAddress();
-    totalGasUsed += receipt?.gasUsed ? Number(receipt.gasUsed) : 0;
-    
-    console.log(`✅ PriceOracle deployed at: ${contracts.priceOracle}`);
-  } catch (error) {
-    console.error("Failed to deploy PriceOracle:", error);
-    throw new Error(`PriceOracle deployment failed: ${error}`);
-  }
+    // Deploy MockERC20 contracts
+    const usdc = await deployContract(wallet, MockERC20ABI, ['USD Coin', 'USDC', initialSupply]);
+    const usdt = await deployContract(wallet, MockERC20ABI, ['Tether USD', 'USDT', initialSupply]);
+    const dai = await deployContract(wallet, MockERC20ABI, ['Dai Stablecoin', 'DAI', initialSupply]);
+    const xaut = await deployContract(wallet, MockERC20ABI, ['Tether Gold', 'XAUT', initialSupply]);
+    const auru = await deployContract(wallet, MockERC20ABI, ['AurusGOLD', 'AURU', initialSupply]);
 
-  // For simplified deployment, create placeholder addresses for other contracts
-  // In production, you would deploy actual LendingPool, AddressesProvider, etc.
-  contracts.addressesProvider = ethers.Wallet.createRandom().address;
-  contracts.interestRateStrategy = ethers.Wallet.createRandom().address;
-  contracts.lendingPool = ethers.Wallet.createRandom().address;
+    // Deploy LendingPool contract
+    const lendingPool = await deployContract(wallet, LendingPoolABI, [
+      usdc.address,
+      usdt.address,
+      dai.address,
+      xaut.address,
+      auru.address
+    ]);
 
-  // Create placeholder aToken and debt token addresses
-  for (const [symbol] of Object.entries(contracts.tokens)) {
-    contracts.aTokens[symbol] = ethers.Wallet.createRandom().address;
-    contracts.variableDebtTokens[symbol] = ethers.Wallet.createRandom().address;
-  }
+    console.log('Contracts deployed successfully!');
+    console.log('USDC Address:', usdc.address);
+    console.log('USDT Address:', usdt.address);
+    console.log('DAI Address:', dai.address);
+    console.log('XAUT Address:', xaut.address);
+    console.log('AURU Address:', auru.address);
+    console.log('LendingPool Address:', lendingPool.address);
 
-  contracts.gasUsed = totalGasUsed;
-  console.log(`✅ All contracts deployed successfully! Total gas used: ${totalGasUsed}`);
-  
-  return contracts;
-}
+    // Save contract addresses to Supabase
+    const { error } = await supabase
+      .from('contract_addresses')
+      .upsert([
+        { chain, contract_name: 'USDC', contract_address: usdc.address },
+        { chain, contract_name: 'USDT', contract_address: usdt.address },
+        { chain, contract_name: 'DAI', contract_address: dai.address },
+        { chain, contract_name: 'XAUT', contract_address: xaut.address },
+        { chain, contract_name: 'AURU', contract_address: auru.address },
+        { chain, contract_name: 'LendingPool', contract_address: lendingPool.address }
+      ], { onConflict: ['chain', 'contract_name'] });
 
-async function handleVerify(supabase: any, chain: string) {
-  console.log(`Verifying contracts on ${chain}...`);
-
-  // Update verification status in database
-  const { error } = await supabase
-    .from('deployed_contracts')
-    .update({ verified: true })
-    .eq('chain', chain);
-
-  if (error) {
-    throw new Error(`Failed to update verification status: ${error.message}`);
-  }
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      message: `Contracts verified on ${chain}`
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-
-async function handleGetAddresses(supabase: any, chain: string) {
-  const { data, error } = await supabase
-    .from('deployed_contracts')
-    .select('contracts, verified, deployed_at')
-    .eq('chain', chain)
-    .single();
-
-  if (error) {
-    return new Response(
-      JSON.stringify({ error: 'No contracts found for this chain' }),
-      { 
-        status: 404, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      chain,
-      contracts: data.contracts,
-      verified: data.verified,
-      deployedAt: data.deployed_at
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-
-async function handleGetStatus(supabase: any) {
-  const { data, error } = await supabase
-    .from('deployed_contracts')
-    .select('chain, verified, deployed_at');
-
-  if (error) {
-    throw new Error(`Failed to get deployment status: ${error.message}`);
-  }
-
-  const status = data.reduce((acc: any, item: any) => {
-    acc[item.chain] = {
-      deployed: true,
-      verified: item.verified,
-      deployedAt: item.deployed_at
-    };
-    return acc;
-  }, {});
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      status
-    }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-
-async function handleGetDeploymentInfo() {
-  try {
-    // Get deployment private key from environment
-    const deploymentPrivateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
-    if (!deploymentPrivateKey) {
+    if (error) {
+      console.error('Failed to save contract addresses to Supabase:', error);
       return new Response(
-        JSON.stringify({ 
-          error: "Deployment private key not configured",
-          gasEstimates: {},
-          deployerBalance: "Not available" 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Failed to save contract addresses', details: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Calculate deployer address and balance
-    const wallet = new ethers.Wallet(deploymentPrivateKey);
-    const deployerAddress = wallet.address;
+    // Update deployment status in Supabase
+    const { error: statusError } = await supabase
+      .from('chain_deployment_status')
+      .upsert([{ chain, is_deployed: true }], { onConflict: ['chain'] });
 
-    // Gas estimates for different chains
-    const gasEstimates = {
-      ethereum: "~0.008 ETH",
-      base: "~0.005 ETH", 
-      solana: "~0.01 SOL",
-      tron: "~100 TRX"
-    };
-
-    // Try to get actual balance from Ethereum Sepolia with RPC fallbacks
-    let deployerBalance = "Checking...";
-    try {
-      // Use the same RPC fallback system as deployment
-      const rpcUrls = [
-        "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-        "https://rpc.ankr.com/eth_sepolia",
-        "https://ethereum-sepolia.publicnode.com",
-        "https://sepolia.drpc.org"
-      ];
-      
-      let provider = null;
-      for (const rpcUrl of rpcUrls) {
-        try {
-          const testProvider = new ethers.JsonRpcProvider(rpcUrl);
-          await testProvider.getBlockNumber(); // Test connection
-          provider = testProvider;
-          break;
-        } catch (rpcError) {
-          console.log(`RPC ${rpcUrl} failed, trying next...`);
-        }
-      }
-      
-      if (provider) {
-        const balance = await provider.getBalance(deployerAddress);
-        const balanceEth = ethers.formatEther(balance);
-        const isLowBalance = balance < ethers.parseEther("0.005");
-        deployerBalance = `${balanceEth} ETH${isLowBalance ? " (LOW - fund needed)" : ""}`;
-      } else {
-        deployerBalance = "Unable to check (all RPCs failed)";
-      }
-    } catch (error) {
-      console.log("Could not fetch balance:", error);
-      deployerBalance = "Error checking balance";
+    if (statusError) {
+      console.error('Failed to update deployment status in Supabase:', statusError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update deployment status', details: statusError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        deployerAddress,
-        deployerBalance,
-        gasEstimates
+        message: 'Contracts deployed and addresses saved successfully!',
+        contracts: {
+          usdc: usdc.address,
+          usdt: usdt.address,
+          dai: dai.address,
+          xaut: xaut.address,
+          auru: auru.address,
+          lendingPool: lendingPool.address
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Failed to get deployment info:', error);
+    console.error('Contract deployment error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        gasEstimates: {},
-        deployerBalance: "Error"
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ success: false, error: 'Contract deployment failed', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+  }
+}
+
+async function deployContract(wallet: any, abi: any, args: any) {
+  console.log(`Deploying contract with args: ${args}`);
+  const factory = new ethers.ContractFactory(abi, abi, wallet);
+  const contract = await factory.deploy(...args);
+  await contract.waitForDeployment();
+  return contract;
+}
+
+async function handleVerify(supabase: any, chain: string) {
+  console.log(`Verifying contracts on ${chain}`);
+
+  try {
+    // Fetch contract addresses from Supabase
+    const { data, error } = await supabase
+      .from('contract_addresses')
+      .select('*')
+      .eq('chain', chain);
+
+    if (error) {
+      console.error('Failed to fetch contract addresses from Supabase:', error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch contract addresses', details: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!data || data.length === 0) {
+      console.warn('No contract addresses found for chain:', chain);
+      return new Response(
+        JSON.stringify({ success: false, error: 'No contract addresses found for this chain' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Log the contracts found
+    console.log(`Found contracts: ${data.map(c => c.contract_name).join(', ')}`);
+
+    // Mark contracts as verified (Placeholder - replace with actual verification logic)
+    const { error: updateError } = await supabase
+      .from('contract_addresses')
+      .update({ is_verified: true })
+      .eq('chain', chain);
+
+    if (updateError) {
+      console.error('Failed to update verification status in Supabase:', updateError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update verification status', details: updateError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Update deployment status in Supabase
+    const { error: statusError } = await supabase
+      .from('chain_deployment_status')
+      .upsert([{ chain, is_verified: true }], { onConflict: ['chain'] });
+
+    if (statusError) {
+      console.error('Failed to update verification status in Supabase:', statusError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update verification status', details: statusError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, message: 'Contracts marked as verified successfully!' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Contract verification error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Contract verification failed', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+async function handleGetAddresses(supabase: any, chain: string) {
+  console.log(`Getting contract addresses for ${chain}`);
+
+  try {
+    const { data, error } = await supabase
+      .from('contract_addresses')
+      .select('contract_name, contract_address, is_verified')
+      .eq('chain', chain);
+
+    if (error) {
+      console.error('Failed to fetch contract addresses from Supabase:', error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch contract addresses', details: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!data || data.length === 0) {
+      console.warn('No contract addresses found for chain:', chain);
+      return new Response(
+        JSON.stringify({ success: false, error: 'No contract addresses found for this chain' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Convert the data into a more readable format
+    const contractAddresses = data.reduce((acc, contract) => {
+      acc[contract.contract_name] = {
+        address: contract.contract_address,
+        is_verified: contract.is_verified || false  // Default to false if null
+      };
+      return acc;
+    }, {});
+
+    return new Response(
+      JSON.stringify({ success: true, chain, contractAddresses }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error getting contract addresses:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Failed to retrieve contract addresses', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+async function handleGetStatus(supabase: any) {
+  console.log('Getting deployment status');
+
+  try {
+    const { data, error } = await supabase
+      .from('chain_deployment_status')
+      .select('*');
+
+    if (error) {
+      console.error('Failed to fetch deployment status from Supabase:', error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch deployment status', details: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Convert the data into a more readable format
+    const deploymentStatus = data.reduce((acc, status) => {
+      acc[status.chain] = status.is_deployed;
+      return acc;
+    }, {});
+
+    return new Response(
+      JSON.stringify({ success: true, deploymentStatus }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error getting deployment status:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Failed to retrieve deployment status', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+async function handleDiagnose(chain = 'ethereum') {
+  try {
+    console.log(`🔍 Running diagnostics for ${chain}...`);
+    
+    const privateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
+    const infuraKey = Deno.env.get('INFURA_API_KEY');
+    const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
+    const ankrKey = Deno.env.get('ANKR_API_KEY');
+    
+    // Check secrets configuration
+    const secretsStatus = {
+      deployment_private_key: !!privateKey,
+      infura_api_key: !!infuraKey,
+      alchemy_api_key: !!alchemyKey,
+      ankr_api_key: !!ankrKey
+    };
+    
+    // Get deployer info
+    let deployerInfo = null;
+    if (privateKey) {
+      const wallet = new ethers.Wallet(privateKey);
+      deployerInfo = {
+        address: wallet.address,
+        balance: "Checking..."
+      };
+    }
+    
+    // Test RPC connections
+    const rpcTests = [];
+    const authenticatedRpcs = getAuthenticatedRpcUrls(chain);
+    
+    for (const rpcUrl of authenticatedRpcs.slice(0, 5)) { // Test first 5
+      try {
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const start = Date.now();
+        const blockNumber = await Promise.race([
+          provider.getBlockNumber(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+        ]);
+        const latency = Date.now() - start;
+        
+        rpcTests.push({
+          url: rpcUrl.substring(0, 50) + '...',
+          status: 'success',
+          blockNumber,
+          latency: `${latency}ms`,
+          authenticated: authenticatedRpcs.includes(rpcUrl)
+        });
+        
+        // Get deployer balance from first successful RPC
+        if (deployerInfo && deployerInfo.balance === "Checking...") {
+          try {
+            const balanceWei = await provider.getBalance(deployerInfo.address);
+            const balanceEth = parseFloat(ethers.formatEther(balanceWei));
+            deployerInfo.balance = `${balanceEth.toFixed(4)} ETH`;
+            if (balanceEth < 0.01) deployerInfo.balance += " (LOW)";
+          } catch (balanceError) {
+            deployerInfo.balance = "Unable to check";
+          }
+        }
+      } catch (error) {
+        rpcTests.push({
+          url: rpcUrl.substring(0, 50) + '...',
+          status: 'failed',
+          error: error.message,
+          authenticated: authenticatedRpcs.includes(rpcUrl)
+        });
+      }
+    }
+    
+    // Health summary
+    const healthScore = [
+      secretsStatus.deployment_private_key ? 25 : 0,
+      (secretsStatus.infura_api_key || secretsStatus.alchemy_api_key || secretsStatus.ankr_api_key) ? 25 : 0,
+      rpcTests.some(r => r.status === 'success') ? 25 : 0,
+      (deployerInfo?.balance && !deployerInfo.balance.includes('LOW')) ? 25 : 0
+    ].reduce((a, b) => a + b, 0);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      chain,
+      timestamp: new Date().toISOString(),
+      healthScore,
+      secretsStatus,
+      deployerInfo,
+      rpcTests,
+      recommendations: [
+        ...(!secretsStatus.deployment_private_key ? ['Add DEPLOYMENT_PRIVATE_KEY secret'] : []),
+        ...(!secretsStatus.infura_api_key && !secretsStatus.alchemy_api_key && !secretsStatus.ankr_api_key ? ['Add at least one RPC provider API key (INFURA_API_KEY, ALCHEMY_API_KEY, or ANKR_API_KEY)'] : []),
+        ...(rpcTests.length === 0 || !rpcTests.some(r => r.status === 'success') ? ['Fix RPC connectivity issues'] : []),
+        ...(deployerInfo?.balance?.includes('LOW') ? ['Fund deployer wallet with Sepolia ETH'] : [])
+      ]
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
+    });
+    
+  } catch (error) {
+    console.error('Diagnostics failed:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500
+    });
+  }
+}
+
+async function handleGetDeploymentInfo() {
+  try {
+    const privateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
+    if (!privateKey) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Deployment private key not configured'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      });
+    }
+
+    const wallet = new ethers.Wallet(privateKey);
+    const deployerAddress = wallet.address;
+    
+    console.log(`📋 Deployment Info Request - Deployer: ${deployerAddress}`);
+
+    // Get deployer balance using authenticated RPCs
+    let deployerBalance = "Unable to check";
+    try {
+      const rpcUrls = getAuthenticatedRpcUrls('ethereum');
+      let provider = null;
+      
+      for (const rpcUrl of rpcUrls.slice(0, 3)) { // Try first 3 authenticated RPCs
+        try {
+          provider = new ethers.JsonRpcProvider(rpcUrl);
+          await provider.getBlockNumber(); // Test connection
+          break;
+        } catch (error) {
+          console.log(`RPC test failed for ${rpcUrl.substring(0, 30)}...: ${error.message}`);
+          continue;
+        }
+      }
+      
+      if (provider) {
+        const balanceWei = await provider.getBalance(deployerAddress);
+        const balanceEth = parseFloat(ethers.formatEther(balanceWei));
+        deployerBalance = `${balanceEth.toFixed(4)} ETH`;
+        
+        if (balanceEth < 0.01) {
+          deployerBalance += " (LOW - Need funding)";
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check deployer balance:', error);
+      deployerBalance = "Check failed";
+    }
+
+    // Gas estimates for different chains
+    const gasEstimates = {
+      ethereum: "~0.02-0.05 ETH"
+    };
+
+    return new Response(JSON.stringify({
+      success: true,
+      deployerAddress,
+      deployerBalance,
+      gasEstimates,
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
+    });
+
+  } catch (error) {
+    console.error('Error getting deployment info:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500
+    });
   }
 }

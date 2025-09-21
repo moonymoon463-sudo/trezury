@@ -41,7 +41,7 @@ export const NETWORK_CONFIGS: Record<Chain, NetworkConfig> = {
   ethereum: {
     chainId: 11155111, // Sepolia testnet
     name: "Ethereum Sepolia",
-    rpcUrl: "https://rpc.ankr.com/eth_sepolia",
+    rpcUrl: "https://rpc.sepolia.org", // Reliable public RPC as default
     blockExplorer: "https://sepolia.etherscan.io",
     nativeCurrency: {
       name: "SepoliaETH",
@@ -227,10 +227,10 @@ export const GAS_CONFIGS = {
 // RPC fallback endpoints for each chain
 export const RPC_FALLBACKS: Record<Chain, string[]> = {
   ethereum: [
-    "https://rpc.ankr.com/eth_sepolia",
     "https://ethereum-sepolia-rpc.publicnode.com",
-    "https://sepolia.gateway.tenderly.co",
-    "https://rpc.sepolia.dev"
+    "https://sepolia.gateway.tenderly.co", 
+    "https://rpc.sepolia.dev",
+    "https://rpc.sepolia.org"
   ],
   base: [
     "https://sepolia.base.org",
