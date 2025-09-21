@@ -15,7 +15,10 @@ import {
   Fuel,
   TrendingUp,
   Eye,
-  Copy
+  Copy,
+  FileText,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { useContractDeployment } from "@/hooks/useContractDeployment";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
@@ -23,6 +26,19 @@ import { Chain, DeploymentChain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 import { WalletFundingInfo } from "@/components/WalletFundingInfo";
 import { supabase } from "@/integrations/supabase/client";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface DeploymentLog {
+  id: string;
+  deployment_id: string;
+  chain: string;
+  operation: string;
+  level: string;
+  message: string;
+  details: any;
+  error_data?: any;
+  created_at: string;
+}
 
 export function ContractDeploymentStatus() {
   const { wallet, switchNetwork, addSepoliaNetwork } = useWalletConnection();
@@ -43,6 +59,9 @@ export function ContractDeploymentStatus() {
   const [deployerAddress, setDeployerAddress] = useState<string>("");
   const [diagnosticsResults, setDiagnosticsResults] = useState<any>(null);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+  const [logs, setLogs] = useState<DeploymentLog[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   const chains: DeploymentChain[] = ['ethereum'];
   const deployedCount = Object.values(deploymentStatus).filter(Boolean).length;
@@ -72,6 +91,30 @@ export function ContractDeploymentStatus() {
       }
     } catch (error) {
       console.error('Failed to fetch deployment info:', error);
+    }
+  };
+
+  const fetchLogs = async (chain: string = 'ethereum') => {
+    setIsLoadingLogs(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('contract-deployment', {
+        body: { operation: 'get_logs', chain }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+      toast({
+        title: "Error fetching logs",
+        description: "Failed to load deployment logs",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingLogs(false);
     }
   };
 
@@ -486,6 +529,91 @@ export function ContractDeploymentStatus() {
               <p>• Deployment creates lending pools for USDC, USDT, DAI, XAUT, and AURU</p>
               <p>• Contracts are deployed to testnets for development</p>
               <p>• Verification makes contracts readable on block explorers</p>
+            </div>
+          </div>
+        </div>
+        {/* Enhanced Logs Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              <h3 className="text-lg font-semibold">Deployment Logs</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchLogs()}
+                disabled={isLoadingLogs}
+              >
+                Refresh Logs
+              </Button>
+              <Collapsible open={showLogs} onOpenChange={setShowLogs}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    {showLogs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {showLogs ? 'Hide' : 'Show'} Logs ({logs.length})
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <div className="max-h-96 overflow-y-auto border rounded-lg bg-muted/10 p-4 space-y-2">
+                    {logs.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No logs available</p>
+                    ) : (
+                      logs.map((log) => (
+                        <div
+                          key={log.id}
+                          className={`p-3 rounded-md text-sm ${
+                            log.level === 'error' 
+                              ? 'bg-destructive/10 border-destructive/20 border' 
+                              : log.level === 'warn'
+                              ? 'bg-yellow-500/10 border-yellow-500/20 border'
+                              : 'bg-background border border-border'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant={log.level === 'error' ? 'destructive' : log.level === 'warn' ? 'secondary' : 'default'}
+                                className="text-xs"
+                              >
+                                {log.level}
+                              </Badge>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {log.operation}
+                              </span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(log.created_at).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <p className="text-foreground mb-2">{log.message}</p>
+                          {log.details && Object.keys(log.details).length > 0 && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                                View details
+                              </summary>
+                              <pre className="mt-1 text-xs bg-background/50 p-2 rounded overflow-x-auto">
+                                {JSON.stringify(log.details, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                          {log.error_data && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-destructive cursor-pointer hover:text-destructive/80">
+                                View error data
+                              </summary>
+                              <pre className="mt-1 text-xs bg-destructive/5 p-2 rounded overflow-x-auto text-destructive">
+                                {JSON.stringify(log.error_data, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
         </div>

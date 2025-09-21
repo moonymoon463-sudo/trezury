@@ -7,6 +7,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Enhanced logging utility
+class DeploymentLogger {
+  private supabase: any;
+  private deploymentId: string;
+  
+  constructor(supabase: any, deploymentId: string) {
+    this.supabase = supabase;
+    this.deploymentId = deploymentId;
+  }
+  
+  async log(operation: string, level: string, message: string, details?: any, errorData?: any) {
+    const logEntry = {
+      deployment_id: this.deploymentId,
+      chain: 'ethereum', // Default for now
+      operation,
+      level,
+      message,
+      details: details || {},
+      error_data: errorData
+    };
+    
+    try {
+      await this.supabase.from('deployment_logs').insert(logEntry);
+      console.log(`[${level.toUpperCase()}] ${operation}: ${message}`, details);
+    } catch (error) {
+      console.error('Failed to log to database:', error);
+      console.log(`[${level.toUpperCase()}] ${operation}: ${message}`, details);
+    }
+  }
+  
+  async info(operation: string, message: string, details?: any) {
+    return this.log(operation, 'info', message, details);
+  }
+  
+  async error(operation: string, message: string, details?: any, errorData?: any) {
+    return this.log(operation, 'error', message, details, errorData);
+  }
+  
+  async warn(operation: string, message: string, details?: any) {
+    return this.log(operation, 'warn', message, details);
+  }
+}
+
 // Valid compiled contract ABIs and bytecode - matching constructor signatures
 const MOCK_ERC20_ABI = [
   {"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_symbol","type":"string"},{"internalType":"uint256","name":"_totalSupply","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},
@@ -33,7 +76,7 @@ const MOCK_LENDINGPOOL_ABI = [
 const MOCK_LENDINGPOOL_BYTECODE = "0x608060405234801561001057600080fd5b50604051610678380380610678833981016040819052610030916100f1565b600080546001600160a01b0319908116871790915560018054821686179055600280548216851790556003805482168417905560048054909116919092179055610154565b80516001600160a01b038116811461008857600080fd5b919050565b600080600080600060a086880312156100a557600080fd5b6100ae86610071565b94506100bc60208701610071565b93506100ca60408701610071565b92506100d860608701610071565b91506100e660808701610071565b90509295509295909350565b60008060008060008060a0878903121561010b57600080fd5b61011487610071565b955061012260208801610071565b945061013060408801610071565b935061013e60608801610071565b925061014c60808801610071565b90509295509295909295565b610515806101636000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c8063035cf142146100675780630902f1ac146100715780632f745c59146100925780635aa6e675146100a557806370a08231146100c05780639dc29fac146100d3575b600080fd5b61006f6100e6565b005b600054600154600254600354600454604080516001600160a01b0396871681529590941660208601529084015260608301526080820152519081900360a00190f35b61006f6100a03660046103f1565b505050565b6000546040516001600160a01b03909116815260200160405180910390f35b61006f6100ce366004610413565b505050565b61006f6100e1366004610435565b505050565b565b80356001600160a01b038116811461010457600080fd5b919050565b6000806040838503121561011c57600080fd5b610125836100ed565b946020939093013593505050565b60006020828403121561014557600080fd5b61014e826100ed565b9392505050565b6000806040838503121561016857600080fd5b50508035926020909101359150565b600181811c9082168061018b57607f821691505b6020821081036101ab57634e487b7160e01b600052602260045260246000fd50565b5091905056fea2646970667358221220a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b264736f6c63430008120033";
 
 interface DeploymentRequest {
-  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'store_contracts' | 'health_check' | 'diagnose';
+  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'store_contracts' | 'health_check' | 'diagnose' | 'get_logs';
   chain?: string;
   contracts?: any;
   privateKey?: string;
@@ -81,11 +124,22 @@ serve(async (req) => {
     );
 
     const requestBody: DeploymentRequest = await req.json();
+    
+    // Create deployment logger with unique ID
+    const deploymentId = crypto.randomUUID();
+    const logger = new DeploymentLogger(supabase, deploymentId);
+    
+    await logger.info('start', `Processing contract deployment operation: ${requestBody.operation}`, {
+      chain: requestBody.chain || 'ethereum',
+      hasCustomRpc: !!requestBody.rpcUrl,
+      timestamp: new Date().toISOString()
+    });
+
     console.log(`Processing contract deployment operation: ${requestBody.operation}`);
 
     switch (requestBody.operation) {
       case 'deploy':
-        return handleDeploy(requestBody.chain!, requestBody.rpcUrl!, requestBody.fallbackRpcs);
+        return handleDeploy(requestBody.chain!, requestBody.rpcUrl!, requestBody.fallbackRpcs, logger);
       case 'verify':
         return handleVerify(requestBody.chain!);
       case 'get_addresses':
@@ -93,9 +147,14 @@ serve(async (req) => {
       case 'get_status':
         return handleGetStatus();
       case 'get_deployment_info':
-        return handleGetDeploymentInfo();
+        return handleGetDeploymentInfo(logger);
       case 'store_contracts':
         return handleStoreContracts(requestBody.chain!, requestBody.contracts);
+      case 'get_logs':
+        const logs = await handleGetLogs(supabase, requestBody.chain || 'ethereum');
+        return new Response(JSON.stringify(logs), { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       case 'health_check':
         return new Response(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -118,7 +177,7 @@ serve(async (req) => {
   }
 });
 
-async function handleDeploy(chain: string, rpcUrl: string, fallbackRpcs: string[] = []) {
+async function handleDeploy(chain: string, rpcUrl: string, fallbackRpcs: string[] = [], logger?: any) {
   console.log(`🚀 Deploying contracts to ${chain} blockchain...`);
 
   try {
@@ -634,6 +693,29 @@ async function handleDiagnose(chain: string) {
     success: true,
     diagnostics: results
   }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders }
-  });
+async function handleGetLogs(supabase: any, chain: string): Promise<any> {
+  try {
+    const { data: logs, error } = await supabase
+      .from('deployment_logs')
+      .select('*')
+      .eq('chain', chain)
+      .order('created_at', { ascending: false })
+      .limit(100);
+      
+    if (error) {
+      throw error;
+    }
+    
+    return {
+      success: true,
+      logs: logs || []
+    };
+  } catch (error) {
+    console.error('Failed to fetch logs:', error);
+    return {
+      success: false,
+      error: error.message,
+      logs: []
+    };
+  }
 }

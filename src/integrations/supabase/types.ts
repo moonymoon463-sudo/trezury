@@ -195,6 +195,42 @@ export type Database = {
         }
         Relationships: []
       }
+      deployment_logs: {
+        Row: {
+          chain: string
+          created_at: string
+          deployment_id: string
+          details: Json | null
+          error_data: Json | null
+          id: string
+          level: string
+          message: string
+          operation: string
+        }
+        Insert: {
+          chain: string
+          created_at?: string
+          deployment_id?: string
+          details?: Json | null
+          error_data?: Json | null
+          id?: string
+          level?: string
+          message: string
+          operation: string
+        }
+        Update: {
+          chain?: string
+          created_at?: string
+          deployment_id?: string
+          details?: Json | null
+          error_data?: Json | null
+          id?: string
+          level?: string
+          message?: string
+          operation?: string
+        }
+        Relationships: []
+      }
       deposits: {
         Row: {
           address: string
