@@ -27,11 +27,33 @@ export function useContractDeployment() {
     try {
       if (!wallet.isConnected) return;
       
+      // First check if edge function is accessible
+      const { data: healthCheck, error: healthError } = await supabase.functions.invoke('contract-deployment', {
+        body: { operation: 'health_check' }
+      });
+      
+      if (healthError) {
+        console.error('Edge function health check failed:', healthError);
+        toast({
+          variant: "destructive",
+          title: "Service Unavailable",
+          description: "Contract deployment service is currently unavailable. Please try again later."
+        });
+        return;
+      }
+      
+      console.log('Edge function health check passed:', healthCheck);
+      
       // Check deployment status from edge function
       const status = await contractDeploymentService.getDeploymentStatus();
       setDeploymentStatus(status);
     } catch (error) {
       console.error('Failed to initialize contract deployment service:', error);
+      toast({
+        variant: "destructive",
+        title: "Initialization Failed",
+        description: "Failed to connect to deployment service. Please refresh and try again."
+      });
     }
   };
 
@@ -61,6 +83,8 @@ export function useContractDeployment() {
       };
 
       // Use secure deployment (private key handled securely in edge function)
+      console.log(`Invoking contract-deployment function for ${chain}...`);
+      
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
           operation: 'deploy',
@@ -69,9 +93,22 @@ export function useContractDeployment() {
         }
       });
 
-      if (error || !data.success) {
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function invocation error:', error);
+        
+        // Handle 404 specifically
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
+          throw new Error('Contract deployment service is not available. The service may be temporarily down or not deployed. Please contact support.');
+        }
+        
+        throw new Error(`Service error: ${error.message}`);
+      }
+
+      if (!data || !data.success) {
         // Enhanced error messages
-        let errorMessage = data?.error || error?.message || 'Deployment failed';
+        let errorMessage = data?.error || 'Deployment failed';
         if (errorMessage.includes("Insufficient ETH")) {
           errorMessage += ". Please fund the deployment wallet or contact support.";
         } else if (errorMessage.includes("network")) {

@@ -46,6 +46,16 @@ serve(async (req) => {
       
       case 'get_deployment_info':
         return await handleGetDeploymentInfo();
+        
+      case 'health_check':
+        return new Response(
+          JSON.stringify({ 
+            status: 'healthy', 
+            timestamp: new Date().toISOString(),
+            version: '1.0.0'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       
       default:
         return new Response(
