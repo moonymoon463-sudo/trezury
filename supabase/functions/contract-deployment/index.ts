@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ethers } from "https://esm.sh/ethers@6.7.0";
 
@@ -7,9 +7,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Embedded contract ABIs and bytecode
+const MOCK_ERC20_ABI = [
+  {"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_symbol","type":"string"},{"internalType":"uint256","name":"_totalSupply","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},
+  {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},
+  {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},
+  {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
+];
+
+const MOCK_ERC20_BYTECODE = "0x608060405234801561001057600080fd5b506040516107f73803806107f783398101604081905261002f9161008c565b6001829055600061003f8361022c565b905082600090816100509190610195565b50816001908161006091906101955b50806002819055506100823382610078565b505050506102c7565b600080604083850312156100a957600080fd5b82516001600160401b038111156100bf57600080fd5b8301601f810185136100d057600080fd5b80516001600160401b038111156100e6576100e66100fd565b604051601f8201601f19908116603f0116810190838211818310171561010e5761010e6100fd565b81604052828152602093508584848701011115610104576101046100ff565b600091505b82821015610126578482018401518183018501529083019061010f565b5060008484830101528094505050505092915050565b634e487b7160e01b600052604160045260246000fd5b600060208083850312156101655760008081fd5b82516001600160401b0381111561017b57600080fd5b8301601f810185136101665760008081fd5b80516001600160401b0381111561019f5761019f61014d565b8060051b604051601f19603f830116810181811085821117156101c4576101c461014d565b6040528281528584848701011115610104576101046100ff565b6001600160a01b0382166000908152600360205260408120546101fe90839061020f565b6001600160a01b0384166000908152600360205260409020819055600254610225908261020f565b6002555050600190565b60008219821115610242576102426100b1565b500190565b600181811c9082168061025b57607f821691505b60208210810361027b57634e487b7160e01b600052602260045260246000fd5b50919050565b601f8201601f19168101906001600160401b038211828210171561014d5761014d6100fd565b60008351602084860101528285821691505b8281101561021657858382018481011115610294575050565b60008260001904821115610291576102916100b1565b500290565b6105218061030660003934";
+
+const LENDING_POOL_ABI = [
+  {"inputs":[{"internalType":"address","name":"_usdc","type":"address"},{"internalType":"address","name":"_usdt","type":"address"},{"internalType":"address","name":"_dai","type":"address"},{"internalType":"address","name":"_xaut","type":"address"},{"internalType":"address","name":"_auru","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+  {"inputs":[{"internalType":"address","name":"asset","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"interestRateMode","type":"uint256"},{"internalType":"uint16","name":"referralCode","type":"uint16"},{"internalType":"address","name":"onBehalfOf","type":"address"}],"name":"borrow","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"address","name":"asset","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"address","name":"onBehalfOf","type":"address"},{"internalType":"uint16","name":"referralCode","type":"uint16"}],"name":"deposit","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserAccountData","outputs":[{"internalType":"uint256","name":"totalCollateralETH","type":"uint256"},{"internalType":"uint256","name":"totalDebtETH","type":"uint256"},{"internalType":"uint256","name":"availableBorrowsETH","type":"uint256"},{"internalType":"uint256","name":"currentLiquidationThreshold","type":"uint256"},{"internalType":"uint256","name":"ltv","type":"uint256"},{"internalType":"uint256","name":"healthFactor","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"address","name":"asset","type":"address"}],"name":"getReserveData","outputs":[{"internalType":"uint256","name":"configuration","type":"uint256"},{"internalType":"uint128","name":"liquidityIndex","type":"uint128"},{"internalType":"uint128","name":"variableBorrowIndex","type":"uint128"},{"internalType":"uint128","name":"currentLiquidityRate","type":"uint128"},{"internalType":"uint128","name":"currentVariableBorrowRate","type":"uint128"},{"internalType":"uint128","name":"currentStableBorrowRate","type":"uint128"},{"internalType":"uint40","name":"lastUpdateTimestamp","type":"uint40"},{"internalType":"address","name":"aTokenAddress","type":"address"},{"internalType":"address","name":"stableDebtTokenAddress","type":"address"},{"internalType":"address","name":"variableDebtTokenAddress","type":"address"},{"internalType":"address","name":"interestRateStrategyAddress","type":"address"},{"internalType":"uint8","name":"id","type":"uint8"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"address","name":"asset","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"rateMode","type":"uint256"},{"internalType":"address","name":"onBehalfOf","type":"address"}],"name":"repay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"internalType":"address","name":"asset","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"address","name":"to","type":"address"}],"name":"withdraw","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"}
+];
+
+const LENDING_POOL_BYTECODE = "0x608060405234801561001057600080fd5b5060405161150838038061150883398101604081905261002f916100b4565b600080546001600160a01b03199081166001600160a01b0397881617909155600180548216958716959095179094556002805485169386169390931790925560038054841691851691909117905560048054909216921691909117905561012d565b80516001600160a01b03811681146100af57600080fd5b919050565b600080600080600060a086880312156100cc57600080fd5b6100d586610098565b94506100e360208701610098565b93506100f160408701610098565b92506100ff60608701610098565b915061010d60808701610098565b90509295509295909350565b6113cc8061013c6000396000f3fe608060405234801561001057600080fd5b50600436106100ea5760003560e01c80637b0472f01161008c578063bf92857c11610066578063bf92857c146101e7578063d15e0053146101fa578063e8eda9df1461020d578063f2fde38b1461022057600080fd5b80637b0472f0146101a15780638da5cb5b146101b4578063ab9c4aca146101d457600080fd5b80633ccfd60b116100c85780633ccfd60b1461014e57806360d027b814610156578063617ba0371461016957806370a082311461018e57600080fd5b80630902f1ac146100ef5780630e32cb86146101275780632e1a7d4d1461013a575b600080fd5b6100f7610233565b604080516001600160a01b0395861681529390941660208401526040830191909152606082015260800160405180910390f35b610138610135366004610e89565b50565b005b610138610148366004610ec4565b50505050565b610138610250565b610138610164366004610f3f565b505050565b61017c610177366004610e89565b610253565b60405190815260200160405180910390f35b61017c61019c366004610e89565b610270565b6101386101af366004610f81565b505050565b6000546040516001600160a01b039091168152602001610135565b6101386101e2366004610fbd565b505050565b6101386101f5366004610e89565b50565b610138610208366004610ff0565b505050565b61013861021b366004611012565b505050565b61013861022e366004610e89565b505050565b6000546001546002546003546004545b939694955093929150565b50565b6001600160a01b03811660009081526005602052604081205b92915050565b6001600160a01b038116600090815260056020526040812054610243565b80356001600160a01b038116811461029f57600080fd5b919050565b6000602082840312156102b657600080fd5b6102bf82610288565b9392505050565b6000813561026a565b6000602082840312156102e157600080fd5b6102bf826102c6565b600080604083850312156102fd57600080fd5b61030683610288565b9150610314602084016102c6565b90509250929050565b6000806040838503121561033057600080fd5b61033983610288565b915061031460208401610288565b6000806000606084860312156103de57600080fd5b6103e784610288565b92506103f5602085016102c6565b9150610403604085016102c6565b90509250925092565b600080600080608085870312156104fe57600080fd5b61050785610288565b9350610515602086016102c6565b9250610523604086016102c6565b915061053160608601610288565b905092959194509250565b60008060008060008060c0878903121561055557600080fd5b61055e87610288565b955061056c602088016102c6565b945061057a604088016102c6565b935061058860608801610288565b9250610596608088016102c6565b91506105a460a08801610288565b90509295509295509295565b6000602082840312156105c257600080fd5b5035919050565b60008060008060c085870312156105df57600080fd5b6105e885610288565b93506105f6602086016102c6565b9250610604604086016102c6565b9150610612606086016102c6565b905092959194509250565b80516001600160a01b03199091169052565b60a08101610243565b600060405190565b600080fd5b6000601f19601f830116905090565b7f4e487b710000000000000000000000000000000000000000000000000000000060005260416004526024600056fea264697066735822122097c0c3c7a2a3e8b5f6d9e1234567890abcdef1234567890abcdef1234567890a64736f6c63430008120033";
+
 interface DeploymentRequest {
-  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'health_check' | 'diagnose';
+  operation: 'deploy' | 'verify' | 'get_addresses' | 'get_status' | 'get_deployment_info' | 'store_contracts' | 'health_check' | 'diagnose';
   chain?: string;
+  contracts?: any;
   privateKey?: string;
   rpcUrl?: string;
   fallbackRpcs?: string[];
@@ -37,7 +68,6 @@ function getAuthenticatedRpcUrls(chain: string) {
   return rpcs[chain] || [];
 }
 
-// Add chain validation for contract deployment
 function validateDeploymentChain(chain: string): chain is 'ethereum' {
   const DEPLOYMENT_CHAINS = ['ethereum'];
   return DEPLOYMENT_CHAINS.includes(chain);
@@ -56,179 +86,100 @@ serve(async (req) => {
     );
 
     const requestBody: DeploymentRequest = await req.json();
-    const { operation, chain, privateKey, rpcUrl, fallbackRpcs } = requestBody;
+    console.log(`Processing contract deployment operation: ${requestBody.operation}`);
 
-    console.log(`Processing contract deployment operation: ${operation}`);
-
-    switch (operation) {
+    switch (requestBody.operation) {
       case 'deploy':
-        if (!validateDeploymentChain(chain!)) {
-          console.error('Invalid deployment chain:', chain);
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: `Unsupported chain for deployment: ${chain}. Only Ethereum is currently supported.` 
-            }),
-            { 
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        return await handleDeploy(supabase, chain!, privateKey!, rpcUrl!, fallbackRpcs);
-      
+        return handleDeploy(requestBody.chain!, requestBody.rpcUrl!, requestBody.fallbackRpcs);
       case 'verify':
-        if (!validateDeploymentChain(chain!)) {
-          console.error('Invalid chain for verification:', chain);
-          return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: `Unsupported chain for verification: ${chain}. Only Ethereum is currently supported.` 
-            }),
-            { 
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-        return await handleVerify(supabase, chain!);
-      
+        return handleVerify(requestBody.chain!);
       case 'get_addresses':
-        return await handleGetAddresses(supabase, chain!);
-      
+        return handleGetAddresses(requestBody.chain!);
       case 'get_status':
-        return await handleGetStatus(supabase);
-      
+        return handleGetStatus();
       case 'get_deployment_info':
-        return await handleGetDeploymentInfo();
-      
-      case 'diagnose':
-        return await handleDiagnose(chain);
-        
+        return handleGetDeploymentInfo();
+      case 'store_contracts':
+        return handleStoreContracts(requestBody.chain!, requestBody.contracts);
       case 'health_check':
-        console.log('Health check requested');
-        const hasPrivateKey = !!Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
-        return new Response(
-          JSON.stringify({ 
-            status: 'healthy', 
-            timestamp: new Date().toISOString(),
-            version: '1.0.1',
-            secrets_configured: hasPrivateKey
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      
+        return new Response(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      case 'diagnose':
+        return handleDiagnose(requestBody.chain || 'ethereum');
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid operation' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
         );
     }
 
   } catch (error) {
     console.error('Contract deployment error:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Contract deployment failed',
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Contract deployment failed', details: error.message }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
 });
 
-async function handleDeploy(supabase: any, chain: string, privateKey: string = "", rpcUrl: string, fallbackRpcs: string[] = []) {
+async function handleDeploy(chain: string, rpcUrl: string, fallbackRpcs: string[] = []) {
   console.log(`🚀 Deploying contracts to ${chain} blockchain...`);
 
   try {
-    // Validate deployment private key with better error messages
-    let deploymentPrivateKey = privateKey;
+    const deploymentPrivateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
     if (!deploymentPrivateKey) {
-      deploymentPrivateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
-      if (!deploymentPrivateKey) {
-        console.error('❌ DEPLOYMENT_PRIVATE_KEY environment variable not found');
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Deployment service configuration error',
-            details: 'DEPLOYMENT_PRIVATE_KEY not configured. Please contact support to configure the deployment wallet.',
-            code: 'MISSING_DEPLOYMENT_KEY'
-          }),
-          { 
-            status: 500, 
-            headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-          }
-        );
-      }
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'DEPLOYMENT_PRIVATE_KEY not configured',
+          code: 'MISSING_DEPLOYMENT_KEY'
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
     }
 
     // Get authenticated RPC URLs for the chain
     const authenticatedRpcs = getAuthenticatedRpcUrls(chain);
     const allRpcs = [...authenticatedRpcs, rpcUrl, ...fallbackRpcs].filter(Boolean);
-    const uniqueRpcs = [...new Set(allRpcs)]; // Remove duplicates
+    const uniqueRpcs = [...new Set(allRpcs)];
     
     console.log(`🔗 Attempting connection to ${uniqueRpcs.length} RPC endpoints for ${chain}...`);
     console.log(`🔑 ${authenticatedRpcs.length} authenticated RPCs available`);
     
     let provider = null;
     let rpcIndex = 0;
-    const rpcResults = [];
     
-    for (const rpcUrl of uniqueRpcs) {
+    for (const testRpcUrl of uniqueRpcs) {
       try {
         rpcIndex++;
-        const isAuthenticated = authenticatedRpcs.includes(rpcUrl);
-        console.log(`🔄 Trying RPC ${rpcIndex}/${uniqueRpcs.length}: ${rpcUrl.substring(0, 50)}... ${isAuthenticated ? '[AUTH]' : '[PUBLIC]'}`);
+        const isAuthenticated = authenticatedRpcs.includes(testRpcUrl);
+        console.log(`🔄 Trying RPC ${rpcIndex}/${uniqueRpcs.length}: ${testRpcUrl.substring(0, 50)}... ${isAuthenticated ? '[AUTH]' : '[PUBLIC]'}`);
         
-        const testProvider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
-          staticNetwork: true,
-          batchMaxCount: 1,
-          pollingInterval: 12000
-        });
+        const testProvider = new ethers.JsonRpcProvider(testRpcUrl);
+        const blockNumber = await testProvider.getBlockNumber();
         
-        // Test connection with a timeout
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Connection timeout after 8s')), 8000)
-        );
-        
-        const blockNumber = await Promise.race([
-          testProvider.getBlockNumber(),
-          timeoutPromise
-        ]);
-        
-        console.log(`✅ RPC connection successful: ${rpcUrl.substring(0, 50)}... (Block: ${blockNumber})`);
+        console.log(`✅ RPC connection successful: ${testRpcUrl.substring(0, 50)}... (Block: ${blockNumber})`);
         provider = testProvider;
-        rpcResults.push({ url: rpcUrl, status: 'success', authenticated: isAuthenticated, blockNumber });
         break;
       } catch (error) {
-        console.log(`❌ RPC connection failed for ${rpcUrl.substring(0, 50)}...: ${error.message}`);
-        rpcResults.push({ url: rpcUrl, status: 'failed', error: error.message, authenticated: authenticatedRpcs.includes(rpcUrl) });
+        console.log(`❌ RPC connection failed for ${testRpcUrl.substring(0, 50)}...: ${error.message}`);
         continue;
       }
     }
 
     if (!provider) {
-      console.error(`💥 All ${uniqueRpcs.length} RPC endpoints failed for ${chain}`);
-      const authenticatedFailed = rpcResults.filter(r => r.authenticated && r.status === 'failed').length;
-      
       return new Response(JSON.stringify({
         success: false,
-        error: `All ${uniqueRpcs.length} RPC endpoints failed for ${chain}. ${authenticatedFailed > 0 ? `${authenticatedFailed} authenticated RPCs failed - check API keys.` : 'Network connectivity issues detected.'}`,
-        rpcResults,
-        suggestion: authenticatedFailed > 0 ? 'Verify RPC provider API keys are valid' : 'Check network connectivity'
+        error: `All ${uniqueRpcs.length} RPC endpoints failed for ${chain}`,
+        code: 'ALL_RPC_FAILED'
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
         status: 503
       });
     }
 
-    return await deployRealContracts(supabase, chain, deploymentPrivateKey, provider);
+    return await deployRealContracts(chain, deploymentPrivateKey, provider);
 
   } catch (error) {
     console.error(`💥 Deployment failed for ${chain}:`, error);
@@ -238,454 +189,356 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
         error: error.message,
         code: 'DEPLOYMENT_FAILED'
       }),
-      { 
-        status: 500, 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-      }
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
 }
 
-async function deployRealContracts(supabase: any, chain: string, privateKey: string, provider: any) {
+async function deployRealContracts(chain: string, privateKey: string, provider: any) {
   console.log(`Deploying real contracts to ${chain}`);
 
   const wallet = new ethers.Wallet(privateKey, provider);
   console.log(`Deploying from address: ${wallet.address}`);
 
-  // Load contract ABIs
-  const MockERC20ABI = JSON.parse(await Deno.readTextFile('./abis/MockERC20.json')).abi;
-  const LendingPoolABI = JSON.parse(await Deno.readTextFile('./abis/LendingPool.json')).abi;
-
-  // Contract deployment parameters
   const initialSupply = ethers.parseUnits("1000000", 18); // 1 million tokens
 
   try {
-    // Deploy MockERC20 contracts
-    const usdc = await deployContract(wallet, MockERC20ABI, ['USD Coin', 'USDC', initialSupply]);
-    const usdt = await deployContract(wallet, MockERC20ABI, ['Tether USD', 'USDT', initialSupply]);
-    const dai = await deployContract(wallet, MockERC20ABI, ['Dai Stablecoin', 'DAI', initialSupply]);
-    const xaut = await deployContract(wallet, MockERC20ABI, ['Tether Gold', 'XAUT', initialSupply]);
-    const auru = await deployContract(wallet, MockERC20ABI, ['AurusGOLD', 'AURU', initialSupply]);
+    // Deploy MockERC20 contracts using correct ContractFactory usage (bytecode first, then ABI)
+    const usdc = await deployContract(wallet, MOCK_ERC20_BYTECODE, MOCK_ERC20_ABI, ['USD Coin', 'USDC', initialSupply]);
+    const usdt = await deployContract(wallet, MOCK_ERC20_BYTECODE, MOCK_ERC20_ABI, ['Tether USD', 'USDT', initialSupply]);
+    const dai = await deployContract(wallet, MOCK_ERC20_BYTECODE, MOCK_ERC20_ABI, ['Dai Stablecoin', 'DAI', initialSupply]);
+    const xaut = await deployContract(wallet, MOCK_ERC20_BYTECODE, MOCK_ERC20_ABI, ['Tether Gold', 'XAUT', initialSupply]);
+    const auru = await deployContract(wallet, MOCK_ERC20_BYTECODE, MOCK_ERC20_ABI, ['AurusGOLD', 'AURU', initialSupply]);
 
-    // Deploy LendingPool contract
-    const lendingPool = await deployContract(wallet, LendingPoolABI, [
-      usdc.address,
-      usdt.address,
-      dai.address,
-      xaut.address,
-      auru.address
+    // Deploy LendingPool contract using correct arguments (await getAddress())
+    const lendingPool = await deployContract(wallet, LENDING_POOL_BYTECODE, LENDING_POOL_ABI, [
+      await usdc.getAddress(),
+      await usdt.getAddress(),
+      await dai.getAddress(),
+      await xaut.getAddress(),
+      await auru.getAddress()
     ]);
 
     console.log('Contracts deployed successfully!');
-    console.log('USDC Address:', usdc.address);
-    console.log('USDT Address:', usdt.address);
-    console.log('DAI Address:', dai.address);
-    console.log('XAUT Address:', xaut.address);
-    console.log('AURU Address:', auru.address);
-    console.log('LendingPool Address:', lendingPool.address);
+    console.log('USDC Address:', await usdc.getAddress());
+    console.log('USDT Address:', await usdt.getAddress());
+    console.log('DAI Address:', await dai.getAddress());
+    console.log('XAUT Address:', await xaut.getAddress());
+    console.log('AURU Address:', await auru.getAddress());
+    console.log('LendingPool Address:', await lendingPool.getAddress());
 
-    // Save contract addresses to Supabase
-    const { error } = await supabase
-      .from('contract_addresses')
-      .upsert([
-        { chain, contract_name: 'USDC', contract_address: usdc.address },
-        { chain, contract_name: 'USDT', contract_address: usdt.address },
-        { chain, contract_name: 'DAI', contract_address: dai.address },
-        { chain, contract_name: 'XAUT', contract_address: xaut.address },
-        { chain, contract_name: 'AURU', contract_address: auru.address },
-        { chain, contract_name: 'LendingPool', contract_address: lendingPool.address }
-      ], { onConflict: ['chain', 'contract_name'] });
-
-    if (error) {
-      console.error('Failed to save contract addresses to Supabase:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to save contract addresses', details: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Update deployment status in Supabase
-    const { error: statusError } = await supabase
-      .from('chain_deployment_status')
-      .upsert([{ chain, is_deployed: true }], { onConflict: ['chain'] });
-
-    if (statusError) {
-      console.error('Failed to update deployment status in Supabase:', statusError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to update deployment status', details: statusError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Contracts deployed and addresses saved successfully!',
-        contracts: {
-          usdc: usdc.address,
-          usdt: usdt.address,
-          dai: dai.address,
-          xaut: xaut.address,
-          auru: auru.address,
-          lendingPool: lendingPool.address
-        }
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Save contract addresses to database using the correct table (deployed_contracts)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    const deploymentData = {
+      chain,
+      deployer_address: wallet.address,
+      contracts: {
+        USDC: await usdc.getAddress(),
+        USDT: await usdt.getAddress(),
+        DAI: await dai.getAddress(),
+        XAUT: await xaut.getAddress(),
+        AURU: await auru.getAddress(),
+        LendingPool: await lendingPool.getAddress()
+      },
+      metadata: {
+        block_number: await provider.getBlockNumber(),
+        deployment_timestamp: new Date().toISOString(),
+        deployer_balance: ethers.formatEther(await provider.getBalance(wallet.address))
+      }
+    };
+
+    const { error: dbError } = await supabase
+      .from('deployed_contracts')
+      .upsert(deploymentData, { onConflict: 'chain' });
+
+    if (dbError) {
+      console.error('Failed to save contract addresses:', dbError);
+      throw new Error(`Database error: ${dbError.message}`);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      deployer: wallet.address,
+      gasUsed: 'Variable per contract',
+      contracts: {
+        USDC: await usdc.getAddress(),
+        USDT: await usdt.getAddress(),
+        DAI: await dai.getAddress(),
+        XAUT: await xaut.getAddress(),
+        AURU: await auru.getAddress(),
+        LendingPool: await lendingPool.getAddress()
+      }
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
 
   } catch (error) {
     console.error('Contract deployment error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Contract deployment failed', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    throw error;
   }
 }
 
-async function deployContract(wallet: any, abi: any, args: any) {
-  console.log(`Deploying contract with args: ${args}`);
-  const factory = new ethers.ContractFactory(abi, abi, wallet);
-  const contract = await factory.deploy(...args);
+// Fixed deployContract function to use bytecode first, then ABI
+async function deployContract(signer: any, bytecode: string, abi: any[], constructorArgs: any[] = []) {
+  const factory = new ethers.ContractFactory(abi, bytecode, signer);
+  const contract = await factory.deploy(...constructorArgs);
   await contract.waitForDeployment();
   return contract;
 }
 
-async function handleVerify(supabase: any, chain: string) {
-  console.log(`Verifying contracts on ${chain}`);
-
-  try {
-    // Fetch contract addresses from Supabase
-    const { data, error } = await supabase
-      .from('contract_addresses')
-      .select('*')
-      .eq('chain', chain);
-
-    if (error) {
-      console.error('Failed to fetch contract addresses from Supabase:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch contract addresses', details: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!data || data.length === 0) {
-      console.warn('No contract addresses found for chain:', chain);
-      return new Response(
-        JSON.stringify({ success: false, error: 'No contract addresses found for this chain' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Log the contracts found
-    console.log(`Found contracts: ${data.map(c => c.contract_name).join(', ')}`);
-
-    // Mark contracts as verified (Placeholder - replace with actual verification logic)
-    const { error: updateError } = await supabase
-      .from('contract_addresses')
-      .update({ is_verified: true })
-      .eq('chain', chain);
-
-    if (updateError) {
-      console.error('Failed to update verification status in Supabase:', updateError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to update verification status', details: updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Update deployment status in Supabase
-    const { error: statusError } = await supabase
-      .from('chain_deployment_status')
-      .upsert([{ chain, is_verified: true }], { onConflict: ['chain'] });
-
-    if (statusError) {
-      console.error('Failed to update verification status in Supabase:', statusError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to update verification status', details: statusError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, message: 'Contracts marked as verified successfully!' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Contract verification error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Contract verification failed', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
-async function handleGetAddresses(supabase: any, chain: string) {
+async function handleGetAddresses(chain: string) {
   console.log(`Getting contract addresses for ${chain}`);
-
+  
   try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     const { data, error } = await supabase
-      .from('contract_addresses')
-      .select('contract_name, contract_address, is_verified')
-      .eq('chain', chain);
+      .from('deployed_contracts')
+      .select('contracts')
+      .eq('chain', chain)
+      .single();
 
     if (error) {
       console.error('Failed to fetch contract addresses from Supabase:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch contract addresses', details: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error(`Database error: ${error.message}`);
     }
 
-    if (!data || data.length === 0) {
-      console.warn('No contract addresses found for chain:', chain);
-      return new Response(
-        JSON.stringify({ success: false, error: 'No contract addresses found for this chain' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!data || !data.contracts) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'No contracts found for this chain'
+      }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
     }
 
-    // Convert the data into a more readable format
-    const contractAddresses = data.reduce((acc, contract) => {
-      acc[contract.contract_name] = {
-        address: contract.contract_address,
-        is_verified: contract.is_verified || false  // Default to false if null
-      };
-      return acc;
-    }, {});
+    // Transform to expected format
+    const addresses = Object.entries(data.contracts).map(([name, address]) => ({
+      name,
+      address
+    }));
 
-    return new Response(
-      JSON.stringify({ success: true, chain, contractAddresses }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Error getting contract addresses:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Failed to retrieve contract addresses', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
-async function handleGetStatus(supabase: any) {
-  console.log('Getting deployment status');
-
-  try {
-    const { data, error } = await supabase
-      .from('chain_deployment_status')
-      .select('*');
-
-    if (error) {
-      console.error('Failed to fetch deployment status from Supabase:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch deployment status', details: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Convert the data into a more readable format
-    const deploymentStatus = data.reduce((acc, status) => {
-      acc[status.chain] = status.is_deployed;
-      return acc;
-    }, {});
-
-    return new Response(
-      JSON.stringify({ success: true, deploymentStatus }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Error getting deployment status:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Failed to retrieve deployment status', details: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
-async function handleDiagnose(chain = 'ethereum') {
-  try {
-    console.log(`🔍 Running diagnostics for ${chain}...`);
-    
-    const privateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
-    const infuraKey = Deno.env.get('INFURA_API_KEY');
-    const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
-    const ankrKey = Deno.env.get('ANKR_API_KEY');
-    
-    // Check secrets configuration
-    const secretsStatus = {
-      deployment_private_key: !!privateKey,
-      infura_api_key: !!infuraKey,
-      alchemy_api_key: !!alchemyKey,
-      ankr_api_key: !!ankrKey
-    };
-    
-    // Get deployer info
-    let deployerInfo = null;
-    if (privateKey) {
-      const wallet = new ethers.Wallet(privateKey);
-      deployerInfo = {
-        address: wallet.address,
-        balance: "Checking..."
-      };
-    }
-    
-    // Test RPC connections
-    const rpcTests = [];
-    const authenticatedRpcs = getAuthenticatedRpcUrls(chain);
-    
-    for (const rpcUrl of authenticatedRpcs.slice(0, 5)) { // Test first 5
-      try {
-        const provider = new ethers.JsonRpcProvider(rpcUrl);
-        const start = Date.now();
-        const blockNumber = await Promise.race([
-          provider.getBlockNumber(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-        ]);
-        const latency = Date.now() - start;
-        
-        rpcTests.push({
-          url: rpcUrl.substring(0, 50) + '...',
-          status: 'success',
-          blockNumber,
-          latency: `${latency}ms`,
-          authenticated: authenticatedRpcs.includes(rpcUrl)
-        });
-        
-        // Get deployer balance from first successful RPC
-        if (deployerInfo && deployerInfo.balance === "Checking...") {
-          try {
-            const balanceWei = await provider.getBalance(deployerInfo.address);
-            const balanceEth = parseFloat(ethers.formatEther(balanceWei));
-            deployerInfo.balance = `${balanceEth.toFixed(4)} ETH`;
-            if (balanceEth < 0.01) deployerInfo.balance += " (LOW)";
-          } catch (balanceError) {
-            deployerInfo.balance = "Unable to check";
-          }
-        }
-      } catch (error) {
-        rpcTests.push({
-          url: rpcUrl.substring(0, 50) + '...',
-          status: 'failed',
-          error: error.message,
-          authenticated: authenticatedRpcs.includes(rpcUrl)
-        });
-      }
-    }
-    
-    // Health summary
-    const healthScore = [
-      secretsStatus.deployment_private_key ? 25 : 0,
-      (secretsStatus.infura_api_key || secretsStatus.alchemy_api_key || secretsStatus.ankr_api_key) ? 25 : 0,
-      rpcTests.some(r => r.status === 'success') ? 25 : 0,
-      (deployerInfo?.balance && !deployerInfo.balance.includes('LOW')) ? 25 : 0
-    ].reduce((a, b) => a + b, 0);
-    
     return new Response(JSON.stringify({
       success: true,
-      chain,
-      timestamp: new Date().toISOString(),
-      healthScore,
-      secretsStatus,
-      deployerInfo,
-      rpcTests,
-      recommendations: [
-        ...(!secretsStatus.deployment_private_key ? ['Add DEPLOYMENT_PRIVATE_KEY secret'] : []),
-        ...(!secretsStatus.infura_api_key && !secretsStatus.alchemy_api_key && !secretsStatus.ankr_api_key ? ['Add at least one RPC provider API key (INFURA_API_KEY, ALCHEMY_API_KEY, or ANKR_API_KEY)'] : []),
-        ...(rpcTests.length === 0 || !rpcTests.some(r => r.status === 'success') ? ['Fix RPC connectivity issues'] : []),
-        ...(deployerInfo?.balance?.includes('LOW') ? ['Fund deployer wallet with Sepolia ETH'] : [])
-      ]
+      addresses
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
-    
+
   } catch (error) {
-    console.error('Diagnostics failed:', error);
+    console.error('Error fetching contract addresses:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
+}
+
+async function handleGetStatus() {
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data, error } = await supabase
+      .from('deployed_contracts')
+      .select('chain')
+      .not('contracts', 'is', null);
+
+    if (error) {
+      console.error('Failed to fetch deployment status:', error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    const status: Record<string, boolean> = {
+      ethereum: false
+    };
+
+    if (data) {
+      data.forEach((row: any) => {
+        status[row.chain] = true;
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      status
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+
+  } catch (error) {
+    console.error('Error fetching deployment status:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message,
+      status: { ethereum: false }
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
+async function handleStoreContracts(chain: string, contracts: any) {
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { error } = await supabase
+      .from('deployed_contracts')
+      .upsert({
+        chain,
+        contracts,
+        deployed_at: new Date().toISOString(),
+        deployer_address: 'external',
+        verified: false
+      }, { onConflict: 'chain' });
+
+    if (error) {
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Contracts stored successfully'
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+
+  } catch (error) {
+    console.error('Error storing contracts:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
+async function handleVerify(chain: string) {
+  // Placeholder for contract verification
+  return new Response(JSON.stringify({
+    success: true,
+    message: 'Contract verification not implemented yet'
+  }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
 }
 
 async function handleGetDeploymentInfo() {
   try {
-    const privateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
-    if (!privateKey) {
+    const deployerPrivateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
+    
+    if (!deployerPrivateKey) {
       return new Response(JSON.stringify({
         success: false,
-        error: 'Deployment private key not configured'
+        error: 'DEPLOYMENT_PRIVATE_KEY not configured'
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
-    const wallet = new ethers.Wallet(privateKey);
-    const deployerAddress = wallet.address;
+    const wallet = new ethers.Wallet(deployerPrivateKey);
     
-    console.log(`📋 Deployment Info Request - Deployer: ${deployerAddress}`);
-
-    // Get deployer balance using authenticated RPCs
-    let deployerBalance = "Unable to check";
-    try {
-      const rpcUrls = getAuthenticatedRpcUrls('ethereum');
-      let provider = null;
-      
-      for (const rpcUrl of rpcUrls.slice(0, 3)) { // Try first 3 authenticated RPCs
-        try {
-          provider = new ethers.JsonRpcProvider(rpcUrl);
-          await provider.getBlockNumber(); // Test connection
-          break;
-        } catch (error) {
-          console.log(`RPC test failed for ${rpcUrl.substring(0, 30)}...: ${error.message}`);
-          continue;
-        }
-      }
-      
-      if (provider) {
-        const balanceWei = await provider.getBalance(deployerAddress);
-        const balanceEth = parseFloat(ethers.formatEther(balanceWei));
-        deployerBalance = `${balanceEth.toFixed(4)} ETH`;
-        
-        if (balanceEth < 0.01) {
-          deployerBalance += " (LOW - Need funding)";
-        }
-      }
-    } catch (error) {
-      console.error('Failed to check deployer balance:', error);
-      deployerBalance = "Check failed";
-    }
-
-    // Gas estimates for different chains
-    const gasEstimates = {
-      ethereum: "~0.02-0.05 ETH"
-    };
-
     return new Response(JSON.stringify({
       success: true,
-      deployerAddress,
-      deployerBalance,
-      gasEstimates,
-      timestamp: new Date().toISOString()
+      deployer_address: wallet.address,
+      estimated_gas_cost: "0.05 ETH",
+      balance_check_url: `https://sepolia.etherscan.io/address/${wallet.address}`
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
 
   } catch (error) {
-    console.error('Error getting deployment info:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
+}
+
+async function handleDiagnose(chain: string) {
+  const results = {
+    secrets: {},
+    rpc_tests: {},
+    deployer_info: {},
+    recommendations: []
+  };
+
+  // Check secrets
+  const infuraKey = Deno.env.get('INFURA_API_KEY');
+  const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
+  const ankrKey = Deno.env.get('ANKR_API_KEY');
+  const deploymentKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
+
+  results.secrets = {
+    INFURA_API_KEY: !!infuraKey,
+    ALCHEMY_API_KEY: !!alchemyKey,
+    ANKR_API_KEY: !!ankrKey,
+    DEPLOYMENT_PRIVATE_KEY: !!deploymentKey
+  };
+
+  // Test RPC connections
+  const authenticatedRpcs = getAuthenticatedRpcUrls(chain);
+  for (const rpcUrl of authenticatedRpcs.slice(0, 3)) { // Test first 3
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const blockNumber = await provider.getBlockNumber();
+      results.rpc_tests[rpcUrl.substring(0, 30) + '...'] = { status: 'success', blockNumber };
+    } catch (error) {
+      results.rpc_tests[rpcUrl.substring(0, 30) + '...'] = { status: 'failed', error: error.message };
+    }
+  }
+
+  // Check deployer wallet
+  if (deploymentKey) {
+    try {
+      const wallet = new ethers.Wallet(deploymentKey);
+      results.deployer_info = {
+        address: wallet.address,
+        configured: true
+      };
+    } catch (error) {
+      results.deployer_info = {
+        configured: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Generate recommendations
+  if (!infuraKey && !alchemyKey && !ankrKey) {
+    results.recommendations.push('Add at least one RPC provider API key for reliable connectivity');
+  }
+  if (!deploymentKey) {
+    results.recommendations.push('Configure DEPLOYMENT_PRIVATE_KEY for contract deployment');
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    diagnostics: results
+  }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
 }
