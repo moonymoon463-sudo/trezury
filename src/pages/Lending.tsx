@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LendingDeposit } from "@/components/lending/LendingDeposit";
 import { LendingBorrow } from "@/components/lending/LendingBorrow";
 import { LendingProfile } from "@/components/lending/LendingProfile";
+import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 
@@ -42,7 +43,7 @@ export default function Lending() {
           </div>
 
           <Tabs defaultValue={defaultTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto bg-[#2C2C2E] border-0">
+            <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto bg-[#2C2C2E] border-0">
               <TabsTrigger 
                 value="supply" 
                 className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
@@ -54,6 +55,12 @@ export default function Lending() {
                 className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
               >
                 Borrow
+              </TabsTrigger>
+              <TabsTrigger 
+                value="analytics"
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
+              >
+                Analytics
               </TabsTrigger>
               <TabsTrigger 
                 value="profile"
@@ -69,6 +76,10 @@ export default function Lending() {
 
             <TabsContent value="borrow" className="mt-8">
               <LendingBorrow />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="mt-8">
+              <EnhancedPortfolioAnalytics />
             </TabsContent>
 
             <TabsContent value="profile" className="mt-8">
