@@ -86,7 +86,7 @@ export function GoldUserPositions() {
                     {formatAmount(position.suppliedAmount)}
                   </div>
                   <div className="text-green-400 text-sm">
-                    +{formatAmount(position.suppliedAPY * position.suppliedAmount * 0.01)} APY
+                    +{formatAmount(position.supplyApy * position.suppliedAmount * 0.01)} APY
                   </div>
                 </div>
               </div>
@@ -119,7 +119,7 @@ export function GoldUserPositions() {
                     {formatAmount(position.borrowedAmount)}
                   </div>
                   <div className="text-red-400 text-sm">
-                    -{formatAmount(position.borrowedAPY * position.borrowedAmount * 0.01)} APY
+                    -{formatAmount(position.borrowApy * position.borrowedAmount * 0.01)} APY
                   </div>
                 </div>
               </div>

@@ -27,9 +27,9 @@ export function GoldActionModal({ isOpen, onClose, action, asset }: GoldActionMo
 
     try {
       if (action === 'supply') {
-        await supply(asset, asset.chain, numericAmount);
+        await supply(asset.asset, asset.chain, numericAmount);
       } else if (action === 'borrow') {
-        await borrow(asset, asset.chain, numericAmount);
+        await borrow(asset.asset, asset.chain, numericAmount);
       }
       onClose();
       setAmount("");
