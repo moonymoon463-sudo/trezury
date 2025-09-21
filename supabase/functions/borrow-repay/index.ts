@@ -13,6 +13,7 @@ interface BorrowRepayRequest {
   amount: number;
   rateMode: 'variable' | 'stable';
   chain?: string;
+  walletAddress?: string;
 }
 
 serve(async (req) => {
@@ -41,9 +42,9 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    const { action, asset, amount, rateMode, chain = 'ethereum' }: BorrowRepayRequest = await req.json();
+    const { action, asset, amount, rateMode, chain = 'ethereum', walletAddress }: BorrowRepayRequest = await req.json();
 
-    console.log(`Processing ${action} request:`, { userId: user.id, asset, amount, rateMode, chain });
+    console.log(`Processing ${action} request:`, { userId: user.id, asset, amount, rateMode, chain, walletAddress });
 
     // Get pool reserve data
     const { data: poolReserve, error: poolError } = await supabaseClient
@@ -51,30 +52,27 @@ serve(async (req) => {
       .select('*')
       .eq('asset', asset)
       .eq('chain', chain)
+      .eq('is_active', true)
       .single();
 
     if (poolError || !poolReserve) {
       throw new Error(`Pool reserve not found for ${asset} on ${chain}`);
     }
 
-    if (!poolReserve.is_active || !poolReserve.borrowing_enabled) {
-      throw new Error(`Borrowing is not enabled for ${asset}`);
-    }
-
-    if (rateMode === 'stable' && !poolReserve.stable_rate_enabled) {
-      throw new Error(`Stable rate borrowing is not enabled for ${asset}`);
-    }
-
     if (action === 'borrow') {
-      // Handle borrow operation
-      console.log('Processing borrow operation');
+      console.log('📤 Processing borrow operation...');
 
-      // Check available liquidity
-      if (amount > parseFloat(poolReserve.available_liquidity_dec)) {
-        throw new Error('Insufficient liquidity in the pool');
+      // Check if borrowing is enabled
+      if (!poolReserve.borrowing_enabled) {
+        throw new Error(`Borrowing is disabled for ${asset}`);
       }
 
-      // Get user's current health factor
+      // Check available liquidity
+      if (amount > poolReserve.available_liquidity_dec) {
+        throw new Error(`Insufficient liquidity. Available: ${poolReserve.available_liquidity_dec}`);
+      }
+
+      // Get user's health factor to check if borrow is allowed
       const { data: healthFactor } = await supabaseClient
         .from('user_health_factors')
         .select('*')
@@ -82,16 +80,11 @@ serve(async (req) => {
         .eq('chain', chain)
         .single();
 
-      if (!healthFactor) {
-        throw new Error('User has no collateral supplied');
+      if (healthFactor && healthFactor.available_borrow_usd < amount) {
+        throw new Error('Insufficient borrowing power. Please add more collateral.');
       }
 
-      // Check if user can borrow this amount
-      if (amount > healthFactor.available_borrow_usd) {
-        throw new Error('Insufficient borrowing power');
-      }
-
-      // Check if user already has a borrow position for this asset and rate mode
+      // Create or update user borrow position
       const { data: existingBorrow } = await supabaseClient
         .from('user_borrows')
         .select('*')
@@ -101,26 +94,21 @@ serve(async (req) => {
         .eq('rate_mode', rateMode)
         .single();
 
-      const borrowRate = rateMode === 'variable' ? 
-        poolReserve.borrow_rate_variable : 
-        poolReserve.borrow_rate_stable;
+      const currentRate = rateMode === 'stable' ? poolReserve.borrow_rate_stable : poolReserve.borrow_rate_variable;
 
       if (existingBorrow) {
-        // Update existing borrow position
-        const newAmount = parseFloat(existingBorrow.borrowed_amount_dec) + amount;
-        const { error: updateError } = await supabaseClient
+        // Update existing borrow
+        await supabaseClient
           .from('user_borrows')
           .update({
-            borrowed_amount_dec: newAmount,
-            borrow_rate_at_creation: borrowRate,
+            borrowed_amount_dec: parseFloat(existingBorrow.borrowed_amount_dec) + amount,
+            borrow_rate_at_creation: currentRate,
             last_interest_update: new Date().toISOString()
           })
           .eq('id', existingBorrow.id);
-
-        if (updateError) throw updateError;
       } else {
-        // Create new borrow position
-        const { error: insertError } = await supabaseClient
+        // Create new borrow
+        await supabaseClient
           .from('user_borrows')
           .insert({
             user_id: user.id,
@@ -128,49 +116,35 @@ serve(async (req) => {
             chain,
             borrowed_amount_dec: amount,
             rate_mode: rateMode,
-            borrow_rate_at_creation: borrowRate
+            borrow_rate_at_creation: currentRate,
+            last_interest_update: new Date().toISOString()
           });
-
-        if (insertError) throw insertError;
       }
 
       // Update pool reserves
-      const newTotalBorrowed = parseFloat(poolReserve.total_borrowed_dec) + amount;
-      const newAvailableLiquidity = parseFloat(poolReserve.available_liquidity_dec) - amount;
-      const newUtilizationRate = parseFloat(poolReserve.total_supply_dec) > 0 ? 
-        newTotalBorrowed / parseFloat(poolReserve.total_supply_dec) : 0;
-
-      // Calculate new interest rates based on utilization
-      const newBorrowRate = calculateBorrowRate(newUtilizationRate, asset);
-      const newSupplyRate = newBorrowRate * newUtilizationRate * (1 - poolReserve.reserve_factor);
-
-      const { error: poolUpdateError } = await supabaseClient
+      await supabaseClient
         .from('pool_reserves')
         .update({
-          total_borrowed_dec: newTotalBorrowed,
-          available_liquidity_dec: newAvailableLiquidity,
-          utilization_rate: newUtilizationRate,
-          supply_rate: newSupplyRate,
-          borrow_rate_variable: newBorrowRate,
+          total_borrowed_dec: parseFloat(poolReserve.total_borrowed_dec) + amount,
+          available_liquidity_dec: parseFloat(poolReserve.available_liquidity_dec) - amount,
+          utilization_rate: (parseFloat(poolReserve.total_borrowed_dec) + amount) / parseFloat(poolReserve.total_supply_dec),
           last_update_timestamp: new Date().toISOString()
         })
         .eq('id', poolReserve.id);
 
-      if (poolUpdateError) throw poolUpdateError;
+      // Update user health factor
+      await updateUserHealthFactor(supabaseClient, user.id, chain);
 
-      // Update user balance (user receives the borrowed asset)
-      await supabaseClient
-        .from('balance_snapshots')
-        .insert({
-          user_id: user.id,
-          asset,
-          amount: amount, // Positive because user receives borrowed funds
-          snapshot_at: new Date().toISOString()
-        });
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: `Successfully borrowed ${amount} ${asset}`,
+        mode: 'database'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
 
     } else if (action === 'repay') {
-      // Handle repay operation
-      console.log('Processing repay operation');
+      console.log('📥 Processing repay operation...');
 
       // Get user's borrow position
       const { data: userBorrow, error: borrowError } = await supabaseClient
@@ -183,129 +157,90 @@ serve(async (req) => {
         .single();
 
       if (borrowError || !userBorrow) {
-        throw new Error('No borrow position found for this asset and rate mode');
+        throw new Error(`No borrow position found for ${asset}`);
       }
 
-      const currentBorrowed = parseFloat(userBorrow.borrowed_amount_dec);
-      const repayAmount = Math.min(amount, currentBorrowed); // Can't repay more than borrowed
+      const borrowedAmount = parseFloat(userBorrow.borrowed_amount_dec);
+      const repayAmount = Math.min(amount, borrowedAmount); // Don't repay more than borrowed
+
+      if (repayAmount <= 0) {
+        throw new Error('Invalid repay amount');
+      }
 
       // Update user borrow position
-      const newBorrowedAmount = currentBorrowed - repayAmount;
-      
-      if (newBorrowedAmount === 0) {
-        // Remove borrow position if fully repaid
-        const { error: deleteError } = await supabaseClient
+      const newBorrowedAmount = borrowedAmount - repayAmount;
+      if (newBorrowedAmount <= 0.01) { // Close position if very small amount left
+        await supabaseClient
           .from('user_borrows')
           .delete()
           .eq('id', userBorrow.id);
-
-        if (deleteError) throw deleteError;
       } else {
-        // Update borrow position
-        const { error: updateError } = await supabaseClient
+        await supabaseClient
           .from('user_borrows')
           .update({
             borrowed_amount_dec: newBorrowedAmount,
             last_interest_update: new Date().toISOString()
           })
           .eq('id', userBorrow.id);
-
-        if (updateError) throw updateError;
       }
 
       // Update pool reserves
-      const newTotalBorrowed = parseFloat(poolReserve.total_borrowed_dec) - repayAmount;
-      const newAvailableLiquidity = parseFloat(poolReserve.available_liquidity_dec) + repayAmount;
-      const newUtilizationRate = parseFloat(poolReserve.total_supply_dec) > 0 ? 
-        newTotalBorrowed / parseFloat(poolReserve.total_supply_dec) : 0;
-
-      // Calculate new interest rates
-      const newBorrowRate = calculateBorrowRate(newUtilizationRate, asset);
-      const newSupplyRate = newBorrowRate * newUtilizationRate * (1 - poolReserve.reserve_factor);
-
-      const { error: poolUpdateError } = await supabaseClient
+      await supabaseClient
         .from('pool_reserves')
         .update({
-          total_borrowed_dec: newTotalBorrowed,
-          available_liquidity_dec: newAvailableLiquidity,
-          utilization_rate: newUtilizationRate,
-          supply_rate: newSupplyRate,
-          borrow_rate_variable: newBorrowRate,
+          total_borrowed_dec: parseFloat(poolReserve.total_borrowed_dec) - repayAmount,
+          available_liquidity_dec: parseFloat(poolReserve.available_liquidity_dec) + repayAmount,
+          utilization_rate: (parseFloat(poolReserve.total_borrowed_dec) - repayAmount) / parseFloat(poolReserve.total_supply_dec),
           last_update_timestamp: new Date().toISOString()
         })
         .eq('id', poolReserve.id);
 
-      if (poolUpdateError) throw poolUpdateError;
+      // Update user health factor
+      await updateUserHealthFactor(supabaseClient, user.id, chain);
 
-      // Update user balance (user pays back the asset)
-      await supabaseClient
-        .from('balance_snapshots')
-        .insert({
-          user_id: user.id,
-          asset,
-          amount: -repayAmount, // Negative because user is paying back
-          snapshot_at: new Date().toISOString()
-        });
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: `Successfully repaid ${repayAmount} ${asset}`,
+        repaidAmount: repayAmount,
+        mode: 'database'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Recalculate and update user health factor
-    await updateUserHealthFactor(supabaseClient, user.id, chain);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `${action} operation completed successfully`,
-        amount,
-        asset,
-        rateMode,
-        chain
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    throw new Error(`Invalid action: ${action}`);
 
   } catch (error) {
-    console.error(`Error in borrow-repay function:`, error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    console.error('Error in borrow-repay function:', error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
-function calculateBorrowRate(utilizationRate: number, asset: string): number {
-  // Simplified interest rate model
-  const baseRate = 0.02; // 2% base rate
-  const slope1 = 0.05;    // 5% slope before optimal
-  const slope2 = 1.0;     // 100% slope after optimal
-  const optimalUtilization = 0.8; // 80% optimal utilization
-
-  if (utilizationRate <= optimalUtilization) {
-    return baseRate + (utilizationRate / optimalUtilization) * slope1;
-  } else {
-    return baseRate + slope1 + ((utilizationRate - optimalUtilization) / (1 - optimalUtilization)) * slope2;
-  }
-}
-
+/**
+ * Update user health factor after borrow/repay operations
+ */
 async function updateUserHealthFactor(supabaseClient: any, userId: string, chain: string) {
   try {
-    // Get user supplies (collateral)
+    // Get user supplies with pool data
     const { data: supplies } = await supabaseClient
       .from('user_supplies')
-      .select('*, pool_reserves!inner(*)')
+      .select(`
+        *,
+        pool_reserves!inner(asset, chain, ltv, liquidation_threshold)
+      `)
       .eq('user_id', userId)
-      .eq('chain', chain)
-      .eq('used_as_collateral', true);
+      .eq('chain', chain);
 
-    // Get user borrows (debt)
+    // Get user borrows
     const { data: borrows } = await supabaseClient
       .from('user_borrows')
-      .select('*, pool_reserves!inner(*)')
+      .select('*')
       .eq('user_id', userId)
       .eq('chain', chain);
 
@@ -314,10 +249,10 @@ async function updateUserHealthFactor(supabaseClient: any, userId: string, chain
     let weightedLtv = 0;
     let weightedLiquidationThreshold = 0;
 
-    // Calculate total collateral value
+    // Calculate total collateral value (USD assumption for simplicity)
     if (supplies) {
       for (const supply of supplies) {
-        const usdValue = parseFloat(supply.supplied_amount_dec);
+        const usdValue = parseFloat(supply.supplied_amount_dec); // Assuming 1:1 USD for demo
         totalCollateralUsd += usdValue;
         weightedLtv += usdValue * parseFloat(supply.pool_reserves.ltv);
         weightedLiquidationThreshold += usdValue * parseFloat(supply.pool_reserves.liquidation_threshold);

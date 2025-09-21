@@ -43,9 +43,15 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    const { action, asset, amount, chain = 'ethereum', walletAddress, privateKey }: SupplyWithdrawRequest = await req.json();
+    const { action, asset, amount, chain = 'ethereum', walletAddress }: SupplyWithdrawRequest = await req.json();
 
     console.log(`Processing ${action} request:`, { userId: user.id, asset, amount, chain, walletAddress });
+
+    // Get demo wallet private key for blockchain transactions
+    const demoPrivateKey = Deno.env.get('DEMO_WALLET_PRIVATE_KEY');
+    if (!demoPrivateKey) {
+      console.warn('⚠️ No DEMO_WALLET_PRIVATE_KEY found, using database-only mode');
+    }
 
     // Get pool reserve data
     const { data: poolReserve, error: poolError } = await supabaseClient
@@ -70,17 +76,22 @@ serve(async (req) => {
       let txHash: string | null = null;
       let blockchainSuccess = false;
 
-      try {
-        // Perform blockchain transaction first
-        if (walletAddress && privateKey) {
-          txHash = await performSupplyTransaction(asset, amount, walletAddress, privateKey, chain);
+      // Try to perform blockchain transaction if demo wallet is available
+      if (demoPrivateKey && walletAddress) {
+        try {
+          console.log('🔗 Attempting blockchain supply transaction...');
+          txHash = await performSupplyTransaction(asset, amount, walletAddress, demoPrivateKey, chain);
           blockchainSuccess = true;
-          console.log(`✅ Blockchain supply transaction successful: ${txHash}`);
-        } else {
-          // For demo/testing: simulate blockchain with fixed wallet
-          console.log('🔄 Using demo wallet for blockchain transaction');
-          const demoPrivateKey = Deno.env.get('DEMO_WALLET_PRIVATE_KEY');
-          const demoWalletAddress = "0xeDBd9A02dea7b35478e3b2Ee1fd90378346101Cb";
+          console.log('✅ Blockchain transaction successful:', txHash);
+        } catch (blockchainError) {
+          console.error('❌ Blockchain transaction failed:', blockchainError);
+          // Continue with database update even if blockchain fails
+        }
+      } else {
+        console.log('ℹ️ Demo wallet not configured, using database-only mode');
+      }
+
+      try {
           
           if (demoPrivateKey) {
             txHash = await performSupplyTransaction(asset, amount, demoWalletAddress, demoPrivateKey, chain);
@@ -245,12 +256,13 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `${action} operation completed successfully`,
+        message: `${action} operation completed successfully${blockchainSuccess ? ' with blockchain transaction' : ' (database only)'}`,
         amount,
         asset,
         chain,
         txHash: txHash || null,
-        blockchainSuccess: blockchainSuccess || false
+        blockchainSuccess: blockchainSuccess || false,
+        mode: blockchainSuccess ? 'blockchain' : 'database'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -328,15 +328,15 @@ export function useAaveStyleLending() {
         throw new Error('Wallet not available');
       }
 
-      // Call the real borrow edge function
+      // Call the borrow-repay edge function
       const { data, error } = await supabase.functions.invoke('borrow-repay', {
         body: {
           action: 'borrow',
           asset: asset,
           amount: amount,
-          rate_mode: rateMode,
+          rateMode: rateMode,
           chain: chain,
-          wallet_address: walletAddress
+          walletAddress: walletAddress
         }
       });
 
@@ -385,15 +385,15 @@ export function useAaveStyleLending() {
         throw new Error('Wallet not available');
       }
 
-      // Call the real repay edge function
+      // Call the borrow-repay edge function
       const { data, error } = await supabase.functions.invoke('borrow-repay', {
         body: {
           action: 'repay',
           asset: asset,
           amount: amount,
-          rate_mode: rateMode,
+          rateMode: rateMode,
           chain: chain,
-          wallet_address: walletAddress
+          walletAddress: walletAddress
         }
       });
 
