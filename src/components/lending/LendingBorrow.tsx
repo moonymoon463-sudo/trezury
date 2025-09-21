@@ -8,61 +8,51 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, TrendingDown, DollarSign } from "lucide-react";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
-import { LendingWalletService } from "@/services/lendingWalletService";
 import { useToast } from "@/hooks/use-toast";
 import { HealthFactorIndicator } from "./HealthFactorIndicator";
+import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 
 export function LendingBorrow() {
   const { toast } = useToast();
+  const { 
+    borrow, 
+    getAssetBorrowRate, 
+    getAvailableBorrowAmount,
+    userHealthFactor,
+    poolReserves,
+    loading 
+  } = useAaveStyleLending();
+  
   const [selectedChain, setSelectedChain] = useState<Chain>('ethereum');
   const [selectedToken, setSelectedToken] = useState<Token>('USDC');
   const [amount, setAmount] = useState('');
   const [rateType, setRateType] = useState<'variable' | 'stable'>('variable');
-  const [currentAPY, setCurrentAPY] = useState(0);
-  const [healthFactor, setHealthFactor] = useState(2.1);
-  const [borrowingPower, setBorrowingPower] = useState(8450);
-  const [loading, setLoading] = useState(false);
 
   const selectedChainConfig = CHAIN_CONFIGS[selectedChain];
-
-  // Update borrowing APY when chain, token, or rate type changes
-  useEffect(() => {
-    const updateAPY = async () => {
-      if (selectedChain && selectedToken) {
-        // Simulate variable vs stable borrowing rates
-        const baseRate = selectedToken === 'USDC' ? 5.2 : 
-                         selectedToken === 'USDT' ? 4.8 :
-                         selectedToken === 'DAI' ? 4.5 :
-                         selectedToken === 'XAUT' ? 6.1 :
-                         selectedToken === 'AURU' ? 12.7 : 5.0;
-        
-        const adjustedRate = rateType === 'stable' ? baseRate + 1.5 : baseRate;
-        setCurrentAPY(adjustedRate);
-      }
-    };
-    updateAPY();
-  }, [selectedChain, selectedToken, rateType]);
+  const currentAPY = getAssetBorrowRate(selectedToken, rateType, selectedChain);
+  const availableBorrowAmount = getAvailableBorrowAmount(selectedToken, selectedChain);
+  const healthFactor = userHealthFactor?.health_factor || 0;
+  const borrowingPower = userHealthFactor?.available_borrow_usd || 0;
 
   // Reset token when chain changes
   useEffect(() => {
-    const supportedTokens = LendingWalletService.getSupportedTokens(selectedChain);
+    const supportedTokens = selectedChainConfig?.tokens.map(t => t.symbol) || [];
     if (supportedTokens.length > 0 && !supportedTokens.includes(selectedToken)) {
-      setSelectedToken(supportedTokens[0]);
+      setSelectedToken(supportedTokens[0] as Token);
     }
-  }, [selectedChain, selectedToken]);
+  }, [selectedChain, selectedToken, selectedChainConfig]);
 
   // Calculate new health factor based on borrowing amount
   const calculateNewHealthFactor = () => {
-    if (!amount || parseFloat(amount) <= 0) return healthFactor;
+    if (!amount || parseFloat(amount) <= 0 || !userHealthFactor) return healthFactor;
     
     const borrowAmount = parseFloat(amount);
-    const currentBorrow = 2550; // Mock current borrowed amount
-    const newTotalBorrow = currentBorrow + borrowAmount;
-    const collateralValue = 10000; // Mock collateral value
+    const currentDebt = userHealthFactor.total_debt_usd;
+    const currentCollateral = userHealthFactor.total_collateral_usd;
+    const liquidationThreshold = userHealthFactor.liquidation_threshold;
     
-    // Simple health factor calculation: collateral / borrowed
-    const newHealthFactor = (collateralValue * 0.8) / newTotalBorrow; // 80% LTV
-    return Math.max(0.1, newHealthFactor);
+    const newDebt = currentDebt + borrowAmount;
+    return currentCollateral > 0 ? (currentCollateral * liquidationThreshold) / newDebt : 0;
   };
 
   const newHealthFactor = calculateNewHealthFactor();
@@ -84,36 +74,28 @@ export function LendingBorrow() {
       return;
     }
 
-    setLoading(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-      
-      toast({
-        title: "Borrow Successful",
-        description: `Borrowed ${amount} ${selectedToken} at ${currentAPY.toFixed(2)}% ${rateType} APY`
-      });
-      
-      setAmount('');
-    } catch (error) {
+    const borrowAmount = parseFloat(amount);
+    if (borrowAmount > borrowingPower) {
       toast({
         variant: "destructive",
-        title: "Borrow Failed",
-        description: "Unable to complete borrow transaction"
+        title: "Insufficient Borrowing Power",
+        description: "Amount exceeds your available borrowing power"
       });
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    await borrow(selectedToken, borrowAmount, rateType, selectedChain);
+    setAmount('');
   };
 
   // Get supported tokens for selected chain
-  const supportedTokens = LendingWalletService.getSupportedTokens(selectedChain);
-  const availableTokenConfigs = selectedChainConfig.tokens.filter(
-    token => supportedTokens.includes(token.symbol)
-  );
+  const availableTokenConfigs = selectedChainConfig?.tokens || [];
+  const supportedTokens = poolReserves
+    .filter(r => r.chain === selectedChain && r.is_active && r.borrowing_enabled)
+    .map(r => r.asset);
 
   const borrowAmount = parseFloat(amount) || 0;
-  const maxBorrowable = borrowingPower * 0.9; // 90% of borrowing power for safety
+  const maxBorrowable = Math.min(availableBorrowAmount, borrowingPower * 0.9); // 90% safety margin
 
   return (
     <Card className="w-full max-w-2xl mx-auto bg-card border-border">
@@ -143,7 +125,7 @@ export function LendingBorrow() {
               <span className="text-lg font-bold text-foreground">${borrowingPower.toLocaleString()}</span>
             </div>
             <Progress 
-              value={((borrowingPower - maxBorrowable + borrowAmount) / borrowingPower) * 100} 
+              value={borrowingPower > 0 ? Math.min(100, (borrowAmount / borrowingPower) * 100) : 0} 
               className="h-2"
             />
             <p className="text-xs text-muted-foreground mt-1">
@@ -181,6 +163,9 @@ export function LendingBorrow() {
                     {token.symbol}
                     {token.symbol === 'XAUT' && <Badge variant="outline" className="ml-2">Gold</Badge>}
                     {token.symbol === 'AURU' && <Badge variant="outline" className="ml-2">Governance</Badge>}
+                    {!supportedTokens.includes(token.symbol) && 
+                      <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
+                    }
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -195,7 +180,7 @@ export function LendingBorrow() {
                 type="button" 
                 variant="link" 
                 size="sm" 
-                onClick={() => setAmount((maxBorrowable).toString())}
+                onClick={() => setAmount(maxBorrowable.toString())}
                 className="h-auto p-0 text-primary"
               >
                 Max: ${maxBorrowable.toFixed(0)}
@@ -226,7 +211,7 @@ export function LendingBorrow() {
                 onClick={() => setRateType('variable')}
               >
                 <span className="font-medium">Variable</span>
-                <span className="text-sm opacity-70">{currentAPY.toFixed(2)}% APY</span>
+                <span className="text-sm opacity-70">{(currentAPY * 100).toFixed(2)}% APY</span>
               </Button>
               <Button
                 type="button"
@@ -235,7 +220,7 @@ export function LendingBorrow() {
                 onClick={() => setRateType('stable')}
               >
                 <span className="font-medium">Stable</span>
-                <span className="text-sm opacity-70">{(currentAPY + 1.5).toFixed(2)}% APY</span>
+                <span className="text-sm opacity-70">{(getAssetBorrowRate(selectedToken, 'stable', selectedChain) * 100).toFixed(2)}% APY</span>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -266,10 +251,12 @@ export function LendingBorrow() {
             type="submit" 
             className="w-full font-bold" 
             size="lg"
-            disabled={!amount || parseFloat(amount) <= 0 || loading || !isHealthy || borrowAmount > maxBorrowable}
+            disabled={!amount || parseFloat(amount) <= 0 || loading || !isHealthy || borrowAmount > maxBorrowable || !supportedTokens.includes(selectedToken)}
           >
             {loading ? (
               "Processing Borrow..."
+            ) : !supportedTokens.includes(selectedToken) ? (
+              `${selectedToken} borrowing not available`
             ) : !isHealthy ? (
               "Health Factor Too Low"
             ) : borrowAmount > maxBorrowable ? (

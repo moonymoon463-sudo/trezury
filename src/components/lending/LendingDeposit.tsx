@@ -7,46 +7,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, TrendingUp, Wallet, DollarSign } from "lucide-react";
-import { useLending } from "@/hooks/useLending";
+import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
-import { LendingService } from "@/services/lendingService";
-import { LendingWalletService } from "@/services/lendingWalletService";
 import { useToast } from "@/hooks/use-toast";
 
 export function LendingDeposit() {
-  const { loading } = useLending();
+  const { 
+    supply, 
+    getAssetSupplyRate, 
+    poolReserves, 
+    loading 
+  } = useAaveStyleLending();
   const { toast } = useToast();
   const [selectedChain, setSelectedChain] = useState<Chain>('ethereum');
   const [selectedToken, setSelectedToken] = useState<Token>('USDC');
   const [amount, setAmount] = useState('');
   const [useAsCollateral, setUseAsCollateral] = useState(true);
-  const [currentAPY, setCurrentAPY] = useState(0);
 
   const selectedChainConfig = CHAIN_CONFIGS[selectedChain];
-
-  // Update APY when chain or token changes (variable rate, no lock terms)
-  useEffect(() => {
-    const updateAPY = async () => {
-      if (selectedChain && selectedToken) {
-        // Simulate variable APY calculation for Aave-style lending
-        const baseAPY = selectedToken === 'USDC' ? 4.2 : 
-                       selectedToken === 'USDT' ? 3.8 :
-                       selectedToken === 'DAI' ? 3.5 :
-                       selectedToken === 'XAUT' ? 2.1 :
-                       selectedToken === 'AURU' ? 8.7 : 4.0;
-        setCurrentAPY(baseAPY);
-      }
-    };
-    updateAPY();
-  }, [selectedChain, selectedToken]);
+  const currentAPY = getAssetSupplyRate(selectedToken, selectedChain);
 
   // Reset token when chain changes and check support
   useEffect(() => {
-    const supportedTokens = LendingWalletService.getSupportedTokens(selectedChain);
+    const supportedTokens = selectedChainConfig?.tokens.map(t => t.symbol) || [];
     if (supportedTokens.length > 0 && !supportedTokens.includes(selectedToken)) {
-      setSelectedToken(supportedTokens[0]);
+      setSelectedToken(supportedTokens[0] as Token);
     }
-  }, [selectedChain, selectedToken]);
+  }, [selectedChain, selectedToken, selectedChainConfig]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +42,9 @@ export function LendingDeposit() {
       return;
     }
 
-    // Check if chain/token combination is supported
-    if (!LendingWalletService.isSupported(selectedChain, selectedToken)) {
+    // Check if the asset is supported
+    const poolReserve = poolReserves.find(r => r.asset === selectedToken && r.chain === selectedChain);
+    if (!poolReserve || !poolReserve.is_active) {
       toast({
         variant: "destructive",
         title: "Not Supported",
@@ -65,20 +53,15 @@ export function LendingDeposit() {
       return;
     }
 
-    toast({
-      title: "Supply Successful",
-      description: `Supplied ${amount} ${selectedToken}. ${useAsCollateral ? 'Enabled as collateral.' : 'Not used as collateral.'}`
-    });
-
-    // Reset form
+    await supply(selectedToken, parseFloat(amount), selectedChain);
     setAmount('');
   };
 
   // Get supported tokens for selected chain
-  const supportedTokens = LendingWalletService.getSupportedTokens(selectedChain);
-  const availableTokenConfigs = selectedChainConfig.tokens.filter(
-    token => supportedTokens.includes(token.symbol)
-  );
+  const availableTokenConfigs = selectedChainConfig?.tokens || [];
+  const supportedTokens = poolReserves
+    .filter(r => r.chain === selectedChain && r.is_active)
+    .map(r => r.asset);
 
   return (
     <Card className="w-full max-w-2xl mx-auto bg-card border-border">
@@ -124,7 +107,7 @@ export function LendingDeposit() {
                     {token.symbol}
                     {token.symbol === 'XAUT' && <Badge variant="outline" className="ml-2">Gold</Badge>}
                     {token.symbol === 'AURU' && <Badge variant="outline" className="ml-2">Governance</Badge>}
-                    {!LendingWalletService.isSupported(selectedChain, token.symbol) && 
+                    {!supportedTokens.includes(token.symbol) && 
                       <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
                     }
                   </SelectItem>
@@ -154,7 +137,7 @@ export function LendingDeposit() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-foreground">Supply APY</span>
               <Badge variant="secondary" className="text-lg font-bold bg-primary text-primary-foreground">
-                {currentAPY.toFixed(2)}%
+                {(currentAPY * 100).toFixed(2)}%
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -202,11 +185,11 @@ export function LendingDeposit() {
             type="submit" 
             className="w-full font-bold" 
             size="lg"
-            disabled={!amount || parseFloat(amount) <= 0 || loading || !LendingWalletService.isSupported(selectedChain, selectedToken)}
+            disabled={!amount || parseFloat(amount) <= 0 || loading || !supportedTokens.includes(selectedToken)}
           >
             {loading ? (
               "Supplying..."
-            ) : !LendingWalletService.isSupported(selectedChain, selectedToken) ? (
+            ) : !supportedTokens.includes(selectedToken) ? (
               `${selectedToken} on ${selectedChain} Coming Soon`
             ) : (
               `Supply ${amount || '0'} ${selectedToken}`

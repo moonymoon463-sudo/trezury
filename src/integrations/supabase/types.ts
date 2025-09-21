@@ -196,6 +196,90 @@ export type Database = {
         }
         Relationships: []
       }
+      governance_rewards: {
+        Row: {
+          amount_dec: number
+          asset: string
+          chain: string
+          claimed_at: string | null
+          created_at: string
+          earned_at: string
+          id: string
+          metadata: Json | null
+          reward_type: string
+          user_id: string
+        }
+        Insert: {
+          amount_dec?: number
+          asset?: string
+          chain?: string
+          claimed_at?: string | null
+          created_at?: string
+          earned_at?: string
+          id?: string
+          metadata?: Json | null
+          reward_type: string
+          user_id: string
+        }
+        Update: {
+          amount_dec?: number
+          asset?: string
+          chain?: string
+          claimed_at?: string | null
+          created_at?: string
+          earned_at?: string
+          id?: string
+          metadata?: Json | null
+          reward_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      interest_rate_models: {
+        Row: {
+          asset: string
+          base_stable_borrow_rate: number
+          base_variable_borrow_rate: number
+          chain: string
+          created_at: string
+          id: string
+          optimal_utilization_rate: number
+          stable_rate_slope1: number
+          stable_rate_slope2: number
+          updated_at: string
+          variable_rate_slope1: number
+          variable_rate_slope2: number
+        }
+        Insert: {
+          asset: string
+          base_stable_borrow_rate?: number
+          base_variable_borrow_rate?: number
+          chain?: string
+          created_at?: string
+          id?: string
+          optimal_utilization_rate?: number
+          stable_rate_slope1?: number
+          stable_rate_slope2?: number
+          updated_at?: string
+          variable_rate_slope1?: number
+          variable_rate_slope2?: number
+        }
+        Update: {
+          asset?: string
+          base_stable_borrow_rate?: number
+          base_variable_borrow_rate?: number
+          chain?: string
+          created_at?: string
+          id?: string
+          optimal_utilization_rate?: number
+          stable_rate_slope1?: number
+          stable_rate_slope2?: number
+          updated_at?: string
+          variable_rate_slope1?: number
+          variable_rate_slope2?: number
+        }
+        Relationships: []
+      }
       kyc_documents: {
         Row: {
           created_at: string
@@ -236,6 +320,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      liquidation_calls: {
+        Row: {
+          chain: string
+          collateral_asset: string
+          completed_at: string | null
+          created_at: string
+          debt_asset: string
+          debt_to_cover_dec: number
+          health_factor_after: number
+          health_factor_before: number
+          id: string
+          liquidated_collateral_dec: number
+          liquidation_bonus_dec: number
+          liquidator_id: string | null
+          status: string
+          tx_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          chain?: string
+          collateral_asset: string
+          completed_at?: string | null
+          created_at?: string
+          debt_asset: string
+          debt_to_cover_dec: number
+          health_factor_after: number
+          health_factor_before: number
+          id?: string
+          liquidated_collateral_dec: number
+          liquidation_bonus_dec: number
+          liquidator_id?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          chain?: string
+          collateral_asset?: string
+          completed_at?: string | null
+          created_at?: string
+          debt_asset?: string
+          debt_to_cover_dec?: number
+          health_factor_after?: number
+          health_factor_before?: number
+          id?: string
+          liquidated_collateral_dec?: number
+          liquidation_bonus_dec?: number
+          liquidator_id?: string | null
+          status?: string
+          tx_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       locks: {
         Row: {
@@ -535,6 +673,78 @@ export type Database = {
           access_count?: number | null
           user_id?: string
           window_start?: string | null
+        }
+        Relationships: []
+      }
+      pool_reserves: {
+        Row: {
+          asset: string
+          available_liquidity_dec: number
+          borrow_rate_stable: number
+          borrow_rate_variable: number
+          borrowing_enabled: boolean
+          chain: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_frozen: boolean
+          last_update_timestamp: string
+          liquidation_bonus: number
+          liquidation_threshold: number
+          ltv: number
+          reserve_factor: number
+          stable_rate_enabled: boolean
+          supply_rate: number
+          total_borrowed_dec: number
+          total_supply_dec: number
+          updated_at: string
+          utilization_rate: number
+        }
+        Insert: {
+          asset: string
+          available_liquidity_dec?: number
+          borrow_rate_stable?: number
+          borrow_rate_variable?: number
+          borrowing_enabled?: boolean
+          chain?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_frozen?: boolean
+          last_update_timestamp?: string
+          liquidation_bonus?: number
+          liquidation_threshold?: number
+          ltv?: number
+          reserve_factor?: number
+          stable_rate_enabled?: boolean
+          supply_rate?: number
+          total_borrowed_dec?: number
+          total_supply_dec?: number
+          updated_at?: string
+          utilization_rate?: number
+        }
+        Update: {
+          asset?: string
+          available_liquidity_dec?: number
+          borrow_rate_stable?: number
+          borrow_rate_variable?: number
+          borrowing_enabled?: boolean
+          chain?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_frozen?: boolean
+          last_update_timestamp?: string
+          liquidation_bonus?: number
+          liquidation_threshold?: number
+          ltv?: number
+          reserve_factor?: number
+          stable_rate_enabled?: boolean
+          supply_rate?: number
+          total_borrowed_dec?: number
+          total_supply_dec?: number
+          updated_at?: string
+          utilization_rate?: number
         }
         Relationships: []
       }
@@ -871,6 +1081,87 @@ export type Database = {
           },
         ]
       }
+      user_borrows: {
+        Row: {
+          accrued_interest_dec: number
+          asset: string
+          borrow_rate_at_creation: number
+          borrowed_amount_dec: number
+          chain: string
+          created_at: string
+          id: string
+          last_interest_update: string
+          rate_mode: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accrued_interest_dec?: number
+          asset: string
+          borrow_rate_at_creation?: number
+          borrowed_amount_dec?: number
+          chain?: string
+          created_at?: string
+          id?: string
+          last_interest_update?: string
+          rate_mode?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accrued_interest_dec?: number
+          asset?: string
+          borrow_rate_at_creation?: number
+          borrowed_amount_dec?: number
+          chain?: string
+          created_at?: string
+          id?: string
+          last_interest_update?: string
+          rate_mode?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_health_factors: {
+        Row: {
+          available_borrow_usd: number
+          chain: string
+          health_factor: number
+          id: string
+          last_calculated_at: string
+          liquidation_threshold: number
+          ltv: number
+          total_collateral_usd: number
+          total_debt_usd: number
+          user_id: string
+        }
+        Insert: {
+          available_borrow_usd?: number
+          chain?: string
+          health_factor: number
+          id?: string
+          last_calculated_at?: string
+          liquidation_threshold?: number
+          ltv?: number
+          total_collateral_usd?: number
+          total_debt_usd?: number
+          user_id: string
+        }
+        Update: {
+          available_borrow_usd?: number
+          chain?: string
+          health_factor?: number
+          id?: string
+          last_calculated_at?: string
+          liquidation_threshold?: number
+          ltv?: number
+          total_collateral_usd?: number
+          total_debt_usd?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string | null
@@ -891,6 +1182,48 @@ export type Database = {
           assigned_by?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_supplies: {
+        Row: {
+          accrued_interest_dec: number
+          asset: string
+          chain: string
+          created_at: string
+          id: string
+          last_interest_update: string
+          supplied_amount_dec: number
+          supply_rate_at_deposit: number
+          updated_at: string
+          used_as_collateral: boolean
+          user_id: string
+        }
+        Insert: {
+          accrued_interest_dec?: number
+          asset: string
+          chain?: string
+          created_at?: string
+          id?: string
+          last_interest_update?: string
+          supplied_amount_dec?: number
+          supply_rate_at_deposit?: number
+          updated_at?: string
+          used_as_collateral?: boolean
+          user_id: string
+        }
+        Update: {
+          accrued_interest_dec?: number
+          asset?: string
+          chain?: string
+          created_at?: string
+          id?: string
+          last_interest_update?: string
+          supplied_amount_dec?: number
+          supply_rate_at_deposit?: number
+          updated_at?: string
+          used_as_collateral?: boolean
           user_id?: string
         }
         Relationships: []
