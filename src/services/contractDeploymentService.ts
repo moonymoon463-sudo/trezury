@@ -10,12 +10,14 @@ interface DeployedContract {
   bytecode?: string;
 }
 
-interface ContractAddresses {
-  usdc: string;
-  usdt: string;
-  dai: string;
-  xaut: string;
-  auru: string;
+export interface ContractAddresses {
+  tokens: {
+    usdc: string;
+    usdt: string;
+    dai: string;
+    xaut: string;
+    auru: string;
+  };
   lendingPool: string;
 }
 
@@ -88,13 +90,34 @@ class ContractDeploymentService {
       }
 
       // Transform from edge function format to ContractAddresses format
-      const addresses: Partial<ContractAddresses> = {};
+      const tokens: Record<string, string> = {};
+      let lendingPool = '';
+      
       data.addresses?.forEach((item: { name: string; address: string }) => {
-        const key = item.name.toLowerCase() as keyof ContractAddresses;
-        addresses[key] = item.address;
+        const lowerName = item.name.toLowerCase();
+        if (lowerName === 'lendingpool') {
+          lendingPool = item.address;
+        } else {
+          tokens[lowerName] = item.address;
+        }
       });
 
-      return addresses as ContractAddresses;
+      // Ensure all required tokens are present
+      if (!tokens.usdc || !tokens.usdt || !tokens.dai || !tokens.xaut || !tokens.auru || !lendingPool) {
+        console.error('Missing required contract addresses');
+        return null;
+      }
+
+      return {
+        tokens: {
+          usdc: tokens.usdc,
+          usdt: tokens.usdt,
+          dai: tokens.dai,
+          xaut: tokens.xaut,
+          auru: tokens.auru,
+        },
+        lendingPool
+      };
     } catch (error) {
       console.error("Error fetching contract addresses:", error);
       return null;
