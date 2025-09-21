@@ -14,7 +14,6 @@ interface SupplyWithdrawRequest {
   amount: number;
   chain?: string;
   walletAddress?: string;
-  privateKey?: string; // For demo - in production, use proper wallet connection
 }
 
 serve(async (req) => {
@@ -59,22 +58,18 @@ serve(async (req) => {
       .select('*')
       .eq('asset', asset)
       .eq('chain', chain)
+      .eq('is_active', true)
       .single();
 
     if (poolError || !poolReserve) {
       throw new Error(`Pool reserve not found for ${asset} on ${chain}`);
     }
 
-    if (!poolReserve.is_active) {
-      throw new Error(`Pool for ${asset} is currently inactive`);
-    }
+    let txHash: string | null = null;
+    let blockchainSuccess = false;
 
     if (action === 'supply') {
-      // Handle supply operation with blockchain interaction
-      console.log('Processing REAL BLOCKCHAIN supply operation');
-
-      let txHash: string | null = null;
-      let blockchainSuccess = false;
+      console.log('📤 Processing supply operation with blockchain support...');
 
       // Try to perform blockchain transaction if demo wallet is available
       if (demoPrivateKey && walletAddress) {
@@ -91,22 +86,7 @@ serve(async (req) => {
         console.log('ℹ️ Demo wallet not configured, using database-only mode');
       }
 
-      try {
-          
-          if (demoPrivateKey) {
-            txHash = await performSupplyTransaction(asset, amount, demoWalletAddress, demoPrivateKey, chain);
-            blockchainSuccess = true;
-            console.log(`✅ Demo blockchain supply transaction successful: ${txHash}`);
-          } else {
-            console.log('⚠️ No demo wallet configured, skipping blockchain transaction');
-          }
-        }
-      } catch (blockchainError) {
-        console.error('❌ Blockchain transaction failed:', blockchainError);
-        // Continue with database-only operation as fallback
-      }
-
-      // Update database regardless of blockchain success (for tracking)
+      // Database update regardless of blockchain success
       const { data: existingSupply } = await supabaseClient
         .from('user_supplies')
         .select('*')
@@ -117,19 +97,17 @@ serve(async (req) => {
 
       if (existingSupply) {
         // Update existing supply
-        const newAmount = parseFloat(existingSupply.supplied_amount_dec) + amount;
         const { error: updateError } = await supabaseClient
           .from('user_supplies')
           .update({
-            supplied_amount_dec: newAmount,
-            supply_rate_at_deposit: poolReserve.supply_rate,
+            supplied_amount_dec: parseFloat(existingSupply.supplied_amount_dec) + amount,
             last_interest_update: new Date().toISOString()
           })
           .eq('id', existingSupply.id);
 
         if (updateError) throw updateError;
       } else {
-        // Create new supply position
+        // Create new supply
         const { error: insertError } = await supabaseClient
           .from('user_supplies')
           .insert({
@@ -137,6 +115,7 @@ serve(async (req) => {
             asset,
             chain,
             supplied_amount_dec: amount,
+            accrued_interest_dec: 0,
             supply_rate_at_deposit: poolReserve.supply_rate,
             used_as_collateral: true
           });
@@ -162,7 +141,7 @@ serve(async (req) => {
 
       if (poolUpdateError) throw poolUpdateError;
 
-      // Update user balance snapshot with transaction hash
+      // Update user balance snapshot
       await supabaseClient
         .from('balance_snapshots')
         .insert({
@@ -173,8 +152,7 @@ serve(async (req) => {
         });
 
     } else if (action === 'withdraw') {
-      // Handle withdraw operation
-      console.log('Processing withdraw operation');
+      console.log('📥 Processing withdraw operation...');
 
       // Get user's supply position
       const { data: userSupply, error: supplyError } = await supabaseClient
@@ -186,66 +164,51 @@ serve(async (req) => {
         .single();
 
       if (supplyError || !userSupply) {
-        throw new Error('No supply position found for this asset');
+        throw new Error(`No supply position found for ${asset}`);
       }
 
-      const currentSupplied = parseFloat(userSupply.supplied_amount_dec);
-      if (amount > currentSupplied) {
-        throw new Error('Insufficient supplied amount');
+      const suppliedAmount = parseFloat(userSupply.supplied_amount_dec);
+      const withdrawAmount = Math.min(amount, suppliedAmount); // Don't withdraw more than supplied
+
+      if (withdrawAmount <= 0) {
+        throw new Error('Invalid withdraw amount');
       }
 
-      // Check if withdrawal would violate health factor
-      // TODO: Implement health factor check
-
-      // Update user supply
-      const newSuppliedAmount = currentSupplied - amount;
-      
-      if (newSuppliedAmount === 0) {
-        // Remove supply position if fully withdrawn
-        const { error: deleteError } = await supabaseClient
+      // Update user supply position
+      const newSuppliedAmount = suppliedAmount - withdrawAmount;
+      if (newSuppliedAmount <= 0.01) { // Close position if very small amount left
+        await supabaseClient
           .from('user_supplies')
           .delete()
           .eq('id', userSupply.id);
-
-        if (deleteError) throw deleteError;
       } else {
-        // Update supply position
-        const { error: updateError } = await supabaseClient
+        await supabaseClient
           .from('user_supplies')
           .update({
             supplied_amount_dec: newSuppliedAmount,
             last_interest_update: new Date().toISOString()
           })
           .eq('id', userSupply.id);
-
-        if (updateError) throw updateError;
       }
 
       // Update pool reserves
-      const newTotalSupply = parseFloat(poolReserve.total_supply_dec) - amount;
-      const newAvailableLiquidity = parseFloat(poolReserve.available_liquidity_dec) - amount;
-      const newUtilizationRate = newTotalSupply > 0 ? 
-        parseFloat(poolReserve.total_borrowed_dec) / newTotalSupply : 0;
-
-      const { error: poolUpdateError } = await supabaseClient
+      await supabaseClient
         .from('pool_reserves')
         .update({
-          total_supply_dec: newTotalSupply,
-          available_liquidity_dec: newAvailableLiquidity,
-          utilization_rate: newUtilizationRate,
+          total_supply_dec: parseFloat(poolReserve.total_supply_dec) - withdrawAmount,
+          available_liquidity_dec: parseFloat(poolReserve.available_liquidity_dec) - withdrawAmount,
+          utilization_rate: (parseFloat(poolReserve.total_borrowed_dec)) / (parseFloat(poolReserve.total_supply_dec) - withdrawAmount),
           last_update_timestamp: new Date().toISOString()
         })
         .eq('id', poolReserve.id);
 
-      if (poolUpdateError) throw poolUpdateError;
-
-      // Update user balance
+      // Update user balance snapshot
       await supabaseClient
         .from('balance_snapshots')
         .insert({
           user_id: user.id,
           asset,
-          amount: amount, // Positive because user is receiving
+          amount: withdrawAmount, // Positive because user is receiving
           snapshot_at: new Date().toISOString()
         });
     }
@@ -268,34 +231,36 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error(`Error in supply-withdraw function:`, error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    console.error('Error in supply-withdraw function:', error);
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
+/**
+ * Update user health factor after supply/withdraw operations
+ */
 async function updateUserHealthFactor(supabaseClient: any, userId: string, chain: string) {
   try {
-    // Get user supplies (collateral)
+    // Get user supplies with pool data
     const { data: supplies } = await supabaseClient
       .from('user_supplies')
-      .select('*, pool_reserves!inner(*)')
+      .select(`
+        *,
+        pool_reserves!inner(asset, chain, ltv, liquidation_threshold)
+      `)
       .eq('user_id', userId)
-      .eq('chain', chain)
-      .eq('used_as_collateral', true);
+      .eq('chain', chain);
 
-    // Get user borrows (debt)
+    // Get user borrows
     const { data: borrows } = await supabaseClient
       .from('user_borrows')
-      .select('*, pool_reserves!inner(*)')
+      .select('*')
       .eq('user_id', userId)
       .eq('chain', chain);
 
@@ -304,10 +269,10 @@ async function updateUserHealthFactor(supabaseClient: any, userId: string, chain
     let weightedLtv = 0;
     let weightedLiquidationThreshold = 0;
 
-    // Calculate total collateral value (simplified - using 1:1 USD for stablecoins)
+    // Calculate total collateral value (USD assumption for simplicity)
     if (supplies) {
       for (const supply of supplies) {
-        const usdValue = parseFloat(supply.supplied_amount_dec);
+        const usdValue = parseFloat(supply.supplied_amount_dec); // Assuming 1:1 USD for demo
         totalCollateralUsd += usdValue;
         weightedLtv += usdValue * parseFloat(supply.pool_reserves.ltv);
         weightedLiquidationThreshold += usdValue * parseFloat(supply.pool_reserves.liquidation_threshold);
@@ -379,7 +344,7 @@ async function performSupplyTransaction(
   }
 
   // Setup provider and wallet
-  const provider = new ethers.JsonRpcProvider(rpcData.rpc_url);
+  const provider = new ethers.JsonRpcProvider(rpcData.rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
 
   // Token contracts on Sepolia testnet
@@ -421,3 +386,4 @@ async function performSupplyTransaction(
   console.log(`✅ Transaction confirmed in block ${receipt.blockNumber}`);
   
   return tx.hash;
+}
