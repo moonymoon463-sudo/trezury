@@ -50,7 +50,7 @@ const BottomNavigation = () => {
   };
 
   return (
-    <nav className="bg-card px-6 py-4">
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-card px-6 py-[calc(1rem+env(safe-area-inset-bottom))] border-t shadow-lg">
       <div className="flex justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -59,11 +59,8 @@ const BottomNavigation = () => {
           return (
             <button
               key={item.id}
-              onClick={() => {
-                console.log('Navigation clicked:', item.path);
-                navigate(item.path);
-              }}
-              className="flex flex-col items-center space-y-1 min-h-[48px] min-w-[48px] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg p-2 cursor-pointer"
+              onClick={() => navigate(item.path)}
+              className="flex flex-col items-center space-y-1"
             >
               <Icon 
                 size={20} 
