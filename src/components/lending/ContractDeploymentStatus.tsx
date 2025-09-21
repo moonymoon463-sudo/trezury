@@ -74,23 +74,19 @@ export function ContractDeploymentStatus() {
   };
 
   const handleDeploy = async (chain: DeploymentChain) => {
-    if (!wallet.isConnected) {
-      toast({
-        variant: "destructive",
-        title: "Wallet Required",
-        description: "Please connect your wallet to deploy contracts"
-      });
-      return;
-    }
-
-    // Check if on correct network for Ethereum deployment
-    if (chain === 'ethereum' && wallet.chainId !== 11155111) {
-      toast({
-        title: "Wrong Network",
-        description: "Please switch to Ethereum Sepolia testnet for deployment",
-        variant: "destructive"
-      });
-      return;
+    // Deployment uses backend deployer; wallet is optional. If connected, try to switch to Sepolia for better UX.
+    if (wallet.isConnected && chain === 'ethereum' && wallet.chainId !== 11155111) {
+      try {
+        await switchNetwork(11155111);
+        toast({ title: "Network Switched", description: "Switched to Sepolia for deployment" });
+      } catch {
+        toast({
+          title: "Wrong Network",
+          description: "Please switch to Ethereum Sepolia testnet to view on-chain activity",
+          variant: "destructive"
+        });
+        // Proceed with deployment regardless since it's server-side
+      }
     }
 
     setDeployingChain(chain);
@@ -184,7 +180,7 @@ export function ContractDeploymentStatus() {
                     <Button
                       size="sm"
                       onClick={() => handleDeploy(chain)}
-                      disabled={!wallet.isConnected || isDeploying || deployingChain === chain}
+                      disabled={isDeploying || deployingChain === chain}
                       className="min-w-[80px]"
                     >
                       {deployingChain === chain ? (

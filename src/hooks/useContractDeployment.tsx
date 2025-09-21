@@ -55,15 +55,7 @@ export function useContractDeployment() {
   };
 
   const deployToChain = async (chain: DeploymentChain) => {
-    if (!wallet.isConnected) {
-      toast({
-        variant: "destructive", 
-        title: "Wallet Required",
-        description: "Please connect your wallet first"
-      });
-      return false;
-    }
-
+    // Deployment uses a backend deployer wallet; user wallet is not required
     setIsDeploying(true);
     try {
       toast({
@@ -78,7 +70,6 @@ export function useContractDeployment() {
 
       // Use secure deployment (private key handled securely in edge function)
       console.log(`Invoking contract-deployment function for ${chain}...`);
-      
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
           operation: 'deploy',
@@ -92,12 +83,10 @@ export function useContractDeployment() {
 
       if (error) {
         console.error('Supabase function invocation error:', error);
-        
         // Handle 404 specifically
         if (error.message?.includes('404') || error.message?.includes('not found')) {
           throw new Error('Contract deployment service is not available. The service may be temporarily down or not deployed. Please contact support.');
         }
-        
         throw new Error(`Service error: ${error.message}`);
       }
 
