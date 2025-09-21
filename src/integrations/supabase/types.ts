@@ -1265,6 +1265,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accrue_compound_interest: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       admin_assign_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1311,6 +1315,10 @@ export type Database = {
       }
       create_security_alert: {
         Args: { alert_type: string; details?: Json; severity?: string }
+        Returns: undefined
+      }
+      distribute_governance_rewards: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       encrypt_sensitive_field: {

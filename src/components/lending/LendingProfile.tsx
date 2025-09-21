@@ -11,6 +11,8 @@ import { HealthFactorIndicator } from "@/components/lending/HealthFactorIndicato
 import { ValidationStatus } from "@/components/testing/ValidationStatus";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useRealtimeLending } from "@/hooks/useRealtimeLending";
+import { EnhancedLendingService } from "@/services/enhancedLendingService";
 
 function SupplyPositionCard({ supply, onWithdraw, onToggleCollateral }: {
   supply: any;
@@ -216,6 +218,15 @@ export function LendingProfile() {
     loading 
   } = useValidatedLending();
 
+  const {
+    poolData: realtimePoolData,
+    userSupplies: realtimeSupplies,
+    userBorrows: realtimeBorrows,
+    healthFactor: realtimeHealthFactor,
+    loading: realtimeLoading,
+    metrics: realtimeMetrics
+  } = useRealtimeLending();
+
   if (!user) {
     return (
       <Card className="bg-card border-border">
@@ -226,13 +237,14 @@ export function LendingProfile() {
     );
   }
 
-  const totalSuppliedUSD = userSupplies.reduce((sum, supply) => 
+  const totalSuppliedUSD = realtimeMetrics.totalSuppliedUSD || userSupplies.reduce((sum, supply) => 
     sum + (supply.supplied_amount_dec + supply.accrued_interest_dec), 0);
-  const totalBorrowedUSD = userBorrows.reduce((sum, borrow) => 
+  const totalBorrowedUSD = realtimeMetrics.totalBorrowedUSD || userBorrows.reduce((sum, borrow) => 
     sum + (borrow.borrowed_amount_dec + borrow.accrued_interest_dec), 0);
 
   const netWorth = totalSuppliedUSD - totalBorrowedUSD;
   const borrowUtilization = totalSuppliedUSD > 0 ? (totalBorrowedUSD / totalSuppliedUSD) * 100 : 0;
+  const currentHealthFactor = realtimeHealthFactor || userHealthFactor?.health_factor || null;
 
   return (
     <div className="space-y-6">
@@ -271,6 +283,9 @@ export function LendingProfile() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Supplied</p>
                 <p className="text-xl font-bold text-foreground">${totalSuppliedUSD.toFixed(2)}</p>
+                {realtimeMetrics.totalSuppliedUSD && (
+                  <p className="text-xs text-primary">Live data</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -285,6 +300,9 @@ export function LendingProfile() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Borrowed</p>
                 <p className="text-xl font-bold text-foreground">${totalBorrowedUSD.toFixed(2)}</p>
+                {realtimeMetrics.totalBorrowedUSD && (
+                  <p className="text-xs text-destructive">Live data</p>
+                )}
               </div>
             </div>
           </CardContent>
