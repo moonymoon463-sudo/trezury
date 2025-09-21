@@ -20,6 +20,7 @@ declare global {
 
 export interface WalletConnectionState {
   isConnected: boolean;
+  hasAvailableAccounts: boolean;
   address: string | null;
   chainId: number | null;
   balance: string | null;
@@ -74,6 +75,7 @@ const isMetaMaskAvailable = (): boolean => {
 export const useWalletConnection = (): UseWalletConnectionReturn => {
   const [wallet, setWallet] = useState<WalletConnectionState>({
     isConnected: false,
+    hasAvailableAccounts: false,
     address: null,
     chainId: null,
     balance: null,
@@ -104,11 +106,12 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
 
     try {
       const accounts = await metaMaskProvider.request({ method: 'eth_accounts' });
-      if (accounts.length > 0) {
-        await updateWalletState(accounts[0]);
-      }
+      setWallet(prev => ({
+        ...prev,
+        hasAvailableAccounts: accounts.length > 0
+      }));
     } catch (error) {
-      console.error('Failed to initialize wallet:', error);
+      console.error('Failed to check wallet availability:', error);
     }
   };
 
@@ -201,6 +204,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
 
       setWallet({
         isConnected: true,
+        hasAvailableAccounts: true,
         address,
         chainId: numericChainId,
         balance: ethBalance,
@@ -275,9 +279,14 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         metadata: { address: accounts[0], wallet_type: 'MetaMask' }
       });
 
+      // Get current chain info for toast
+      const chainId = await metaMaskProvider.request({ method: 'eth_chainId' });
+      const numericChainId = parseInt(chainId, 16);
+      const networkName = SUPPORTED_NETWORKS[numericChainId as keyof typeof SUPPORTED_NETWORKS];
+
       toast({
         title: "MetaMask Connected",
-        description: `Connected to ${wallet.networkName || 'blockchain network'}`
+        description: `Connected to ${networkName || 'blockchain network'}`
       });
 
     } catch (error: any) {
@@ -305,6 +314,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const disconnectWallet = useCallback(() => {
     setWallet({
       isConnected: false,
+      hasAvailableAccounts: false,
       address: null,
       chainId: null,
       balance: null,
