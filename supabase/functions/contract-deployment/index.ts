@@ -122,81 +122,227 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
   console.log(`🚀 Deploying contracts to ${chain} blockchain...`);
 
   try {
-    // Use Supabase secret for deployment private key if not provided
+    // Validate deployment private key with better error messages
     let deploymentPrivateKey = privateKey;
     if (!deploymentPrivateKey) {
       deploymentPrivateKey = Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
       if (!deploymentPrivateKey) {
-        throw new Error("Deployment private key not configured. Please contact administrator.");
+        console.error('❌ DEPLOYMENT_PRIVATE_KEY environment variable not found');
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Deployment service configuration error',
+            details: 'DEPLOYMENT_PRIVATE_KEY not configured. Please contact support to configure the deployment wallet.',
+            code: 'MISSING_DEPLOYMENT_KEY'
+          }),
+          { 
+            status: 500, 
+            headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+          }
+        );
       }
     }
 
-    // Initialize ethers provider with RPC fallback system
+    // Enhanced RPC fallback system with default endpoints for Ethereum
+    const defaultEthereumRpcs = [
+      'https://eth-sepolia.g.alchemy.com/v2/demo',
+      'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+      'https://rpc.sepolia.org',
+      'https://ethereum-sepolia-rpc.publicnode.com'
+    ];
+
     let provider: any = null;
     let connectedRpcUrl = "";
     
-    // Try primary RPC first, then fallbacks
-    const rpcUrls = [rpcUrl, ...(fallbackRpcs || [])];
-    console.log(`Attempting connection to ${rpcUrls.length} RPC endpoints...`);
+    // Build comprehensive RPC list: user provided + fallbacks + defaults
+    const allRpcs = [];
+    if (rpcUrl) allRpcs.push(rpcUrl);
+    if (fallbackRpcs?.length) allRpcs.push(...fallbackRpcs);
+    if (chain === 'ethereum') allRpcs.push(...defaultEthereumRpcs);
     
-    for (let i = 0; i < rpcUrls.length; i++) {
-      const currentRpcUrl = rpcUrls[i];
-      console.log(`Trying RPC ${i + 1}/${rpcUrls.length}: ${currentRpcUrl}`);
+    // Remove duplicates
+    const uniqueRpcs = [...new Set(allRpcs)];
+    console.log(`🔗 Attempting connection to ${uniqueRpcs.length} RPC endpoints for ${chain}...`);
+    
+    for (let i = 0; i < uniqueRpcs.length; i++) {
+      const currentRpcUrl = uniqueRpcs[i];
+      console.log(`🔄 Trying RPC ${i + 1}/${uniqueRpcs.length}: ${currentRpcUrl.substring(0, 50)}...`);
       
       try {
         const testProvider = new ethers.JsonRpcProvider(currentRpcUrl, undefined, {
           staticNetwork: true,
-          batchMaxCount: 1
+          batchMaxCount: 1,
+          pollingInterval: 12000
         });
         
-        // Test connection with timeout
+        // Test connection with shorter timeout for faster failover
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Connection timeout')), 10000)
+          setTimeout(() => reject(new Error('Connection timeout after 8s')), 8000)
         );
         
-        await Promise.race([
+        const blockNumber = await Promise.race([
           testProvider.getBlockNumber(),
           timeoutPromise
         ]);
         
+        // Additional validation - ensure we can get network info
+        const network = await Promise.race([
+          testProvider.getNetwork(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Network info timeout')), 5000))
+        ]);
+        
         provider = testProvider;
         connectedRpcUrl = currentRpcUrl;
-        console.log(`✅ Successfully connected to: ${currentRpcUrl}`);
+        console.log(`✅ Successfully connected to ${currentRpcUrl.substring(0, 50)}... (Block: ${blockNumber}, ChainId: ${network.chainId})`);
         break;
+        
       } catch (error) {
-        console.log(`❌ RPC connection failed for ${currentRpcUrl}: ${error.message}`);
-        if (i === rpcUrls.length - 1) {
-          throw new Error(`All RPC endpoints failed. Last error: ${error.message}`);
+        console.log(`❌ RPC connection failed for ${currentRpcUrl.substring(0, 50)}...: ${error.message}`);
+        if (i === uniqueRpcs.length - 1) {
+          console.error(`💥 All ${uniqueRpcs.length} RPC endpoints failed for ${chain}`);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'RPC connection failed',
+              details: `Unable to connect to ${chain} network. All ${uniqueRpcs.length} RPC endpoints failed. This may be a temporary network issue.`,
+              code: 'RPC_CONNECTION_FAILED',
+              lastError: error.message
+            }),
+            { 
+              status: 503, 
+              headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+            }
+          );
         }
       }
     }
     
     if (!provider) {
-      throw new Error(`Failed to connect to any RPC endpoint for ${chain}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No provider available',
+          details: `Failed to establish connection to ${chain} network`,
+          code: 'NO_PROVIDER'
+        }),
+        { 
+          status: 503, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
     }
 
-    const deployer = new ethers.Wallet(deploymentPrivateKey, provider);
-    console.log(`Deployer address: ${deployer.address}`);
+    // Initialize deployer wallet with validation
+    let deployer: any;
+    try {
+      deployer = new ethers.Wallet(deploymentPrivateKey, provider);
+      console.log(`💳 Deployer address: ${deployer.address}`);
+    } catch (error) {
+      console.error('❌ Invalid deployment private key');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid deployment key',
+          details: 'The configured deployment private key is invalid. Please contact support.',
+          code: 'INVALID_PRIVATE_KEY'
+        }),
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
+    }
     
-    // Check deployer balance with detailed requirements
-    const balance = await provider.getBalance(deployer.address);
-    const balanceEth = ethers.formatEther(balance);
-    console.log(`Deployer balance: ${balanceEth} ETH`);
+    // Enhanced balance check with detailed requirements
+    let balance: any;
+    let balanceEth: string;
+    try {
+      balance = await provider.getBalance(deployer.address);
+      balanceEth = ethers.formatEther(balance);
+      console.log(`💰 Deployer balance: ${balanceEth} ETH`);
+    } catch (error) {
+      console.error('❌ Failed to get deployer balance:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Balance check failed',
+          details: 'Unable to check deployer wallet balance. Network may be unstable.',
+          code: 'BALANCE_CHECK_FAILED'
+        }),
+        { 
+          status: 503, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
+    }
     
-    // Calculate estimated gas requirements
-    const estimatedGasEth = "0.005"; // Conservative estimate for all contracts
+    // Calculate estimated gas requirements with detailed breakdown
+    const estimatedGasEth = "0.01"; // More conservative estimate for full deployment
+    const minimumBalanceEth = "0.005"; // Absolute minimum to attempt deployment
+    
+    if (balance < ethers.parseEther(minimumBalanceEth)) {
+      console.error(`❌ Insufficient balance: ${balanceEth} ETH < ${minimumBalanceEth} ETH (minimum)`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Insufficient funds',
+          details: `Deployer wallet needs at least ${minimumBalanceEth} ETH for deployment. Current balance: ${balanceEth} ETH. Please fund wallet: ${deployer.address}`,
+          code: 'INSUFFICIENT_FUNDS',
+          required: minimumBalanceEth,
+          current: balanceEth,
+          address: deployer.address
+        }),
+        { 
+          status: 402, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
+    }
+
     if (balance < ethers.parseEther(estimatedGasEth)) {
-      throw new Error(`Insufficient ETH balance for deployment. Need at least ${estimatedGasEth} ETH, have ${balanceEth} ETH. Please fund the deployer wallet: ${deployer.address}`);
+      console.warn(`⚠️  Low balance warning: ${balanceEth} ETH < ${estimatedGasEth} ETH (recommended)`);
     }
 
-    // Deploy contracts to actual blockchain
-    const deployedContracts = await deployRealContracts(deployer, chain);
+    // Deploy contracts with enhanced error handling
+    console.log('🏗️  Starting contract deployment...');
+    let deployedContracts: any;
+    try {
+      deployedContracts = await deployRealContracts(deployer, chain);
+      console.log('✅ Contract deployment completed successfully');
+    } catch (error) {
+      console.error('❌ Contract deployment failed:', error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Contract deployment failed',
+          details: error.message || 'Unknown deployment error occurred',
+          code: 'DEPLOYMENT_FAILED',
+          deployer: deployer.address,
+          chain: chain
+        }),
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
+    }
 
-    // Store in database
-    const currentBlock = await provider.getBlockNumber();
-    const network = await provider.getNetwork();
+    // Get blockchain info and store in database with error handling
+    let currentBlock: number;
+    let network: any;
+    try {
+      console.log('📊 Fetching blockchain metadata...');
+      currentBlock = await provider.getBlockNumber();
+      network = await provider.getNetwork();
+      console.log(`📊 Current block: ${currentBlock}, Chain ID: ${network.chainId}`);
+    } catch (error) {
+      console.error('❌ Failed to fetch blockchain metadata:', error);
+      currentBlock = 0;
+      network = { chainId: chain === 'ethereum' ? 11155111 : 0 };
+    }
     
-    const { error } = await supabase
+    console.log('💾 Storing deployment data in database...');
+    const { error: dbError } = await supabase
       .from('deployed_contracts')
       .upsert({
         chain,
@@ -208,16 +354,33 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
           deployment_type: 'real',
           deployment_block: currentBlock,
           network_id: network.chainId.toString(),
-          gas_used: deployedContracts.gasUsed || 0
+          gas_used: deployedContracts.gasUsed || 0,
+          rpc_endpoint: connectedRpcUrl.substring(0, 50) + '...',
+          deployment_timestamp: new Date().toISOString()
         }
       });
 
-    if (error) {
-      throw new Error(`Failed to store contract addresses: ${error.message}`);
+    if (dbError) {
+      console.error('❌ Database storage failed:', dbError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Database storage failed',
+          details: `Contracts deployed successfully but failed to store in database: ${dbError.message}`,
+          code: 'DATABASE_STORAGE_FAILED',
+          contracts: deployedContracts // Still return the deployed contracts
+        }),
+        { 
+          status: 500, 
+          headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+        }
+      );
     }
 
-    console.log(`✅ Contracts deployed successfully on ${chain}`);
-    console.log(`Gas used: ${deployedContracts.gasUsed || 'Unknown'}`);
+    console.log(`🎉 Deployment completed successfully on ${chain}!`);
+    console.log(`📊 Total gas used: ${deployedContracts.gasUsed || 'Unknown'}`);
+    console.log(`💳 Deployer: ${deployer.address}`);
+    console.log(`🔗 Connected via: ${connectedRpcUrl.substring(0, 50)}...`);
 
     return new Response(
       JSON.stringify({
@@ -225,21 +388,50 @@ async function handleDeploy(supabase: any, chain: string, privateKey: string = "
         chain,
         contracts: deployedContracts,
         deployer: deployer.address,
-        gasUsed: deployedContracts.gasUsed
+        gasUsed: deployedContracts.gasUsed,
+        blockNumber: currentBlock,
+        networkId: network.chainId.toString(),
+        rpcEndpoint: connectedRpcUrl.substring(0, 50) + '...',
+        deployedAt: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error(`Deployment failed on ${chain}:`, error);
+    console.error(`💥 Deployment failed on ${chain}:`, error);
+    console.error('Stack trace:', error.stack);
+    
+    // Determine appropriate error code and status
+    let errorCode = 'UNKNOWN_ERROR';
+    let statusCode = 500;
+    let errorMessage = error.message || 'Unknown error occurred during deployment';
+    
+    if (errorMessage.includes('insufficient funds') || errorMessage.includes('balance')) {
+      errorCode = 'INSUFFICIENT_FUNDS';
+      statusCode = 402;
+    } else if (errorMessage.includes('network') || errorMessage.includes('RPC') || errorMessage.includes('connection')) {
+      errorCode = 'NETWORK_ERROR';
+      statusCode = 503;
+    } else if (errorMessage.includes('gas') || errorMessage.includes('transaction')) {
+      errorCode = 'TRANSACTION_FAILED';
+      statusCode = 500;
+    } else if (errorMessage.includes('private key') || errorMessage.includes('key')) {
+      errorCode = 'INVALID_CREDENTIALS';
+      statusCode = 401;
+    }
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: 'Deployment failed',
+        details: errorMessage,
+        code: errorCode,
+        chain: chain,
+        timestamp: new Date().toISOString()
       }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        status: statusCode, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
       }
     );
   }
