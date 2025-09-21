@@ -56,15 +56,12 @@ export function useAaveStyleLending() {
 
   const fetchPoolReserves = useCallback(async () => {
     try {
-      if (!wallet.isConnected) return;
-      
       setLoading(true);
       
-      // Fetch real pool reserves from Supabase
+      // Fetch real pool reserves from Supabase - no wallet connection required for viewing
       const { data: reserves, error } = await supabase
         .from('pool_reserves')
         .select('*')
-        .eq('chain', 'ethereum')
         .eq('is_active', true);
 
       if (error) {
@@ -109,7 +106,7 @@ export function useAaveStyleLending() {
     } finally {
       setLoading(false);
     }
-  }, [toast, wallet.isConnected]);
+  }, [toast]);
 
   const fetchUserData = useCallback(async () => {
     if (!user || !wallet.isConnected) return;
