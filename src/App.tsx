@@ -10,6 +10,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import QuickNavToLending from "@/components/QuickNavToLending";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -130,6 +131,7 @@ const App = () => (
           <BrowserRouter>
             <ScrollToTop />
             <AppRoutes />
+            <QuickNavToLending />
             <InstallPrompt />
             <UpdatePrompt />
             <OfflineIndicator />
