@@ -23,7 +23,7 @@ class WalletService {
   private readonly USDC_CONTRACT_SEPOLIA = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // USDC on Sepolia
 
   /**
-   * Get or create wallet for user - shows available balance (total - supplied amounts)
+   * Get or create wallet for user - shows REAL blockchain balances
    */
   async getWallet(userId: string): Promise<WalletInfo> {
     try {
@@ -33,17 +33,14 @@ class WalletService {
       // Store wallet address in database if not exists
       await this.ensureWalletStored(userId, address);
       
-      // Get real blockchain balances
-      const rawBalances = await this.getWalletBalances(address);
+      // Get real blockchain balances (no adjustments - showing actual on-chain state)
+      const balances = await this.getWalletBalances(address);
       
-      // Adjust balances to account for supplied amounts
-      const adjustedBalances = await this.adjustForSuppliedAmounts(userId, rawBalances);
-      
-      console.log('✅ Wallet loaded:', { address, balances: adjustedBalances });
+      console.log('✅ Real blockchain wallet loaded:', { address, balances });
       
       return {
         address,
-        balances: adjustedBalances
+        balances
       };
     } catch (error) {
       console.error('❌ Wallet service error:', error);
@@ -159,38 +156,6 @@ class WalletService {
     } catch (error) {
       console.warn('Could not fetch stored address:', error);
       return null;
-    }
-  }
-
-  /**
-   * Adjust wallet balances to show available amounts (minus supplied)
-   */
-  private async adjustForSuppliedAmounts(userId: string, rawBalances: WalletBalance[]): Promise<WalletBalance[]> {
-    try {
-      // Get user's supplied amounts from the lending protocol
-      const { data: supplies } = await supabase
-        .from('user_supplies')
-        .select('asset, supplied_amount_dec')
-        .eq('user_id', userId);
-
-      if (!supplies || supplies.length === 0) {
-        return rawBalances; // No supplies, return raw balances
-      }
-
-      // Adjust each balance by subtracting supplied amounts
-      return rawBalances.map(balance => {
-        const suppliedAmount = supplies
-          .filter(supply => supply.asset === balance.asset)
-          .reduce((total, supply) => total + (supply.supplied_amount_dec || 0), 0);
-
-        return {
-          ...balance,
-          amount: Math.max(0, balance.amount - suppliedAmount) // Don't go negative
-        };
-      });
-    } catch (error) {
-      console.warn('Could not adjust for supplied amounts:', error);
-      return rawBalances; // Return raw balances if adjustment fails
     }
   }
 

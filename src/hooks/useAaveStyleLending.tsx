@@ -203,14 +203,14 @@ export function useAaveStyleLending() {
       console.log('✅ All validations passed, calling edge function...');
       console.log('📡 Using wallet address:', walletAddress);
 
-      // Call the supply-withdraw edge function
+      // Call the supply-withdraw edge function with blockchain support
       const { data, error } = await supabase.functions.invoke('supply-withdraw', {
         body: {
           action: 'supply',
           asset: asset,
           amount: amount,
           chain: chain,
-          wallet_address: walletAddress
+          walletAddress: walletAddress // Pass wallet address for blockchain transaction
         }
       });
 
@@ -228,9 +228,14 @@ export function useAaveStyleLending() {
 
       console.log('✅ Supply operation successful:', data);
       
+      // Show transaction details if blockchain transaction was performed
+      const transactionMessage = data.txHash 
+        ? `Successfully supplied ${amount} ${asset}. Transaction: ${data.txHash}`
+        : `Successfully supplied ${amount} ${asset}`;
+      
       toast({
         title: "Supply Successful",
-        description: `Successfully supplied ${amount} ${asset}`
+        description: transactionMessage
       });
 
       console.log('🔄 Refreshing user and pool data...');
@@ -267,14 +272,14 @@ export function useAaveStyleLending() {
         throw new Error('Wallet not available');
       }
 
-      // Call the real withdraw edge function
+      // Call the withdraw edge function with blockchain support
       const { data, error } = await supabase.functions.invoke('supply-withdraw', {
         body: {
           action: 'withdraw',
           asset: asset,
           amount: amount,
           chain: chain,
-          wallet_address: walletAddress
+          walletAddress: walletAddress // Pass wallet address for blockchain transaction
         }
       });
 
