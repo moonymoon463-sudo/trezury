@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +10,16 @@ import {
   ExternalLink,
   Rocket,
   Network,
-  Code
+  Code,
+  Wallet,
+  Fuel,
+  TrendingUp
 } from "lucide-react";
 import { useContractDeployment } from "@/hooks/useContractDeployment";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { Chain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export function ContractDeploymentStatus() {
   const { wallet } = useWalletConnection();
@@ -29,11 +33,41 @@ export function ContractDeploymentStatus() {
   } = useContractDeployment();
 
   const [deployingChain, setDeployingChain] = useState<Chain | null>(null);
+  const [gasEstimates, setGasEstimates] = useState<Record<Chain, string>>({
+    ethereum: "",
+    base: "",
+    solana: "",
+    tron: ""
+  });
+  const [deployerBalance, setDeployerBalance] = useState<string>("");
 
   const chains: Chain[] = ['ethereum', 'base'];
   const deployedCount = Object.values(deploymentStatus).filter(Boolean).length;
   const totalChains = chains.length;
   const deploymentProgress = (deployedCount / totalChains) * 100;
+
+  // Fetch deployment info on component mount
+  useEffect(() => {
+    fetchDeploymentInfo();
+  }, []);
+
+  const fetchDeploymentInfo = async () => {
+    try {
+      // Get gas estimates and deployer balance
+      const { data } = await supabase.functions.invoke('contract-deployment', {
+        body: { operation: 'get_deployment_info' }
+      });
+      
+      if (data?.gasEstimates) {
+        setGasEstimates(data.gasEstimates);
+      }
+      if (data?.deployerBalance) {
+        setDeployerBalance(data.deployerBalance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch deployment info:', error);
+    }
+  };
 
   const handleDeploy = async (chain: Chain) => {
     if (!wallet.isConnected) {
@@ -161,17 +195,40 @@ export function ContractDeploymentStatus() {
           })}
         </div>
 
-        {/* Wallet Connection Status */}
-        {!wallet.isConnected && (
-          <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-warning" />
-              <p className="text-sm text-warning font-medium">
-                Connect your wallet to deploy contracts
+        {/* Deployment Requirements */}
+        <div className="grid gap-3 md:grid-cols-2">
+          {/* Wallet Status */}
+          <div className={`p-3 rounded-lg border ${
+            wallet.isConnected 
+              ? "bg-success/10 border-success/20" 
+              : "bg-warning/10 border-warning/20"
+          }`}>
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className={`h-4 w-4 ${wallet.isConnected ? "text-success" : "text-warning"}`} />
+              <p className={`text-sm font-medium ${wallet.isConnected ? "text-success" : "text-warning"}`}>
+                Wallet Status
               </p>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {wallet.isConnected 
+                ? `Connected: ${wallet.address?.substring(0,8)}...` 
+                : "Please connect wallet"}
+            </p>
           </div>
-        )}
+
+          {/* Gas & Balance Info */}
+          <div className="p-3 rounded-lg border bg-surface-elevated border-border">
+            <div className="flex items-center gap-2 mb-1">
+              <Fuel className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium text-foreground">
+                Deployment Cost
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              ~0.005 ETH per chain • Balance: {deployerBalance || "Checking..."}
+            </p>
+          </div>
+        </div>
 
         {/* Deployment Complete */}
         {deployedCount === totalChains && (

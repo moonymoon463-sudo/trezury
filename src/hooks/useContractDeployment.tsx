@@ -42,40 +42,54 @@ export function useContractDeployment() {
   };
 
   const deployToChain = async (chain: Chain) => {
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive", 
+        title: "Wallet Required",
+        description: "Please connect your wallet first"
+      });
+      return false;
+    }
+
     setIsDeploying(true);
     try {
       toast({
         title: "Deploying Real Contracts 🚀",
-        description: `Deploying smart contracts to ${chain} blockchain...`
+        description: `Deploying smart contracts to ${chain} blockchain with enhanced security...`
       });
 
       // Get RPC URLs for real testnets
       const rpcUrls = {
         ethereum: "https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-        base: "https://sepolia.base.org",
+        base: "https://sepolia.base.org", 
         solana: "https://api.devnet.solana.com",
         tron: "https://api.trongrid.io"
       };
 
-      // Test private key (replace with your own funded testnet account)
-      const testPrivateKey = "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a";
-      
+      // Use secure deployment (no private key in frontend)
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
           operation: 'deploy',
           chain,
-          privateKey: testPrivateKey,
           rpcUrl: rpcUrls[chain]
+          // No private key - handled securely in edge function
         }
       });
 
       if (error || !data.success) {
-        throw new Error(data?.error || error?.message || 'Real deployment failed');
+        // Enhanced error messages
+        let errorMessage = data?.error || error?.message || 'Deployment failed';
+        if (errorMessage.includes("Insufficient ETH")) {
+          errorMessage += ". Please fund the deployment wallet or contact support.";
+        } else if (errorMessage.includes("network")) {
+          errorMessage += ". Please check your internet connection and try again.";
+        }
+        throw new Error(errorMessage);
       }
 
       toast({
         title: "Real Deployment Success! 🎉",
-        description: `Contracts deployed to ${chain}! Gas used: ${data.gasUsed || 'Unknown'}`
+        description: `Contracts deployed to ${chain}! Gas used: ${data.gasUsed || 'Unknown'} | Deployer: ${data.deployer?.substring(0,8)}...`
       });
 
       setDeploymentStatus(prev => ({ ...prev, [chain]: true }));
@@ -85,7 +99,7 @@ export function useContractDeployment() {
       toast({
         variant: "destructive",
         title: "Deployment Failed",
-        description: error instanceof Error ? error.message : 'Unknown error'
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
       });
       return false;
     } finally {
