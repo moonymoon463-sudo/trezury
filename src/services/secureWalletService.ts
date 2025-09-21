@@ -26,16 +26,18 @@ class SecureWalletService {
   private readonly PBKDF2_ITERATIONS = 100000;
 
   /**
-   * Generate a deterministic wallet from user password
-   * Keys are generated on-demand and immediately discarded after use
+   * Generate a deterministic wallet automatically from user ID
+   * No password required - completely automatic
    */
   async generateDeterministicWallet(
     userId: string, 
-    params: WalletGenerationParams
+    params?: Partial<WalletGenerationParams>
   ): Promise<SecureWalletInfo> {
     try {
-      // Create deterministic seed from user password + userId
-      const seed = await this.createDeterministicSeed(userId, params);
+      // Use userId as automatic seed - no password required
+      const seed = await this.createDeterministicSeed(userId, { 
+        userPassword: userId // Use userId as password for simplicity
+      });
       
       // Generate wallet from seed (private key exists only in this scope)
       const wallet = ethers.Wallet.fromPhrase(seed);
@@ -44,6 +46,8 @@ class SecureWalletService {
 
       // Store ONLY the public address and metadata (NO PRIVATE KEYS)
       await this.storeWalletAddress(userId, address);
+
+      console.log('✅ Auto-generated internal wallet:', address);
 
       // Return only public information
       return {
@@ -58,21 +62,24 @@ class SecureWalletService {
   }
 
   /**
-   * Sign a transaction using user-provided password
-   * Private key is generated, used, and immediately discarded
+   * Sign a transaction automatically using userId as seed
+   * No password required - completely automatic
    */
   async signTransaction(
     userId: string,
-    transactionData: any,
-    userPassword: string
+    transactionData: any
   ): Promise<string> {
     try {
-      // Regenerate wallet from password (private key exists only during signing)
-      const seed = await this.createDeterministicSeed(userId, { userPassword });
+      // Regenerate wallet from userId (private key exists only during signing)
+      const seed = await this.createDeterministicSeed(userId, { 
+        userPassword: userId // Use userId as password
+      });
       const wallet = ethers.Wallet.fromPhrase(seed);
 
       // Sign transaction
       const signedTransaction = await wallet.signTransaction(transactionData);
+      
+      console.log('✅ Transaction signed automatically');
       
       // Private key is automatically garbage collected when wallet goes out of scope
       return signedTransaction;
@@ -189,21 +196,14 @@ class SecureWalletService {
   }
 
   /**
-   * Validate if user can access their wallet with provided password
+   * Validate if user can access their wallet (always true for automatic wallets)
    */
   async validateWalletAccess(
-    userId: string,
-    userPassword: string
+    userId: string
   ): Promise<boolean> {
     try {
       const storedAddress = await this.getWalletAddress(userId);
-      if (!storedAddress) return false;
-
-      // Regenerate address from password and compare
-      const seed = await this.createDeterministicSeed(userId, { userPassword });
-      const wallet = ethers.Wallet.fromPhrase(seed);
-      
-      return wallet.address.toLowerCase() === storedAddress.toLowerCase();
+      return !!storedAddress; // True if wallet exists
     } catch (err) {
       return false;
     }

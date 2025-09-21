@@ -198,8 +198,6 @@ export function useAaveStyleLending() {
 
   const supply = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
     console.log(`💰 Starting supply process: ${amount} ${asset} on ${chain}`);
-    console.log('Internal wallet address:', walletAddress);
-    console.log('User state:', user ? 'Authenticated' : 'Not authenticated');
     
     if (!user) {
       console.log('❌ Validation failed - user not authenticated');
@@ -211,35 +209,33 @@ export function useAaveStyleLending() {
       return;
     }
 
-    // Auto-create internal wallet if needed
-    if (!walletAddress) {
-      toast({
-        variant: "destructive", 
-        title: "Wallet Setup Required",
-        description: "Please set up your internal wallet first"
-      });
-      return;
-    }
-
-    console.log('✅ All validations passed, calling edge function...');
-
     try {
       setLoading(true);
-      
-      console.log('📡 Invoking supply-withdraw edge function with body:', {
-        action: 'supply',
-        asset: asset,
-        amount: amount,
-        chain: chain
-      });
-      
+
+      // Auto-create internal wallet if needed (seamless UX)
+      let currentWalletAddress = walletAddress;
+      if (!currentWalletAddress) {
+        console.log('🔧 Auto-creating internal wallet...');
+        const walletInfo = await createWallet();
+        currentWalletAddress = walletInfo?.address;
+        
+        if (!currentWalletAddress) {
+          throw new Error('Failed to create internal wallet');
+        }
+        console.log('✅ Internal wallet auto-created:', currentWalletAddress);
+      }
+
+      console.log('✅ All validations passed, calling edge function...');
+      console.log('📡 Using wallet address:', currentWalletAddress);
+
       // Call the supply-withdraw edge function
       const { data, error } = await supabase.functions.invoke('supply-withdraw', {
         body: {
           action: 'supply',
           asset: asset,
           amount: amount,
-          chain: chain
+          chain: chain,
+          wallet_address: currentWalletAddress // Pass wallet address for blockchain integration
         }
       });
 
@@ -259,7 +255,7 @@ export function useAaveStyleLending() {
       
       toast({
         title: "Supply Successful",
-        description: `Successfully supplied ${amount} ${asset}`
+        description: `Successfully supplied ${amount} ${asset} on testnet`
       });
 
       console.log('🔄 Refreshing user and pool data...');
@@ -276,7 +272,7 @@ export function useAaveStyleLending() {
       setLoading(false);
       console.log('💰 Supply process completed');
     }
-  }, [user, walletAddress, toast, fetchUserData, fetchPoolReserves]);
+  }, [user, walletAddress, createWallet, toast, fetchUserData, fetchPoolReserves]);
 
   const withdraw = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
     if (!user) {

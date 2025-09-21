@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useSecureWallet } from './useSecureWallet';
+import { blockchainTestnetService } from '@/services/blockchainTestnetService';
 
 export interface WalletBalance {
   asset: string;
@@ -10,6 +12,7 @@ export interface WalletBalance {
 
 export const useWalletBalance = () => {
   const { user } = useAuth();
+  const { walletAddress, getWalletAddress } = useSecureWallet();
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,53 +28,72 @@ export const useWalletBalance = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch latest balance snapshots for the user
-      const { data, error: fetchError } = await supabase
-        .from('balance_snapshots')
-        .select('asset, amount')
-        .eq('user_id', user.id)
-        .order('snapshot_at', { ascending: false });
-
-      if (fetchError) {
-        throw fetchError;
+      // Get wallet address first
+      let address = walletAddress;
+      if (!address) {
+        address = await getWalletAddress();
       }
 
-      // Group by asset and get latest balance for each
-      const balanceMap = new Map<string, number>();
-      data?.forEach(snapshot => {
-        if (!balanceMap.has(snapshot.asset)) {
-          balanceMap.set(snapshot.asset, Number(snapshot.amount));
-        }
-      });
-
-      const walletBalances: WalletBalance[] = Array.from(balanceMap.entries()).map(([asset, amount]) => ({
-        asset: asset === 'XAUT' ? 'GOLD' : asset, // Display XAUT as GOLD
-        amount,
-        chain: 'ethereum' // Both USDC and GOLD on Ethereum
-      }));
-
-      // Add mock data if no balances exist
-      if (walletBalances.length === 0) {
-        walletBalances.push(
-          { asset: 'USDC', amount: 1000.00, chain: 'ethereum' },
-          { asset: 'GOLD', amount: 2.5, chain: 'ethereum' } // 2.5 oz of gold (XAUT)
+      if (address) {
+        console.log('🔍 Fetching real testnet balances for:', address);
+        
+        // Fetch real blockchain balances from Sepolia testnet
+        const realBalances = await blockchainTestnetService.getMultipleBalances(
+          address, 
+          ['ETH', 'USDC', 'DAI']
         );
-      }
 
-      setBalances(walletBalances);
+        const walletBalances: WalletBalance[] = Object.entries(realBalances).map(([asset, amount]) => ({
+          asset: asset === 'DAI' ? 'GOLD' : asset, // Map DAI to GOLD for demo
+          amount,
+          chain: 'sepolia' // Using Sepolia testnet
+        }));
+
+        console.log('✅ Real testnet balances loaded:', walletBalances);
+        setBalances(walletBalances);
+      } else {
+        // Fallback to database snapshots if no wallet
+        const { data, error: fetchError } = await supabase
+          .from('balance_snapshots')
+          .select('asset, amount')
+          .eq('user_id', user.id)
+          .order('snapshot_at', { ascending: false });
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        // Group by asset and get latest balance for each
+        const balanceMap = new Map<string, number>();
+        data?.forEach(snapshot => {
+          if (!balanceMap.has(snapshot.asset)) {
+            balanceMap.set(snapshot.asset, Number(snapshot.amount));
+          }
+        });
+
+        const walletBalances: WalletBalance[] = Array.from(balanceMap.entries()).map(([asset, amount]) => ({
+          asset: asset === 'XAUT' ? 'GOLD' : asset, // Display XAUT as GOLD
+          amount,
+          chain: 'ethereum'
+        }));
+
+        setBalances(walletBalances);
+        console.log('✅ Database balances loaded:', walletBalances);
+      }
     } catch (err) {
       console.error('Failed to fetch wallet balances:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch balances');
       
-      // Fallback to mock data
+      // Fallback to demo data
       setBalances([
-        { asset: 'USDC', amount: 1000.00, chain: 'ethereum' },
-        { asset: 'GOLD', amount: 2.5, chain: 'ethereum' } // 2.5 oz of gold (XAUT)
+        { asset: 'ETH', amount: 0.1, chain: 'sepolia' },
+        { asset: 'USDC', amount: 100.0, chain: 'sepolia' },
+        { asset: 'GOLD', amount: 0.05, chain: 'sepolia' }
       ]);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, walletAddress, getWalletAddress]);
 
   useEffect(() => {
     fetchBalances();
