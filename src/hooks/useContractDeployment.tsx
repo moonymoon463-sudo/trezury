@@ -58,12 +58,29 @@ export function useContractDeployment() {
         description: `Deploying lending protocol contracts to ${chain}...`
       });
 
-      // Deploy contracts
-      const contractAddresses = await contractDeploymentService.deployLendingProtocol(chain);
-      
+      // Call the deployment edge function directly
+      const { data, error } = await supabase.functions.invoke('contract-deployment', {
+        body: {
+          operation: 'deploy',
+          chain: chain,
+          privateKey: "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318",
+          rpcUrl: chain === 'base' 
+            ? "https://base-sepolia.g.alchemy.com/v2/demo"
+            : "https://eth-sepolia.g.alchemy.com/v2/demo"
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Deployment failed');
+      }
+
       toast({
         title: "Deployment Successful",
-        description: `Contracts deployed successfully to ${chain}`
+        description: `Contracts deployed successfully to ${chain}!`
       });
 
       // Update deployment status
