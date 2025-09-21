@@ -262,7 +262,30 @@ export function useAaveStyleLending() {
     try {
       setLoading(true);
       
-      // Mock withdraw operation for demo
+      const walletAddress = getAddress();
+      if (!walletAddress) {
+        throw new Error('Wallet not available');
+      }
+
+      // Call the real withdraw edge function
+      const { data, error } = await supabase.functions.invoke('supply-withdraw', {
+        body: {
+          action: 'withdraw',
+          asset: asset,
+          amount: amount,
+          chain: chain,
+          wallet_address: walletAddress
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to withdraw asset');
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Withdraw operation failed');
+      }
+
       toast({
         title: "Withdrawal Successful",
         description: `Successfully withdrew ${amount} ${asset}`
@@ -295,7 +318,31 @@ export function useAaveStyleLending() {
     try {
       setLoading(true);
       
-      // Mock borrow operation for demo
+      const walletAddress = getAddress();
+      if (!walletAddress) {
+        throw new Error('Wallet not available');
+      }
+
+      // Call the real borrow edge function
+      const { data, error } = await supabase.functions.invoke('borrow-repay', {
+        body: {
+          action: 'borrow',
+          asset: asset,
+          amount: amount,
+          rate_mode: rateMode,
+          chain: chain,
+          wallet_address: walletAddress
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to borrow asset');
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Borrow operation failed');
+      }
+
       toast({
         title: "Borrow Successful",
         description: `Successfully borrowed ${amount} ${asset} at ${rateMode} rate`
@@ -328,7 +375,31 @@ export function useAaveStyleLending() {
     try {
       setLoading(true);
       
-      // Mock repay operation for demo
+      const walletAddress = getAddress();
+      if (!walletAddress) {
+        throw new Error('Wallet not available');
+      }
+
+      // Call the real repay edge function
+      const { data, error } = await supabase.functions.invoke('borrow-repay', {
+        body: {
+          action: 'repay',
+          asset: asset,
+          amount: amount,
+          rate_mode: rateMode,
+          chain: chain,
+          wallet_address: walletAddress
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to repay asset');
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Repay operation failed');
+      }
+
       toast({
         title: "Repay Successful",
         description: `Successfully repaid ${amount} ${asset}`

@@ -1,8 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ethers } from "ethers";
 
 /**
- * CLEAN WALLET SERVICE
- * Simplified, working wallet service with mock data
+ * REAL BLOCKCHAIN WALLET SERVICE
+ * Connects to actual Sepolia testnet for real balance data
  */
 
 export interface WalletBalance {
@@ -18,6 +19,8 @@ export interface WalletInfo {
 
 class WalletService {
   private readonly FIXED_WALLET_ADDRESS = "0xeDBd9A02dea7b35478e3b2Ee1fd90378346101Cb";
+  private readonly SEPOLIA_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
+  private readonly USDC_CONTRACT_SEPOLIA = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // USDC on Sepolia
 
   /**
    * Get or create wallet for user - completely automatic
@@ -30,7 +33,7 @@ class WalletService {
       // Store wallet address in database if not exists
       await this.ensureWalletStored(userId, address);
       
-      // Get mock balances (working demo data)
+      // Get real blockchain balances
       const balances = await this.getWalletBalances(address);
       
       console.log('✅ Wallet loaded:', { address, balances });
@@ -55,21 +58,54 @@ class WalletService {
   }
 
   /**
-   * Get wallet balances - using working mock data
+   * Get real wallet balances from Sepolia testnet
    */
   private async getWalletBalances(address: string): Promise<WalletBalance[]> {
-    // Mock balances that work instantly (no RPC failures)
-    const mockBalances: WalletBalance[] = [
-      { asset: 'ETH', amount: 0.1, chain: 'sepolia' },
-      { asset: 'USDC', amount: 1000.0, chain: 'sepolia' },
-      { asset: 'GOLD', amount: 0.25, chain: 'sepolia' }
-    ];
-
-    // Simulate slight delay for realism
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    console.log('✅ Balances loaded for', address, mockBalances);
-    return mockBalances;
+    try {
+      console.log('🔍 Fetching real balances for:', address);
+      
+      const provider = new ethers.JsonRpcProvider(this.SEPOLIA_RPC);
+      
+      // Get ETH balance
+      const ethBalanceWei = await provider.getBalance(address);
+      const ethBalance = parseFloat(ethers.formatEther(ethBalanceWei));
+      
+      // Get USDC balance
+      const usdcContract = new ethers.Contract(
+        this.USDC_CONTRACT_SEPOLIA,
+        [
+          "function balanceOf(address) view returns (uint256)",
+          "function decimals() view returns (uint8)"
+        ],
+        provider
+      );
+      
+      const usdcBalanceRaw = await usdcContract.balanceOf(address);
+      const usdcDecimals = await usdcContract.decimals();
+      const usdcBalance = parseFloat(ethers.formatUnits(usdcBalanceRaw, usdcDecimals));
+      
+      const balances: WalletBalance[] = [
+        { asset: 'ETH', amount: ethBalance, chain: 'sepolia' },
+        { asset: 'USDC', amount: usdcBalance, chain: 'sepolia' },
+        { asset: 'GOLD', amount: 0, chain: 'sepolia' } // No real GOLD token yet
+      ];
+      
+      console.log('✅ Real balances loaded:', balances);
+      return balances;
+      
+    } catch (error) {
+      console.error('❌ Failed to fetch real balances:', error);
+      
+      // Fallback to showing zero balances instead of mock data
+      const fallbackBalances: WalletBalance[] = [
+        { asset: 'ETH', amount: 0, chain: 'sepolia' },
+        { asset: 'USDC', amount: 0, chain: 'sepolia' },
+        { asset: 'GOLD', amount: 0, chain: 'sepolia' }
+      ];
+      
+      console.log('⚠️ Using fallback balances:', fallbackBalances);
+      return fallbackBalances;
+    }
   }
 
   /**
