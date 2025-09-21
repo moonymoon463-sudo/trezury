@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Coins, Filter, ArrowUpDown, ChevronRight, Activity } from "lucide-react";
+import { TrendingUp, Coins, Filter, ArrowUpDown, ChevronRight, Activity, Wallet } from "lucide-react";
 import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
+import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
 
 interface TokenMarketplaceProps {
@@ -25,10 +26,13 @@ interface MarketToken {
 
 export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
   const { poolReserves } = useAaveStyleLending();
+  const { wallet } = useWalletConnection();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChain, setSelectedChain] = useState<Chain | "all">("all");
   const [sortBy, setSortBy] = useState<"apy" | "liquidity" | "risk">("apy");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const isWalletConnected = wallet.isConnected;
 
   // Transform pool reserves into market tokens and group by token symbol
   const allMarketTokens: MarketToken[] = poolReserves.map(reserve => ({
@@ -96,6 +100,36 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
       }
       return sortOrder === 'desc' ? -comparison : comparison;
     });
+
+  // Show wallet connection requirement if not connected
+  if (!isWalletConnected) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">Token Marketplace</h2>
+          <p className="text-muted-foreground">
+            Connect your wallet to discover the best yields across multiple chains and assets
+          </p>
+        </div>
+
+        <Card className="bg-surface-elevated border-border">
+          <CardContent className="py-12 text-center">
+            <Wallet className="h-16 w-16 mx-auto mb-4 text-primary" />
+            <h3 className="text-xl font-bold mb-2 text-foreground">Connect Your Wallet</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              To access the token marketplace and start earning yield on your assets, please connect your MetaMask wallet above.
+            </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>✓ Browse available tokens and APY rates</p>
+              <p>✓ Supply assets to earn yield</p>
+              <p>✓ Borrow against your collateral</p>
+              <p>✓ Monitor your portfolio analytics</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -197,10 +231,10 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
         {filteredTokens.map((token, index) => (
           <Card 
             key={`${token.chain}-${token.token}`}
-            className={`bg-surface-elevated border-border hover:bg-surface-overlay transition-colors cursor-pointer ${
-              !token.isActive ? 'opacity-60' : ''
+            className={`bg-surface-elevated border-border hover:bg-surface-overlay transition-colors ${
+              token.isActive && isWalletConnected ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
             }`}
-            onClick={() => token.isActive && onSelectToken(token.chain, token.token, token.apy)}
+            onClick={() => token.isActive && isWalletConnected && onSelectToken(token.chain, token.token, token.apy)}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
