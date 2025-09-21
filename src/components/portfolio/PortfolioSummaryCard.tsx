@@ -316,10 +316,10 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
                 size="sm" 
                 variant="outline" 
                 className="flex-1 h-8 text-xs"
-                onClick={() => navigate('/portfolio')}
+                onClick={() => navigate('/lending')}
               >
                 <Eye className="h-3 w-3 mr-1" />
-                Full View
+                View Lending
               </Button>
             </div>
           </TabsContent>
