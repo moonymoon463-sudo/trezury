@@ -94,6 +94,7 @@ const AppRoutes = () => {
       <Route path="/sell-gold/confirmation" element={<ProtectedRoute><SellGoldConfirmation /></ProtectedRoute>} />
       <Route path="/swap" element={<ProtectedRoute><Swap /></ProtectedRoute>} />
       <Route path="/lending" element={<ProtectedRoute><Lending /></ProtectedRoute>} />
+      <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/transaction-detail/:id" element={<ProtectedRoute><TransactionDetail /></ProtectedRoute>} />
