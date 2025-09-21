@@ -17,6 +17,8 @@ import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
 import { RiskManagementDashboard } from "@/components/lending/RiskManagementDashboard";
 import { CrossChainDashboard } from "@/components/lending/CrossChainDashboard";
 import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
+import { AdvancedTradingHub } from "@/components/lending/AdvancedTradingHub";
+import { ProductionOptimizations } from "@/components/lending/ProductionOptimizations";
 import { HistoricalAnalyticsService } from "@/services/historicalAnalyticsService";
 import { useEffect, useState } from "react";
 
@@ -539,6 +541,14 @@ export function LendingProfile() {
 
         <TabsContent value="analytics" className="space-y-6">
           <EnhancedPortfolioAnalytics />
+        </TabsContent>
+
+        <TabsContent value="advanced" className="space-y-6">
+          <AdvancedTradingHub />
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-6">
+          <ProductionOptimizations />
         </TabsContent>
       </Tabs>
     </div>
