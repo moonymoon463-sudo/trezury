@@ -107,20 +107,23 @@ export function WalletFundingInfo() {
         
         <div>
           <p className="text-sm font-medium mb-2">Current Balance</p>
-          <Badge variant={deploymentInfo.deployerBalance.includes("0.0") ? "destructive" : "default"}>
-            {deploymentInfo.deployerBalance}
+          <Badge variant={deploymentInfo.deployerBalance?.includes("0.0") ? "destructive" : "default"}>
+            {deploymentInfo.deployerBalance || "Loading..."}
           </Badge>
         </div>
 
         <div>
           <p className="text-sm font-medium mb-2">Required Funding</p>
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(deploymentInfo.gasEstimates).map(([chain, estimate]) => (
+            {deploymentInfo.gasEstimates && Object.entries(deploymentInfo.gasEstimates).map(([chain, estimate]) => (
               <div key={chain} className="flex justify-between text-sm">
                 <span className="capitalize">{chain}:</span>
                 <span className="text-muted-foreground">{estimate}</span>
               </div>
             ))}
+            {!deploymentInfo.gasEstimates && (
+              <div className="text-sm text-muted-foreground">No estimates available</div>
+            )}
           </div>
         </div>
 
