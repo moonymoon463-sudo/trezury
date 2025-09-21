@@ -375,6 +375,39 @@ export type Database = {
         }
         Relationships: []
       }
+      liquidation_thresholds: {
+        Row: {
+          asset: string
+          chain: string
+          created_at: string
+          health_factor_threshold: number
+          id: string
+          liquidation_bonus: number
+          max_liquidation_ratio: number
+          updated_at: string
+        }
+        Insert: {
+          asset: string
+          chain?: string
+          created_at?: string
+          health_factor_threshold?: number
+          id?: string
+          liquidation_bonus?: number
+          max_liquidation_ratio?: number
+          updated_at?: string
+        }
+        Update: {
+          asset?: string
+          chain?: string
+          created_at?: string
+          health_factor_threshold?: number
+          id?: string
+          liquidation_bonus?: number
+          max_liquidation_ratio?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       locks: {
         Row: {
           accrued_interest_dec: number
@@ -781,6 +814,42 @@ export type Database = {
         }
         Relationships: []
       }
+      position_limits: {
+        Row: {
+          asset: string
+          chain: string
+          created_at: string
+          id: string
+          max_borrow_amount: number
+          max_supply_amount: number
+          risk_tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset: string
+          chain?: string
+          created_at?: string
+          id?: string
+          max_borrow_amount?: number
+          max_supply_amount?: number
+          risk_tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset?: string
+          chain?: string
+          created_at?: string
+          id?: string
+          max_borrow_amount?: number
+          max_supply_amount?: number
+          risk_tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -914,6 +983,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      risk_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       security_audit: {
         Row: {
@@ -1309,6 +1414,18 @@ export type Database = {
         Args: { target_user_id: string; user_uuid: string }
         Returns: boolean
       }
+      check_liquidation_eligibility: {
+        Args: { target_chain?: string; target_user_id: string }
+        Returns: {
+          health_factor: number
+          liquidatable: boolean
+          liquidation_bonus: number
+          max_liquidation_amount: number
+          total_collateral_usd: number
+          total_debt_usd: number
+          user_id: string
+        }[]
+      }
       check_pii_rate_limit: {
         Args: { user_uuid: string }
         Returns: boolean
@@ -1328,6 +1445,10 @@ export type Database = {
       execute_transaction: {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
+      }
+      generate_risk_alerts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_encrypted_profile_field: {
         Args: { field_name: string; target_user_id?: string }
