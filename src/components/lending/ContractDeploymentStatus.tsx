@@ -486,7 +486,7 @@ export function ContractDeploymentStatus() {
                   Pre-deployed contracts ready! 🚀
                 </p>
                 <p className="text-xs text-success/80">
-                  You can now use all lending features across all supported chains.
+                  Using verified testnet contracts - start lending immediately!
                 </p>
               </div>
             </div>
