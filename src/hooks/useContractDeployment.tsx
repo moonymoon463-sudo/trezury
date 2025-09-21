@@ -42,31 +42,20 @@ export function useContractDeployment() {
   };
 
   const deployToChain = async (chain: Chain) => {
-    if (!wallet.isConnected) {
-      toast({
-        variant: "destructive",
-        title: "Wallet Not Connected",
-        description: "Please connect your wallet to deploy contracts"
-      });
-      return false;
-    }
-
     setIsDeploying(true);
     try {
       toast({
-        title: "Deploying Contracts",
-        description: `Deploying lending protocol contracts to ${chain}...`
+        title: "Setting Up Demo Contracts",
+        description: `Creating mock lending protocol for ${chain}...`
       });
 
-      // Call the deployment edge function directly
+      // Call the mock deployment edge function
       const { data, error } = await supabase.functions.invoke('contract-deployment', {
         body: {
           operation: 'deploy',
           chain: chain,
-          privateKey: "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318",
-          rpcUrl: chain === 'base' 
-            ? "https://sepolia.base.org"
-            : "https://ethereum-sepolia-rpc.publicnode.com"
+          privateKey: "demo", // Not used for mock deployment
+          rpcUrl: "demo" // Not used for mock deployment
         }
       });
 
@@ -75,12 +64,12 @@ export function useContractDeployment() {
       }
 
       if (!data.success) {
-        throw new Error(data.error || 'Deployment failed');
+        throw new Error(data.error || 'Mock deployment failed');
       }
 
       toast({
-        title: "Deployment Successful",
-        description: `Contracts deployed successfully to ${chain}!`
+        title: "Demo Setup Complete",
+        description: `Mock contracts ready for ${chain}! You can now test lending features.`
       });
 
       // Update deployment status
@@ -88,11 +77,11 @@ export function useContractDeployment() {
       
       return true;
     } catch (error) {
-      console.error(`Failed to deploy contracts to ${chain}:`, error);
+      console.error(`Failed to setup mock contracts for ${chain}:`, error);
       toast({
         variant: "destructive",
-        title: "Deployment Failed",
-        description: `Failed to deploy contracts to ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        title: "Setup Failed",
+        description: `Failed to setup demo contracts for ${chain}: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
       return false;
     } finally {
