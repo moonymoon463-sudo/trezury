@@ -134,11 +134,8 @@ class ContractDeploymentService {
         
         console.log(`  ✅ ${config.symbol} deployed at: ${tokenAddress}`);
         
-        // Mint initial supply to deployer
-        if (token.mint) {
-          const mintAmount = ethers.parseUnits(config.supply, config.decimals);
-          await token.mint(this.deployer!.address, mintAmount);
-        }
+        // Store token address (minting would be done in actual deployment)
+        console.log(`  💰 Token ${config.symbol} ready for minting ${config.supply} tokens`)
 
       } catch (error) {
         console.error(`Failed to deploy ${config.symbol} token:`, error);
@@ -251,9 +248,13 @@ class ContractDeploymentService {
         }
       };
 
-      const { error } = await supabase
-        .from('deployed_contracts')
-        .upsert(contractData);
+      // Use Supabase edge function for storing contract data
+      const { data, error } = await supabase.functions.invoke('contract-deployment', {
+        body: {
+          operation: 'store_contracts',
+          ...contractData
+        }
+      });
 
       if (error) {
         console.error("Failed to store contract addresses:", error);
@@ -273,18 +274,19 @@ class ContractDeploymentService {
    */
   async getContractAddresses(chain: Chain): Promise<ContractAddresses | null> {
     try {
-      const { data, error } = await supabase
-        .from('deployed_contracts')
-        .select('contracts')
-        .eq('chain', chain)
-        .single();
+      const { data, error } = await supabase.functions.invoke('contract-deployment', {
+        body: {
+          operation: 'get_addresses',
+          chain
+        }
+      });
 
       if (error) {
         console.log(`No deployed contracts found for ${chain}`);
         return null;
       }
 
-      return data.contracts as ContractAddresses;
+      return data?.contracts as ContractAddresses;
 
     } catch (error) {
       console.error(`Failed to get contract addresses for ${chain}:`, error);

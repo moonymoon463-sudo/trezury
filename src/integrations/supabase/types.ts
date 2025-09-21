@@ -159,6 +159,42 @@ export type Database = {
         }
         Relationships: []
       }
+      deployed_contracts: {
+        Row: {
+          chain: string
+          contracts: Json
+          created_at: string | null
+          deployed_at: string
+          deployer_address: string
+          id: string
+          metadata: Json | null
+          updated_at: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          chain: string
+          contracts?: Json
+          created_at?: string | null
+          deployed_at?: string
+          deployer_address: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          chain?: string
+          contracts?: Json
+          created_at?: string | null
+          deployed_at?: string
+          deployer_address?: string
+          id?: string
+          metadata?: Json | null
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
       deposits: {
         Row: {
           address: string

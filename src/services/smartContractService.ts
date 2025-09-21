@@ -43,7 +43,7 @@ export interface RepayParams {
 }
 
 class SmartContractService {
-  private provider: ethers.JsonRpcProvider | null = null;
+  private provider: ethers.Provider | null = null;
   private signer: ethers.Signer | null = null;
   private contractAddresses: Record<Chain, ContractAddresses | null> = {
     ethereum: null,
@@ -55,7 +55,7 @@ class SmartContractService {
   /**
    * Initialize the service with a provider and signer
    */
-  async initialize(provider: ethers.JsonRpcProvider, signer: ethers.Signer): Promise<void> {
+  async initialize(provider: ethers.Provider, signer: ethers.Signer): Promise<void> {
     this.provider = provider;
     this.signer = signer;
     

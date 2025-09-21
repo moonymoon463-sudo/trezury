@@ -1,5 +1,8 @@
 project_id = "auntkvllzejtfqmousxg"
 
+[functions.contract-deployment]
+verify_jwt = false
+
 [api]
 enabled = true
 port = 54321
