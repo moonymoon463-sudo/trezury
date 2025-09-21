@@ -336,19 +336,29 @@ async function deployRealContracts(chain: string, privateKey: string, provider: 
   }
 }
 
-// Fixed deployContract function to use bytecode first, then ABI
+// Fixed deployContract function to use bytecode first, then ABI with improved gas handling
 async function deployContract(signer: any, bytecode: string, abi: any[], constructorArgs: any[] = []) {
   try {
     console.log(`📦 Deploying contract with bytecode length: ${bytecode.length} bytes`);
     console.log(`📦 Constructor arguments (${constructorArgs.length}): ${JSON.stringify(constructorArgs).substring(0, 200)}`);
     
+    // Pre-deployment checks
+    const balance = await signer.provider.getBalance(signer.address);
+    console.log(`💰 Deployer balance: ${ethers.formatEther(balance)} ETH`);
+    
+    if (balance < ethers.parseEther("0.01")) {
+      throw new Error(`💸 Insufficient ETH balance. Need at least 0.01 ETH, have ${ethers.formatEther(balance)} ETH. Fund deployer: ${signer.address} with Sepolia ETH from https://sepoliafaucet.com/`);
+    }
+    
     const factory = new ethers.ContractFactory(abi, bytecode, signer);
     
-    // Estimate gas first with enhanced error reporting
+    // Enhanced gas estimation with fallbacks
+    let gasLimit: bigint;
     try {
       const deployTx = factory.getDeployTransaction(...constructorArgs);
       const gasEstimate = await signer.estimateGas(deployTx);
-      console.log(`⛽ Estimated gas: ${gasEstimate.toString()}`);
+      gasLimit = gasEstimate * 150n / 100n; // 50% buffer for safety
+      console.log(`⛽ Estimated gas: ${gasEstimate.toString()}, using: ${gasLimit.toString()}`);
     } catch (gasError) {
       console.error(`❌ Gas estimation failed:`, gasError);
       
@@ -361,11 +371,30 @@ async function deployContract(signer: any, bytecode: string, abi: any[], constru
         console.error(`RPC error details:`, JSON.stringify(gasError.info.error));
       }
       
-      throw new Error(`Gas estimation failed: ${gasError.message}. This usually indicates invalid bytecode or constructor arguments.`);
+      // Use fallback gas limits based on contract type
+      const contractType = constructorArgs.length === 3 ? 'ERC20' : 'LendingPool';
+      gasLimit = contractType === 'ERC20' ? 1800000n : 3500000n; // Conservative fallbacks
+      
+      console.log(`⚠️ Using fallback gas limit for ${contractType}: ${gasLimit.toString()}`);
     }
     
-    // Deploy the contract
-    const contract = await factory.deploy(...constructorArgs);
+    // Check if we have enough ETH for gas cost
+    const gasPrice = 25000000000n; // 25 gwei
+    const estimatedCost = gasLimit * gasPrice;
+    
+    if (balance < estimatedCost) {
+      throw new Error(`💸 Insufficient ETH for gas costs. Need ~${ethers.formatEther(estimatedCost)} ETH, have ${ethers.formatEther(balance)} ETH. Fund deployer: ${signer.address}`);
+    }
+    
+    // Deploy the contract with explicit gas settings
+    console.log(`🚀 Deploying with gas limit: ${gasLimit.toString()}, gas price: ${ethers.formatUnits(gasPrice, 'gwei')} gwei`);
+    
+    const contract = await factory.deploy(...constructorArgs, {
+      gasLimit,
+      gasPrice
+    });
+    
+    console.log(`⏳ Waiting for deployment confirmation...`);
     await contract.waitForDeployment();
     
     const contractAddress = await contract.getAddress();
@@ -382,6 +411,13 @@ async function deployContract(signer: any, bytecode: string, abi: any[], constru
     
     if (error.info) {
       console.error('Transaction info:', JSON.stringify(error.info));
+    }
+    
+    // Re-throw with more context
+    if (error.message.includes('insufficient funds')) {
+      throw new Error(`💸 ${error.message}. Fund deployer wallet: ${signer.address} with Sepolia ETH from https://sepoliafaucet.com/`);
+    } else if (error.message.includes('gas')) {
+      throw new Error(`⛽ Gas-related error: ${error.message}. Try again or contact support if issue persists.`);
     }
     
     throw error;

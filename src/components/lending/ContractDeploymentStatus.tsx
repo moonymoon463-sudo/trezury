@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useContractDeployment } from "@/hooks/useContractDeployment";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useClientDeployment } from "@/hooks/useClientDeployment";
 import { Chain, DeploymentChain } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
 import { WalletFundingInfo } from "@/components/WalletFundingInfo";
@@ -50,6 +51,8 @@ export function ContractDeploymentStatus() {
     verifyContracts,
     checkDeploymentStatus
   } = useContractDeployment();
+  
+  const clientDeploymentState = useClientDeployment();
 
   const [deployingChain, setDeployingChain] = useState<DeploymentChain | null>(null);
   const [gasEstimates, setGasEstimates] = useState<Record<DeploymentChain, string>>({
@@ -145,6 +148,14 @@ export function ContractDeploymentStatus() {
     }
   };
 
+  const handleClientDeploy = async (chain: DeploymentChain) => {
+    const success = await clientDeploymentState.deployWithWallet(chain);
+    if (success) {
+      await checkDeploymentStatus();
+      await fetchDeploymentInfo();
+    }
+  };
+
   const handleVerify = async (chain: DeploymentChain) => {
     const success = await verifyContracts(chain);
     if (success) {
@@ -220,7 +231,7 @@ export function ContractDeploymentStatus() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Deployment Status per Chain */}
+        {/* Deployment Options */}
         <div className="grid gap-3">
           {chains.map((chain) => {
             const status = getChainStatus(chain);
@@ -250,18 +261,45 @@ export function ContractDeploymentStatus() {
                   </Badge>
                   
                   {!deploymentStatus[chain] && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleDeploy(chain)}
-                      disabled={isDeploying || deployingChain === chain}
-                      className="min-w-[80px]"
-                    >
-                      {deployingChain === chain ? (
-                        "Deploying..."
-                      ) : (
-                        "Deploy"
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      {/* Server Deployment */}
+                      <Button
+                        size="sm"
+                        onClick={() => handleDeploy(chain)}
+                        disabled={isDeploying || deployingChain === chain}
+                        className="min-w-[100px]"
+                      >
+                        {deployingChain === chain ? (
+                          "Deploying..."
+                        ) : (
+                          <>
+                            <Rocket className="h-3 w-3 mr-1" />
+                            Deploy (Server)
+                          </>
+                        )}
+                      </Button>
+                      
+                      {/* Client Deployment */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleClientDeploy(chain)}
+                        disabled={isDeploying || clientDeploymentState.isDeploying || !wallet.isConnected || wallet.chainId !== 11155111}
+                        className="min-w-[120px]"
+                      >
+                        {clientDeploymentState.isDeploying ? (
+                          <>
+                            <Clock className="h-3 w-3 mr-1" />
+                            Deploying...
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="h-3 w-3 mr-1" />
+                            Deploy (Wallet)
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   )}
                   
                   {deploymentStatus[chain] && (
@@ -283,7 +321,7 @@ export function ContractDeploymentStatus() {
 
         {/* Deployment Requirements */}
         <div className="grid gap-3 md:grid-cols-2">
-          {/* Wallet Status */}
+          {/* Wallet Status with deployment info */}
           <div className={`p-3 rounded-lg border ${
             wallet.isConnected 
               ? "bg-success/10 border-success/20" 
@@ -295,11 +333,29 @@ export function ContractDeploymentStatus() {
                 Wallet Status
               </p>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-2">
               {wallet.isConnected 
                 ? `Connected: ${wallet.address?.substring(0,8)}...` 
                 : "Please connect wallet"}
             </p>
+            {wallet.isConnected && (
+              <div className="space-y-1">
+                <p className="text-xs">
+                  Balance: {wallet.balance} ETH
+                </p>
+                {wallet.chainId === 11155111 ? (
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-success" />
+                    <span className="text-xs text-success">Ready for wallet deployment</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-warning" />
+                    <span className="text-xs text-warning">Switch to Sepolia for wallet deployment</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Network Status */}
