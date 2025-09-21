@@ -50,7 +50,7 @@ const BottomNavigation = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-card px-6 py-[calc(1rem+env(safe-area-inset-bottom))] border-t shadow-lg">
+    <nav className="fixed bottom-0 inset-x-0 z-[60] bg-card px-6 py-[calc(1rem+env(safe-area-inset-bottom))] border-t shadow-lg">
       <div className="flex justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;

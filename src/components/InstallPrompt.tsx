@@ -11,7 +11,7 @@ export const InstallPrompt = () => {
   if (!isInstallable || isInstalled) return null;
 
   return (
-    <Card className="fixed bottom-4 left-4 right-4 z-50 p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 shadow-lg backdrop-blur-sm animate-in slide-in-from-bottom md:left-auto md:right-4 md:w-96">
+    <Card className="fixed bottom-24 left-4 right-4 z-40 p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 shadow-lg backdrop-blur-sm animate-in slide-in-from-bottom md:left-auto md:right-4 md:w-96">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg">
