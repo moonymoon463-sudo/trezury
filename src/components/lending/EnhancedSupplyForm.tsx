@@ -39,7 +39,7 @@ interface EnhancedSupplyFormProps {
 export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: EnhancedSupplyFormProps) {
   const { supply, poolReserves, loading } = useAaveStyleLending();
   const { balances, getBalance } = useWalletBalance();
-  const { wallet, connecting, connectWallet, disconnectWallet } = useWalletConnection();
+  const { wallet, connectWallet, connecting } = useWalletConnection();
   const { user } = useAuth();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
