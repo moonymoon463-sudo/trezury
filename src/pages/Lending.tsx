@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LendingDeposit } from "@/components/lending/LendingDeposit";
+import { LendingBorrow } from "@/components/lending/LendingBorrow";
 import { LendingProfile } from "@/components/lending/LendingProfile";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
@@ -10,7 +11,7 @@ import AurumLogo from "@/components/AurumLogo";
 export default function Lending() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const defaultTab = searchParams.get('tab') || 'deposit';
+  const defaultTab = searchParams.get('tab') || 'supply';
 
   return (
     <div className="flex flex-col h-screen bg-[#1C1C1E]">
@@ -36,18 +37,23 @@ export default function Lending() {
         <div className="max-w-6xl mx-auto">
           <div className="mb-6">
             <p className="text-gray-400 text-center">
-              Lock stablecoins across multiple chains to earn competitive yields. 
-              No lock = 0% APY.
+              Supply assets to earn yield or borrow against your collateral across multiple chains.
             </p>
           </div>
 
           <Tabs defaultValue={defaultTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto bg-[#2C2C2E] border-0">
+            <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto bg-[#2C2C2E] border-0">
               <TabsTrigger 
-                value="deposit" 
+                value="supply" 
                 className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
               >
-                Deposit
+                Supply
+              </TabsTrigger>
+              <TabsTrigger 
+                value="borrow"
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
+              >
+                Borrow
               </TabsTrigger>
               <TabsTrigger 
                 value="profile"
@@ -57,8 +63,12 @@ export default function Lending() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="deposit" className="mt-8">
+            <TabsContent value="supply" className="mt-8">
               <LendingDeposit />
+            </TabsContent>
+
+            <TabsContent value="borrow" className="mt-8">
+              <LendingBorrow />
             </TabsContent>
 
             <TabsContent value="profile" className="mt-8">
