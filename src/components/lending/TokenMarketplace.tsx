@@ -101,35 +101,6 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
       return sortOrder === 'desc' ? -comparison : comparison;
     });
 
-  // Show wallet connection requirement if not connected
-  if (!isWalletConnected) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">Token Marketplace</h2>
-          <p className="text-muted-foreground">
-            Connect your wallet to discover the best yields across multiple chains and assets
-          </p>
-        </div>
-
-        <Card className="bg-surface-elevated border-border">
-          <CardContent className="py-12 text-center">
-            <Wallet className="h-16 w-16 mx-auto mb-4 text-primary" />
-            <h3 className="text-xl font-bold mb-2 text-foreground">Connect Your Wallet</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              To access the token marketplace and start earning yield on your assets, please connect your MetaMask wallet above.
-            </p>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>✓ Browse available tokens and APY rates</p>
-              <p>✓ Supply assets to earn yield</p>
-              <p>✓ Borrow against your collateral</p>
-              <p>✓ Monitor your portfolio analytics</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -232,9 +203,8 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
           <Card 
             key={`${token.chain}-${token.token}`}
             className={`bg-surface-elevated border-border hover:bg-surface-overlay transition-colors ${
-              token.isActive && isWalletConnected ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+              !token.isActive ? 'cursor-not-allowed opacity-60' : ''
             }`}
-            onClick={() => token.isActive && isWalletConnected && onSelectToken(token.chain, token.token, token.apy)}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -280,28 +250,45 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
                     <p className="text-xs text-muted-foreground">Available</p>
                   </div>
 
-                  {token.isActive && isWalletConnected && (
+                  {token.isActive && (
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectToken(token.chain, token.token, token.apy);
-                        }}
-                        className="bg-primary hover:bg-primary/90"
-                      >
-                        Supply
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Add quick borrow functionality here
-                        }}
-                      >
-                        Borrow
-                      </Button>
+                      {isWalletConnected ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectToken(token.chain, token.token, token.apy);
+                            }}
+                            className="bg-primary hover:bg-primary/90"
+                          >
+                            Supply
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Add quick borrow functionality here
+                            }}
+                          >
+                            Borrow
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // This could trigger wallet connection
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Wallet className="h-3 w-3" />
+                          Connect Wallet
+                        </Button>
+                      )}
                     </div>
                   )}
 
