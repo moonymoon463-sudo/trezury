@@ -661,6 +661,10 @@ async function handleDiagnose(chain: string) {
     success: true,
     diagnostics: results
   }), {
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
+}
+
 async function handleGetLogs(supabase: any, chain: string): Promise<any> {
   try {
     const { data: logs, error } = await supabase
