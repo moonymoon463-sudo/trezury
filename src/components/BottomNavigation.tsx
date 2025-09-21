@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, TrendingUp } from "lucide-react";
+import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, TrendingUp, PieChart } from "lucide-react";
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
@@ -29,6 +29,12 @@ const BottomNavigation = () => {
       label: "Lending",
       icon: TrendingUp,
       path: "/lending",
+    },
+    {
+      id: "portfolio",
+      label: "Portfolio",
+      icon: PieChart,
+      path: "/portfolio",
     },
     {
       id: "history",
