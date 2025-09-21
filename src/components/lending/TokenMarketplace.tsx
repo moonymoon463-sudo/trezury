@@ -26,7 +26,7 @@ interface MarketToken {
 
 export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
   const { poolReserves } = useAaveStyleLending();
-  const { wallet } = useWalletConnection();
+  const { wallet, connectWallet } = useWalletConnection();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChain, setSelectedChain] = useState<Chain | "all">("all");
   const [sortBy, setSortBy] = useState<"apy" | "liquidity" | "risk">("apy");
@@ -281,7 +281,7 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation();
-                            // This could trigger wallet connection
+                            connectWallet();
                           }}
                           className="flex items-center gap-2"
                         >
