@@ -48,11 +48,14 @@ serve(async (req) => {
         return await handleGetDeploymentInfo();
         
       case 'health_check':
+        console.log('Health check requested');
+        const hasPrivateKey = !!Deno.env.get('DEPLOYMENT_PRIVATE_KEY');
         return new Response(
           JSON.stringify({ 
             status: 'healthy', 
             timestamp: new Date().toISOString(),
-            version: '1.0.0'
+            version: '1.0.1',
+            secrets_configured: hasPrivateKey
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
