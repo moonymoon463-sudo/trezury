@@ -18,12 +18,14 @@ export interface UseWalletConnectionReturn {
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   switchNetwork: (chainId: number) => Promise<void>;
+  addSepoliaNetwork: () => Promise<void>;
   signMessage: (message: string) => Promise<string | null>;
   validateTransaction: (params: any) => { isValid: boolean; errors: string[]; warnings: string[] };
 }
 
 const SUPPORTED_NETWORKS = {
   1: 'Ethereum Mainnet',
+  11155111: 'Ethereum Sepolia Testnet',
   137: 'Polygon',
   8453: 'Base',
   42161: 'Arbitrum One'
@@ -279,11 +281,16 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       });
     } catch (error: any) {
       if (error.code === 4902) {
-        toast({
-          variant: "destructive",
-          title: "Network Not Added",
-          description: "Please add this network to your wallet first"
-        });
+        // Network not added, try to add it
+        if (targetChainId === 11155111) {
+          await addSepoliaNetwork();
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Network Not Added",
+            description: "Please add this network to your wallet first"
+          });
+        }
       } else {
         toast({
           variant: "destructive",
@@ -291,6 +298,40 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           description: "Failed to switch network"
         });
       }
+    }
+  }, [toast]);
+
+  const addSepoliaNetwork = useCallback(async () => {
+    if (!window.ethereum) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Not Found",
+        description: "MetaMask not found"
+      });
+      return;
+    }
+
+    try {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: '0xaa36a7',
+          chainName: 'Ethereum Sepolia Testnet',
+          nativeCurrency: {
+            name: 'Sepolia Ether',
+            symbol: 'SEP',
+            decimals: 18,
+          },
+          rpcUrls: ['https://rpc.ankr.com/eth_sepolia'],
+          blockExplorerUrls: ['https://sepolia.etherscan.io/'],
+        }],
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Network Add Failed",
+        description: "Failed to add Sepolia network to wallet"
+      });
     }
   }, [toast]);
 
@@ -347,6 +388,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     connectWallet,
     disconnectWallet,
     switchNetwork,
+    addSepoliaNetwork,
     signMessage,
     validateTransaction
   };

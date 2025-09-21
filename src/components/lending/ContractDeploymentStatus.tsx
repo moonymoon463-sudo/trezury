@@ -23,7 +23,7 @@ import { WalletFundingInfo } from "@/components/WalletFundingInfo";
 import { supabase } from "@/integrations/supabase/client";
 
 export function ContractDeploymentStatus() {
-  const { wallet } = useWalletConnection();
+  const { wallet, switchNetwork, addSepoliaNetwork } = useWalletConnection();
   const { toast } = useToast();
   const {
     isDeploying,
@@ -73,6 +73,16 @@ export function ContractDeploymentStatus() {
         variant: "destructive",
         title: "Wallet Required",
         description: "Please connect your wallet to deploy contracts"
+      });
+      return;
+    }
+
+    // Check if on correct network for Ethereum deployment
+    if (chain === 'ethereum' && wallet.chainId !== 11155111) {
+      toast({
+        title: "Wrong Network",
+        description: "Please switch to Ethereum Sepolia testnet for deployment",
+        variant: "destructive"
       });
       return;
     }
@@ -214,11 +224,60 @@ export function ContractDeploymentStatus() {
             </p>
           </div>
 
-          {/* Deployment Wallet Info */}
-          <div className="md:col-span-1">
-            <WalletFundingInfo />
+          {/* Network Status */}
+          <div className="p-3 rounded-lg border border-border bg-surface-elevated">
+            <div className="flex items-center gap-2 mb-2">
+              <Network className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Network Status</p>
+            </div>
+            {wallet.isConnected ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Current: {wallet.networkName || 'Unknown'}
+                </p>
+                {wallet.chainId !== 11155111 ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive" className="text-xs">
+                      Wrong Network
+                    </Badge>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await switchNetwork(11155111);
+                          toast({
+                            title: "Network Switched",
+                            description: "Successfully switched to Sepolia testnet"
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Network Switch Failed",
+                            description: "Please manually switch to Sepolia testnet in your wallet",
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="h-6 px-2 text-xs"
+                    >
+                      Switch to Sepolia
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-success" />
+                    <span className="text-xs text-success">Ready for deployment</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Connect wallet to check network</p>
+            )}
           </div>
         </div>
+
+        {/* Wallet Funding Info */}
+        <WalletFundingInfo />
 
         {/* Deployment Complete */}
         {deployedCount === totalChains && (
