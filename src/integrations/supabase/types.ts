@@ -82,6 +82,65 @@ export type Database = {
           },
         ]
       }
+      compliance_reports: {
+        Row: {
+          compliance_checks: Json | null
+          created_at: string
+          download_url: string | null
+          fees_usd: number | null
+          generated_at: string
+          id: string
+          institutional_account_id: string
+          period_end: string
+          period_start: string
+          risk_metrics: Json | null
+          transactions_count: number | null
+          type: string
+          updated_at: string
+          volume_usd: number | null
+        }
+        Insert: {
+          compliance_checks?: Json | null
+          created_at?: string
+          download_url?: string | null
+          fees_usd?: number | null
+          generated_at?: string
+          id?: string
+          institutional_account_id: string
+          period_end: string
+          period_start: string
+          risk_metrics?: Json | null
+          transactions_count?: number | null
+          type: string
+          updated_at?: string
+          volume_usd?: number | null
+        }
+        Update: {
+          compliance_checks?: Json | null
+          created_at?: string
+          download_url?: string | null
+          fees_usd?: number | null
+          generated_at?: string
+          id?: string
+          institutional_account_id?: string
+          period_end?: string
+          period_start?: string
+          risk_metrics?: Json | null
+          transactions_count?: number | null
+          type?: string
+          updated_at?: string
+          volume_usd?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_reports_institutional_account_id_fkey"
+            columns: ["institutional_account_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       config: {
         Row: {
           key: string
@@ -232,6 +291,48 @@ export type Database = {
           metadata?: Json | null
           reward_type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      institutional_accounts: {
+        Row: {
+          admin_email: string
+          created_at: string
+          features: string[] | null
+          id: string
+          minimum_signatures: number | null
+          multi_sig_required: boolean | null
+          org_name: string
+          signatories: string[] | null
+          tier: string
+          updated_at: string
+          white_label_config: Json | null
+        }
+        Insert: {
+          admin_email: string
+          created_at?: string
+          features?: string[] | null
+          id?: string
+          minimum_signatures?: number | null
+          multi_sig_required?: boolean | null
+          org_name: string
+          signatories?: string[] | null
+          tier?: string
+          updated_at?: string
+          white_label_config?: Json | null
+        }
+        Update: {
+          admin_email?: string
+          created_at?: string
+          features?: string[] | null
+          id?: string
+          minimum_signatures?: number | null
+          multi_sig_required?: boolean | null
+          org_name?: string
+          signatories?: string[] | null
+          tier?: string
+          updated_at?: string
+          white_label_config?: Json | null
         }
         Relationships: []
       }
@@ -1103,6 +1204,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      team_members: {
+        Row: {
+          added_at: string
+          created_at: string
+          email: string
+          id: string
+          institutional_account_id: string
+          last_active: string | null
+          permissions: string[] | null
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          created_at?: string
+          email: string
+          id?: string
+          institutional_account_id: string
+          last_active?: string | null
+          permissions?: string[] | null
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          created_at?: string
+          email?: string
+          id?: string
+          institutional_account_id?: string
+          last_active?: string | null
+          permissions?: string[] | null
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_institutional_account_id_fkey"
+            columns: ["institutional_account_id"]
+            isOneToOne: false
+            referencedRelation: "institutional_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
