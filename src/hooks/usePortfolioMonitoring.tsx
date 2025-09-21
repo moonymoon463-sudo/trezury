@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useWalletBalance } from './useWalletBalance';
-import { useAaveStyleLending } from './useAaveStyleLending';
+import { useLendingOperations } from './useLendingOperations';
 import { useGoldPrice } from './useGoldPrice';
 
 export interface PortfolioAsset {
@@ -36,13 +36,35 @@ export interface PortfolioPerformance {
 export const usePortfolioMonitoring = () => {
   const { balances: walletBalances, loading: walletLoading } = useWalletBalance();
   const { 
-    userSupplies, 
-    userBorrows, 
-    userHealthFactor, 
+    userPositions, 
+    healthFactor, 
     loading: lendingLoading,
-    poolReserves 
-  } = useAaveStyleLending();
+    poolAssets 
+  } = useLendingOperations();
   const { price: goldPrice } = useGoldPrice();
+
+  // Transform userPositions to match old format for compatibility
+  const userSupplies = userPositions.filter(pos => pos.suppliedAmount > 0).map(pos => ({
+    asset: pos.asset,
+    chain: pos.chain,
+    supplied_amount_dec: pos.suppliedAmount,
+    accrued_interest_dec: 0,
+    used_as_collateral: true
+  }));
+
+  const userBorrows = userPositions.filter(pos => pos.borrowedAmount > 0).map(pos => ({
+    asset: pos.asset,
+    chain: pos.chain,
+    borrowed_amount_dec: pos.borrowedAmount,
+    accrued_interest_dec: 0
+  }));
+
+  const poolReserves = poolAssets.map(asset => ({
+    asset: asset.asset,
+    chain: asset.chain,
+    supply_rate: asset.supplyApy,
+    borrow_rate_variable: asset.borrowApy
+  }));
 
   const [portfolioHistory, setPortfolioHistory] = useState<Array<{
     timestamp: Date;
@@ -157,12 +179,12 @@ export const usePortfolioMonitoring = () => {
       suppliedValueUSD,
       borrowedValueUSD,
       netValueUSD,
-      healthFactor: typeof userHealthFactor === 'number' ? userHealthFactor : userHealthFactor?.health_factor || 0,
+      healthFactor: healthFactor,
       netAPY,
       availableBorrowUSD,
       totalCollateralUSD
     };
-  }, [portfolioAssets, userHealthFactor]);
+  }, [portfolioAssets, healthFactor]);
 
   // Calculate performance metrics
   const portfolioPerformance = useMemo((): PortfolioPerformance => {

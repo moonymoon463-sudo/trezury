@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,9 @@ export function ActionModal({ isOpen, onClose, action, asset }: ActionModalProps
           <DialogTitle className="text-foreground">
             {action === 'supply' ? 'Supply' : 'Borrow'} {asset?.asset}
           </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Enter the amount you want to {action === 'supply' ? 'supply' : 'borrow'}.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
