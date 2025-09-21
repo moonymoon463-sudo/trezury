@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSmartContracts } from "@/hooks/useSmartContracts";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   PoolReserve, 
   UserSupply, 
@@ -55,65 +56,146 @@ export function useAaveStyleLending() {
 
   const fetchPoolReserves = useCallback(async () => {
     try {
-      if (!wallet.isConnected || !deploymentStatus?.ethereum) return;
+      if (!wallet.isConnected) return;
       
-      // For now, create mock pool reserves data since smart contracts aren't fully integrated
-      const chains: Chain[] = ['ethereum'];
-      const tokens: Token[] = ['USDC', 'USDT', 'DAI', 'XAUT', 'AURU'];
-      const reserves: PoolReserve[] = [];
+      setLoading(true);
       
-      for (const chain of chains) {
-        for (const token of tokens) {
-            reserves.push({
-              id: `${chain}-${token}`,
-              asset: token,
-              chain,
-              supply_rate: 0.045 + Math.random() * 0.02, // 4.5-6.5% APY
-              borrow_rate_variable: 0.065 + Math.random() * 0.02, // 6.5-8.5% APY
-              borrow_rate_stable: 0.075 + Math.random() * 0.01, // 7.5-8.5% APY
-              total_supply_dec: 1000000 + Math.random() * 5000000,
-              total_borrowed_dec: 500000 + Math.random() * 2000000,
-              available_liquidity_dec: 800000 + Math.random() * 1000000,
-              utilization_rate: 0.4 + Math.random() * 0.4, // 40-80%
-              ltv: 0.8,
-              liquidation_threshold: 0.85,
-              liquidation_bonus: 0.05,
-              is_active: true,
-              borrowing_enabled: true
-            });
-        }
+      // Fetch real pool reserves from Supabase
+      const { data: reserves, error } = await supabase
+        .from('pool_reserves')
+        .select('*')
+        .eq('chain', 'ethereum')
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('Error fetching pool reserves:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch pool data"
+        });
+        return;
       }
-      
-      setPoolReserves(reserves);
+
+      if (reserves) {
+        const poolReservesData: PoolReserve[] = reserves.map(reserve => ({
+          id: `${reserve.chain}-${reserve.asset}`,
+          asset: reserve.asset,
+          chain: reserve.chain,
+          supply_rate: reserve.supply_rate,
+          borrow_rate_variable: reserve.borrow_rate_variable,
+          borrow_rate_stable: reserve.borrow_rate_stable,
+          total_supply_dec: reserve.total_supply_dec,
+          total_borrowed_dec: reserve.total_borrowed_dec,
+          available_liquidity_dec: reserve.available_liquidity_dec,
+          utilization_rate: reserve.utilization_rate,
+          ltv: reserve.ltv,
+          liquidation_threshold: reserve.liquidation_threshold,
+          liquidation_bonus: reserve.liquidation_bonus,
+          is_active: reserve.is_active,
+          borrowing_enabled: reserve.borrowing_enabled
+        }));
+        
+        setPoolReserves(poolReservesData);
+        console.log('✅ Loaded pool reserves from database:', poolReservesData.length, 'markets');
+      }
     } catch (error) {
       console.error('Error fetching pool reserves:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch pool data"
+        description: "Failed to fetch pool data"  
       });
+    } finally {
+      setLoading(false);
     }
-  }, [toast, wallet.isConnected, deploymentStatus]);
+  }, [toast, wallet.isConnected]);
 
   const fetchUserData = useCallback(async () => {
-    if (!user || !wallet.isConnected || !deploymentStatus?.ethereum) return;
+    if (!user || !wallet.isConnected) return;
     
     try {
       setLoading(true);
       
-      // For demo purposes, create mock user data
-      // In a real implementation, this would query the smart contracts
-      setUserSupplies([]);
-      setUserBorrows([]);
-      setUserHealthFactor({
-        user_id: user.id,
-        chain: 'ethereum',
-        health_factor: 2.5,
-        total_collateral_usd: 0,
-        total_debt_usd: 0,
-        available_borrow_usd: 0,
-        ltv: 0,
-        liquidation_threshold: 0.85
+      // Fetch user supplies from database
+      const { data: supplies, error: suppliesError } = await supabase
+        .from('user_supplies')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('chain', 'ethereum');
+
+      // Fetch user borrows from database  
+      const { data: borrows, error: borrowsError } = await supabase
+        .from('user_borrows')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('chain', 'ethereum');
+
+      // Fetch user health factor from database
+      const { data: healthFactor, error: healthError } = await supabase
+        .from('user_health_factors')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('chain', 'ethereum')
+        .single();
+
+      if (suppliesError) console.error('Error fetching supplies:', suppliesError);
+      if (borrowsError) console.error('Error fetching borrows:', borrowsError);
+      if (healthError && healthError.code !== 'PGRST116') console.error('Error fetching health factor:', healthError);
+      
+      // Transform data to match the expected format
+      setUserSupplies(supplies?.map(supply => ({
+        id: supply.id,
+        user_id: supply.user_id,
+        asset: supply.asset as Token,
+        chain: supply.chain as Chain,
+        supplied_amount_dec: supply.supplied_amount_dec,
+        accrued_interest_dec: supply.accrued_interest_dec,
+        used_as_collateral: true, // Default to true for now
+        created_at: supply.created_at
+      })) || []);
+
+      setUserBorrows(borrows?.map(borrow => ({
+        id: borrow.id,
+        user_id: borrow.user_id,
+        asset: borrow.asset as Token,
+        chain: borrow.chain as Chain,
+        borrowed_amount_dec: borrow.borrowed_amount_dec,
+        accrued_interest_dec: borrow.accrued_interest_dec,
+        rate_mode: borrow.rate_mode as 'variable' | 'stable',
+        borrow_rate_at_creation: borrow.borrow_rate_at_creation || 0,
+        created_at: borrow.created_at
+      })) || []);
+
+      if (healthFactor) {
+        setUserHealthFactor({
+          user_id: healthFactor.user_id,
+          chain: healthFactor.chain,
+          health_factor: healthFactor.health_factor,
+          total_collateral_usd: healthFactor.total_collateral_usd,
+          total_debt_usd: healthFactor.total_debt_usd,
+          available_borrow_usd: healthFactor.available_borrow_usd,
+          ltv: healthFactor.ltv,
+          liquidation_threshold: healthFactor.liquidation_threshold
+        });
+      } else {
+        // Create default health factor for new users
+        setUserHealthFactor({
+          user_id: user.id,
+          chain: 'ethereum',
+          health_factor: 0,
+          total_collateral_usd: 0,
+          total_debt_usd: 0,
+          available_borrow_usd: 0,
+          ltv: 0,
+          liquidation_threshold: 0.85
+        });
+      }
+
+      console.log('✅ Loaded user data:', {
+        supplies: supplies?.length || 0,
+        borrows: borrows?.length || 0,
+        hasHealthFactor: !!healthFactor
       });
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -125,7 +207,7 @@ export function useAaveStyleLending() {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, wallet.isConnected, deploymentStatus]);
+  }, [user, toast, wallet.isConnected]);
 
   const supply = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
     if (!user || !wallet.isConnected) {
@@ -140,25 +222,46 @@ export function useAaveStyleLending() {
     try {
       setLoading(true);
       
-      // Mock supply operation for demo
+      // Insert or update user supply in database
+      const { data: existingSupply } = await supabase
+        .from('user_supplies')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('asset', asset)
+        .eq('chain', chain)
+        .single();
+
+      if (existingSupply) {
+        // Update existing supply
+        const { error } = await supabase
+          .from('user_supplies')
+          .update({
+            supplied_amount_dec: existingSupply.supplied_amount_dec + amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingSupply.id);
+
+        if (error) throw error;
+      } else {
+        // Create new supply
+        const { error } = await supabase
+          .from('user_supplies')
+          .insert({
+            user_id: user.id,
+            asset: asset,
+            chain: chain,
+            supplied_amount_dec: amount,
+            accrued_interest_dec: 0
+          });
+
+        if (error) throw error;
+      }
+      
       toast({
         title: "Supply Successful",
         description: `Successfully supplied ${amount} ${asset}`
       });
 
-      // Add to user supplies
-      const newSupply: UserSupply = {
-        id: `supply-${chain}-${asset}-${Date.now()}`,
-        user_id: user.id,
-        asset: asset as Token,
-        chain: chain as Chain,
-        supplied_amount_dec: amount,
-        accrued_interest_dec: 0,
-        used_as_collateral: true,
-        created_at: new Date().toISOString()
-      };
-
-      setUserSupplies(prev => [...prev, newSupply]);
       await fetchUserData();
       await fetchPoolReserves();
     } catch (error) {
