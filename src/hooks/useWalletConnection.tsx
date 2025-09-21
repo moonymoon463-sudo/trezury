@@ -3,6 +3,21 @@ import { securityService } from '@/services/securityService';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
+// Define ethereum provider interface
+interface EthereumProvider {
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  on: (event: string, handler: (...args: any[]) => void) => void;
+  removeListener: (event: string, handler: (...args: any[]) => void) => void;
+  isMetaMask?: boolean;
+  providers?: EthereumProvider[];
+}
+
+declare global {
+  interface Window {
+    ethereum?: EthereumProvider;
+  }
+}
+
 export interface WalletConnectionState {
   isConnected: boolean;
   address: string | null;
@@ -31,6 +46,31 @@ const SUPPORTED_NETWORKS = {
   42161: 'Arbitrum One'
 };
 
+// Function to get MetaMask provider specifically
+const getMetaMaskProvider = (): EthereumProvider | null => {
+  if (!window.ethereum) return null;
+  
+  // If ethereum.providers exists, find MetaMask specifically
+  if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
+    const metaMaskProvider = window.ethereum.providers.find(
+      (provider: EthereumProvider) => provider.isMetaMask
+    );
+    return metaMaskProvider || null;
+  }
+  
+  // If no providers array, check if the main provider is MetaMask
+  if (window.ethereum.isMetaMask) {
+    return window.ethereum;
+  }
+  
+  return null;
+};
+
+// Function to check if MetaMask is available
+const isMetaMaskAvailable = (): boolean => {
+  return getMetaMaskProvider() !== null;
+};
+
 export const useWalletConnection = (): UseWalletConnectionReturn => {
   const [wallet, setWallet] = useState<WalletConnectionState>({
     isConnected: false,
@@ -54,10 +94,16 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   }, []);
 
   const initializeWallet = async () => {
-    if (!window.ethereum || !user) return;
+    if (!user) return;
+    
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider) {
+      console.log('MetaMask not found or not available');
+      return;
+    }
 
     try {
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      const accounts = await metaMaskProvider.request({ method: 'eth_accounts' });
       if (accounts.length > 0) {
         await updateWalletState(accounts[0]);
       }
@@ -67,18 +113,20 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   };
 
   const setupEventListeners = () => {
-    if (!window.ethereum) return;
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider) return;
 
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-    window.ethereum.on('disconnect', handleDisconnect);
+    metaMaskProvider.on('accountsChanged', handleAccountsChanged);
+    metaMaskProvider.on('chainChanged', handleChainChanged);
+    metaMaskProvider.on('disconnect', handleDisconnect);
   };
 
   const cleanup = () => {
-    if (window.ethereum) {
-      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum.removeListener('chainChanged', handleChainChanged);
-      window.ethereum.removeListener('disconnect', handleDisconnect);
+    const metaMaskProvider = getMetaMaskProvider();
+    if (metaMaskProvider) {
+      metaMaskProvider.removeListener('accountsChanged', handleAccountsChanged);
+      metaMaskProvider.removeListener('chainChanged', handleChainChanged);
+      metaMaskProvider.removeListener('disconnect', handleDisconnect);
     }
   };
 
@@ -134,15 +182,18 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   };
 
   const updateWalletState = async (address: string) => {
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider) return;
+
     try {
       // Get chain ID
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const chainId = await metaMaskProvider.request({ method: 'eth_chainId' });
       const numericChainId = parseInt(chainId, 16);
       const networkName = SUPPORTED_NETWORKS[numericChainId as keyof typeof SUPPORTED_NETWORKS];
       const isSupported = !!networkName;
 
       // Get balance
-      const balance = await window.ethereum.request({
+      const balance = await metaMaskProvider.request({
         method: 'eth_getBalance',
         params: [address, 'latest']
       });
@@ -162,11 +213,14 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   };
 
   const connectWallet = useCallback(async () => {
-    if (!window.ethereum) {
+    if (!isMetaMaskAvailable()) {
+      const hasOtherWallet = !!window.ethereum;
       toast({
         variant: "destructive",
-        title: "Wallet Not Found",
-        description: "Please install MetaMask or another Web3 wallet"
+        title: "MetaMask Required",
+        description: hasOtherWallet 
+          ? "Please use MetaMask for this application. Other wallets detected but MetaMask is required."
+          : "Please install MetaMask to connect your wallet"
       });
       return;
     }
@@ -195,16 +249,19 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       return;
     }
 
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider) return;
+
     try {
       setConnecting(true);
 
-      // Request account access
-      const accounts = await window.ethereum.request({
+      // Request account access from MetaMask specifically
+      const accounts = await metaMaskProvider.request({
         method: 'eth_requestAccounts'
       });
 
       if (accounts.length === 0) {
-        throw new Error('No accounts returned from wallet');
+        throw new Error('No accounts returned from MetaMask');
       }
 
       await updateWalletState(accounts[0]);
@@ -213,32 +270,32 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       await securityService.logSecurityEvent({
         event_type: 'wallet_connected',
         severity: 'low',
-        description: 'User connected wallet successfully',
+        description: 'User connected MetaMask wallet successfully',
         user_id: user.id,
-        metadata: { address: accounts[0] }
+        metadata: { address: accounts[0], wallet_type: 'MetaMask' }
       });
 
       toast({
-        title: "Wallet Connected",
+        title: "MetaMask Connected",
         description: `Connected to ${wallet.networkName || 'blockchain network'}`
       });
 
     } catch (error: any) {
-      console.error('Wallet connection failed:', error);
+      console.error('MetaMask connection failed:', error);
       
       // Log failed connection attempt
       await securityService.logSecurityEvent({
         event_type: 'wallet_connection_failed',
         severity: 'medium',
-        description: 'Wallet connection attempt failed',
+        description: 'MetaMask connection attempt failed',
         user_id: user.id,
-        metadata: { error: error.message }
+        metadata: { error: error.message, wallet_type: 'MetaMask' }
       });
 
       toast({
         variant: "destructive",
-        title: "Connection Failed",
-        description: error.message || "Failed to connect wallet"
+        title: "MetaMask Connection Failed",
+        description: error.message || "Failed to connect MetaMask"
       });
     } finally {
       setConnecting(false);
@@ -272,10 +329,11 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   }, [user, toast]);
 
   const switchNetwork = useCallback(async (targetChainId: number) => {
-    if (!window.ethereum) return;
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider) return;
 
     try {
-      await window.ethereum.request({
+      await metaMaskProvider.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: `0x${targetChainId.toString(16)}` }]
       });
@@ -288,31 +346,32 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
           toast({
             variant: "destructive",
             title: "Network Not Added",
-            description: "Please add this network to your wallet first"
+            description: "Please add this network to MetaMask first"
           });
         }
       } else {
         toast({
           variant: "destructive",
           title: "Switch Failed",
-          description: "Failed to switch network"
+          description: "Failed to switch network in MetaMask"
         });
       }
     }
   }, [toast]);
 
   const addSepoliaNetwork = useCallback(async () => {
-    if (!window.ethereum) {
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider) {
       toast({
         variant: "destructive",
-        title: "Wallet Not Found",
-        description: "MetaMask not found"
+        title: "MetaMask Not Found",
+        description: "MetaMask is required to add networks"
       });
       return;
     }
 
     try {
-      await window.ethereum.request({
+      await metaMaskProvider.request({
         method: 'wallet_addEthereumChain',
         params: [{
           chainId: '0xaa36a7',
@@ -330,23 +389,24 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       toast({
         variant: "destructive",
         title: "Network Add Failed",
-        description: "Failed to add Sepolia network to wallet"
+        description: "Failed to add Sepolia network to MetaMask"
       });
     }
   }, [toast]);
 
   const signMessage = useCallback(async (message: string): Promise<string | null> => {
-    if (!window.ethereum || !wallet.address) {
+    const metaMaskProvider = getMetaMaskProvider();
+    if (!metaMaskProvider || !wallet.address) {
       toast({
         variant: "destructive",
-        title: "Wallet Not Connected",
-        description: "Please connect your wallet first"
+        title: "MetaMask Not Connected",
+        description: "Please connect MetaMask first"
       });
       return null;
     }
 
     try {
-      const signature = await window.ethereum.request({
+      const signature = await metaMaskProvider.request({
         method: 'personal_sign',
         params: [message, wallet.address]
       });
@@ -356,9 +416,9 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         await securityService.logSecurityEvent({
           event_type: 'message_signed',
           severity: 'medium',
-          description: 'User signed a message with wallet',
+          description: 'User signed a message with MetaMask',
           user_id: user.id,
-          metadata: { address: wallet.address }
+          metadata: { address: wallet.address, wallet_type: 'MetaMask' }
         });
       }
 
@@ -366,8 +426,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Signing Failed",
-        description: error.message || "Failed to sign message"
+        title: "MetaMask Signing Failed",
+        description: error.message || "Failed to sign message with MetaMask"
       });
       return null;
     }

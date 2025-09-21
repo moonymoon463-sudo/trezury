@@ -6,12 +6,6 @@ import { Wallet, ExternalLink, Shield, Copy, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 interface WalletState {
   isConnected: boolean;
   address: string | null;
@@ -45,7 +39,10 @@ export const WalletConnector: React.FC = () => {
     
     return () => {
       if (window.ethereum) {
-        window.ethereum.removeAllListeners?.();
+        // Remove specific event listeners instead of all listeners
+        window.ethereum.removeListener?.('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener?.('chainChanged', handleChainChanged);
+        window.ethereum.removeListener?.('disconnect', handleDisconnect);
       }
     };
   }, []);
