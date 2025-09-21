@@ -1,21 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TokenMarketplace } from "./TokenMarketplace";
 import { EnhancedSupplyForm } from "./EnhancedSupplyForm";
-import { QuickActions } from "./QuickActions";
-import { InternalWalletSetup } from "./InternalWalletSetup";
 import { Chain, Token } from "@/types/lending";
-import { Button } from "@/components/ui/button";
-import { Zap, Store } from "lucide-react";
 import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
+import { useToast } from "@/hooks/use-toast";
 
 export function LendingDeposit() {
-  const { walletAddress } = useAaveStyleLending();
-  const [currentView, setCurrentView] = useState<'quickactions' | 'marketplace' | 'form'>('marketplace');
+  const { walletAddress, createWallet } = useAaveStyleLending();
+  const { toast } = useToast();
+  const [currentView, setCurrentView] = useState<'marketplace' | 'form'>('marketplace');
   const [selectedToken, setSelectedToken] = useState<{
     chain: Chain;
     token: Token;
     apy: number;
   } | null>(null);
+
+  // Auto-create wallet on component mount
+  useEffect(() => {
+    const setupWallet = async () => {
+      if (!walletAddress) {
+        try {
+          await createWallet();
+        } catch (error) {
+          console.error('Failed to auto-create wallet:', error);
+        }
+      }
+    };
+    
+    setupWallet();
+  }, [walletAddress, createWallet]);
 
   const handleTokenSelect = (chain: Chain, token: Token, apy: number) => {
     setSelectedToken({ chain, token, apy });
@@ -38,59 +51,14 @@ export function LendingDeposit() {
     );
   }
 
-  if (currentView === 'marketplace') {
-    return (
-      <div className="space-y-4">
-        {!walletAddress && <InternalWalletSetup />}
-        
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentView('quickactions')}
-            className="flex items-center gap-2"
-          >
-            <Zap className="h-4 w-4" />
-            Developer Tools
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Store className="h-4 w-4" />
-            Market
-          </Button>
-        </div>
-        <TokenMarketplace onSelectToken={handleTokenSelect} />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      {!walletAddress && <InternalWalletSetup />}
-      
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          <Zap className="h-4 w-4" />
-          Developer Tools
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentView('marketplace')}
-          className="flex items-center gap-2"
-        >
-          <Store className="h-4 w-4" />
-          Market
-        </Button>
-      </div>
-      <QuickActions />
+      {walletAddress && (
+        <div className="text-sm text-muted-foreground text-center">
+          Internal Wallet: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+        </div>
+      )}
+      <TokenMarketplace onSelectToken={handleTokenSelect} />
     </div>
   );
 }

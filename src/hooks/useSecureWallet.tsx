@@ -6,9 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 export interface UseSecureWalletReturn {
   walletAddress: string | null;
   loading: boolean;
-  createWallet: (password: string) => Promise<SecureWalletInfo | null>;
-  validateAccess: (password: string) => Promise<boolean>;
-  signTransaction: (transactionData: Record<string, unknown>, password: string) => Promise<string | null>;
+  createWallet: () => Promise<SecureWalletInfo | null>;
+  validateAccess: () => Promise<boolean>;
+  signTransaction: (transactionData: Record<string, unknown>) => Promise<string | null>;
   getWalletAddress: () => Promise<string | null>;
 }
 
@@ -22,7 +22,7 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const createWallet = useCallback(async (password: string): Promise<SecureWalletInfo | null> => {
+  const createWallet = useCallback(async (): Promise<SecureWalletInfo | null> => {
     if (!user?.id) {
       toast({
         variant: "destructive",
@@ -32,28 +32,20 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
       return null;
     }
 
-    if (password.length < 12) {
-      toast({
-        variant: "destructive",
-        title: "Password Too Weak",
-        description: "Password must be at least 12 characters long"
-      });
-      return null;
-    }
-
     try {
       setLoading(true);
       
+      // Use user ID as deterministic seed for passwordless wallet
       const walletInfo = await secureWalletService.generateDeterministicWallet(
         user.id,
-        { userPassword: password }
+        { userPassword: user.id } // Use user ID as password for simplicity
       );
 
       setWalletAddress(walletInfo.address);
       
       toast({
-        title: "Secure Wallet Created",
-        description: "Your wallet has been created without storing any private keys"
+        title: "Internal Wallet Ready",
+        description: "Your wallet is now active and ready to use"
       });
 
       return walletInfo;
@@ -69,14 +61,14 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
     }
   }, [user, toast]);
 
-  const validateAccess = useCallback(async (password: string): Promise<boolean> => {
+  const validateAccess = useCallback(async (): Promise<boolean> => {
     if (!user?.id) {
       return false;
     }
 
     try {
       setLoading(true);
-      return await secureWalletService.validateWalletAccess(user.id, password);
+      return await secureWalletService.validateWalletAccess(user.id, user.id);
     } catch (error) {
       return false;
     } finally {
@@ -85,8 +77,7 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
   }, [user]);
 
   const signTransaction = useCallback(async (
-    transactionData: Record<string, unknown>, 
-    password: string
+    transactionData: Record<string, unknown>
   ): Promise<string | null> => {
     if (!user?.id) {
       toast({
@@ -100,22 +91,11 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
     try {
       setLoading(true);
       
-      // First validate password
-      const isValid = await secureWalletService.validateWalletAccess(user.id, password);
-      if (!isValid) {
-        toast({
-          variant: "destructive",
-          title: "Invalid Password",
-          description: "The password provided is incorrect"
-        });
-        return null;
-      }
-
-      // Sign transaction
+      // Sign transaction using user ID as password
       const signedTx = await secureWalletService.signTransaction(
         user.id,
         transactionData,
-        password
+        user.id
       );
 
       return signedTx;
