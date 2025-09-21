@@ -29,7 +29,7 @@ export function useContractDeployment() {
       
       // For demo purposes, use test private key
       const privateKey = "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
-      const rpcUrl = "https://base-sepolia.g.alchemy.com/v2/demo"; // Base Sepolia testnet
+      const rpcUrl = "https://sepolia.base.org"; // Base Sepolia public RPC
       
       await contractDeploymentService.initialize(privateKey, rpcUrl);
       
@@ -65,8 +65,8 @@ export function useContractDeployment() {
           chain: chain,
           privateKey: "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318",
           rpcUrl: chain === 'base' 
-            ? "https://base-sepolia.g.alchemy.com/v2/demo"
-            : "https://eth-sepolia.g.alchemy.com/v2/demo"
+            ? "https://sepolia.base.org"
+            : "https://ethereum-sepolia-rpc.publicnode.com"
         }
       });
 
