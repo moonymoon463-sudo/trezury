@@ -8,7 +8,8 @@ export const InstallPrompt = () => {
   const { isInstallable, installApp, dismissInstallPrompt, isInstalled } = usePWA();
   const [isIOS] = useState(/iPad|iPhone|iPod/.test(navigator.userAgent));
 
-  if (!isInstallable || isInstalled) return null;
+  // Temporarily disabled to prevent deployment interface glitches
+  return null;
 
   return (
     <Card className="fixed bottom-24 left-4 right-4 z-40 p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 shadow-lg backdrop-blur-sm animate-in slide-in-from-bottom md:left-auto md:right-4 md:w-96">
