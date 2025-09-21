@@ -1,14 +1,45 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank } from "lucide-react";
-import { PortfolioSummary, PortfolioPerformance } from "@/hooks/usePortfolioMonitoring";
+import { PortfolioSummary, PortfolioPerformance, PortfolioAsset } from "@/hooks/usePortfolioMonitoring";
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { useMemo } from 'react';
 
 interface PortfolioSummaryCardProps {
   summary: PortfolioSummary;
   performance: PortfolioPerformance;
+  assets: PortfolioAsset[];
 }
 
-export function PortfolioSummaryCard({ summary, performance }: PortfolioSummaryCardProps) {
+export function PortfolioSummaryCard({ summary, performance, assets }: PortfolioSummaryCardProps) {
   const isPositiveChange = performance.change24hPercent >= 0;
+
+  // Process assets for mini donut chart
+  const chartData = useMemo(() => {
+    if (!assets || assets.length === 0) return [];
+    
+    const assetGroups = assets.reduce((acc, asset) => {
+      if (asset.valueUSD <= 0) return acc;
+      
+      const key = asset.asset;
+      if (!acc[key]) {
+        acc[key] = { name: key, value: 0 };
+      }
+      acc[key].value += asset.valueUSD;
+      return acc;
+    }, {} as Record<string, { name: string; value: number }>);
+
+    return Object.values(assetGroups).sort((a, b) => b.value - a.value);
+  }, [assets]);
+
+  const getAssetColor = (asset: string) => {
+    const colors = {
+      'GOLD': '#f9b006',
+      'USDC': '#2775CA',
+      'ETH': '#627EEA',
+      'BTC': '#F7931A',
+    };
+    return colors[asset as keyof typeof colors] || '#6366f1';
+  };
 
   return (
     <Card>
@@ -19,24 +50,52 @@ export function PortfolioSummaryCard({ summary, performance }: PortfolioSummaryC
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Total Portfolio Value */}
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
-          <p className="text-3xl font-bold text-foreground">
-            ${summary.totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <div className="flex items-center justify-center gap-1 mt-1">
-            {isPositiveChange ? (
-              <TrendingUp className="h-4 w-4 text-status-success" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-status-error" />
-            )}
-            <span className={`text-sm font-medium ${
-              isPositiveChange ? 'text-status-success' : 'text-status-error'
-            }`}>
-              {isPositiveChange ? '+' : ''}{performance.change24hPercent.toFixed(2)}% (24h)
-            </span>
+        {/* Total Portfolio Value with Mini Chart */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
+            <p className="text-3xl font-bold text-foreground">
+              ${summary.totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <div className="flex items-center gap-1 mt-1">
+              {isPositiveChange ? (
+                <TrendingUp className="h-4 w-4 text-status-success" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-status-error" />
+              )}
+              <span className={`text-sm font-medium ${
+                isPositiveChange ? 'text-status-success' : 'text-status-error'
+              }`}>
+                {isPositiveChange ? '+' : ''}{performance.change24hPercent.toFixed(2)}% (24h)
+              </span>
+            </div>
           </div>
+          
+          {/* Mini Asset Allocation Chart */}
+          {chartData.length > 0 && (
+            <div className="w-16 h-16 flex-shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={16}
+                    outerRadius={28}
+                    strokeWidth={0}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={getAssetColor(entry.name)} 
+                      />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* Portfolio Breakdown */}

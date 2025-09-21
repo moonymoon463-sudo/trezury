@@ -68,8 +68,9 @@ export default function Portfolio() {
       <main className="px-6 py-6 pb-24 space-y-6">
         {/* Portfolio Summary */}
         <PortfolioSummaryCard 
-          summary={portfolioSummary}
+          summary={portfolioSummary} 
           performance={portfolioPerformance}
+          assets={portfolioAssets}
         />
 
         {/* Health Monitor */}

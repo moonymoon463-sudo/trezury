@@ -8,8 +8,8 @@ import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AurumLogo from "@/components/AurumLogo";
-import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
 import { PositionsCard } from "@/components/portfolio/PositionsCard";
+import { PortfolioSummaryCard } from "@/components/portfolio/PortfolioSummaryCard";
 import { useState } from "react";
 
 const Index = () => {
@@ -123,57 +123,13 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Enhanced Portfolio Summary */}
-          <div className="bg-[#2C2C2E] rounded-xl p-4">
-            <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] mb-4">
-              Portfolio Summary
-            </h3>
-            <div className="mb-4">
-              <p className="text-gray-400 text-sm font-normal mb-1">Total USD Value</p>
-              <p className="text-white text-2xl font-bold">
-                {portfolioLoading ? "Loading..." : `$${portfolioSummary.totalValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-              </p>
-              {portfolioPerformance.change24h !== 0 && (
-                <div className={`flex items-center gap-1 mt-1 ${
-                  portfolioPerformance.change24h >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  <TrendingUp size={14} className={portfolioPerformance.change24h < 0 ? 'rotate-180' : ''} />
-                  <span className="text-sm">
-                    {portfolioPerformance.change24h >= 0 ? '+' : ''}
-                    ${portfolioPerformance.change24h.toLocaleString('en-US', { maximumFractionDigits: 0 })} (24h)
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-gray-400 text-sm font-normal mb-1">Wallet Value</p>
-                <p className="text-white text-lg font-semibold">
-                  {portfolioLoading ? "Loading..." : `$${portfolioSummary.walletValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm font-normal mb-1">Lending Positions</p>
-                <p className="text-white text-lg font-semibold">
-                  {portfolioLoading ? "Loading..." : `$${(portfolioSummary.suppliedValueUSD - portfolioSummary.borrowedValueUSD).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                </p>
-              </div>
-              {portfolioSummary.netAPY > 0 && (
-                <div className="col-span-2">
-                  <p className="text-gray-400 text-sm font-normal mb-1">Net APY</p>
-                  <p className="text-green-400 text-lg font-semibold">
-                    {(portfolioSummary.netAPY * 100).toFixed(2)}%
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Asset Allocation */}
-          {!portfolioLoading && portfolioAssets.length > 0 && (
-            <div className="bg-[#2C2C2E] rounded-xl p-4">
-              <AssetAllocationChart assets={portfolioAssets} />
-            </div>
+          {/* Portfolio Summary with Asset Allocation */}
+          {!portfolioLoading && (
+            <PortfolioSummaryCard 
+              summary={portfolioSummary} 
+              performance={portfolioPerformance}
+              assets={portfolioAssets}
+            />
           )}
 
           {/* Portfolio Positions */}
