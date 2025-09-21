@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { PortfolioAsset } from "@/hooks/usePortfolioMonitoring";
-import { PieChart as PieChartIcon, TrendingUp, Activity } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { PieChart as PieChartIcon } from "lucide-react";
 
 interface AssetAllocationChartProps {
   assets: PortfolioAsset[];
@@ -38,17 +37,6 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
     return colors[asset] || 'hsl(0, 0%, 50%)'; // Default gray
   }
 
-  function getAssetGradient(asset: string): string {
-    const gradients: Record<string, string> = {
-      USDC: 'linear-gradient(135deg, hsl(213, 94%, 68%) 0%, hsl(213, 94%, 85%) 100%)',
-      USDT: 'linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 76%, 55%) 100%)',
-      DAI: 'linear-gradient(135deg, hsl(45, 93%, 58%) 0%, hsl(45, 93%, 75%) 100%)',
-      XAUT: 'linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(38, 92%, 70%) 100%)',
-      AURU: 'linear-gradient(135deg, hsl(280, 100%, 70%) 0%, hsl(280, 100%, 85%) 100%)',
-    };
-    return gradients[asset] || 'linear-gradient(135deg, hsl(0, 0%, 50%) 0%, hsl(0, 0%, 70%) 100%)';
-  }
-
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0];
@@ -74,14 +62,14 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
   if (data.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="h-5 w-5 text-primary" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PieChartIcon className="h-4 w-4 text-primary" />
             Asset Allocation
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-48 text-muted-foreground">
+          <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
             No assets to display
           </div>
         </CardContent>
@@ -90,124 +78,74 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
   }
 
   return (
-    <Card className="bg-gradient-to-br from-card to-card/50 border-border">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="h-5 w-5 text-primary" />
-            Asset Allocation
-          </CardTitle>
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            <Activity className="h-3 w-3 mr-1" />
-            Live
-          </Badge>
-        </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <PieChartIcon className="h-4 w-4 text-primary" />
+          Asset Allocation
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="relative">
-          {/* Enhanced Donut Chart */}
-          <div className="h-80 relative">
+      <CardContent className="pt-0">
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Compact Donut Chart */}
+          <div className="h-32 w-32 mx-auto lg:mx-0 flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <defs>
-                  {data.map((entry, index) => (
-                    <linearGradient key={`gradient-${index}`} id={`gradient-${entry.name}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor={entry.color} />
-                      <stop offset="100%" stopColor={entry.color} stopOpacity={0.7} />
-                    </linearGradient>
-                  ))}
-                </defs>
                 <Pie
                   data={dataWithTotal}
                   cx="50%"
                   cy="50%"
-                  innerRadius={65}
-                  outerRadius={120}
-                  paddingAngle={3}
+                  innerRadius={35}
+                  outerRadius={55}
+                  paddingAngle={2}
                   dataKey="value"
                   stroke="none"
                 >
                   {dataWithTotal.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={`url(#gradient-${entry.name})`}
-                      className="drop-shadow-sm hover:drop-shadow-lg transition-all duration-300"
+                      fill={entry.color}
                     />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
-            
-            {/* Center Content */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center bg-card/80 backdrop-blur-sm rounded-full w-24 h-24 flex flex-col items-center justify-center border border-border">
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-sm font-bold text-foreground">
-                  ${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </p>
+          </div>
+
+          {/* Compact Legend */}
+          <div className="flex-1 min-w-0">
+            <div className="text-center lg:text-left mb-3">
+              <div className="text-sm text-muted-foreground">Total Value</div>
+              <div className="text-xl font-bold">
+                ${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Enhanced Legend with Performance Indicators */}
-        <div className="mt-6 space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Asset Performance</span>
-            <div className="flex items-center gap-1 text-xs text-primary">
-              <TrendingUp className="h-3 w-3" />
-              <span>Real-time data</span>
-            </div>
-          </div>
-          
-          {data.map((item, index) => (
-            <div key={index} className="bg-surface-elevated rounded-lg p-3 hover:bg-surface-overlay transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm" 
-                    style={{ background: getAssetGradient(item.name) }}
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-foreground">{item.name}</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs px-1.5 py-0.5">
-                        {getAssetType(item.name)}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {((item.value / totalValue) * 100).toFixed(1)}% allocation
-                      </span>
+            
+            <div className="space-y-2">
+              {data.map((item, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="font-medium text-foreground truncate">{item.name}</span>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <div className="font-medium">
+                      ${item.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {((item.value / totalValue) * 100).toFixed(1)}%
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">
-                    ${item.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  </p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <TrendingUp className="h-3 w-3 text-primary" />
-                    <span className="text-xs text-primary">
-                      +{(Math.random() * 5).toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </CardContent>
     </Card>
   );
-}
-
-function getAssetType(asset: string): string {
-  const types: Record<string, string> = {
-    USDC: 'Stablecoin',
-    USDT: 'Stablecoin',
-    DAI: 'Stablecoin',
-    XAUT: 'Commodity',
-    AURU: 'Governance'
-  };
-  return types[asset] || 'Asset';
 }
