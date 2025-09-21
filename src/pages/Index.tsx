@@ -1,18 +1,30 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus } from "lucide-react";
+import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus, RefreshCw } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
+import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AurumLogo from "@/components/AurumLogo";
+import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
+import { PositionsCard } from "@/components/portfolio/PositionsCard";
+import { useState } from "react";
 
 const Index = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { price: goldPrice, loading: priceLoading } = useGoldPrice();
+  const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
   const { getBalance, loading: balanceLoading } = useWalletBalance();
+  const { 
+    portfolioSummary, 
+    portfolioPerformance, 
+    portfolioAssets, 
+    assetsByType, 
+    loading: portfolioLoading 
+  } = usePortfolioMonitoring();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get real balances
   const usdcBalance = getBalance('USDC');
@@ -21,6 +33,16 @@ const Index = () => {
   // Calculate portfolio values
   const goldValueUsd = goldPrice && goldBalance ? goldBalance * goldPrice.usd_per_gram : 0;
   const totalPortfolioValue = usdcBalance + goldValueUsd;
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshPrice();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const tokens = [
     {
@@ -48,7 +70,14 @@ const Index = () => {
           <div className="flex-1 flex justify-center">
             <AurumLogo compact={true} />
           </div>
-          <div className="flex w-12 items-center justify-end">
+          <div className="flex w-12 items-center justify-end gap-2">
+            <button 
+              className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
+            </button>
             <button 
               className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
               onClick={() => navigate("/settings")}
@@ -94,7 +123,7 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Portfolio Summary */}
+          {/* Enhanced Portfolio Summary */}
           <div className="bg-[#2C2C2E] rounded-xl p-4">
             <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] mb-4">
               Portfolio Summary
@@ -102,24 +131,57 @@ const Index = () => {
             <div className="mb-4">
               <p className="text-gray-400 text-sm font-normal mb-1">Total USD Value</p>
               <p className="text-white text-2xl font-bold">
-                {balanceLoading ? "Loading..." : `$${totalPortfolioValue.toFixed(2)}`}
+                {portfolioLoading ? "Loading..." : `$${portfolioSummary.totalValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
               </p>
+              {portfolioPerformance.change24h !== 0 && (
+                <div className={`flex items-center gap-1 mt-1 ${
+                  portfolioPerformance.change24h >= 0 ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  <TrendingUp size={14} className={portfolioPerformance.change24h < 0 ? 'rotate-180' : ''} />
+                  <span className="text-sm">
+                    {portfolioPerformance.change24h >= 0 ? '+' : ''}
+                    ${portfolioPerformance.change24h.toLocaleString('en-US', { maximumFractionDigits: 0 })} (24h)
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-gray-400 text-sm font-normal mb-1">Gold Balance</p>
+                <p className="text-gray-400 text-sm font-normal mb-1">Wallet Value</p>
                 <p className="text-white text-lg font-semibold">
-                  {balanceLoading ? "Loading..." : `${goldBalance.toFixed(2)} g`}
+                  {portfolioLoading ? "Loading..." : `$${portfolioSummary.walletValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                 </p>
               </div>
               <div>
-                <p className="text-gray-400 text-sm font-normal mb-1">USDC Balance</p>
+                <p className="text-gray-400 text-sm font-normal mb-1">Lending Positions</p>
                 <p className="text-white text-lg font-semibold">
-                  {balanceLoading ? "Loading..." : `$${usdcBalance.toFixed(2)}`}
+                  {portfolioLoading ? "Loading..." : `$${(portfolioSummary.suppliedValueUSD - portfolioSummary.borrowedValueUSD).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                 </p>
               </div>
+              {portfolioSummary.netAPY > 0 && (
+                <div className="col-span-2">
+                  <p className="text-gray-400 text-sm font-normal mb-1">Net APY</p>
+                  <p className="text-green-400 text-lg font-semibold">
+                    {(portfolioSummary.netAPY * 100).toFixed(2)}%
+                  </p>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Asset Allocation */}
+          {!portfolioLoading && portfolioAssets.length > 0 && (
+            <div className="bg-[#2C2C2E] rounded-xl p-4">
+              <AssetAllocationChart assets={portfolioAssets} />
+            </div>
+          )}
+
+          {/* Portfolio Positions */}
+          {!portfolioLoading && (
+            <div className="bg-[#2C2C2E] rounded-xl p-4">
+              <PositionsCard assetsByType={assetsByType} />
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-3">
@@ -146,10 +208,10 @@ const Index = () => {
             </Button>
             <Button 
               className="bg-[#2C2C2E] text-white font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/add-usdc")}
+              onClick={() => navigate("/lending?tab=supply")}
             >
-              <Plus size={16} />
-              Add USDC
+              <TrendingUp size={16} />
+              Earn Interest
             </Button>
           </div>
 

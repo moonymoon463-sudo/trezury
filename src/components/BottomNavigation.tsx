@@ -31,12 +31,6 @@ const BottomNavigation = () => {
       path: "/lending",
     },
     {
-      id: "portfolio",
-      label: "Portfolio",
-      icon: PieChart,
-      path: "/portfolio",
-    },
-    {
       id: "history",
       label: "History",
       icon: Clock,
