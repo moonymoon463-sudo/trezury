@@ -9,6 +9,9 @@ interface EthereumProvider {
   on: (event: string, handler: (...args: any[]) => void) => void;
   removeListener: (event: string, handler: (...args: any[]) => void) => void;
   isMetaMask?: boolean;
+  isTrustWallet?: boolean;
+  isTrust?: boolean;
+  _metamask?: any;
   providers?: EthereumProvider[];
 }
 
@@ -51,19 +54,50 @@ const SUPPORTED_NETWORKS = {
 const getMetaMaskProvider = (): EthereumProvider | null => {
   if (!window.ethereum) return null;
   
-  // If ethereum.providers exists, find MetaMask specifically
+  console.log('Checking wallet providers...');
+  
+  // Function to check if a provider is genuine MetaMask
+  const isGenuineMetaMask = (provider: EthereumProvider): boolean => {
+    // Reject Trust Wallet even if it claims to be MetaMask
+    if (provider.isTrustWallet || provider.isTrust) {
+      console.log('Trust Wallet detected - rejecting');
+      return false;
+    }
+    
+    // Enhanced MetaMask detection
+    const hasMetaMaskFlag = provider.isMetaMask === true;
+    const hasMetaMaskObject = provider._metamask && typeof provider._metamask === 'object';
+    
+    // Additional checks for genuine MetaMask
+    const isGenuine = hasMetaMaskFlag && hasMetaMaskObject;
+    
+    console.log('Provider check:', {
+      isMetaMask: hasMetaMaskFlag,
+      hasMetaMaskObject: hasMetaMaskObject,
+      isTrustWallet: provider.isTrustWallet,
+      isGenuine: isGenuine
+    });
+    
+    return isGenuine;
+  };
+  
+  // If ethereum.providers exists, find genuine MetaMask
   if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
-    const metaMaskProvider = window.ethereum.providers.find(
-      (provider: EthereumProvider) => provider.isMetaMask
-    );
-    return metaMaskProvider || null;
+    console.log(`Found ${window.ethereum.providers.length} providers`);
+    const metaMaskProvider = window.ethereum.providers.find(isGenuineMetaMask);
+    if (metaMaskProvider) {
+      console.log('Genuine MetaMask found in providers array');
+      return metaMaskProvider;
+    }
   }
   
-  // If no providers array, check if the main provider is MetaMask
-  if (window.ethereum.isMetaMask) {
+  // Check if the main provider is genuine MetaMask
+  if (isGenuineMetaMask(window.ethereum)) {
+    console.log('Main provider is genuine MetaMask');
     return window.ethereum;
   }
   
+  console.log('No genuine MetaMask provider found');
   return null;
 };
 
@@ -219,12 +253,22 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   const connectWallet = useCallback(async () => {
     if (!isMetaMaskAvailable()) {
       const hasOtherWallet = !!window.ethereum;
+      let errorMessage = "Please install MetaMask to connect your wallet";
+      
+      // Check if Trust Wallet or other wallet is interfering
+      if (hasOtherWallet) {
+        const isTrustWallet = window.ethereum?.isTrustWallet || window.ethereum?.isTrust;
+        if (isTrustWallet) {
+          errorMessage = "Trust Wallet detected. Please use MetaMask for this application.";
+        } else {
+          errorMessage = "Other wallet detected. Please use MetaMask for this application.";
+        }
+      }
+      
       toast({
         variant: "destructive",
         title: "MetaMask Required",
-        description: hasOtherWallet 
-          ? "Please use MetaMask for this application. Other wallets detected but MetaMask is required."
-          : "Please install MetaMask to connect your wallet"
+        description: errorMessage
       });
       return;
     }
