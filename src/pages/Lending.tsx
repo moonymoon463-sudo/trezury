@@ -1,18 +1,38 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LendingDeposit } from "@/components/lending/LendingDeposit";
-import { LendingBorrow } from "@/components/lending/LendingBorrow";
-import { LendingProfile } from "@/components/lending/LendingProfile";
-import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
+import { LendingMarkets } from "@/components/lending/LendingMarkets";
+import { UserPositions } from "@/components/lending/UserPositions";
+import { ActionModal } from "@/components/lending/ActionModal";
+import { PoolAsset } from "@/hooks/useLendingOperations";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 
 export default function Lending() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const defaultTab = searchParams.get('tab') || 'supply';
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalAction, setModalAction] = useState<'supply' | 'borrow' | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<PoolAsset | null>(null);
+
+  const handleSupply = (asset: PoolAsset) => {
+    setSelectedAsset(asset);
+    setModalAction('supply');
+    setModalOpen(true);
+  };
+
+  const handleBorrow = (asset: PoolAsset) => {
+    setSelectedAsset(asset);
+    setModalAction('borrow');
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalAction(null);
+    setSelectedAsset(null);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[#1C1C1E]">
@@ -42,50 +62,34 @@ export default function Lending() {
             </p>
           </div>
 
-          <Tabs defaultValue={defaultTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto bg-[#2C2C2E] border-0">
-              <TabsTrigger 
-                value="supply" 
-                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
-              >
-                Supply
+          <Tabs defaultValue="markets" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto bg-muted">
+              <TabsTrigger value="markets" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                Markets
               </TabsTrigger>
-              <TabsTrigger 
-                value="borrow"
-                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
-              >
-                Borrow
-              </TabsTrigger>
-              <TabsTrigger 
-                value="analytics"
-                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
-              >
-                Analytics
-              </TabsTrigger>
-              <TabsTrigger 
-                value="profile"
-                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400"
-              >
-                Profile
+              <TabsTrigger value="positions" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                Your Positions
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="supply" className="mt-8">
-              <LendingDeposit />
+            <TabsContent value="markets" className="mt-8">
+              <LendingMarkets 
+                onSupply={handleSupply}
+                onBorrow={handleBorrow}
+              />
             </TabsContent>
 
-            <TabsContent value="borrow" className="mt-8">
-              <LendingBorrow />
-            </TabsContent>
-
-            <TabsContent value="analytics" className="mt-8">
-              <EnhancedPortfolioAnalytics />
-            </TabsContent>
-
-            <TabsContent value="profile" className="mt-8">
-              <LendingProfile />
+            <TabsContent value="positions" className="mt-8">
+              <UserPositions />
             </TabsContent>
           </Tabs>
+
+          <ActionModal
+            isOpen={modalOpen}
+            onClose={closeModal}
+            action={modalAction}
+            asset={selectedAsset}
+          />
         </div>
       </main>
 
