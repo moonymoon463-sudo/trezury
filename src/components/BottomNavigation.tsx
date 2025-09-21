@@ -59,8 +59,11 @@ const BottomNavigation = () => {
           return (
             <button
               key={item.id}
-              onClick={() => navigate(item.path)}
-              className="flex flex-col items-center space-y-1"
+              onClick={() => {
+                console.log('Navigation clicked:', item.path);
+                navigate(item.path);
+              }}
+              className="flex flex-col items-center space-y-1 min-h-[48px] min-w-[48px] hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg p-2 cursor-pointer"
             >
               <Icon 
                 size={20} 
