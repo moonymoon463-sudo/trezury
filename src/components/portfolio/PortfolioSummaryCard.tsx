@@ -467,6 +467,17 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
                 })}
               </div>
             )}
+
+            {/* Analytics Action Button */}
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full h-8 text-xs mt-2"
+              onClick={() => navigate('/lending?tab=analytics')}
+            >
+              <BarChart3 className="h-3 w-3 mr-1" />
+              View Full Analytics
+            </Button>
           </TabsContent>
         </Tabs>
       </CardContent>
