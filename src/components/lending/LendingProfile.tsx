@@ -5,9 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Wallet, TrendingUp, TrendingDown, PiggyBank, CreditCard, Shield, AlertTriangle, DollarSign, Plus, Activity, Target, BarChart3, ArrowUpRight } from "lucide-react";
-import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
+import { useValidatedLending } from "@/hooks/useValidatedLending";
 import { AaveStyleLendingService } from "@/services/aaveStyleLendingService";
 import { HealthFactorIndicator } from "@/components/lending/HealthFactorIndicator";
+import { ValidationStatus } from "@/components/testing/ValidationStatus";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
@@ -213,7 +214,7 @@ export function LendingProfile() {
     repay, 
     setCollateral,
     loading 
-  } = useAaveStyleLending();
+  } = useValidatedLending();
 
   if (!user) {
     return (
@@ -462,6 +463,7 @@ export function LendingProfile() {
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-6">
+          <ValidationStatus />
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="bg-surface-elevated border-border">
               <CardHeader>
