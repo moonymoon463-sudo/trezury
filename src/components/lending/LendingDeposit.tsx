@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { TokenMarketplace } from "./TokenMarketplace";
 import { EnhancedSupplyForm } from "./EnhancedSupplyForm";
-import { TestingPanel } from "./TestingPanel";
+import { QuickActions } from "./QuickActions";
 import { Chain, Token } from "@/types/lending";
 import { Button } from "@/components/ui/button";
-import { TestTube, Store } from "lucide-react";
+import { Zap, Store } from "lucide-react";
 
 export function LendingDeposit() {
-  const [currentView, setCurrentView] = useState<'marketplace' | 'form' | 'testing'>('marketplace');
+  const [currentView, setCurrentView] = useState<'quickactions' | 'marketplace' | 'form'>('quickactions');
   const [selectedToken, setSelectedToken] = useState<{
     chain: Chain;
     token: Token;
@@ -20,7 +20,7 @@ export function LendingDeposit() {
   };
 
   const handleBack = () => {
-    setCurrentView('marketplace');
+    setCurrentView('quickactions');
     setSelectedToken(null);
   };
 
@@ -35,29 +35,29 @@ export function LendingDeposit() {
     );
   }
 
-  if (currentView === 'testing') {
+  if (currentView === 'marketplace') {
     return (
       <div className="space-y-4">
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentView('marketplace')}
+            onClick={() => setCurrentView('quickactions')}
             className="flex items-center gap-2"
           >
-            <Store className="h-4 w-4" />
-            Marketplace
+            <Zap className="h-4 w-4" />
+            Quick Actions
           </Button>
           <Button
             variant="secondary"
             size="sm"
             className="flex items-center gap-2"
           >
-            <TestTube className="h-4 w-4" />
-            Testing Panel
+            <Store className="h-4 w-4" />
+            Market Explorer
           </Button>
         </div>
-        <TestingPanel />
+        <TokenMarketplace onSelectToken={handleTokenSelect} />
       </div>
     );
   }
@@ -70,20 +70,20 @@ export function LendingDeposit() {
           size="sm"
           className="flex items-center gap-2"
         >
-          <Store className="h-4 w-4" />
-          Marketplace
+          <Zap className="h-4 w-4" />
+          Quick Actions
         </Button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setCurrentView('testing')}
+          onClick={() => setCurrentView('marketplace')}
           className="flex items-center gap-2"
         >
-          <TestTube className="h-4 w-4" />
-          Testing Panel
+          <Store className="h-4 w-4" />
+          Market Explorer
         </Button>
       </div>
-      <TokenMarketplace onSelectToken={handleTokenSelect} />
+      <QuickActions />
     </div>
   );
 }

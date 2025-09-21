@@ -262,11 +262,11 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <div className="text-right">
                     <div className="flex items-center gap-1">
                       <TrendingUp className="h-4 w-4 text-primary" />
-                      <span className="text-2xl font-bold text-primary">
+                      <span className="text-xl font-bold text-primary">
                         {token.apy.toFixed(2)}%
                       </span>
                     </div>
@@ -277,18 +277,36 @@ export function TokenMarketplace({ onSelectToken }: TokenMarketplaceProps) {
                     <p className="text-sm font-medium text-foreground">
                       ${token.availableLiquidity.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </p>
-                    <p className="text-xs text-muted-foreground">Available Liquidity</p>
+                    <p className="text-xs text-muted-foreground">Available</p>
                   </div>
 
-                  <div className="text-right hidden md:block">
-                    <p className="text-sm font-medium text-foreground">
-                      {token.utilization.toFixed(1)}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">Utilization</p>
-                  </div>
+                  {token.isActive && isWalletConnected && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectToken(token.chain, token.token, token.apy);
+                        }}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        Supply
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Add quick borrow functionality here
+                        }}
+                      >
+                        Borrow
+                      </Button>
+                    </div>
+                  )}
 
-                  {token.isActive && (
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  {!token.isActive && (
+                    <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                   )}
                 </div>
               </div>
