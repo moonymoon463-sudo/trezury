@@ -207,7 +207,16 @@ export function useAaveStyleLending() {
   }, [user, toast, wallet.isConnected]);
 
   const supply = useCallback(async (asset: string, amount: number, chain: string = 'ethereum') => {
+    console.log(`💰 Starting supply process: ${amount} ${asset} on ${chain}`);
+    console.log('Wallet state:', {
+      isConnected: wallet?.isConnected,
+      address: wallet?.address,
+      chainId: wallet?.chainId
+    });
+    console.log('User state:', user ? 'Authenticated' : 'Not authenticated');
+    
     if (!user || !wallet.isConnected) {
+      console.log('❌ Validation failed - user or wallet not connected');
       toast({
         variant: "destructive",
         title: "Authentication Required",
@@ -216,8 +225,17 @@ export function useAaveStyleLending() {
       return;
     }
 
+    console.log('✅ All validations passed, calling edge function...');
+
     try {
       setLoading(true);
+      
+      console.log('📡 Invoking supply-withdraw edge function with body:', {
+        action: 'supply',
+        asset: asset,
+        amount: amount,
+        chain: chain
+      });
       
       // Call the supply-withdraw edge function
       const { data, error } = await supabase.functions.invoke('supply-withdraw', {
@@ -229,23 +247,30 @@ export function useAaveStyleLending() {
         }
       });
 
+      console.log('📡 Edge function response:', { data, error });
+
       if (error) {
+        console.error('❌ Supply edge function error:', error);
         throw new Error(error.message || 'Failed to supply asset');
       }
 
       if (!data?.success) {
+        console.error('❌ Supply operation failed:', data);
         throw new Error(data?.error || 'Supply operation failed');
       }
+
+      console.log('✅ Supply operation successful:', data);
       
       toast({
         title: "Supply Successful",
         description: `Successfully supplied ${amount} ${asset}`
       });
 
+      console.log('🔄 Refreshing user and pool data...');
       await fetchUserData();
       await fetchPoolReserves();
     } catch (error) {
-      console.error('Error supplying asset:', error);
+      console.error('❌ Supply operation error:', error);
       toast({
         variant: "destructive",
         title: "Supply Failed",
@@ -253,6 +278,7 @@ export function useAaveStyleLending() {
       });
     } finally {
       setLoading(false);
+      console.log('💰 Supply process completed');
     }
   }, [user, wallet.isConnected, toast, fetchUserData, fetchPoolReserves]);
 

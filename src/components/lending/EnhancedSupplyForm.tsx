@@ -17,12 +17,17 @@ import {
   DollarSign,
   Target,
   Activity,
-  Wallet
+  Wallet,
+  Bug
 } from "lucide-react";
 import { useAaveStyleLending } from "@/hooks/useAaveStyleLending";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
+import { useWalletConnection } from "@/hooks/useWalletConnection";
+import { useAuth } from "@/hooks/useAuth";
 import { Chain, Token, CHAIN_CONFIGS } from "@/types/lending";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { WalletDebugPanel } from "@/components/WalletDebugPanel";
 
 interface EnhancedSupplyFormProps {
   chain: Chain;
@@ -34,10 +39,14 @@ interface EnhancedSupplyFormProps {
 export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: EnhancedSupplyFormProps) {
   const { supply, poolReserves, loading } = useAaveStyleLending();
   const { balances, getBalance } = useWalletBalance();
+  const { wallet, connectWallet, connecting } = useWalletConnection();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
   const [useAsCollateral, setUseAsCollateral] = useState(true);
   const [projectionPeriod, setProjectionPeriod] = useState('1'); // months
+  const [isSupplying, setIsSupplying] = useState(false);
+  const [testingEdgeFunction, setTestingEdgeFunction] = useState(false);
 
   const chainConfig = CHAIN_CONFIGS[chain];
   const poolReserve = poolReserves.find(r => r.asset === token && r.chain === chain);
@@ -58,6 +67,17 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 Supply form submitted');
+    console.log('Form state:', {
+      amount,
+      amountNum,
+      walletBalance,
+      token,
+      chain,
+      userAuthenticated: !!user,
+      walletConnected: wallet.isConnected,
+      walletAddress: wallet.address
+    });
     
     if (!amount || parseFloat(amount) <= 0) {
       toast({
@@ -77,21 +97,40 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
       return;
     }
 
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to continue"
+      });
+      return;
+    }
+
+    if (!wallet.isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first"
+      });
+      return;
+    }
+
     if (!poolReserve?.is_active) {
       toast({
         variant: "destructive",
-        title: "Market Unavailable",
-        description: `${token} supply on ${chain} is not currently available`
+        title: "Market Inactive",
+        description: "This market is currently inactive"
       });
       return;
     }
 
     try {
-      await supply(token, parseFloat(amount), chain);
+      console.log('✅ All validations passed, calling supply...');
+      await supply(token, amountNum, chain);
       setAmount('');
-      onBack();
+      console.log('✅ Supply completed successfully');
     } catch (error) {
-      console.error('Supply failed:', error);
+      console.error('❌ Supply failed:', error);
     }
   };
 
@@ -221,12 +260,18 @@ export function EnhancedSupplyForm({ chain, token, initialAPY, onBack }: Enhance
                   type="submit" 
                   className="w-full font-bold" 
                   size="lg"
-                  disabled={!amount || parseFloat(amount) <= 0 || loading || !poolReserve?.is_active}
+                  disabled={!amount || parseFloat(amount) <= 0 || loading || !poolReserve?.is_active || !user || !wallet.isConnected || parseFloat(amount) > walletBalance}
                 >
                   {loading ? (
                     "Supplying..."
+                  ) : !user ? (
+                    "Please Sign In"
+                  ) : !wallet.isConnected ? (
+                    "Connect Wallet First"
                   ) : !poolReserve?.is_active ? (
                     "Market Unavailable"
+                  ) : parseFloat(amount) > walletBalance ? (
+                    "Insufficient Balance"
                   ) : (
                     `Supply ${amount || '0'} ${token}`
                   )}

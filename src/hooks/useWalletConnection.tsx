@@ -251,6 +251,10 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
   };
 
   const connectWallet = useCallback(async () => {
+    console.log('🔌 Starting wallet connection process...');
+    console.log('Current user:', user ? 'Authenticated' : 'Not authenticated');
+    console.log('Current connecting state:', connecting);
+    
     if (!isMetaMaskAvailable()) {
       const hasOtherWallet = !!window.ethereum;
       let errorMessage = "Please install MetaMask to connect your wallet";
@@ -265,6 +269,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
         }
       }
       
+      console.log('❌ MetaMask not available:', errorMessage);
       toast({
         variant: "destructive",
         title: "MetaMask Required",
@@ -274,6 +279,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     }
 
     if (!user) {
+      console.log('❌ User not authenticated');
       toast({
         variant: "destructive",
         title: "Authentication Required",
@@ -282,6 +288,8 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       return;
     }
 
+    console.log('✅ User authenticated, checking rate limits...');
+
     // Check rate limiting
     const rateLimitCheck = await securityService.checkRateLimit(
       `wallet_connect_${user.id}`,
@@ -289,6 +297,7 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
     );
 
     if (!rateLimitCheck.allowed) {
+      console.log('❌ Rate limit exceeded');
       toast({
         variant: "destructive",
         title: "Too Many Attempts",
@@ -297,16 +306,21 @@ export const useWalletConnection = (): UseWalletConnectionReturn => {
       return;
     }
 
+    console.log('✅ Rate limit check passed');
+
     const metaMaskProvider = getMetaMaskProvider();
     if (!metaMaskProvider) return;
 
     try {
       setConnecting(true);
+      console.log('📡 Requesting account access from MetaMask...');
 
       // Request account access from MetaMask specifically
       const accounts = await metaMaskProvider.request({
         method: 'eth_requestAccounts'
       });
+
+      console.log('Accounts received:', accounts.length > 0 ? `${accounts.length} accounts` : 'No accounts');
 
       if (accounts.length === 0) {
         throw new Error('No accounts returned from MetaMask');
