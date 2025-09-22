@@ -58,6 +58,18 @@ verify_jwt = false
 [functions.security-monitor]
 verify_jwt = false
 
+[functions.real-time-rates]
+verify_jwt = false
+
+[functions.compound-interest-accrual]
+verify_jwt = false
+
+[functions.health-factor-monitor]
+verify_jwt = false
+
+[functions.scheduled-rate-updates]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323
