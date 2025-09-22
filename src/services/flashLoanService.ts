@@ -80,16 +80,18 @@ export class FlashLoanService {
 
   static async getFlashLoanHistory(userId?: string): Promise<any[]> {
     try {
-      const { data, error } = await supabase
-        .from('flash_loan_history')
-        .select('*')
-        .eq('user_id', userId || 'current_user')
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const response = await supabase.functions.invoke('flash-loan-history', {
+        body: { 
+          action: 'get_history',
+          user_id: userId
+        }
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(`Failed to get flash loan history: ${response.error.message}`);
+      }
 
-      return data || [];
+      return response.data?.history || [];
     } catch (error) {
       console.error('Error fetching flash loan history:', error);
       throw error;

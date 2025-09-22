@@ -94,14 +94,18 @@ export class AdvancedRiskService {
 
   static async getAdvancedPositionLimits(userId: string): Promise<any> {
     try {
-      const { data, error } = await supabase
-        .from('advanced_position_limits')
-        .select('*')
-        .eq('user_id', userId);
+      const response = await supabase.functions.invoke('advanced-position-limits', {
+        body: { 
+          action: 'get_limits',
+          user_id: userId
+        }
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(`Failed to get advanced position limits: ${response.error.message}`);
+      }
 
-      return data || [];
+      return response.data?.limits || [];
     } catch (error) {
       console.error('Error fetching advanced position limits:', error);
       throw error;
@@ -114,16 +118,18 @@ export class AdvancedRiskService {
     limits: Record<string, any>
   ): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('advanced_position_limits')
-        .upsert({
+      const response = await supabase.functions.invoke('advanced-position-limits', {
+        body: { 
+          action: 'set_limits',
           user_id: userId,
-          risk_tier: tier,
-          limits,
-          updated_at: new Date().toISOString()
-        });
+          tier,
+          limits
+        }
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(`Failed to set tiered risk limits: ${response.error.message}`);
+      }
     } catch (error) {
       console.error('Error setting tiered risk limits:', error);
       throw error;

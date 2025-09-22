@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, AlertTriangle, TrendingUp } from "lucide-react";
 import { GoldLendingMarkets } from "@/components/lending/GoldLendingMarkets";
 import { GoldUserPositions } from "@/components/lending/GoldUserPositions";
 import { GoldActionModal } from "@/components/lending/GoldActionModal";
+import { EnhancedPortfolioAnalytics } from "@/components/lending/EnhancedPortfolioAnalytics";
 import { PoolAsset, useLendingOperations } from "@/hooks/useLendingOperations";
 import { useRealTimeLending } from "@/hooks/useRealTimeLending";
+import { useAdvancedFeatures } from "@/hooks/useAdvancedFeatures";
+import { RealTimeRatesDisplay } from "@/components/lending/RealTimeRatesDisplay";
+import { AdvancedAnalyticsDashboard } from "@/components/lending/AdvancedAnalyticsDashboard";
+import { FlashLoanManager } from "@/components/lending/FlashLoanManager";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,14 +24,23 @@ export default function Lending() {
     realTimeRates,
     enhancedHealthFactor,
     riskAlerts,
+    loading: realTimeLoading,
     acknowledgeAlert,
+    getAssetRate,
     triggerRateUpdate
   } = useRealTimeLending();
+
+  const {
+    flashLoanOpportunities,
+    liquidationAuctions,
+    portfolioRisk,
+    dynamicFees,
+    loading: advancedLoading
+  } = useAdvancedFeatures();
   
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAction, setModalAction] = useState<'supply' | 'borrow' | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<PoolAsset | null>(null);
-  const [activeTab, setActiveTab] = useState<'markets' | 'positions'>('markets');
 
   // Load lending data on mount
   useEffect(() => {
@@ -52,7 +67,7 @@ export default function Lending() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col min-h-screen bg-[#1C1C1E]">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -81,7 +96,7 @@ export default function Lending() {
 
       {/* Content */}
       <main className="flex-1 px-4 pb-4">
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
           {/* Risk Alerts */}
           {riskAlerts.length > 0 && (
             <div className="space-y-2">
@@ -141,48 +156,74 @@ export default function Lending() {
             </div>
           )}
 
-          {/* Subtitle */}
-          <div className="text-center">
-            <p className="text-gray-400">
-              Supply assets to earn yield or borrow against your collateral.
-            </p>
-          </div>
-
-          {/* Tab Navigation - Gold Style */}
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-full bg-[#2C2C2E] p-1">
-              <button 
-                className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
-                  activeTab === "markets" 
-                    ? "bg-[#f9b006] text-black" 
-                    : "text-gray-400"
-                }`}
-                onClick={() => setActiveTab("markets")}
+          {/* Advanced Lending Interface */}
+          <Tabs defaultValue="markets" className="w-full">
+            <TabsList className="grid w-full grid-cols-6 bg-[#2C2C2E] h-auto p-1">
+              <TabsTrigger 
+                value="markets" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
               >
                 Markets
-              </button>
-              <button 
-                className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
-                  activeTab === "positions" 
-                    ? "bg-[#f9b006] text-black" 
-                    : "text-gray-400"
-                }`}
-                onClick={() => setActiveTab("positions")}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="positions" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
               >
                 Positions
-              </button>
-            </div>
-          </div>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="rates" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Live Rates
+              </TabsTrigger>
+              <TabsTrigger 
+                value="analytics" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger 
+                value="flash-loans" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Flash Loans
+              </TabsTrigger>
+              <TabsTrigger 
+                value="advanced" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Advanced
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Tab Content */}
-          {activeTab === 'markets' ? (
-            <GoldLendingMarkets 
-              onSupply={handleSupply}
-              onBorrow={handleBorrow}
-            />
-          ) : (
-            <GoldUserPositions />
-          )}
+            <TabsContent value="markets" className="mt-6">
+              <GoldLendingMarkets 
+                onSupply={handleSupply}
+                onBorrow={handleBorrow}
+              />
+            </TabsContent>
+
+            <TabsContent value="positions" className="mt-6">
+              <GoldUserPositions />
+            </TabsContent>
+
+            <TabsContent value="rates" className="mt-6">
+              <RealTimeRatesDisplay />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="mt-6">
+              <EnhancedPortfolioAnalytics />
+            </TabsContent>
+
+            <TabsContent value="flash-loans" className="mt-6">
+              <FlashLoanManager />
+            </TabsContent>
+
+            <TabsContent value="advanced" className="mt-6">
+              <AdvancedAnalyticsDashboard />
+            </TabsContent>
+          </Tabs>
 
           <GoldActionModal
             isOpen={modalOpen}

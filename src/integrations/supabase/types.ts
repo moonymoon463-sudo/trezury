@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      advanced_position_limits: {
+        Row: {
+          created_at: string
+          id: string
+          limits: Json
+          risk_tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          limits?: Json
+          risk_tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          limits?: Json
+          risk_tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           id: string
@@ -327,6 +354,51 @@ export type Database = {
         }
         Relationships: []
       }
+      flash_loan_history: {
+        Row: {
+          amount_dec: number
+          asset: string
+          created_at: string
+          executed_at: string
+          execution_status: string
+          fee_dec: number
+          id: string
+          metadata: Json | null
+          opportunity_type: string
+          profit_dec: number
+          tx_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_dec?: number
+          asset: string
+          created_at?: string
+          executed_at?: string
+          execution_status?: string
+          fee_dec?: number
+          id?: string
+          metadata?: Json | null
+          opportunity_type: string
+          profit_dec?: number
+          tx_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_dec?: number
+          asset?: string
+          created_at?: string
+          executed_at?: string
+          execution_status?: string
+          fee_dec?: number
+          id?: string
+          metadata?: Json | null
+          opportunity_type?: string
+          profit_dec?: number
+          tx_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       governance_rewards: {
         Row: {
           amount_dec: number
@@ -493,6 +565,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      liquidation_auctions: {
+        Row: {
+          chain: string
+          collateral_amount_dec: number
+          collateral_asset: string
+          created_at: string
+          current_bid_amount_dec: number | null
+          current_bidder_id: string | null
+          debt_amount_dec: number
+          debt_asset: string
+          end_time: string
+          id: string
+          start_time: string
+          status: string
+          target_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          chain?: string
+          collateral_amount_dec?: number
+          collateral_asset: string
+          created_at?: string
+          current_bid_amount_dec?: number | null
+          current_bidder_id?: string | null
+          debt_amount_dec?: number
+          debt_asset: string
+          end_time: string
+          id?: string
+          start_time?: string
+          status?: string
+          target_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          chain?: string
+          collateral_amount_dec?: number
+          collateral_asset?: string
+          created_at?: string
+          current_bid_amount_dec?: number | null
+          current_bidder_id?: string | null
+          debt_amount_dec?: number
+          debt_asset?: string
+          end_time?: string
+          id?: string
+          start_time?: string
+          status?: string
+          target_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       liquidation_calls: {
         Row: {
