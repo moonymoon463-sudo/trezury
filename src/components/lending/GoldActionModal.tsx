@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useLendingOperations, PoolAsset } from "@/hooks/useLendingOperations";
-import { ArrowUpDown, Loader2 } from "lucide-react";
+import { useLendingWallet } from "@/hooks/useLendingWallet";
+import { useSecureWallet } from "@/hooks/useSecureWallet";
+import { ArrowUpDown, Loader2, Wallet } from "lucide-react";
 
 interface GoldActionModalProps {
   isOpen: boolean;
@@ -16,12 +18,29 @@ export function GoldActionModal({ isOpen, onClose, action, asset }: GoldActionMo
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<"USD" | "TOKENS">("USD");
   const { supply, borrow, loading } = useLendingOperations();
+  const { getBalance, walletAddress, loading: walletLoading } = useLendingWallet();
+  const { createWallet } = useSecureWallet();
+  
+  // Auto-create wallet if needed
+  useEffect(() => {
+    if (isOpen && !walletAddress && !walletLoading) {
+      createWallet();
+    }
+  }, [isOpen, walletAddress, walletLoading, createWallet]);
+  
+  const assetBalance = asset ? getBalance(asset.asset) : 0;
+  const canProceed = assetBalance > 0 || action === 'borrow';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0 || !asset) {
+      return;
+    }
+
+    // Check balance for supply operations
+    if (action === 'supply' && numericAmount > assetBalance) {
       return;
     }
 
@@ -66,6 +85,27 @@ export function GoldActionModal({ isOpen, onClose, action, asset }: GoldActionMo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Wallet Balance */}
+          <div className="bg-[#2C2C2E] rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Wallet className="h-4 w-4 text-[#f9b006]" />
+              <span className="text-sm text-gray-300">Internal Wallet</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-300">
+                {asset.asset} Balance
+              </span>
+              <span className="text-white font-medium">
+                {assetBalance.toFixed(6)}
+              </span>
+            </div>
+            {walletAddress && (
+              <div className="text-xs text-gray-400 mt-1">
+                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+              </div>
+            )}
+          </div>
+
           {/* Currency Toggle */}
           <div className="flex justify-center">
             <div className="inline-flex rounded-full bg-[#2C2C2E] p-1">
@@ -96,9 +136,22 @@ export function GoldActionModal({ isOpen, onClose, action, asset }: GoldActionMo
 
           {/* Amount Input */}
           <div className="space-y-2">
-            <Label htmlFor="amount" className="text-white">
-              Amount {currency === "USD" ? "(USD)" : `(${asset.asset})`}
-            </Label>
+            <div className="flex justify-between items-center">
+              <Label htmlFor="amount" className="text-white">
+                Amount {currency === "USD" ? "(USD)" : `(${asset.asset})`}
+              </Label>
+              {action === 'supply' && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAmount(assetBalance.toString())}
+                  className="text-[#f9b006] hover:bg-[#f9b006]/10 h-6 px-2 text-xs"
+                >
+                  MAX
+                </Button>
+              )}
+            </div>
             <div className="relative">
               {currency === "USD" && (
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -116,6 +169,9 @@ export function GoldActionModal({ isOpen, onClose, action, asset }: GoldActionMo
                 placeholder={currency === "USD" ? "0.00" : "0"}
               />
             </div>
+            {action === 'supply' && parseFloat(amount) > assetBalance && (
+              <p className="text-red-400 text-xs">Insufficient balance</p>
+            )}
           </div>
 
           {/* Asset Info */}
@@ -155,7 +211,8 @@ export function GoldActionModal({ isOpen, onClose, action, asset }: GoldActionMo
             </Button>
             <Button 
               type="submit"
-              disabled={!amount || parseFloat(amount) <= 0 || loading}
+              disabled={!amount || parseFloat(amount) <= 0 || loading || !canProceed || 
+                       (action === 'supply' && parseFloat(amount) > assetBalance)}
               className="flex-1 bg-[#f9b006] text-black font-bold rounded-xl hover:bg-[#f9b006]/90 disabled:opacity-50"
             >
               {loading ? (

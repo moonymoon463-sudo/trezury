@@ -1,20 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { GoldLendingMarkets } from "@/components/lending/GoldLendingMarkets";
 import { GoldUserPositions } from "@/components/lending/GoldUserPositions";
 import { GoldActionModal } from "@/components/lending/GoldActionModal";
-import { PoolAsset } from "@/hooks/useLendingOperations";
+import { PoolAsset, useLendingOperations } from "@/hooks/useLendingOperations";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 
 export default function Lending() {
   const navigate = useNavigate();
+  const { fetchPoolAssets, fetchUserPositions } = useLendingOperations();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalAction, setModalAction] = useState<'supply' | 'borrow' | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<PoolAsset | null>(null);
   const [activeTab, setActiveTab] = useState<'markets' | 'positions'>('markets');
+
+  // Load lending data on mount
+  useEffect(() => {
+    fetchPoolAssets();
+    fetchUserPositions();
+  }, [fetchPoolAssets, fetchUserPositions]);
 
   const handleSupply = (asset: PoolAsset) => {
     setSelectedAsset(asset);

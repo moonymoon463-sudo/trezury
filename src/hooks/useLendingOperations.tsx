@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSecureWallet } from "@/hooks/useSecureWallet";
+import { useLendingWallet } from "@/hooks/useLendingWallet";
 
 export interface PoolAsset {
   asset: string;
@@ -25,6 +27,8 @@ export interface UserPosition {
 export function useLendingOperations() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { signTransaction, getWalletAddress } = useSecureWallet();
+  const { refreshWallet } = useLendingWallet();
   const [loading, setLoading] = useState(false);
   const [poolAssets, setPoolAssets] = useState<PoolAsset[]>([]);
   const [userPositions, setUserPositions] = useState<UserPosition[]>([]);
@@ -119,13 +123,34 @@ export function useLendingOperations() {
     try {
       setLoading(true);
       
+      // Get wallet address for transaction signing
+      const walletAddress = await getWalletAddress();
+      if (!walletAddress) {
+        throw new Error('Wallet not available');
+      }
+
+      // Create transaction data for signing
+      const transactionData = {
+        action,
+        asset,
+        chain,
+        amount,
+        from: walletAddress,
+        timestamp: Date.now()
+      };
+
+      // Sign transaction with internal wallet
+      const signature = await signTransaction(transactionData);
+      
       const { data, error } = await supabase.functions.invoke('lending-operations', {
         body: {
           action,
           asset,
           chain,
           amount,
-          user_id: user.id
+          user_id: user.id,
+          wallet_address: walletAddress,
+          signature
         }
       });
 
@@ -136,8 +161,12 @@ export function useLendingOperations() {
         description: `Successfully ${action}ed ${amount} ${asset}`
       });
 
-      // Refresh data
-      await Promise.all([fetchPoolAssets(), fetchUserPositions()]);
+      // Refresh wallet and lending data
+      await Promise.all([
+        fetchPoolAssets(), 
+        fetchUserPositions(),
+        refreshWallet()
+      ]);
 
       return data;
     } catch (error) {
