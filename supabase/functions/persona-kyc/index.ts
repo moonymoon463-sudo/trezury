@@ -48,7 +48,7 @@ serve(async (req) => {
           data: {
             type: 'inquiry',
             attributes: {
-              'inquiry-template-id': Deno.env.get('PERSONA_TEMPLATE_ID') || 'itmpl_BnGj7FbH4RvC5bF6BXVbQmPh',
+              'verification-template-id': Deno.env.get('PERSONA_TEMPLATE_ID') || 'vtmpl_pzdkyd7DtaPNNBxus5mvaVJ5qpJf',
               'reference-id': user.id,
               'redirect-uri': `${req.headers.get('origin')}/kyc-complete`
             }
