@@ -171,8 +171,11 @@ serve(async (req) => {
         willAttemptResume: !url && !sessionToken && !!inquiryId
       })
 
-      // If no URL or session token returned, attempt to resume the inquiry to get a fresh session-token
+      // If no URL or session token returned, try to get session token via Sessions API
       if (!url && !sessionToken && inquiryId) {
+        console.log('🎫 No session token found, attempting to create session via Sessions API')
+        
+        // First try Resume API for session token (check meta object)
         const resumeEndpoint = `https://withpersona.com/api/v1/inquiries/${inquiryId}/resume`
         console.log('⏯️ Attempting Persona Resume API:', resumeEndpoint)
         const resumeRes = await fetch(resumeEndpoint, {
@@ -191,24 +194,63 @@ serve(async (req) => {
           statusText: resumeRes.statusText,
           bodyPreview: resumeText?.slice(0, 200) + (resumeText?.length > 200 ? '...' : '')
         })
+        
         if (resumeRes.ok) {
           try {
             const resumeData = JSON.parse(resumeText)
-            // API may return { data: { attributes: { 'session-token': '...' } } }
-            sessionToken = resumeData?.data?.attributes?.['session-token'] || resumeData?.['session-token'] || null
-            console.log('✅ Resume parsed sessionToken:', sessionToken ? `${String(sessionToken).slice(0,10)}...` : 'NONE')
+            // Check multiple possible locations for session token
+            sessionToken = resumeData?.data?.meta?.['session-token'] || 
+                          resumeData?.data?.attributes?.['session-token'] || 
+                          resumeData?.meta?.['session-token'] || 
+                          resumeData?.['session-token'] || null
+            console.log('✅ Resume parsed sessionToken:', sessionToken || 'NONE')
           } catch (e) {
             console.error('❌ Failed to parse resume response JSON:', e)
           }
-        } else {
-          console.error('❌ Persona Resume API failed', resumeRes.status, resumeText)
+        }
+
+        // If Resume didn't work, try Sessions API
+        if (!sessionToken) {
+          console.log('🎫 Resume failed, trying Sessions API...')
+          const sessionsEndpoint = `https://withpersona.com/api/v1/inquiries/${inquiryId}/sessions`
+          const sessionsRes = await fetch(sessionsEndpoint, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${personaApiKey}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Persona-Version': '2023-01-05'
+            },
+            body: JSON.stringify({})
+          })
+          
+          const sessionsText = await sessionsRes.text()
+          console.log('📡 Persona Sessions Response:', {
+            status: sessionsRes.status,
+            statusText: sessionsRes.statusText,
+            bodyPreview: sessionsText?.slice(0, 200) + (sessionsText?.length > 200 ? '...' : '')
+          })
+          
+          if (sessionsRes.ok) {
+            try {
+              const sessionsData = JSON.parse(sessionsText)
+              sessionToken = sessionsData?.data?.attributes?.['session-token'] || 
+                           sessionsData?.data?.['session-token'] || 
+                           sessionsData?.['session-token'] || null
+              console.log('✅ Sessions parsed sessionToken:', sessionToken || 'NONE')
+            } catch (e) {
+              console.error('❌ Failed to parse sessions response JSON:', e)
+            }
+          }
         }
       }
 
       // Build URL if we have a session token now
       if (!url && sessionToken && inquiryId) {
         url = `https://withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`
-        console.log('🔄 Using constructed Hosted Flow URL:', url)
+        console.log('🔄 Constructed Hosted Flow URL:', url)
+      } else if (!url && !sessionToken) {
+        console.error('❌ No URL or session token available for redirect')
       }
 
       const finalResponse = {
@@ -222,6 +264,7 @@ serve(async (req) => {
           hasOriginalUrl: !!attrs.url,
           usedFallbackUrl: !attrs.url && !!url,
           usedResume: !attrs.url && !attrs['session-token'],
+          sessionTokenSource: sessionToken ? (attrs['session-token'] ? 'original' : 'api_call') : 'none',
           allAvailableAttributes: Object.keys(attrs)
         }
       }
