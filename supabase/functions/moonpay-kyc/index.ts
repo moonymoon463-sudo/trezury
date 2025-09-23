@@ -67,65 +67,25 @@ serve(async (req) => {
         )
       }
 
-      // Create MoonPay customer for KYC only
-      const customerPayload = {
-        email: profile.email,
-        firstName: profile.first_name || '',
-        lastName: profile.last_name || '',
-        // KYC-only mode - no transaction required
-        externalCustomerId: user.id,
-      }
-
-      console.log('Creating MoonPay customer for KYC:', customerPayload)
-
-      const customerResponse = await fetch('https://api.moonpay.com/v3/customers', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Api-Key ${moonpaySecretKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(customerPayload),
-      })
-
-      if (!customerResponse.ok) {
-        const errorText = await customerResponse.text()
-        console.error('MoonPay customer creation error:', errorText)
-        
-        // If customer already exists, try to get existing customer
-        if (errorText.includes('email') && errorText.includes('taken')) {
-          console.log('Customer already exists, proceeding with KYC URL generation')
-        } else {
-          return new Response(
-            JSON.stringify({ error: 'Failed to create customer profile' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          )
-        }
-      }
-
-      let customerData = null
-      if (customerResponse.ok) {
-        customerData = await customerResponse.json()
-        console.log('MoonPay customer created:', customerData.id)
-      }
-
-      // Generate KYC-only widget URL
+      // Generate KYC identity verification widget URL
+      // MoonPay handles customer creation internally through the widget
+      console.log('Generating MoonPay identity verification widget for user:', user.id)
+      
       const baseUrl = 'https://buy.moonpay.com'
       const params = new URLSearchParams({
         apiKey: Deno.env.get('MOONPAY_PUBLISHABLE_KEY') || '',
-        currencyCode: 'usdc', // Required even for KYC-only
-        baseCurrencyCode: 'usd',
-        baseCurrencyAmount: '1', // Minimal amount for KYC-only flow
+        // Use identity verification mode
+        flow: 'identity_verification',
         externalCustomerId: user.id,
-        redirectURL: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
-        // KYC-specific parameters
-        showWalletAddressForm: 'false',
-        skipWalletAddressForm: 'true',
-        walletAddressRequired: 'false',
-        // Force KYC flow
-        kycRequired: 'true',
-        // Return URLs
-        successUrl: `${req.headers.get('origin') || 'https://localhost:8080'}/kyc-verification?status=success`,
-        failureUrl: `${req.headers.get('origin') || 'https://localhost:8080'}/kyc-verification?status=failed`,
+        email: profile.email,
+        // Webhook for status updates
+        webhookUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
+        // Return URLs after verification
+        redirectUrl: `${req.headers.get('origin') || 'https://localhost:3000'}/kyc-verification?status=completed`,
+        cancelUrl: `${req.headers.get('origin') || 'https://localhost:3000'}/kyc-verification?status=cancelled`,
+        // Pre-fill user data if available
+        ...(profile.first_name && { firstName: profile.first_name }),
+        ...(profile.last_name && { lastName: profile.last_name }),
       })
 
       const widgetUrl = `${baseUrl}?${params.toString()}`
@@ -139,25 +99,31 @@ serve(async (req) => {
           kyc_status: 'pending',
           kyc_submitted_at: new Date().toISOString(),
           metadata: {
-            moonpay_customer_id: customerData?.id,
-            kyc_flow: 'moonpay'
+            kyc_flow: 'moonpay',
+            verification_started_at: new Date().toISOString()
           }
         })
         .eq('id', user.id)
 
       if (updateError) {
         console.error('Failed to update profile KYC status:', updateError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to update verification status' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
+
+      console.log('✅ KYC widget URL generated successfully')
 
       return new Response(
         JSON.stringify({
           success: true,
           widgetUrl,
-          customerId: customerData?.id,
           debug: {
             userId: user.id,
             email: profile.email,
-            kycFlow: 'moonpay'
+            kycFlow: 'moonpay',
+            widgetMode: 'identity_verification'
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
