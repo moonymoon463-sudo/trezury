@@ -70,7 +70,8 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
   }, [user]);
 
   const signTransaction = useCallback(async (
-    transactionData: Record<string, unknown>
+    transactionData: Record<string, unknown>,
+    userPassword?: string
   ): Promise<string | null> => {
     if (!user?.id) {
       return null;
@@ -79,20 +80,26 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
     try {
       setLoading(true);
       
-      // Auto-sign transaction using user ID
+      // Sign transaction using user's unique wallet
       const signedTx = await secureWalletService.signTransaction(
         user.id,
-        transactionData
+        transactionData,
+        userPassword
       );
 
       return signedTx;
     } catch (error) {
-      console.error('Auto transaction signing failed:', error);
+      console.error('Transaction signing failed:', error);
+      toast({
+        variant: "destructive",
+        title: "Transaction Failed",
+        description: "Unable to sign transaction. Please check your password.",
+      });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   const getWalletAddress = useCallback(async (): Promise<string | null> => {
     if (!user?.id) {

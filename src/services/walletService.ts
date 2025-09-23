@@ -1,9 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ethers } from "ethers";
+import { secureWalletService } from "./secureWalletService";
 
 /**
  * REAL BLOCKCHAIN WALLET SERVICE
- * Connects to actual Sepolia testnet for real balance data
+ * Connects to Ethereum mainnet for XAUT/USDC tokens using user-specific wallets
  */
 
 export interface WalletBalance {
@@ -18,25 +19,28 @@ export interface WalletInfo {
 }
 
 class WalletService {
-  private readonly FIXED_WALLET_ADDRESS = "0xeDBd9A02dea7b35478e3b2Ee1fd90378346101Cb";
-  private readonly SEPOLIA_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
-  private readonly USDC_CONTRACT_SEPOLIA = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"; // USDC on Sepolia
+  private readonly ETHEREUM_RPC = "https://eth-mainnet.g.alchemy.com/v2/demo";
+  private readonly USDC_CONTRACT = "0xA0b86a33E6441b7C88047F0fE3BDD78Db8DC820b"; // USDC on Ethereum
+  private readonly XAUT_CONTRACT = "0x68749665FF8D2d112Fa859AA293F07A622782F38"; // XAUT on Ethereum
 
   /**
-   * Get or create wallet for user - shows REAL blockchain balances
+   * Get wallet for user - shows REAL blockchain balances for their unique wallet
    */
   async getWallet(userId: string): Promise<WalletInfo> {
     try {
-      // Always use the fixed wallet address
-      const address = this.FIXED_WALLET_ADDRESS;
+      // Get user's unique wallet address
+      const address = await secureWalletService.getWalletAddress(userId);
+      if (!address) {
+        throw new Error('No wallet address found for user');
+      }
       
       // Store wallet address in database if not exists
       await this.ensureWalletStored(userId, address);
       
-      // Get real blockchain balances (no adjustments - showing actual on-chain state)
+      // Get real blockchain balances
       const balances = await this.getWalletBalances(address);
       
-      console.log('✅ Real blockchain wallet loaded:', { address, balances });
+      console.log('✅ User wallet loaded:', { address, balances });
       
       return {
         address,
@@ -45,26 +49,26 @@ class WalletService {
     } catch (error) {
       console.error('❌ Wallet service error:', error);
       
-      // Return fallback wallet data
+      // Return minimal fallback
       return {
-        address: this.FIXED_WALLET_ADDRESS,
+        address: '',
         balances: [
-          { asset: 'ETH', amount: 0.1, chain: 'sepolia' },
-          { asset: 'USDC', amount: 1000.0, chain: 'sepolia' },
-          { asset: 'GOLD', amount: 0.25, chain: 'sepolia' }
+          { asset: 'ETH', amount: 0, chain: 'ethereum' },
+          { asset: 'USDC', amount: 0, chain: 'ethereum' },
+          { asset: 'XAUT', amount: 0, chain: 'ethereum' }
         ]
       };
     }
   }
 
   /**
-   * Get real wallet balances from Sepolia testnet
+   * Get real wallet balances from Ethereum mainnet for USDC, XAUT, and ETH
    */
   private async getWalletBalances(address: string): Promise<WalletBalance[]> {
     try {
       console.log('🔍 Fetching real balances for:', address);
       
-      const provider = new ethers.JsonRpcProvider(this.SEPOLIA_RPC);
+      const provider = new ethers.JsonRpcProvider(this.ETHEREUM_RPC);
       
       // Get ETH balance
       const ethBalanceWei = await provider.getBalance(address);
@@ -72,7 +76,7 @@ class WalletService {
       
       // Get USDC balance
       const usdcContract = new ethers.Contract(
-        this.USDC_CONTRACT_SEPOLIA,
+        this.USDC_CONTRACT,
         [
           "function balanceOf(address) view returns (uint256)",
           "function decimals() view returns (uint8)"
@@ -80,14 +84,30 @@ class WalletService {
         provider
       );
       
-      const usdcBalanceRaw = await usdcContract.balanceOf(address);
-      const usdcDecimals = await usdcContract.decimals();
+      // Get XAUT balance
+      const xautContract = new ethers.Contract(
+        this.XAUT_CONTRACT,
+        [
+          "function balanceOf(address) view returns (uint256)",
+          "function decimals() view returns (uint8)"
+        ],
+        provider
+      );
+      
+      const [usdcBalanceRaw, usdcDecimals, xautBalanceRaw, xautDecimals] = await Promise.all([
+        usdcContract.balanceOf(address),
+        usdcContract.decimals(),
+        xautContract.balanceOf(address),
+        xautContract.decimals()
+      ]);
+      
       const usdcBalance = parseFloat(ethers.formatUnits(usdcBalanceRaw, usdcDecimals));
+      const xautBalance = parseFloat(ethers.formatUnits(xautBalanceRaw, xautDecimals));
       
       const balances: WalletBalance[] = [
-        { asset: 'ETH', amount: ethBalance, chain: 'sepolia' },
-        { asset: 'USDC', amount: usdcBalance, chain: 'sepolia' },
-        { asset: 'GOLD', amount: 0, chain: 'sepolia' } // No real GOLD token yet
+        { asset: 'ETH', amount: ethBalance, chain: 'ethereum' },
+        { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
+        { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' }
       ];
       
       console.log('✅ Real balances loaded:', balances);
@@ -96,11 +116,11 @@ class WalletService {
     } catch (error) {
       console.error('❌ Failed to fetch real balances:', error);
       
-      // Fallback to showing zero balances instead of mock data
+      // Fallback to showing zero balances
       const fallbackBalances: WalletBalance[] = [
-        { asset: 'ETH', amount: 0, chain: 'sepolia' },
-        { asset: 'USDC', amount: 0, chain: 'sepolia' },
-        { asset: 'GOLD', amount: 0, chain: 'sepolia' }
+        { asset: 'ETH', amount: 0, chain: 'ethereum' },
+        { asset: 'USDC', amount: 0, chain: 'ethereum' },
+        { asset: 'XAUT', amount: 0, chain: 'ethereum' }
       ];
       
       console.log('⚠️ Using fallback balances:', fallbackBalances);
@@ -128,7 +148,7 @@ class WalletService {
         .insert({
           user_id: userId,
           address: address,
-          chain: 'sepolia',
+          chain: 'ethereum',
           asset: 'USDC'
         });
 
