@@ -25,22 +25,19 @@ const KYCVerification = () => {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      // Log profile access for security audit
-      await supabase.rpc('log_profile_access', {
-        target_user_id: user!.id,
-        accessed_fields: ['kyc_status', 'kyc_inquiry_id']
-      });
-
+      // Query only the KYC fields directly to avoid rate limiting
       const { data, error } = await supabase
-        .rpc('get_secure_profile');
+        .from('profiles')
+        .select('kyc_status, kyc_inquiry_id')
+        .eq('id', user!.id)
+        .single();
 
       if (error) throw error;
       
-      const profileData = data?.[0];
-      setProfile(profileData);
+      setProfile(data);
 
       // If already verified, redirect
-      if (profileData?.kyc_status === 'verified') {
+      if (data?.kyc_status === 'verified') {
         toast({
           title: "Already Verified",
           description: "Your identity has already been verified"
