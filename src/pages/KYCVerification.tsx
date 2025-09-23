@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Shield, CheckCircle, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { usePersonaKYC } from "@/hooks/usePersonaKYC";
+import { useMoonPayKYC } from "@/hooks/useMoonPayKYC";
 import { supabase } from "@/integrations/supabase/client";
 
 const KYCVerification = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { openPersonaWidget, loading: personaLoading } = usePersonaKYC();
+  const { openMoonPayKYC, loading: moonpayLoading } = useMoonPayKYC();
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
 
@@ -28,7 +28,7 @@ const KYCVerification = () => {
       // Query KYC fields and timestamps for better state detection
       const { data, error } = await supabase
         .from('profiles')
-        .select('kyc_status, kyc_inquiry_id, kyc_submitted_at, kyc_verified_at')
+        .select('kyc_status, kyc_submitted_at, kyc_verified_at, metadata')
         .eq('id', user!.id)
         .single();
 
@@ -59,7 +59,7 @@ const KYCVerification = () => {
 
   const handleStartVerification = async () => {
     try {
-      await openPersonaWidget();
+      await openMoonPayKYC();
       
       // Refresh profile after starting verification
       setTimeout(() => {
@@ -135,7 +135,7 @@ const KYCVerification = () => {
   const getStatusIcon = () => {
     if (!profile) return <Clock className="h-5 w-5 text-muted-foreground" />;
     
-    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_inquiry_id;
+    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_submitted_at;
     
     if (notStarted) {
       return <Shield className="h-5 w-5 text-muted-foreground" />;
@@ -156,7 +156,7 @@ const KYCVerification = () => {
   const getStatusText = () => {
     if (!profile) return "Loading...";
     
-    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_inquiry_id;
+    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_submitted_at;
     
     if (notStarted) {
       return "Not Verified";
@@ -177,7 +177,7 @@ const KYCVerification = () => {
   const getStatusDescription = () => {
     if (!profile) return "";
     
-    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_inquiry_id;
+    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_submitted_at;
     
     if (notStarted) {
       return "Complete identity verification to unlock all features and higher transaction limits.";
@@ -245,7 +245,7 @@ const KYCVerification = () => {
                     Your identity has been verified. You now have access to all features.
                   </p>
                 </div>
-              ) : profile?.kyc_status === 'pending' && profile?.kyc_inquiry_id ? (
+              ) : profile?.kyc_status === 'pending' && profile?.kyc_submitted_at ? (
                 <div className="text-center py-4">
                   <Clock className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-yellow-500 mb-2">
@@ -258,10 +258,10 @@ const KYCVerification = () => {
                   <div className="space-y-3">
                     <Button
                       onClick={handleStartVerification}
-                      disabled={personaLoading}
+                      disabled={moonpayLoading}
                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
-                      {personaLoading ? (
+                      {moonpayLoading ? (
                         <>
                           <Clock className="h-4 w-4 mr-2 animate-spin" />
                           Resuming...
@@ -291,7 +291,7 @@ const KYCVerification = () => {
                       Secure Identity Verification
                     </h3>
                     <p className="text-muted-foreground">
-                      We use Persona to securely verify your identity. This process is quick, secure, and compliant with regulations.
+                      We use MoonPay to securely verify your identity. This process is quick, secure, and compliant with regulations.
                     </p>
                   </div>
 
@@ -315,11 +315,11 @@ const KYCVerification = () => {
 
                   <Button
                     onClick={handleStartVerification}
-                    disabled={personaLoading}
+                    disabled={moonpayLoading}
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                     size="lg"
                   >
-                    {personaLoading ? (
+                    {moonpayLoading ? (
                       <>
                         <Clock className="h-4 w-4 mr-2 animate-spin" />
                         Starting Verification...
@@ -333,7 +333,7 @@ const KYCVerification = () => {
                   </Button>
 
                   <p className="text-xs text-muted-foreground text-center">
-                    By proceeding, you agree to Persona's privacy policy and terms of service.
+                    By proceeding, you agree to MoonPay's privacy policy and terms of service.
                     Your data is encrypted and securely processed.
                   </p>
                 </div>

@@ -23,6 +23,7 @@ serve(async (req) => {
 
     const { type, data } = webhookData
 
+    // Handle transaction updates (purchases)
     if (type === 'transaction_updated') {
       const { id, status, baseCurrencyAmount, currencyAmount, externalCustomerId } = data
 
@@ -59,6 +60,59 @@ serve(async (req) => {
           console.error('Failed to update user balance:', balanceError)
         } else {
           console.log('Successfully added USDC to user balance')
+        }
+      }
+    }
+
+    // Handle customer KYC status updates
+    if (type === 'customer_updated') {
+      const { id: customerId, identityStatus, externalCustomerId } = data
+      
+      console.log('Customer KYC status update:', {
+        customerId,
+        identityStatus,
+        externalCustomerId
+      })
+
+      if (externalCustomerId && identityStatus) {
+        let kycStatus = 'pending'
+        let kycVerifiedAt = null
+
+        // Map MoonPay identity statuses to our KYC status
+        switch (identityStatus) {
+          case 'verified':
+          case 'passed':
+            kycStatus = 'verified'
+            kycVerifiedAt = new Date().toISOString()
+            break
+          case 'failed':
+          case 'rejected':
+            kycStatus = 'rejected'
+            break
+          case 'pending':
+          case 'review':
+            kycStatus = 'pending'
+            break
+        }
+
+        // Update user profile with KYC status
+        const { error: kycUpdateError } = await supabase
+          .from('profiles')
+          .update({
+            kyc_status: kycStatus,
+            kyc_verified_at: kycVerifiedAt,
+            metadata: {
+              moonpay_customer_id: customerId,
+              moonpay_identity_status: identityStatus,
+              kyc_flow: 'moonpay'
+            }
+          })
+          .eq('id', externalCustomerId)
+
+        if (kycUpdateError) {
+          console.error('Failed to update KYC status:', kycUpdateError)
+        } else {
+          console.log(`Successfully updated KYC status to ${kycStatus} for user ${externalCustomerId}`)
         }
       }
     }
