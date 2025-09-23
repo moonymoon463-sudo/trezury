@@ -116,13 +116,14 @@ serve(async (req) => {
         hasSessionToken: !!inquiryData.attributes['session-token']
       })
 
-      // Store inquiry ID in our database
+      // Clear any existing inquiry and store new KYC inquiry ID in profiles
       await supabaseClient
         .from('profiles')
         .update({ 
           kyc_inquiry_id: inquiryData.id,
           kyc_status: 'pending',
-          kyc_submitted_at: new Date().toISOString()
+          kyc_submitted_at: new Date().toISOString(),
+          kyc_verified_at: null // Clear any stale verified_at timestamp
         })
         .eq('id', user.id)
 
@@ -147,10 +148,18 @@ serve(async (req) => {
       // Handle Persona webhook - no authentication required
       const { data } = body
       
+      console.log('Webhook received:', JSON.stringify(body, null, 2));
+      
       if (data.type === 'inquiry' && data.attributes) {
         const referenceId = data.attributes['reference-id']
         const status = data.attributes.status
         const inquiryId = data.id
+
+        console.log('Processing webhook for inquiry:', {
+          inquiryId,
+          referenceId,
+          status
+        });
 
         let kycStatus = 'pending'
         let verifiedAt = null
@@ -159,18 +168,51 @@ serve(async (req) => {
           case 'completed':
             kycStatus = 'verified'
             verifiedAt = new Date().toISOString()
+            console.log('Setting status to verified');
             break
           case 'failed':
           case 'declined':
             kycStatus = 'rejected'
+            console.log('Setting status to rejected due to:', status);
             break
           case 'expired':
             kycStatus = 'expired'
+            console.log('Setting status to expired');
             break
+          default:
+            console.log('Unknown status, keeping as pending:', status);
         }
 
+        // Find the user profile by inquiry ID (more reliable than reference-id)
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('id, kyc_status')
+          .eq('kyc_inquiry_id', inquiryId)
+          .single();
+
+        if (profileError || !profile) {
+          console.error('Profile not found for inquiry:', inquiryId, 'Error:', profileError);
+          // Try fallback with reference-id
+          const { data: fallbackProfile, error: fallbackError } = await supabaseClient
+            .from('profiles')
+            .select('id, kyc_status')
+            .eq('id', referenceId)
+            .single();
+            
+          if (fallbackError || !fallbackProfile) {
+            console.error('Profile not found by reference ID either:', referenceId);
+            return new Response(
+              JSON.stringify({ error: 'Profile not found', inquiry_id: inquiryId, reference_id: referenceId }),
+              { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+
+        const targetUserId = profile?.id || referenceId;
+        const oldStatus = profile?.kyc_status || 'unknown';
+
         // Update user profile with verification result
-        await supabaseClient
+        const { error: updateError } = await supabaseClient
           .from('profiles')
           .update({
             kyc_status: kycStatus,
@@ -178,21 +220,33 @@ serve(async (req) => {
             kyc_inquiry_id: inquiryId,
             updated_at: new Date().toISOString()
           })
-          .eq('id', referenceId)
+          .eq('id', targetUserId);
+
+        if (updateError) {
+          console.error('Failed to update profile:', updateError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to update profile', details: updateError }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
         // Log the verification event
         await supabaseClient
           .from('audit_log')
           .insert({
-            user_id: referenceId,
+            user_id: targetUserId,
             table_name: 'profiles',
             operation: 'KYC_VERIFICATION',
             metadata: {
               inquiry_id: inquiryId,
-              status: kycStatus,
-              persona_status: status
+              old_status: oldStatus,
+              new_status: kycStatus,
+              persona_status: status,
+              webhook_timestamp: new Date().toISOString()
             }
-          })
+          });
+
+        console.log(`Successfully updated KYC status for user ${targetUserId}: ${oldStatus} -> ${kycStatus}`);
       }
 
       return new Response(

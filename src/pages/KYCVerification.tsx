@@ -25,15 +25,16 @@ const KYCVerification = () => {
   const fetchProfile = async () => {
     setLoading(true);
     try {
-      // Query only the KYC fields directly to avoid rate limiting
+      // Query KYC fields and timestamps for better state detection
       const { data, error } = await supabase
         .from('profiles')
-        .select('kyc_status, kyc_inquiry_id')
+        .select('kyc_status, kyc_inquiry_id, kyc_submitted_at, kyc_verified_at')
         .eq('id', user!.id)
         .single();
 
       if (error) throw error;
       
+      console.log('Profile KYC data:', data);
       setProfile(data);
 
       // If already verified, redirect
@@ -60,6 +61,11 @@ const KYCVerification = () => {
     try {
       await openPersonaWidget();
       
+      // Refresh profile after starting verification
+      setTimeout(() => {
+        fetchProfile();
+      }, 1000);
+      
       // Poll for completion (optional - user can also navigate back manually)
       const checkInterval = setInterval(async () => {
         const { data } = await supabase
@@ -83,6 +89,47 @@ const KYCVerification = () => {
     } catch (error) {
       console.error('Failed to start verification:', error);
     }
+  };
+
+  const handleRestartVerification = async () => {
+    try {
+      // Clear the existing inquiry to start fresh
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          kyc_inquiry_id: null,
+          kyc_status: 'pending',
+          kyc_submitted_at: null,
+          kyc_verified_at: null
+        })
+        .eq('id', user!.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "KYC Reset",
+        description: "Starting fresh verification process..."
+      });
+
+      // Refresh the profile state
+      await fetchProfile();
+    } catch (error) {
+      console.error('Failed to restart verification:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to restart verification. Please try again."
+      });
+    }
+  };
+
+  // Check if the inquiry might be stale (older than 24 hours)
+  const isStaleInquiry = () => {
+    if (!profile?.kyc_submitted_at) return false;
+    const submitted = new Date(profile.kyc_submitted_at);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - submitted.getTime()) / (1000 * 60 * 60);
+    return hoursDiff > 24; // Consider stale after 24 hours
   };
 
   const getStatusIcon = () => {
@@ -204,9 +251,24 @@ const KYCVerification = () => {
                   <h3 className="text-lg font-semibold text-yellow-500 mb-2">
                     Verification In Progress
                   </h3>
-                  <p className="text-muted-foreground">
-                    Your documents are being reviewed. We'll notify you once complete.
+                  <p className="text-muted-foreground mb-4">
+                    Your documents are being reviewed. This usually takes 24-48 hours.
                   </p>
+                  {isStaleInquiry() && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm text-amber-800 mb-3">
+                        Your verification seems to be taking longer than usual. You can start a new verification if needed.
+                      </p>
+                      <Button
+                        onClick={handleRestartVerification}
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-300 text-amber-800 hover:bg-amber-50"
+                      >
+                        Start New Verification
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-6">
