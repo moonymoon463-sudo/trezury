@@ -23,19 +23,30 @@ export const usePersonaKYC = () => {
 
     setLoading(true);
     try {
+      // Ensure we have the session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.functions.invoke('persona-kyc', {
-        body: { action: 'create-inquiry' }
+        body: { action: 'create-inquiry' },
+        headers: {
+          Authorization: `Bearer ${session?.access_token ?? ''}`
+        }
       });
 
       if (error) throw error;
 
       return data as PersonaKYCResponse;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create Persona inquiry:', error);
+      console.error('Full error details:', JSON.stringify(error, null, 2));
+      
+      // Show more specific error message if available
+      const errorMessage = error?.message || error?.details || "Failed to start identity verification. Please try again.";
+      
       toast({
         variant: "destructive",
         title: "Verification Error",
-        description: "Failed to start identity verification. Please try again."
+        description: errorMessage
       });
       throw error;
     } finally {

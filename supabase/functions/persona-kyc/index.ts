@@ -50,7 +50,13 @@ serve(async (req) => {
       const personaTemplateId = Deno.env.get('PERSONA_TEMPLATE_ID') || 'vtmpl_pzdkyd7DtaPNNBxus5mvaVJ5qpJf'
       // Fix: Persona verification templates use 'vitmpl_' prefix (with 'i')
       const templateKey = personaTemplateId.startsWith('vitmpl_') ? 'verification-template-id' : 'inquiry-template-id'
-      console.log('Creating Persona inquiry with template', { templateKey, personaTemplateId })
+      console.log('Creating Persona inquiry with template', { 
+        templateKey, 
+        personaTemplateId,
+        isVerificationTemplate: personaTemplateId.startsWith('vitmpl_'),
+        origin,
+        userId: user.id 
+      })
 
       const personaResponse = await fetch('https://withpersona.com/api/v1/inquiries', {
         method: 'POST',
@@ -77,13 +83,25 @@ serve(async (req) => {
         console.error('Persona API error response:', {
           status: personaResponse.status,
           statusText: personaResponse.statusText,
-          body: errorText
+          body: errorText,
+          headers: Object.fromEntries(personaResponse.headers.entries())
         })
+        
+        // Try to parse the error as JSON for better details
+        let errorBody;
+        try {
+          errorBody = JSON.parse(errorText);
+        } catch {
+          errorBody = errorText;
+        }
+        
         return new Response(
           JSON.stringify({ 
             error: 'PERSONA_CREATE_INQUIRY_FAILED', 
-            status: personaResponse.status, 
-            details: errorText 
+            status: personaResponse.status,
+            statusText: personaResponse.statusText,
+            body: errorBody,
+            personaError: errorText
           }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
