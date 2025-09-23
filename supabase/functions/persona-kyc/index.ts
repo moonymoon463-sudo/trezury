@@ -51,7 +51,7 @@ serve(async (req) => {
       const templateKey = personaTemplateId.startsWith('vtmpl_') ? 'verification-template-id' : 'inquiry-template-id'
       console.log('Creating Persona inquiry with template', { templateKey, personaTemplateId })
 
-      const personaResponse = await fetch('https://withpersona.com/api/v1/hosted-inquiries', {
+      const personaResponse = await fetch('https://withpersona.com/api/v1/inquiries', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${personaApiKey}`,
@@ -60,7 +60,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           data: {
-            type: 'hosted-inquiry',
+            type: 'inquiry',
             attributes: {
               [templateKey]: personaTemplateId,
               'reference-id': user.id,
@@ -71,13 +71,23 @@ serve(async (req) => {
       })
 
       if (!personaResponse.ok) {
-        const error = await personaResponse.text()
-        console.error('Persona API error:', error)
-        throw new Error('Failed to create Persona inquiry')
+        const errorText = await personaResponse.text()
+        console.error('Persona API error response:', {
+          status: personaResponse.status,
+          statusText: personaResponse.statusText,
+          body: errorText
+        })
+        throw new Error(`Failed to create Persona inquiry: ${personaResponse.status} ${errorText}`)
       }
 
       const personaData = await personaResponse.json()
       const inquiryData = personaData.data
+      
+      console.log('Persona inquiry created successfully:', {
+        inquiryId: inquiryData.id,
+        hasUrl: !!inquiryData.attributes.url,
+        hasSessionToken: !!inquiryData.attributes['session-token']
+      })
 
       // Store inquiry ID in our database
       await supabaseClient
@@ -89,11 +99,18 @@ serve(async (req) => {
         })
         .eq('id', user.id)
 
+      // Build the verification URL
+      let verificationUrl = inquiryData.attributes.url
+      if (!verificationUrl && inquiryData.attributes['session-token']) {
+        verificationUrl = `https://withpersona.com/verify?inquiry-id=${inquiryData.id}&inquiry-session-token=${inquiryData.attributes['session-token']}`
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
           inquiryId: inquiryData.id,
-          url: inquiryData.attributes.url
+          sessionToken: inquiryData.attributes['session-token'],
+          url: verificationUrl
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
