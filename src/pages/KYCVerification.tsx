@@ -254,21 +254,34 @@ const KYCVerification = () => {
                   <p className="text-muted-foreground mb-4">
                     Your documents are being reviewed. This usually takes 24-48 hours.
                   </p>
-                  {isStaleInquiry() && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                      <p className="text-sm text-amber-800 mb-3">
-                        Your verification seems to be taking longer than usual. You can start a new verification if needed.
-                      </p>
-                      <Button
-                        onClick={handleRestartVerification}
-                        variant="outline"
-                        size="sm"
-                        className="border-amber-300 text-amber-800 hover:bg-amber-50"
-                      >
-                        Start New Verification
-                      </Button>
-                    </div>
-                  )}
+                  
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleStartVerification}
+                      disabled={personaLoading}
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      {personaLoading ? (
+                        <>
+                          <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          Resuming...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Resume Verification
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      onClick={handleRestartVerification}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Start New Verification
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-6">
