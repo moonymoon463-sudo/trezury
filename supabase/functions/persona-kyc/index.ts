@@ -46,9 +46,10 @@ serve(async (req) => {
         throw new Error('Persona API key not configured')
       }
 
-      const origin = req.headers.get('origin') || Deno.env.get('SUPABASE_URL') || 'https://auntkvllzejtfqmousxg.supabase.co'
+      const origin = req.headers.get('origin') || Deno.env.get('PUBLIC_APP_URL') || Deno.env.get('SUPABASE_URL') || 'https://auntkvllzejtfqmousxg.supabase.co'
       const personaTemplateId = Deno.env.get('PERSONA_TEMPLATE_ID') || 'vtmpl_pzdkyd7DtaPNNBxus5mvaVJ5qpJf'
-      const templateKey = personaTemplateId.startsWith('vtmpl_') ? 'verification-template-id' : 'inquiry-template-id'
+      // Fix: Persona verification templates use 'vitmpl_' prefix (with 'i')
+      const templateKey = personaTemplateId.startsWith('vitmpl_') ? 'verification-template-id' : 'inquiry-template-id'
       console.log('Creating Persona inquiry with template', { templateKey, personaTemplateId })
 
       const personaResponse = await fetch('https://withpersona.com/api/v1/inquiries', {
@@ -56,6 +57,7 @@ serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${personaApiKey}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Persona-Version': '2023-01-05'
         },
         body: JSON.stringify({
@@ -77,7 +79,14 @@ serve(async (req) => {
           statusText: personaResponse.statusText,
           body: errorText
         })
-        throw new Error(`Failed to create Persona inquiry: ${personaResponse.status} ${errorText}`)
+        return new Response(
+          JSON.stringify({ 
+            error: 'PERSONA_CREATE_INQUIRY_FAILED', 
+            status: personaResponse.status, 
+            details: errorText 
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
       }
 
       const personaData = await personaResponse.json()
