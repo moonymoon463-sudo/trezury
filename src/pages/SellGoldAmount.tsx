@@ -79,7 +79,7 @@ const SellGoldAmount = () => {
   }, [amount, selectedUnit, goldPrice, generateQuote]);
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E] text-white">
+    <div className="flex flex-col min-h-screen bg-[#1C1C1E] text-white pb-20">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -96,7 +96,7 @@ const SellGoldAmount = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-8">
+      <main className="flex-1 px-4 py-6">
         {/* Gold Balance */}
         <div className="text-center mb-8">
           <p className="text-sm text-gray-400">Available Balance</p>
@@ -151,7 +151,7 @@ const SellGoldAmount = () => {
               </span>
             )}
             <input 
-              className="w-full text-center text-6xl font-bold text-white bg-transparent border-none focus:ring-0 p-0 outline-none placeholder-gray-500"
+              className="w-full text-center text-4xl sm:text-6xl font-bold text-white bg-transparent border-none focus:ring-0 p-0 outline-none placeholder-gray-500"
               placeholder={selectedUnit === "USD" ? "0.00" : "0.000"}
               type="text"
               value={amount}
@@ -220,14 +220,12 @@ const SellGoldAmount = () => {
       </main>
 
       {/* Continue Button */}
-      <div className="px-4 py-6">
+      <div className="fixed bottom-20 left-0 right-0 px-4 py-4 bg-[#1C1C1E]">
         <Button 
           className="w-full h-14 font-bold text-lg rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black disabled:bg-gray-700 disabled:text-gray-400"
           disabled={!amount || parseFloat(amount) <= 0 || !quote || quote.grams > goldBalance}
           onClick={() => {
-            sessionStorage.setItem('sellAmount', amount);
-            sessionStorage.setItem('sellUnit', selectedUnit);
-            navigate("/sell-gold/confirmation", { state: { quote, asset } });
+            navigate("/sell-gold/payout", { state: { quote, asset } });
           }}
         >
           {quote && quote.grams > goldBalance ? "Insufficient Balance" : "Continue"}

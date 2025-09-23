@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { X, ChevronRight, Home, DollarSign, ArrowLeftRight, History, Settings, CircleDollarSign, Building2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleDollarSign, Building2 } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 
 const SellGoldPayout = () => {
   const navigate = useNavigate();
@@ -12,25 +13,25 @@ const SellGoldPayout = () => {
   const asset = location.state?.asset || 'GOLD';
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between overflow-x-hidden bg-[#111111] text-white">
-      <div className="flex-grow">
-        {/* Header */}
-        <header className="flex items-center p-4">
+    <div className="flex flex-col min-h-screen bg-[#1C1C1E] text-white pb-20">
+      {/* Header */}
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => navigate("/sell-gold/amount")}
-            className="text-white hover:bg-gray-800"
+            onClick={() => navigate("/sell-gold/amount", { state: { quote, asset } })}
+            className="text-white hover:bg-white/10"
           >
-            <X size={24} />
+            <ArrowLeft size={24} />
           </Button>
-          <h1 className="flex-1 text-center text-lg font-bold">Sell</h1>
-          <div className="w-10"></div>
-        </header>
+          <h1 className="text-xl font-bold text-white flex-1 text-center pr-6">Choose Payout</h1>
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <main className="px-4 pt-6 pb-8">
-          <h2 className="text-2xl font-bold mb-6">Choose your payout method</h2>
+      {/* Main Content */}
+      <main className="flex-1 px-4 py-6">
+        <h2 className="text-2xl font-bold mb-6">Choose your payout method</h2>
           
           <div className="space-y-4">
             {/* USDC Option */}
@@ -72,12 +73,11 @@ const SellGoldPayout = () => {
             </button>
           </div>
         </main>
-      </div>
 
-      {/* Bottom Button */}
-      <div className="p-6">
+      {/* Continue Button */}
+      <div className="fixed bottom-20 left-0 right-0 px-4 py-4 bg-[#1C1C1E]">
         <Button 
-          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
+          className="w-full h-14 bg-yellow-500 text-black font-bold text-lg rounded-xl hover:bg-yellow-600 disabled:bg-gray-700 disabled:text-gray-400"
           disabled={!selectedMethod}
           onClick={() => {
             if (selectedMethod === 'usdc') {
@@ -92,39 +92,7 @@ const SellGoldPayout = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="sticky bottom-0 border-t border-gray-800 bg-[#1C1C1E] pb-3 pt-2">
-        <div className="flex justify-around items-center">
-          <button 
-            onClick={() => navigate("/")}
-            className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors"
-          >
-            <Home size={24} />
-            <span className="text-xs">Dashboard</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-[#f9b006]">
-            <div className="bg-[#f9b006] rounded-full p-2">
-              <DollarSign size={24} className="text-black" />
-            </div>
-            <span className="text-xs font-medium">Buy/Sell</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeftRight size={24} />
-            <span className="text-xs">Swap</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <History size={24} />
-            <span className="text-xs">History</span>
-          </button>
-          
-          <button className="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition-colors">
-            <Settings size={24} />
-            <span className="text-xs">Settings</span>
-          </button>
-        </div>
-      </div>
+      <BottomNavigation />
     </div>
   );
 };
