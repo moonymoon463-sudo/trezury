@@ -40,15 +40,33 @@ export function usePersonaKYC() {
         inquiryId: data.inquiryId
       })
 
-      // Prefer URL; fallback to token flow
+      // Prefer URL; fallback to alternative URLs if connection fails
       if (data.url) {
         console.log('🔄 Redirecting to Persona URL:', data.url)
-        window.location.href = data.url
+        console.log('🔧 Debug info:', data.debug)
+        
+        // Try primary URL first
+        try {
+          window.location.href = data.url
+        } catch (error) {
+          console.error('❌ Primary URL failed:', error)
+          
+          // Try alternative URLs if available
+          const alternatives = data.debug?.connectionTroubleshooting?.alternativeUrls || []
+          if (alternatives.length > 0) {
+            console.log('🔄 Trying alternative URL:', alternatives[0])
+            window.location.href = alternatives[0]
+          } else {
+            throw new Error('All Persona URLs failed to connect')
+          }
+        }
       } else {
         console.warn('⚠️ Persona sessionToken provided but URL was missing.', {
           sessionToken: data.sessionToken,
-          inquiryId: data.inquiryId
+          inquiryId: data.inquiryId,
+          debug: data.debug
         })
+        throw new Error('No URL provided by Persona API')
       }
     } catch (error) {
       console.error('💥 usePersonaKYC error:', error)

@@ -245,10 +245,23 @@ serve(async (req) => {
         }
       }
 
-      // Build URL if we have a session token now
+      // Build URL with multiple fallback options
       if (!url && sessionToken && inquiryId) {
-        url = `https://withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`
-        console.log('🔄 Constructed Hosted Flow URL:', url)
+        // Try multiple URL patterns that Persona supports
+        const urlOptions = [
+          `https://withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`,
+          `https://withpersona.com/verify?inquiry-id=${inquiryId}&session-token=${sessionToken}`,
+          `https://verify.withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`,
+          `https://app.withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`
+        ]
+        
+        url = urlOptions[0] // Start with the first option
+        console.log('🔄 Constructed Hosted Flow URL (primary):', url)
+        console.log('🔄 Alternative URLs available:', urlOptions.slice(1))
+      } else if (!url && !sessionToken && inquiryId) {
+        // Try direct inquiry URL without session token as last resort
+        url = `https://withpersona.com/verify?inquiry-id=${inquiryId}`
+        console.log('🔄 Using direct inquiry URL (no session token):', url)
       } else if (!url && !sessionToken) {
         console.error('❌ No URL or session token available for redirect')
       }
@@ -265,7 +278,21 @@ serve(async (req) => {
           usedFallbackUrl: !attrs.url && !!url,
           usedResume: !attrs.url && !attrs['session-token'],
           sessionTokenSource: sessionToken ? (attrs['session-token'] ? 'original' : 'api_call') : 'none',
-          allAvailableAttributes: Object.keys(attrs)
+          allAvailableAttributes: Object.keys(attrs),
+          connectionTroubleshooting: {
+            primaryUrl: url,
+            alternativeUrls: sessionToken && inquiryId ? [
+              `https://withpersona.com/verify?inquiry-id=${inquiryId}&session-token=${sessionToken}`,
+              `https://verify.withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`,
+              `https://app.withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`
+            ] : [],
+            recommendations: [
+              'Check Persona dashboard template configuration',
+              'Verify hosted flow is enabled', 
+              'Ensure domain is whitelisted in Persona settings',
+              'Check if template is in sandbox vs production mode'
+            ]
+          }
         }
       }
       
