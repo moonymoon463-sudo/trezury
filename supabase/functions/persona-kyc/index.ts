@@ -4,61 +4,67 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const supabaseClient = createClient(
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
     )
 
-    // Parse the request body first to determine the action
-    const body = await req.json()
-    const { action } = body
-
-    if (action === 'create-inquiry') {
-      // Require authentication for creating inquiries
-      const authHeader = req.headers.get('Authorization')
-      if (!authHeader) {
-        return new Response(
-          JSON.stringify({ error: 'Authorization header required' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-
-      if (authError || !user) {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      // Create Persona inquiry
-      const personaApiKey = Deno.env.get('PERSONA_API_KEY')
-      if (!personaApiKey) {
-        throw new Error('Persona API key not configured')
-      }
-
-      const origin = req.headers.get('origin') || Deno.env.get('PUBLIC_APP_URL') || Deno.env.get('SUPABASE_URL') || 'https://auntkvllzejtfqmousxg.supabase.co'
-      const personaTemplateId = Deno.env.get('PERSONA_TEMPLATE_ID') || 'vtmpl_pzdkyd7DtaPNNBxus5mvaVJ5qpJf'
-      // Fix: Persona verification templates use 'vitmpl_' prefix (with 'i')
-      const templateKey = personaTemplateId.startsWith('vitmpl_') ? 'verification-template-id' : 'inquiry-template-id'
-      console.log('Creating Persona inquiry with template', { 
-        templateKey, 
-        personaTemplateId,
-        isVerificationTemplate: personaTemplateId.startsWith('vitmpl_'),
-        origin,
-        userId: user.id 
+    // Auth
+    const { data: { user }, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
+    }
 
-      const personaResponse = await fetch('https://withpersona.com/api/v1/inquiries', {
+    const { action } = await req.json().catch(() => ({ action: null }))
+    
+    if (action === 'create-inquiry') {
+      // Config
+      const personaApiKey = Deno.env.get('PERSONA_API_KEY')
+      const personaTemplateId = Deno.env.get('PERSONA_TEMPLATE_ID') || ''
+      if (!personaApiKey) throw new Error('PERSONA_API_KEY not configured')
+      if (!personaTemplateId) throw new Error('PERSONA_TEMPLATE_ID not configured')
+
+      const origin =
+        req.headers.get('origin') ??
+        Deno.env.get('PUBLIC_APP_URL') ??
+        Deno.env.get('SUPABASE_URL') ??
+        'https://example.com'
+
+      // Correct prefix check: vitmpl_ => verification-template-id
+      const templateKey = personaTemplateId.startsWith('vitmpl_')
+        ? 'verification-template-id'
+        : 'inquiry-template-id'
+
+      const payload = {
+        data: {
+          type: 'inquiry',
+          attributes: {
+            [templateKey]: personaTemplateId,
+            'reference-id': user.id,
+            'redirect-uri': `${origin}/kyc-verification`
+          }
+        }
+      }
+
+      const res = await fetch('https://withpersona.com/api/v1/inquiries', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${personaApiKey}`,
@@ -66,89 +72,57 @@ serve(async (req) => {
           'Accept': 'application/json',
           'Persona-Version': '2023-01-05'
         },
-        body: JSON.stringify({
-          data: {
-            type: 'inquiry',
-            attributes: {
-              [templateKey]: personaTemplateId,
-              'reference-id': user.id,
-              'redirect-uri': `${origin}/kyc-verification`
-            }
-          }
-        })
+        body: JSON.stringify(payload)
       })
 
-      if (!personaResponse.ok) {
-        const errorText = await personaResponse.text()
-        console.error('Persona API error response:', {
-          status: personaResponse.status,
-          statusText: personaResponse.statusText,
-          body: errorText,
-          headers: Object.fromEntries(personaResponse.headers.entries())
-        })
-        
-        // Try to parse the error as JSON for better details
-        let errorBody;
-        try {
-          errorBody = JSON.parse(errorText);
-        } catch {
-          errorBody = errorText;
-        }
-        
-        return new Response(
-          JSON.stringify({ 
-            error: 'PERSONA_CREATE_INQUIRY_FAILED', 
-            status: personaResponse.status,
-            statusText: personaResponse.statusText,
-            body: errorBody,
-            personaError: errorText
-          }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+      const text = await res.text()
+      if (!res.ok) {
+        console.error('Persona error', res.status, text)
+        return new Response(JSON.stringify({
+          error: 'PERSONA_CREATE_INQUIRY_FAILED',
+          status: res.status,
+          body: text
+        }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
-      const personaData = await personaResponse.json()
-      const inquiryData = personaData.data
-      
-      console.log('Persona inquiry created successfully:', {
-        inquiryId: inquiryData.id,
-        hasUrl: !!inquiryData.attributes.url,
-        hasSessionToken: !!inquiryData.attributes['session-token']
-      })
+      const data = JSON.parse(text)
+      const inquiry = data.data
+      const attrs = inquiry?.attributes ?? {}
 
-      // Clear any existing inquiry and store new KYC inquiry ID in profiles
-      await supabaseClient
+      // Persist on our side
+      await supabase
         .from('profiles')
-        .update({ 
-          kyc_inquiry_id: inquiryData.id,
+        .update({
+          kyc_inquiry_id: inquiry.id,
           kyc_status: 'pending',
-          kyc_submitted_at: new Date().toISOString(),
-          kyc_verified_at: null // Clear any stale verified_at timestamp
+          kyc_submitted_at: new Date().toISOString()
         })
         .eq('id', user.id)
 
-      // Build the verification URL
-      let verificationUrl = inquiryData.attributes.url
-      if (!verificationUrl && inquiryData.attributes['session-token']) {
-        verificationUrl = `https://withpersona.com/verify?inquiry-id=${inquiryData.id}&inquiry-session-token=${inquiryData.attributes['session-token']}`
+      // Build URL fallback from session token
+      let url = attrs.url
+      if (!url && attrs['session-token']) {
+        url = `https://withpersona.com/verify?inquiry-id=${inquiry.id}&inquiry-session-token=${attrs['session-token']}`
       }
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          inquiryId: inquiryData.id,
-          sessionToken: inquiryData.attributes['session-token'],
-          url: verificationUrl
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return new Response(JSON.stringify({
+        success: true,
+        inquiryId: inquiry.id,
+        sessionToken: attrs['session-token'] ?? null,
+        url: url ?? null
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     if (action === 'webhook') {
-      // Handle Persona webhook - no authentication required
-      const { data } = body
+      // Handle Persona webhook - no authentication required for webhooks
+      const supabaseService = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      )
+
+      const { data } = await req.json()
       
-      console.log('Webhook received:', JSON.stringify(body, null, 2));
+      console.log('Webhook received:', JSON.stringify(data, null, 2))
       
       if (data.type === 'inquiry' && data.attributes) {
         const referenceId = data.attributes['reference-id']
@@ -159,7 +133,7 @@ serve(async (req) => {
           inquiryId,
           referenceId,
           status
-        });
+        })
 
         let kycStatus = 'pending'
         let verifiedAt = null
@@ -168,85 +142,34 @@ serve(async (req) => {
           case 'completed':
             kycStatus = 'verified'
             verifiedAt = new Date().toISOString()
-            console.log('Setting status to verified');
             break
           case 'failed':
           case 'declined':
             kycStatus = 'rejected'
-            console.log('Setting status to rejected due to:', status);
             break
           case 'expired':
             kycStatus = 'expired'
-            console.log('Setting status to expired');
             break
-          default:
-            console.log('Unknown status, keeping as pending:', status);
         }
-
-        // Find the user profile by inquiry ID (more reliable than reference-id)
-        const { data: profile, error: profileError } = await supabaseClient
-          .from('profiles')
-          .select('id, kyc_status')
-          .eq('kyc_inquiry_id', inquiryId)
-          .single();
-
-        if (profileError || !profile) {
-          console.error('Profile not found for inquiry:', inquiryId, 'Error:', profileError);
-          // Try fallback with reference-id
-          const { data: fallbackProfile, error: fallbackError } = await supabaseClient
-            .from('profiles')
-            .select('id, kyc_status')
-            .eq('id', referenceId)
-            .single();
-            
-          if (fallbackError || !fallbackProfile) {
-            console.error('Profile not found by reference ID either:', referenceId);
-            return new Response(
-              JSON.stringify({ error: 'Profile not found', inquiry_id: inquiryId, reference_id: referenceId }),
-              { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        }
-
-        const targetUserId = profile?.id || referenceId;
-        const oldStatus = profile?.kyc_status || 'unknown';
 
         // Update user profile with verification result
-        const { error: updateError } = await supabaseClient
+        const { error: updateError } = await supabaseService
           .from('profiles')
           .update({
             kyc_status: kycStatus,
-            kyc_verified_at: verifiedAt,
-            kyc_inquiry_id: inquiryId,
-            updated_at: new Date().toISOString()
+            kyc_verified_at: verifiedAt
           })
-          .eq('id', targetUserId);
+          .eq('kyc_inquiry_id', inquiryId)
 
         if (updateError) {
-          console.error('Failed to update profile:', updateError);
+          console.error('Failed to update profile:', updateError)
           return new Response(
-            JSON.stringify({ error: 'Failed to update profile', details: updateError }),
+            JSON.stringify({ error: 'Failed to update profile' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          )
         }
 
-        // Log the verification event
-        await supabaseClient
-          .from('audit_log')
-          .insert({
-            user_id: targetUserId,
-            table_name: 'profiles',
-            operation: 'KYC_VERIFICATION',
-            metadata: {
-              inquiry_id: inquiryId,
-              old_status: oldStatus,
-              new_status: kycStatus,
-              persona_status: status,
-              webhook_timestamp: new Date().toISOString()
-            }
-          });
-
-        console.log(`Successfully updated KYC status for user ${targetUserId}: ${oldStatus} -> ${kycStatus}`);
+        console.log(`Successfully updated KYC status: ${kycStatus}`)
       }
 
       return new Response(
@@ -255,13 +178,14 @@ serve(async (req) => {
       )
     }
 
-    throw new Error('Invalid action')
+    return new Response(JSON.stringify({ error: 'Invalid action' }), {
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
 
-  } catch (error) {
-    console.error('Error in persona-kyc function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+  } catch (e: any) {
+    console.error('persona-kyc fatal', e?.message || e)
+    return new Response(JSON.stringify({ error: 'Internal server error', detail: e?.message || String(e) }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
 })
