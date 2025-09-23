@@ -10,7 +10,6 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
-import QuickNavToLending from "@/components/QuickNavToLending";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -46,7 +45,6 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminKYC from "./pages/AdminKYC";
 import AdminTransactions from "./pages/AdminTransactions";
 import WalletManagement from "./pages/WalletManagement";
-import Lending from "./pages/Lending";
 import Portfolio from "./pages/Portfolio";
 
 const queryClient = new QueryClient();
@@ -94,7 +92,6 @@ const AppRoutes = () => {
       <Route path="/sell-gold/payout" element={<ProtectedRoute><SellGoldPayout /></ProtectedRoute>} />
       <Route path="/sell-gold/confirmation" element={<ProtectedRoute><SellGoldConfirmation /></ProtectedRoute>} />
       <Route path="/swap" element={<ProtectedRoute><Swap /></ProtectedRoute>} />
-      <Route path="/lending" element={<ProtectedRoute><Lending /></ProtectedRoute>} />
       <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
@@ -131,7 +128,6 @@ const App = () => (
           <BrowserRouter>
             <ScrollToTop />
             <AppRoutes />
-            <QuickNavToLending />
             <InstallPrompt />
             <UpdatePrompt />
             <OfflineIndicator />

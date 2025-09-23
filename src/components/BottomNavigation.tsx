@@ -25,10 +25,10 @@ const BottomNavigation = () => {
       path: "/swap",
     },
     {
-      id: "lending",
-      label: "Lending",
-      icon: TrendingUp,
-      path: "/lending",
+      id: "portfolio",
+      label: "Portfolio",
+      icon: PieChart,
+      path: "/portfolio",
     },
     {
       id: "history",

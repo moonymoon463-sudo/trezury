@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-import { FeeCollectionTestData } from '@/services/feeCollectionTestData';
 import { useToast } from '@/hooks/use-toast';
 import { Database, Trash2, BarChart3 } from 'lucide-react';
 
@@ -14,12 +13,11 @@ const TestDataManager = () => {
   const handleGenerateTestData = async () => {
     setLoading(true);
     try {
-      await FeeCollectionTestData.generateTestData();
+      // Lending functionality removed - test data no longer needed
       toast({
-        title: "Test Data Generated",
-        description: "Successfully created test fee collection requests"
+        title: "Feature Removed",
+        description: "Test data generation is no longer available"
       });
-      await loadStats();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -32,32 +30,23 @@ const TestDataManager = () => {
   };
 
   const handleClearTestData = async () => {
-    setLoading(true);
-    try {
-      await FeeCollectionTestData.clearTestData();
-      toast({
-        title: "Test Data Cleared",
-        description: "All test fee collection requests removed"
-      });
-      setStats(null);
-    } catch (error: any) {
-      toast({
-        variant: "destructive", 
-        title: "Clear Failed",
-        description: error.message
-      });
-    } finally {
-      setLoading(false);
-    }
+    // No-op - test data functionality removed
+    toast({
+      title: "Feature Removed",
+      description: "Test data clearing is no longer available"
+    });
   };
 
   const loadStats = async () => {
-    try {
-      const testStats = await FeeCollectionTestData.getTestDataStats();
-      setStats(testStats);
-    } catch (error) {
-      console.error('Failed to load test stats:', error);
-    }
+    // No-op - test data functionality removed
+    setStats({
+      total: 0,
+      pending: 0,
+      completed: 0,
+      failed: 0,
+      by_chain: {},
+      total_amount: 0
+    });
   };
 
   return (

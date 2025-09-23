@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { blockchainService, WalletInfo } from '@/services/blockchainService';
-import { realTimeBalanceService, RealTimeBalance } from '@/services/realTimeBalanceService';
 import { useAuth } from './useAuth';
 
 export const useBlockchainWallet = () => {
   const { user } = useAuth();
   const [walletInfo, setWalletInfo] = useState<WalletInfo[]>([]);
-  const [balanceStatus, setBalanceStatus] = useState<RealTimeBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,10 +63,6 @@ export const useBlockchainWallet = () => {
 
       setWalletInfo(walletData);
       
-      // Get balance sync status
-      const status = await realTimeBalanceService.getUserBalanceStatus(user.id);
-      setBalanceStatus(status);
-      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh wallet info');
     } finally {
@@ -81,7 +75,6 @@ export const useBlockchainWallet = () => {
 
     try {
       setLoading(true);
-      await realTimeBalanceService.forceSyncUser(user.id);
       await refreshWalletInfo();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sync balances');
@@ -121,7 +114,6 @@ export const useBlockchainWallet = () => {
 
   return {
     walletInfo,
-    balanceStatus,
     loading,
     error,
     generateWallet,
