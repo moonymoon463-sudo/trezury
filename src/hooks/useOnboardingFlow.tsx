@@ -57,9 +57,9 @@ export function useOnboardingFlow(steps: OnboardingStep[]) {
         .eq('user_id', user.id)
         .limit(1);
 
-      // Check if user has any positions
-      const { data: supplies } = await supabase
-        .from('user_supplies')
+      // Check if user has any balance snapshots (positions)
+      const { data: balances } = await supabase
+        .from('balance_snapshots')
         .select('id')
         .eq('user_id', user.id)
         .limit(1);
@@ -79,7 +79,7 @@ export function useOnboardingFlow(steps: OnboardingStep[]) {
         completedSteps.push('first-transaction');
       }
       
-      if (supplies && supplies.length > 0) {
+      if (balances && balances.length > 0) {
         completedSteps.push('first-position');
       }
 

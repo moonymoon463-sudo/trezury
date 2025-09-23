@@ -6,9 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Wallet, DollarSign, TrendingUp, Activity, AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { feeCollectionService, FeeCollectionSummary, PlatformFeeRecord } from "@/services/feeCollectionService";
-import { feeCollectionBot } from "@/services/feeCollectionBot";
 import { blockchainService } from "@/services/blockchainService";
-import { adminFeeAnalyticsService, FeeAnalytics, FeeTypeMetrics } from "@/services/adminFeeAnalyticsService";
 import { useAdmin } from "@/hooks/useAdmin";
 import ChainAnalytics from "@/components/admin/ChainAnalytics";
 import { useToast } from "@/hooks/use-toast";
@@ -20,12 +18,8 @@ const AdminFees = () => {
   const [summary, setSummary] = useState<FeeCollectionSummary | null>(null);
   const [recentFees, setRecentFees] = useState<PlatformFeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [botStats, setBotStats] = useState<any>(null);
   const [collectingFees, setCollectingFees] = useState(false);
   const [feeAnalytics, setFeeAnalytics] = useState<any>(null);
-  const [feeTypeMetrics, setFeeTypeMetrics] = useState<FeeTypeMetrics[]>([]);
-  const [collectionHealth, setCollectionHealth] = useState<any>(null);
-  const [realtimeMonitoring, setRealtimeMonitoring] = useState<any>(null);
 
   useEffect(() => {
     loadFeeData();
@@ -37,28 +31,16 @@ const AdminFees = () => {
       const [
         summaryData, 
         feesData, 
-        stats, 
-        analytics, 
-        typeMetrics, 
-        health, 
-        realtime
+        analytics
       ] = await Promise.all([
         feeCollectionService.getFeeCollectionSummary(),
         feeCollectionService.getCollectedFees(),
-        feeCollectionBot.getFeeCollectionStats(),
-        getFeeAnalytics(), // Use the updated chain-aware function
-        adminFeeAnalyticsService.getFeeTypeMetrics(),
-        adminFeeAnalyticsService.getCollectionHealth(),
-        adminFeeAnalyticsService.getRealtimeMonitoring()
+        getFeeAnalytics()
       ]);
       
       setSummary(summaryData);
       setRecentFees(feesData.slice(0, 10));
-      setBotStats(stats);
       setFeeAnalytics(analytics);
-      setFeeTypeMetrics(typeMetrics);
-      setCollectionHealth(health);
-      setRealtimeMonitoring(realtime);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -71,66 +53,17 @@ const AdminFees = () => {
   };
 
   const handleCollectFees = async () => {
-    try {
-      setCollectingFees(true);
-      const results = await feeCollectionBot.collectAllPendingFees();
-      
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
-      
-      if (successCount > 0) {
-        toast({
-          title: "Fees Collected",
-          description: `Successfully collected ${successCount} fees${failCount > 0 ? `, ${failCount} failed` : ''}`
-        });
-        loadFeeData(); // Refresh data
-      } else if (failCount > 0) {
-        toast({
-          variant: "destructive",
-          title: "Collection Failed",
-          description: `Failed to collect ${failCount} fees`
-        });
-      } else {
-        toast({
-          title: "No Fees to Collect",
-          description: "All platform fees have already been collected"
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Collection Error",
-        description: "Failed to collect platform fees"
-      });
-    } finally {
-      setCollectingFees(false);
-    }
+    toast({
+      title: "Feature Unavailable",
+      description: "Automated fee collection has been disabled"
+    });
   };
 
   const handleExportReport = async () => {
-    try {
-      const csvData = await adminFeeAnalyticsService.exportDetailedFeeReport();
-      const blob = new Blob([csvData], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `detailed_fee_analytics_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: "Report Exported",
-        description: "Detailed fee analytics report downloaded successfully"
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Export Failed",
-        description: "Failed to export fee report"
-      });
-    }
+    toast({
+      title: "Feature Unavailable",
+      description: "Report export has been disabled"
+    });
   };
 
   if (loading) {
@@ -227,28 +160,40 @@ const AdminFees = () => {
               </Card>
             </div>
 
-            {/* Fee Type Breakdown */}
+            {/* Fee Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {feeTypeMetrics.map((metric) => (
-                <Card key={metric.type}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium capitalize">{metric.type} Fees</CardTitle>
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(metric.total_amount)}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {metric.transaction_count} transactions • Avg: {formatCurrency(metric.average_fee)}
-                    </p>
-                    <div className="text-xs mt-1">
-                      <span className={`font-medium ${metric.growth_rate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {metric.growth_rate >= 0 ? '+' : ''}{metric.growth_rate.toFixed(1)}%
-                      </span>
-                      <span className="text-muted-foreground ml-1">vs avg daily</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Trading Fees</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(feeAnalytics?.fee_breakdown?.trading_fees || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Buy/Sell transactions</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Swap Fees</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(feeAnalytics?.fee_breakdown?.swap_fees || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Asset swaps</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Collected</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(feeAnalytics?.collection_status?.collected_fees || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Successfully collected</p>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -297,49 +242,27 @@ const AdminFees = () => {
           </TabsContent>
 
           <TabsContent value="collection" className="space-y-6 mt-6">
-            {/* Collection Health */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Collection Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{collectionHealth?.totalRequests || 0}</div>
-                  <p className="text-xs text-muted-foreground">Last 7 days</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Successful</CardTitle>
+                  <CardTitle className="text-sm font-medium">Collected Fees</CardTitle>
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{collectionHealth?.successfulCollections || 0}</div>
-                  <p className="text-xs text-muted-foreground">Collections completed</p>
+                  <div className="text-2xl font-bold text-green-600">{formatCurrency(feeAnalytics?.collection_status?.collected_fees || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Successfully collected</p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Failed</CardTitle>
-                  <XCircle className="h-4 w-4 text-red-500" />
+                  <CardTitle className="text-sm font-medium">Pending Fees</CardTitle>
+                  <Clock className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">{collectionHealth?.failedCollections || 0}</div>
-                  <p className="text-xs text-muted-foreground">Collections failed</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Time</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{collectionHealth?.avgCollectionTime?.toFixed(1) || 0}m</div>
-                  <p className="text-xs text-muted-foreground">Collection time</p>
+                  <div className="text-2xl font-bold text-yellow-600">{formatCurrency(feeAnalytics?.collection_status?.pending_fees || 0)}</div>
+                  <p className="text-xs text-muted-foreground">Awaiting collection</p>
                 </CardContent>
               </Card>
             </div>
@@ -377,87 +300,39 @@ const AdminFees = () => {
           </TabsContent>
 
           <TabsContent value="monitoring" className="space-y-6 mt-6">
-            {/* Real-time Monitoring */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {/* Monitoring Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Bot Status</CardTitle>
+                  <CardTitle className="text-sm font-medium">Collection Status</CardTitle>
                   <Activity className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <Badge variant={realtimeMonitoring?.isCollectionBotRunning ? "default" : "destructive"}>
-                      {realtimeMonitoring?.isCollectionBotRunning ? "Running" : "Stopped"}
-                    </Badge>
+                    <Badge variant="secondary">Manual</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Collection bot status
+                    Manual fee collection only
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">This Hour</CardTitle>
+                  <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(realtimeMonitoring?.totalFeesThisHour || 0)}
+                    {feeAnalytics?.collection_status?.success_rate?.toFixed(1) || 0}%
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {realtimeMonitoring?.successRateThisHour?.toFixed(1) || 0}% success rate
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Alerts</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {realtimeMonitoring?.alertsCount || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Active alerts
+                    Collection success rate
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Failures */}
-            {collectionHealth?.recentFailures?.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-red-500" />
-                    Recent Collection Failures
-                  </CardTitle>
-                  <CardDescription>Issues that need attention</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {collectionHealth.recentFailures.map((failure: any, index: number) => (
-                      <div key={index} className="p-3 border border-red-200 bg-red-50 rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-medium text-red-800">
-                              Failed to collect {formatCurrency(failure.amount)} {failure.asset}
-                            </div>
-                            <div className="text-sm text-red-600">
-                              {new Date(failure.created_at).toLocaleString()}
-                            </div>
-                          </div>
-                          <Badge variant="destructive">Failed</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
         </Tabs>
 

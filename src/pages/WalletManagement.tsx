@@ -4,37 +4,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Wallet, RefreshCw, AlertTriangle, CheckCircle, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useBlockchainWallet } from "@/hooks/useBlockchainWallet";
-import { realTimeBalanceService } from "@/services/realTimeBalanceService";
-import { feeCollectionBot } from "@/services/feeCollectionBot";
 import { useToast } from "@/hooks/use-toast";
 
 const WalletManagement = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { walletInfo, balanceStatus, loading, generateWallet, forceSync } = useBlockchainWallet();
+  const { walletInfo, loading, generateWallet, refreshWalletInfo, forceSync } = useBlockchainWallet();
   const [botRunning, setBotRunning] = useState(false);
 
-  useEffect(() => {
-    // Start balance synchronization service
-    realTimeBalanceService.start();
-    return () => realTimeBalanceService.stop();
-  }, []);
 
   const handleStartFeeBot = () => {
-    feeCollectionBot.start();
-    setBotRunning(true);
     toast({
-      title: "Fee Collection Started",
-      description: "Automated fee collection is now running"
+      title: "Feature Unavailable",
+      description: "Automated fee collection has been disabled"
     });
   };
 
   const handleStopFeeBot = () => {
-    feeCollectionBot.stop();
-    setBotRunning(false);
     toast({
-      title: "Fee Collection Stopped",
-      description: "Automated fee collection has been stopped"
+      title: "Feature Unavailable", 
+      description: "Automated fee collection has been disabled"
     });
   };
 
@@ -125,42 +114,33 @@ const WalletManagement = () => {
           </CardContent>
         </Card>
 
-        {/* Balance Sync Status */}
+        {/* Wallet Status */}
         <Card className="bg-[#2C2C2E] border-gray-700">
           <CardHeader>
-            <CardTitle className="text-white">Balance Synchronization</CardTitle>
+            <CardTitle className="text-white">Wallet Status</CardTitle>
             <CardDescription className="text-gray-400">
-              Real-time sync between database and blockchain
+              Current wallet information and balances
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {balanceStatus.length === 0 ? (
-              <p className="text-gray-400">No balance data available</p>
+            {walletInfo.length === 0 ? (
+              <p className="text-gray-400">No wallet information available</p>
             ) : (
               <div className="space-y-4">
-                {balanceStatus.map((balance, index) => (
+                {walletInfo.map((wallet, index) => (
                   <div key={index} className="bg-[#3C3C3E] rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-white font-medium">{balance.asset}</span>
-                      <div className="flex items-center gap-2">
-                        {balance.is_synced ? (
-                          <CheckCircle className="text-green-500" size={16} />
-                        ) : (
-                          <AlertTriangle className="text-yellow-500" size={16} />
-                        )}
-                        <span className="text-xs text-gray-400">
-                          {balance.is_synced ? 'Synced' : 'Out of sync'}
-                        </span>
-                      </div>
+                      <span className="text-white font-medium">{wallet.asset} Status</span>
+                      <CheckCircle className="text-green-500" size={16} />
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-gray-400">Database</p>
-                        <p className="text-white">{balance.database_balance.toFixed(6)}</p>
+                        <p className="text-gray-400">Chain</p>
+                        <p className="text-white">{wallet.chain}</p>
                       </div>
                       <div>
-                        <p className="text-gray-400">Blockchain</p>
-                        <p className="text-white">{balance.blockchain_balance.toFixed(6)}</p>
+                        <p className="text-gray-400">Balance</p>
+                        <p className="text-white">{wallet.balance.toFixed(6)} {wallet.asset}</p>
                       </div>
                     </div>
                   </div>
