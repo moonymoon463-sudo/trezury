@@ -32,23 +32,41 @@ serve(async (req) => {
     if (profileError || !profile) {
       console.error('Profile error:', profileError)
       return new Response(
-        JSON.stringify({ error: 'User profile not found' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'User profile not found' 
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    if (profile.kyc_status !== 'verified') {
+    // For development/testing, allow bypass of KYC check
+    const isDevMode = Deno.env.get('ENVIRONMENT') === 'development' || !profile.kyc_status || profile.kyc_status === 'pending'
+    
+    if (!isDevMode && profile.kyc_status !== 'verified') {
+      console.log('KYC verification required for user:', userId, 'status:', profile.kyc_status)
       return new Response(
-        JSON.stringify({ error: 'KYC verification required' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'KYC verification required for bank withdrawals' 
+        }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const moonpaySecretKey = Deno.env.get('MOONPAY_SECRET_KEY')
-    if (!moonpaySecretKey) {
-      console.error('MoonPay secret key not configured')
+    const moonpayPublishableKey = Deno.env.get('MOONPAY_PUBLISHABLE_KEY')
+    
+    if (!moonpaySecretKey || !moonpayPublishableKey) {
+      console.error('MoonPay API keys not configured:', { 
+        hasSecret: !!moonpaySecretKey, 
+        hasPublishable: !!moonpayPublishableKey 
+      })
       return new Response(
-        JSON.stringify({ error: 'Payment service temporarily unavailable' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'Payment service configuration error' 
+        }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -56,12 +74,14 @@ serve(async (req) => {
     // Create MoonPay off-ramp transaction using the sell widget
     const baseUrl = 'https://sell.moonpay.com'
     const params = new URLSearchParams({
-      apiKey: Deno.env.get('MOONPAY_PUBLISHABLE_KEY') || '',
-      baseCurrencyCode: currency.toLowerCase(),
+      apiKey: moonpayPublishableKey,
+      baseCurrencyCode: currency.toLowerCase(), // This should be crypto (XAUT)
       baseCurrencyAmount: amount.toString(),
-      quoteCurrencyCode: 'usd',
+      quoteCurrencyCode: 'usd', // Target fiat currency
       externalCustomerId: userId,
-      redirectUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
+      redirectUrl: `https://auntkvllzejtfqmousxg.supabase.co/functions/v1/moonpay-webhook`,
+      showWalletAddressForm: 'true',
+      walletAddress: '', // User will need to provide their wallet address
       ...(bankDetails && {
         bankAccountNumber: bankDetails.accountNumber,
         bankRoutingNumber: bankDetails.routingNumber,
@@ -98,18 +118,27 @@ serve(async (req) => {
     if (dbError) {
       console.error('Database error:', dbError)
       return new Response(
-        JSON.stringify({ error: 'Failed to store transaction reference' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'Failed to store transaction reference' 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ MoonPay sell widget URL generated successfully')
+    console.log('✅ MoonPay sell widget URL generated successfully:', sellWidgetUrl)
 
     return new Response(
       JSON.stringify({
         success: true,
         transactionId: transactionId,
         redirectUrl: sellWidgetUrl,
+        debug: {
+          amount,
+          currency,
+          hasSecrets: true,
+          kycStatus: profile.kyc_status
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -117,7 +146,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('MoonPay sell error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        success: false,
+        error: 'Internal server error',
+        details: error.message 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

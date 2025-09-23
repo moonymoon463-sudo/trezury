@@ -39,8 +39,8 @@ const SellGoldConfirmation = () => {
       if (payoutMethod === 'bank') {
         // Handle MoonPay sell for bank payout
         const result = await initiateSell({
-          amount: quote.outputAmount,
-          currency: 'USD'
+          amount: quote.grams, // Use grams instead of USD output
+          currency: 'XAUT' // Use crypto currency code for selling
         });
 
         if (result.success && result.redirectUrl) {
