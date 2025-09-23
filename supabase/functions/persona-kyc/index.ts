@@ -159,27 +159,56 @@ serve(async (req) => {
         console.log('✅ Database updated successfully with inquiry ID:', inquiry.id)
       }
 
-      // Enhanced URL Construction with Multiple Fallbacks
+      // Enhanced URL/Session handling with Resume fallback
       let url = attrs.url
-      const sessionToken = attrs['session-token']
+      let sessionToken = attrs['session-token']
       const inquiryId = inquiry.id
       
-      console.log('🔗 URL Construction Analysis:', {
+      console.log('🔗 URL Construction Analysis (pre-resume):', {
         providedUrl: url || 'NONE',
         hasSessionToken: !!sessionToken,
         inquiryId,
-        willAttemptFallback: !url && sessionToken
+        willAttemptResume: !url && !sessionToken && !!inquiryId
       })
-      
-      // Multiple fallback URL strategies
+
+      // If no URL or session token returned, attempt to resume the inquiry to get a fresh session-token
+      if (!url && !sessionToken && inquiryId) {
+        const resumeEndpoint = `https://withpersona.com/api/v1/inquiries/${inquiryId}/resume`
+        console.log('⏯️ Attempting Persona Resume API:', resumeEndpoint)
+        const resumeRes = await fetch(resumeEndpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${personaApiKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Persona-Version': '2023-01-05'
+          },
+          body: JSON.stringify({})
+        })
+        const resumeText = await resumeRes.text()
+        console.log('📡 Persona Resume Response:', {
+          status: resumeRes.status,
+          statusText: resumeRes.statusText,
+          bodyPreview: resumeText?.slice(0, 200) + (resumeText?.length > 200 ? '...' : '')
+        })
+        if (resumeRes.ok) {
+          try {
+            const resumeData = JSON.parse(resumeText)
+            // API may return { data: { attributes: { 'session-token': '...' } } }
+            sessionToken = resumeData?.data?.attributes?.['session-token'] || resumeData?.['session-token'] || null
+            console.log('✅ Resume parsed sessionToken:', sessionToken ? `${String(sessionToken).slice(0,10)}...` : 'NONE')
+          } catch (e) {
+            console.error('❌ Failed to parse resume response JSON:', e)
+          }
+        } else {
+          console.error('❌ Persona Resume API failed', resumeRes.status, resumeText)
+        }
+      }
+
+      // Build URL if we have a session token now
       if (!url && sessionToken && inquiryId) {
-        // Strategy 1: Standard Persona hosted flow
         url = `https://withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`
-        console.log('🔄 Using fallback URL strategy 1:', url)
-        
-        // Strategy 2: Alternative format (if strategy 1 fails)
-        const alternativeUrl = `https://withpersona.com/verify?session-token=${sessionToken}`
-        console.log('🔄 Alternative URL available:', alternativeUrl)
+        console.log('🔄 Using constructed Hosted Flow URL:', url)
       }
 
       const finalResponse = {
@@ -192,6 +221,7 @@ serve(async (req) => {
           templateId: personaTemplateId,
           hasOriginalUrl: !!attrs.url,
           usedFallbackUrl: !attrs.url && !!url,
+          usedResume: !attrs.url && !attrs['session-token'],
           allAvailableAttributes: Object.keys(attrs)
         }
       }
