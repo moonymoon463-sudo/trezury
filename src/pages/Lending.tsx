@@ -13,6 +13,8 @@ import { useAdvancedFeatures } from "@/hooks/useAdvancedFeatures";
 import { RealTimeRatesDisplay } from "@/components/lending/RealTimeRatesDisplay";
 import { AdvancedAnalyticsDashboard } from "@/components/lending/AdvancedAnalyticsDashboard";
 import { FlashLoanManager } from "@/components/lending/FlashLoanManager";
+import { InstitutionalDashboard } from "@/components/lending/InstitutionalDashboard";
+import { AutomationManager } from "@/components/lending/AutomationManager";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -158,7 +160,7 @@ export default function Lending() {
 
           {/* Advanced Lending Interface */}
           <Tabs defaultValue="markets" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 bg-[#2C2C2E] h-auto p-1">
+            <TabsList className="grid w-full grid-cols-8 bg-[#2C2C2E] h-auto p-1">
               <TabsTrigger 
                 value="markets" 
                 className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
@@ -195,6 +197,18 @@ export default function Lending() {
               >
                 Advanced
               </TabsTrigger>
+              <TabsTrigger 
+                value="institutional" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Institutional
+              </TabsTrigger>
+              <TabsTrigger 
+                value="automation" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Automation
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="markets" className="mt-6">
@@ -222,6 +236,14 @@ export default function Lending() {
 
             <TabsContent value="advanced" className="mt-6">
               <AdvancedAnalyticsDashboard />
+            </TabsContent>
+
+            <TabsContent value="institutional" className="mt-6">
+              <InstitutionalDashboard />
+            </TabsContent>
+
+            <TabsContent value="automation" className="mt-6">
+              <AutomationManager />
             </TabsContent>
           </Tabs>
 
