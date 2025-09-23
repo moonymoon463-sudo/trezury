@@ -15,6 +15,7 @@ import { AdvancedAnalyticsDashboard } from "@/components/lending/AdvancedAnalyti
 import { FlashLoanManager } from "@/components/lending/FlashLoanManager";
 import { InstitutionalDashboard } from "@/components/lending/InstitutionalDashboard";
 import { AutomationManager } from "@/components/lending/AutomationManager";
+import { TestDataSeeder } from "@/components/lending/TestDataSeeder";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -160,7 +161,7 @@ export default function Lending() {
 
           {/* Advanced Lending Interface */}
           <Tabs defaultValue="markets" className="w-full">
-            <TabsList className="grid w-full grid-cols-8 bg-[#2C2C2E] h-auto p-1">
+            <TabsList className="grid w-full grid-cols-9 bg-[#2C2C2E] h-auto p-1">
               <TabsTrigger 
                 value="markets" 
                 className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
@@ -209,6 +210,12 @@ export default function Lending() {
               >
                 Automation
               </TabsTrigger>
+              <TabsTrigger 
+                value="test-data" 
+                className="data-[state=active]:bg-[#f9b006] data-[state=active]:text-black text-gray-400 rounded-lg py-2"
+              >
+                Test Data
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="markets" className="mt-6">
@@ -244,6 +251,12 @@ export default function Lending() {
 
             <TabsContent value="automation" className="mt-6">
               <AutomationManager />
+            </TabsContent>
+
+            <TabsContent value="test-data" className="mt-6">
+              <div className="flex justify-center">
+                <TestDataSeeder />
+              </div>
             </TabsContent>
           </Tabs>
 

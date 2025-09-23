@@ -3,6 +3,12 @@ project_id = "auntkvllzejtfqmousxg"
 [functions.contract-deployment]
 verify_jwt = false
 
+[functions.populate-test-data]
+verify_jwt = false
+
+[functions.lending-engine]
+verify_jwt = false
+
 [api]
 enabled = true
 port = 54321
