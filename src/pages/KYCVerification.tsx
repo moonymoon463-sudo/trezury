@@ -88,6 +88,12 @@ const KYCVerification = () => {
   const getStatusIcon = () => {
     if (!profile) return <Clock className="h-5 w-5 text-muted-foreground" />;
     
+    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_inquiry_id;
+    
+    if (notStarted) {
+      return <Shield className="h-5 w-5 text-muted-foreground" />;
+    }
+    
     switch (profile.kyc_status) {
       case 'verified':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -103,6 +109,12 @@ const KYCVerification = () => {
   const getStatusText = () => {
     if (!profile) return "Loading...";
     
+    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_inquiry_id;
+    
+    if (notStarted) {
+      return "Not Verified";
+    }
+    
     switch (profile.kyc_status) {
       case 'verified':
         return "Identity Verified";
@@ -117,6 +129,12 @@ const KYCVerification = () => {
 
   const getStatusDescription = () => {
     if (!profile) return "";
+    
+    const notStarted = profile.kyc_status === 'pending' && !profile.kyc_inquiry_id;
+    
+    if (notStarted) {
+      return "Complete identity verification to unlock all features and higher transaction limits.";
+    }
     
     switch (profile.kyc_status) {
       case 'verified':
@@ -180,7 +198,7 @@ const KYCVerification = () => {
                     Your identity has been verified. You now have access to all features.
                   </p>
                 </div>
-              ) : profile?.kyc_status === 'pending' ? (
+              ) : profile?.kyc_status === 'pending' && profile?.kyc_inquiry_id ? (
                 <div className="text-center py-4">
                   <Clock className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-yellow-500 mb-2">
