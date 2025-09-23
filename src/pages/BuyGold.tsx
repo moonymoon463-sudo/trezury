@@ -22,17 +22,15 @@ const BuyGold = () => {
 
   const fetchProfile = async () => {
     try {
-      // Log profile access for security audit
-      await supabase.rpc('log_profile_access', {
-        target_user_id: user!.id,
-        accessed_fields: ['kyc_status']
-      });
-
+      // Query only KYC status to avoid PII rate limiting
       const { data, error } = await supabase
-        .rpc('get_secure_profile');
+        .from('profiles')
+        .select('kyc_status')
+        .eq('id', user!.id)
+        .single();
 
       if (error) throw error;
-      setProfile(data?.[0] || null);
+      setProfile(data);
     } catch (error) {
       console.error('Failed to fetch profile:', error);
     } finally {

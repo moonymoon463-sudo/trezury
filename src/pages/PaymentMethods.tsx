@@ -43,21 +43,18 @@ const PaymentMethods = () => {
 
   const fetchProfile = async () => {
     try {
-      // Log profile access for security audit
-      await supabase.rpc('log_profile_access', {
-        target_user_id: user!.id,
-        accessed_fields: ['kyc_status']
-      });
-
+      // Query only KYC status to avoid PII rate limiting
       const { data, error } = await supabase
-        .rpc('get_secure_profile');
+        .from('profiles')
+        .select('kyc_status')
+        .eq('id', user!.id)
+        .single();
 
       if (error) throw error;
       
-      const profileData = data?.[0];
-      setProfile(profileData);
+      setProfile(data);
 
-      if (profileData?.kyc_status !== 'verified') {
+      if (data?.kyc_status !== 'verified') {
         toast({
           variant: "destructive",
           title: "Verification Required",

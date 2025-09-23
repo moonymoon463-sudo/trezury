@@ -17,20 +17,29 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const authHeader = req.headers.get('Authorization')!
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const { action, inquiryId, status } = await req.json()
+    // Parse the request body first to determine the action
+    const body = await req.json()
+    const { action } = body
 
     if (action === 'create-inquiry') {
+      // Require authentication for creating inquiries
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ error: 'Authorization header required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const token = authHeader.replace('Bearer ', '')
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
       // Create Persona inquiry
       const personaApiKey = Deno.env.get('PERSONA_API_KEY')
       if (!personaApiKey) {
@@ -55,7 +64,7 @@ serve(async (req) => {
             attributes: {
               [templateKey]: personaTemplateId,
               'reference-id': user.id,
-              'redirect-uri': `${origin}/kyc-complete`
+              'redirect-uri': `${origin}/kyc-verification`
             }
           }
         })
@@ -94,8 +103,8 @@ serve(async (req) => {
     }
 
     if (action === 'webhook') {
-      // Handle Persona webhook
-      const { data } = await req.json()
+      // Handle Persona webhook - no authentication required
+      const { data } = body
       
       if (data.type === 'inquiry' && data.attributes) {
         const referenceId = data.attributes['reference-id']

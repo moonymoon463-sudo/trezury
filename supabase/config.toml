@@ -64,6 +64,9 @@ verify_jwt = false
 [functions.security-monitor]
 verify_jwt = false
 
+[functions.persona-kyc]
+verify_jwt = false
+
 [functions.real-time-rates]
 verify_jwt = false
 
