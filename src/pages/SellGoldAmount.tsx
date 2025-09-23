@@ -79,9 +79,9 @@ const SellGoldAmount = () => {
   }, [amount, selectedUnit, goldPrice, generateQuote]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#1C1C1E] text-white pb-20">
+    <div className="flex flex-col min-h-screen bg-[#1C1C1E] text-white">
       {/* Header */}
-      <header className="p-4">
+      <header className="flex-shrink-0 p-4">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
@@ -95,10 +95,10 @@ const SellGoldAmount = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 py-6">
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 overflow-y-auto px-4 pb-32">
         {/* Gold Balance */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <p className="text-sm text-gray-400">Available Balance</p>
           {balanceLoading ? (
             <div className="animate-pulse">
@@ -106,10 +106,10 @@ const SellGoldAmount = () => {
             </div>
           ) : (
             <>
-              <p className="text-3xl font-bold text-white">
+              <p className="text-2xl font-bold text-white">
                 {goldBalance.toFixed(3)} {asset}
               </p>
-              <p className="text-lg text-gray-400">
+              <p className="text-base text-gray-400">
                 ≈ ${goldBalanceValue.toFixed(2)}
               </p>
             </>
@@ -117,7 +117,7 @@ const SellGoldAmount = () => {
         </div>
 
         {/* Unit Toggle */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-6">
           <div className="inline-flex rounded-full bg-gray-800 p-1">
             <button 
               className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
@@ -143,27 +143,27 @@ const SellGoldAmount = () => {
         </div>
 
         {/* Amount Input */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="relative">
             {selectedUnit === "USD" && (
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-bold text-white pointer-events-none -ml-8">
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl font-bold text-white pointer-events-none -ml-6">
                 $
               </span>
             )}
             <input 
-              className="w-full text-center text-4xl sm:text-6xl font-bold text-white bg-transparent border-none focus:ring-0 p-0 outline-none placeholder-gray-500"
+              className="w-full text-center text-3xl sm:text-4xl font-bold text-white bg-transparent border-none focus:ring-0 p-0 outline-none placeholder-gray-500"
               placeholder={selectedUnit === "USD" ? "0.00" : "0.000"}
               type="text"
               value={amount}
               onChange={(e) => handleAmountChange(e.target.value)}
             />
             {selectedUnit === "GRAMS" && (
-              <span className="text-xl text-gray-400 ml-2">g</span>
+              <span className="text-lg text-gray-400 ml-2">g</span>
             )}
           </div>
           
           {/* Real-time conversion with loading state */}
-          <div className="mt-4 min-h-[2rem]">
+          <div className="mt-3 min-h-[1.5rem]">
             {quoteLoading ? (
               <div className="flex items-center justify-center gap-2 text-gray-400">
                 <Loader2 size={16} className="animate-spin" />
@@ -194,24 +194,24 @@ const SellGoldAmount = () => {
         </div>
 
         {/* Quick Amount Buttons */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <Button 
             variant="outline"
-            className="py-6 text-lg font-semibold bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
+            className="py-4 text-base font-semibold bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
             onClick={() => setAmount(getQuickAmount(0.25))}
           >
             25%
           </Button>
           <Button 
             variant="outline"
-            className="py-6 text-lg font-semibold bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
+            className="py-4 text-base font-semibold bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
             onClick={() => setAmount(getQuickAmount(0.5))}
           >
             50%
           </Button>
           <Button 
             variant="outline"
-            className="py-6 text-lg font-semibold bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
+            className="py-4 text-base font-semibold bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
             onClick={() => setAmount(getQuickAmount(1))}
           >
             Max
@@ -219,10 +219,10 @@ const SellGoldAmount = () => {
         </div>
       </main>
 
-      {/* Continue Button */}
-      <div className="fixed bottom-20 left-0 right-0 px-4 py-4 bg-[#1C1C1E]">
+      {/* Continue Button - Fixed at bottom above navigation */}
+      <div className="flex-shrink-0 px-4 py-4 pb-24 bg-[#1C1C1E]">
         <Button 
-          className="w-full h-14 font-bold text-lg rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black disabled:bg-gray-700 disabled:text-gray-400"
+          className="w-full h-12 font-bold text-lg rounded-xl bg-yellow-500 hover:bg-yellow-600 text-black disabled:bg-gray-700 disabled:text-gray-400"
           disabled={!amount || parseFloat(amount) <= 0 || !quote || quote.grams > goldBalance}
           onClick={() => {
             navigate("/sell-gold/payout", { state: { quote, asset } });
