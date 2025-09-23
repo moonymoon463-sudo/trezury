@@ -93,18 +93,17 @@ const KYCVerification = () => {
 
   const handleRestartVerification = async () => {
     try {
-      // Use the reset-kyc edge function for better security
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await supabase.functions.invoke('reset-kyc', {
-        headers: {
-          Authorization: `Bearer ${session?.access_token ?? ''}`,
-        }
-      });
+      // Reset KYC status directly in the database
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          kyc_status: 'pending',
+          kyc_submitted_at: null,
+          kyc_verified_at: null
+        })
+        .eq('id', user!.id);
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to reset KYC');
-      }
+      if (error) throw error;
 
       toast({
         title: "KYC Reset",

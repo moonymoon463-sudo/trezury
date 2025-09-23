@@ -616,7 +616,6 @@ export type Database = {
           encryption_metadata: Json | null
           first_name: string | null
           id: string
-          kyc_inquiry_id: string | null
           kyc_rejection_reason: string | null
           kyc_status: string | null
           kyc_submitted_at: string | null
@@ -641,7 +640,6 @@ export type Database = {
           encryption_metadata?: Json | null
           first_name?: string | null
           id: string
-          kyc_inquiry_id?: string | null
           kyc_rejection_reason?: string | null
           kyc_status?: string | null
           kyc_submitted_at?: string | null
@@ -666,7 +664,6 @@ export type Database = {
           encryption_metadata?: Json | null
           first_name?: string | null
           id?: string
-          kyc_inquiry_id?: string | null
           kyc_rejection_reason?: string | null
           kyc_status?: string | null
           kyc_submitted_at?: string | null
