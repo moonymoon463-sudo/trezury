@@ -18,9 +18,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { amount, currency, bankDetails, userId } = await req.json()
+    const { amount, currency, returnUrl, bankDetails, userId } = await req.json()
 
-    console.log('MoonPay sell request:', { amount, currency, userId })
+    console.log('MoonPay sell request:', { amount, currency, returnUrl, userId })
 
     // Validate user
     const { data: profile, error: profileError } = await supabase
@@ -71,23 +71,30 @@ serve(async (req) => {
       )
     }
 
-    // Create MoonPay off-ramp transaction using the sell widget
+    // Validate currency - only USDC supported for now
+    if (currency !== 'USDC') {
+      console.error('Unsupported currency for sell:', currency)
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Only USDC is supported for off-ramp transactions' 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Create MoonPay hosted sell widget URL
     const baseUrl = 'https://sell.moonpay.com'
+    const defaultReturnUrl = `https://auntkvllzejtfqmousxg.supabase.co/offramp/return?sell=moonpay`
+    const finalReturnUrl = returnUrl || defaultReturnUrl
+    
     const params = new URLSearchParams({
       apiKey: moonpayPublishableKey,
-      baseCurrencyCode: currency.toLowerCase(), // This should be crypto (XAUT)
-      baseCurrencyAmount: amount.toString(),
+      baseCurrencyCode: currency.toLowerCase(), // 'usdc' - crypto being sold
+      baseCurrencyAmount: amount.toFixed(2), // Amount of USDC to sell
       quoteCurrencyCode: 'usd', // Target fiat currency
       externalCustomerId: userId,
-      redirectUrl: `https://auntkvllzejtfqmousxg.supabase.co/functions/v1/moonpay-webhook`,
-      showWalletAddressForm: 'true',
-      walletAddress: '', // User will need to provide their wallet address
-      ...(bankDetails && {
-        bankAccountNumber: bankDetails.accountNumber,
-        bankRoutingNumber: bankDetails.routingNumber,
-        bankAccountType: bankDetails.accountType,
-        bankName: bankDetails.bankName
-      })
+      redirectUrl: finalReturnUrl
     })
     
     const sellWidgetUrl = `${baseUrl}?${params.toString()}`

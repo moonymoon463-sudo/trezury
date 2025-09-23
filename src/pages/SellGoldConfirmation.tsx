@@ -39,8 +39,9 @@ const SellGoldConfirmation = () => {
       if (payoutMethod === 'bank') {
         // Handle MoonPay sell for bank payout
         const result = await initiateSell({
-          amount: quote.grams, // Use grams instead of USD output
-          currency: 'XAUT' // Use crypto currency code for selling
+          amount: parseFloat(quote.outputAmount.toFixed(2)), // USD amount to receive
+          currency: 'USDC', // Sell USDC for USD
+          returnUrl: window.location.origin + '/offramp/return?sell=moonpay'
         });
 
         if (result.success && result.redirectUrl) {
@@ -105,9 +106,9 @@ const SellGoldConfirmation = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
+      <header className="flex-shrink-0 p-4">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
@@ -122,7 +123,7 @@ const SellGoldConfirmation = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-8">
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
         {/* Quote Expiration Warning */}
         {timeRemaining > 0 && (
           <div className="bg-accent border border-border rounded-xl p-4 mb-6">
@@ -201,7 +202,7 @@ const SellGoldConfirmation = () => {
       </main>
 
       {/* Confirm Button */}
-      <div className="px-4 py-6">
+      <div className="fixed inset-x-0 bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t p-4">
         <Button 
           variant="destructive"
           className="w-full h-14 font-bold text-lg rounded-xl"

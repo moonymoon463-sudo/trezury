@@ -30,7 +30,7 @@ const SellGoldPayout = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-6 pb-32">
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
         <h2 className="text-2xl font-bold mb-6">Choose your payout method</h2>
         
         <div className="space-y-4">
@@ -75,7 +75,7 @@ const SellGoldPayout = () => {
       </main>
 
       {/* Continue Button */}
-      <div className="flex-shrink-0 px-4 py-4 pb-24 bg-[#1C1C1E]">
+      <div className="fixed inset-x-0 bottom-0 bg-[#1C1C1E]/95 backdrop-blur supports-[backdrop-filter]:bg-[#1C1C1E]/80 border-t border-gray-700 p-4">
         <Button 
           className="w-full h-12 bg-yellow-500 text-black font-bold text-lg rounded-xl hover:bg-yellow-600 disabled:bg-gray-700 disabled:text-gray-400"
           disabled={!selectedMethod}

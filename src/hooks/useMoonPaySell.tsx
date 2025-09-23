@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 interface MoonPaySellRequest {
   amount: number;
   currency: string;
+  returnUrl?: string;
   bankDetails?: {
     accountNumber: string;
     routingNumber: string;
@@ -26,7 +27,7 @@ export const useMoonPaySell = () => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const initiateSell = async ({ amount, currency, bankDetails }: MoonPaySellRequest): Promise<MoonPaySellResponse> => {
+  const initiateSell = async ({ amount, currency, returnUrl, bankDetails }: MoonPaySellRequest): Promise<MoonPaySellResponse> => {
     if (!user) {
       const errorMsg = 'User must be authenticated to sell crypto';
       setError(errorMsg);
@@ -51,6 +52,7 @@ export const useMoonPaySell = () => {
         body: {
           amount,
           currency,
+          returnUrl,
           bankDetails,
           userId: user.id
         }

@@ -21,6 +21,7 @@ import SellGold from "./pages/SellGold";
 import SellGoldAmount from "./pages/SellGoldAmount";
 import SellGoldPayout from "./pages/SellGoldPayout";
 import SellGoldConfirmation from "./pages/SellGoldConfirmation";
+import OffRampReturn from "./pages/OffRampReturn";
 import Swap from "./pages/Swap";
 import Wallet from "./pages/Wallet";
 import BuySellHub from "./pages/BuySellHub";
@@ -91,6 +92,7 @@ const AppRoutes = () => {
       <Route path="/sell-gold/amount" element={<ProtectedRoute><SellGoldAmount /></ProtectedRoute>} />
       <Route path="/sell-gold/payout" element={<ProtectedRoute><SellGoldPayout /></ProtectedRoute>} />
       <Route path="/sell-gold/confirmation" element={<ProtectedRoute><SellGoldConfirmation /></ProtectedRoute>} />
+      <Route path="/offramp/return" element={<ProtectedRoute><OffRampReturn /></ProtectedRoute>} />
       <Route path="/swap" element={<ProtectedRoute><Swap /></ProtectedRoute>} />
       <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
