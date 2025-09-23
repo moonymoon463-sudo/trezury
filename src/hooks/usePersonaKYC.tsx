@@ -47,17 +47,34 @@ export const usePersonaKYC = () => {
     try {
       const inquiry = await createInquiry();
       
-      if (inquiry.success && inquiry.url) {
-        // Redirect to Persona verification (avoids popup blockers)
-        window.location.href = inquiry.url;
-        
-        toast({
-          title: "Verification Started", 
-          description: "Redirecting to identity verification..."
-        });
+      if (inquiry.success) {
+        const redirectUrl = inquiry.url || (inquiry.inquiryId && inquiry.sessionToken
+          ? `https://withpersona.com/verify?inquiry-id=${inquiry.inquiryId}&inquiry-session-token=${inquiry.sessionToken}`
+          : undefined);
+
+        if (redirectUrl) {
+          // Redirect to Persona verification (avoids popup blockers)
+          window.location.href = redirectUrl;
+
+          toast({
+            title: "Verification Started",
+            description: "Redirecting to identity verification..."
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Verification Error",
+            description: "Missing redirect URL from KYC provider. Please try again."
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to open Persona widget:', error);
+      toast({
+        variant: "destructive",
+        title: "Verification Error",
+        description: "Could not start verification. Please try again."
+      });
     }
   };
 
