@@ -36,9 +36,17 @@ serve(async (req) => {
     const { action } = await req.json().catch(() => ({ action: null }))
     
     if (action === 'create-inquiry') {
-      // Config
+      // Config & Environment Variable Debugging
       const personaApiKey = Deno.env.get('PERSONA_API_KEY')
       const personaTemplateId = Deno.env.get('PERSONA_TEMPLATE_ID') || ''
+      
+      console.log('🔧 Environment Variables Check:', {
+        hasApiKey: !!personaApiKey,
+        apiKeyPrefix: personaApiKey ? `${personaApiKey.slice(0, 8)}...` : 'MISSING',
+        templateId: personaTemplateId || 'MISSING',
+        templateIdLength: personaTemplateId?.length || 0
+      })
+      
       if (!personaApiKey) throw new Error('PERSONA_API_KEY not configured')
       if (!personaTemplateId) throw new Error('PERSONA_TEMPLATE_ID not configured')
 
@@ -48,10 +56,18 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_URL') ??
         'https://example.com'
 
-      // Correct prefix check: vitmpl_ => verification-template-id
-      const templateKey = personaTemplateId.startsWith('vitmpl_')
-        ? 'verification-template-id'
-        : 'inquiry-template-id'
+      // Template ID Analysis & Dynamic Template Key Selection
+      const isVerificationTemplate = personaTemplateId.startsWith('vitmpl_')
+      const isInquiryTemplate = personaTemplateId.startsWith('itmpl_')
+      const templateKey = isVerificationTemplate ? 'verification-template-id' : 'inquiry-template-id'
+      
+      console.log('🎯 Template Analysis:', {
+        templateId: personaTemplateId,
+        isVerificationTemplate,
+        isInquiryTemplate,
+        selectedTemplateKey: templateKey,
+        templateFormat: personaTemplateId.slice(0, 6) + '...'
+      })
 
       const payload = {
         data: {
@@ -63,6 +79,16 @@ serve(async (req) => {
           }
         }
       }
+      
+      console.log('📦 Persona API Request Payload:', {
+        endpoint: 'https://withpersona.com/api/v1/inquiries',
+        method: 'POST',
+        templateKey,
+        templateId: personaTemplateId,
+        referenceId: user.id,
+        redirectUri: `${origin}/kyc-verification`,
+        fullPayload: JSON.stringify(payload, null, 2)
+      })
 
       const res = await fetch('https://withpersona.com/api/v1/inquiries', {
         method: 'POST',
@@ -76,21 +102,49 @@ serve(async (req) => {
       })
 
       const text = await res.text()
+      console.log('📡 Persona API Response Details:', {
+        status: res.status,
+        statusText: res.statusText,
+        headers: Object.fromEntries(res.headers.entries()),
+        bodyLength: text?.length || 0,
+        bodyPreview: text?.slice(0, 200) + (text?.length > 200 ? '...' : ''),
+        fullBody: text
+      })
+      
       if (!res.ok) {
-        console.error('Persona error', res.status, text)
+        console.error('❌ Persona API Error:', {
+          status: res.status,
+          statusText: res.statusText,
+          errorBody: text,
+          templateUsed: templateKey,
+          templateId: personaTemplateId
+        })
         return new Response(JSON.stringify({
           error: 'PERSONA_CREATE_INQUIRY_FAILED',
           status: res.status,
-          body: text
+          body: text,
+          templateDebug: { templateKey, templateId: personaTemplateId }
         }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
       const data = JSON.parse(text)
       const inquiry = data.data
       const attrs = inquiry?.attributes ?? {}
+      
+      console.log('✅ Persona API Success - Full Response Analysis:', {
+        inquiryId: inquiry?.id,
+        inquiryType: inquiry?.type,
+        hasUrl: !!attrs.url,
+        hasSessionToken: !!attrs['session-token'],
+        url: attrs.url || 'NOT_PROVIDED',
+        sessionToken: attrs['session-token'] ? `${attrs['session-token'].slice(0, 10)}...` : 'NOT_PROVIDED',
+        allAttributes: Object.keys(attrs),
+        fullInquiryObject: inquiry,
+        templateUsedSuccessfully: templateKey
+      })
 
-      // Persist on our side
-      await supabase
+      // Persist inquiry in database
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({
           kyc_inquiry_id: inquiry.id,
@@ -98,19 +152,55 @@ serve(async (req) => {
           kyc_submitted_at: new Date().toISOString()
         })
         .eq('id', user.id)
-
-      // Build URL fallback from session token
-      let url = attrs.url
-      if (!url && attrs['session-token']) {
-        url = `https://withpersona.com/verify?inquiry-id=${inquiry.id}&inquiry-session-token=${attrs['session-token']}`
+        
+      if (updateError) {
+        console.error('❌ Database update failed:', updateError)
+      } else {
+        console.log('✅ Database updated successfully with inquiry ID:', inquiry.id)
       }
 
-      return new Response(JSON.stringify({
+      // Enhanced URL Construction with Multiple Fallbacks
+      let url = attrs.url
+      const sessionToken = attrs['session-token']
+      const inquiryId = inquiry.id
+      
+      console.log('🔗 URL Construction Analysis:', {
+        providedUrl: url || 'NONE',
+        hasSessionToken: !!sessionToken,
+        inquiryId,
+        willAttemptFallback: !url && sessionToken
+      })
+      
+      // Multiple fallback URL strategies
+      if (!url && sessionToken && inquiryId) {
+        // Strategy 1: Standard Persona hosted flow
+        url = `https://withpersona.com/verify?inquiry-id=${inquiryId}&inquiry-session-token=${sessionToken}`
+        console.log('🔄 Using fallback URL strategy 1:', url)
+        
+        // Strategy 2: Alternative format (if strategy 1 fails)
+        const alternativeUrl = `https://withpersona.com/verify?session-token=${sessionToken}`
+        console.log('🔄 Alternative URL available:', alternativeUrl)
+      }
+
+      const finalResponse = {
         success: true,
-        inquiryId: inquiry.id,
-        sessionToken: attrs['session-token'] ?? null,
-        url: url ?? null
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        inquiryId: inquiryId,
+        sessionToken: sessionToken ?? null,
+        url: url ?? null,
+        debug: {
+          templateKey,
+          templateId: personaTemplateId,
+          hasOriginalUrl: !!attrs.url,
+          usedFallbackUrl: !attrs.url && !!url,
+          allAvailableAttributes: Object.keys(attrs)
+        }
+      }
+      
+      console.log('🎉 Final Response Being Sent:', finalResponse)
+
+      return new Response(JSON.stringify(finalResponse), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
     }
 
     if (action === 'webhook') {

@@ -11,6 +11,11 @@ export function usePersonaKYC() {
       if (!session?.access_token) throw new Error('No session')
 
       console.log('🚀 Starting Persona KYC flow...')
+      console.log('🔧 Client-side debug info:', {
+        hasSession: !!session?.access_token,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent.slice(0, 50) + '...'
+      })
       
       const { data, error } = await supabase.functions.invoke('persona-kyc', {
         body: { action: 'create-inquiry' },
