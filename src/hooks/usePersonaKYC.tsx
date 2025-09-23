@@ -48,12 +48,12 @@ export const usePersonaKYC = () => {
       const inquiry = await createInquiry();
       
       if (inquiry.success && inquiry.url) {
-        // Open Persona verification in a new tab
-        window.open(inquiry.url, '_blank', 'width=500,height=600');
+        // Redirect to Persona verification (avoids popup blockers)
+        window.location.href = inquiry.url;
         
         toast({
-          title: "Verification Started",
-          description: "Please complete the identity verification process in the new window."
+          title: "Verification Started", 
+          description: "Redirecting to identity verification..."
         });
       }
     } catch (error) {

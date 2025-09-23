@@ -48,7 +48,7 @@ serve(async (req) => {
           data: {
             type: 'inquiry',
             attributes: {
-              'inquiry-template-id': 'itmpl_BnGj7FbH4RvC5bF6BXVbQmPh', // Replace with your template ID
+              'inquiry-template-id': Deno.env.get('PERSONA_TEMPLATE_ID') || 'itmpl_BnGj7FbH4RvC5bF6BXVbQmPh',
               'reference-id': user.id,
               'redirect-uri': `${req.headers.get('origin')}/kyc-complete`
             }
