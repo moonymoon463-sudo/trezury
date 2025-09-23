@@ -53,34 +53,29 @@ serve(async (req) => {
       )
     }
 
-    // Create MoonPay sell transaction
-    const moonpayResponse = await fetch('https://api.moonpay.com/v3/transactions/sell', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Api-Key ${moonpaySecretKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        baseCurrencyAmount: amount,
-        baseCurrencyCode: currency.toLowerCase(),
-        quoteCurrencyCode: 'usd',
-        bankAccount: bankDetails,
-        redirectURL: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
-        externalCustomerId: userId,
-      }),
+    // Create MoonPay off-ramp transaction using the sell widget
+    const baseUrl = 'https://sell.moonpay.com'
+    const params = new URLSearchParams({
+      apiKey: Deno.env.get('MOONPAY_PUBLISHABLE_KEY') || '',
+      baseCurrencyCode: currency.toLowerCase(),
+      baseCurrencyAmount: amount.toString(),
+      quoteCurrencyCode: 'usd',
+      externalCustomerId: userId,
+      redirectUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
+      ...(bankDetails && {
+        bankAccountNumber: bankDetails.accountNumber,
+        bankRoutingNumber: bankDetails.routingNumber,
+        bankAccountType: bankDetails.accountType,
+        bankName: bankDetails.bankName
+      })
     })
+    
+    const sellWidgetUrl = `${baseUrl}?${params.toString()}`
+    
+    console.log('Generated MoonPay sell widget URL for amount:', amount, currency)
 
-    if (!moonpayResponse.ok) {
-      const errorText = await moonpayResponse.text()
-      console.error('MoonPay API error:', errorText)
-      return new Response(
-        JSON.stringify({ error: 'Failed to create sell transaction' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const moonpayData = await moonpayResponse.json()
-    console.log('MoonPay sell transaction created:', moonpayData.id)
+    // Generate a transaction ID for tracking
+    const transactionId = crypto.randomUUID()
 
     // Store transaction reference
     const { error: dbError } = await supabase
@@ -88,26 +83,33 @@ serve(async (req) => {
       .insert({
         user_id: userId,
         provider: 'moonpay',
-        external_id: moonpayData.id,
+        external_id: transactionId,
         amount: amount,
         currency: currency,
         status: 'pending',
         metadata: {
-          ...moonpayData,
           transaction_type: 'sell',
-          bank_details: bankDetails
+          bank_details: bankDetails,
+          widget_url: sellWidgetUrl,
+          created_at: new Date().toISOString()
         }
       })
 
     if (dbError) {
       console.error('Database error:', dbError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to store transaction reference' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
+
+    console.log('✅ MoonPay sell widget URL generated successfully')
 
     return new Response(
       JSON.stringify({
         success: true,
-        transactionId: moonpayData.id,
-        redirectUrl: moonpayData.redirectUrl,
+        transactionId: transactionId,
+        redirectUrl: sellWidgetUrl,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

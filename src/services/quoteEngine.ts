@@ -136,7 +136,7 @@ class QuoteEngineService {
       .insert({
         id: quote.id,
         user_id: userId,
-        side: quote.side,
+        side: quote.side.toUpperCase(), // Convert to uppercase for database constraint
         input_asset: quote.inputAsset,
         output_asset: quote.outputAsset,
         input_amount: quote.inputAmount,
@@ -150,7 +150,7 @@ class QuoteEngineService {
 
     if (error) {
       console.error('Failed to save quote:', error);
-      // Don't throw error - quote can still be used even if not saved
+      throw new Error(`Failed to save quote: ${error.message}`);
     }
   }
 

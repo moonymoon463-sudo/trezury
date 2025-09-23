@@ -47,24 +47,6 @@ const SellGold = () => {
             </div>
             <ChevronRight size={20} className="text-muted-foreground" />
           </button>
-
-          {/* PAXG Option - Disabled for now */}
-          <button 
-            onClick={() => navigate("/sell-gold/amount", { state: { asset: 'PAXG' } })}
-            className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 transition-colors hover:bg-accent w-full text-left opacity-50 cursor-not-allowed"
-            disabled
-          >
-            <div className="flex-shrink-0">
-              <div className="h-12 w-12 rounded-full bg-green-700 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">PAXG</span>
-              </div>
-            </div>
-            <div className="flex-1">
-              <p className="text-base font-semibold text-foreground">PAXG</p>
-              <p className="text-sm text-muted-foreground">Pax Gold (Coming Soon)</p>
-            </div>
-            <ChevronRight size={20} className="text-muted-foreground" />
-          </button>
         </div>
       </main>
 
