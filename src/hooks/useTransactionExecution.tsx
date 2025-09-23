@@ -20,25 +20,7 @@ export const useTransactionExecution = () => {
       setLoading(true);
       setError(null);
 
-      // Execute via blockchain operations edge function for live transactions
-      const { data: result, error } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'execute_transaction',
-          quoteId: quoteId,
-          paymentMethod: paymentMethod || 'wallet'
-        }
-      });
-
-      if (error) {
-        const errorMessage = error.message || 'Transaction execution failed';
-        setError(errorMessage);
-        return {
-          success: false,
-          error: errorMessage
-        };
-      }
-
-      // If blockchain operation succeeded, execute the database transaction
+      // Execute database transaction first to validate quote and generate transaction record
       const dbResult = await supabase.rpc('execute_transaction', {
         quote_id_param: quoteId,
         payment_method_param: paymentMethod || 'wallet'
@@ -53,21 +35,78 @@ export const useTransactionExecution = () => {
         };
       }
 
-      // Combine blockchain and database results  
       const dbResultData = dbResult.data as any;
+      if (!dbResultData?.success) {
+        setError(dbResultData?.error || 'Transaction validation failed');
+        return {
+          success: false,
+          error: dbResultData?.error || 'Transaction validation failed'
+        };
+      }
+
+      // Now execute the actual blockchain transaction
+      const { data: blockchainResult, error: blockchainError } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'execute_transaction',
+          quoteId: quoteId,
+          paymentMethod: paymentMethod || 'wallet'
+        }
+      });
+
+      if (blockchainError || !blockchainResult?.success) {
+        const errorMessage = blockchainResult?.error || blockchainError?.message || 'Blockchain transaction failed';
+        setError(errorMessage);
+        
+        // Update transaction status to failed
+        if (dbResultData?.transaction_id) {
+          await supabase
+            .from('transactions')
+            .update({ 
+              status: 'failed',
+              metadata: {
+                ...(dbResultData.metadata || {}),
+                blockchain_error: errorMessage,
+                failed_at: new Date().toISOString()
+              }
+            })
+            .eq('id', dbResultData.transaction_id);
+        }
+        
+        return {
+          success: false,
+          error: errorMessage
+        };
+      }
+
+      // Update transaction with blockchain results
+      if (dbResultData?.transaction_id && blockchainResult?.hash) {
+        await supabase
+          .from('transactions')
+          .update({ 
+            tx_hash: blockchainResult.hash,
+            status: 'completed',
+            metadata: {
+              ...(dbResultData.metadata || {}),
+              blockchain_hash: blockchainResult.hash,
+              block_number: blockchainResult.blockNumber,
+              gas_used: blockchainResult.gasUsed,
+              confirmations: blockchainResult.confirmations || 1,
+              completed_at: new Date().toISOString()
+            }
+          })
+          .eq('id', dbResultData.transaction_id);
+      }
+
+      // Combine database and blockchain results
       const combinedResult: TransactionResult = {
-        success: dbResultData?.success || false,
+        success: true,
         transaction_id: dbResultData?.transaction_id,
         quote: dbResultData?.quote,
         executed_at: dbResultData?.executed_at,
-        blockchain_hash: result?.hash,
-        confirmations: result?.confirmations || 0,
-        error: dbResultData?.error
+        blockchain_hash: blockchainResult?.hash,
+        confirmations: blockchainResult?.confirmations || 1,
+        error: null
       };
-      
-      if (!combinedResult.success) {
-        setError(combinedResult.error || 'Transaction failed');
-      }
 
       return combinedResult;
     } catch (err) {

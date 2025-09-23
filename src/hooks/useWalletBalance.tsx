@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { secureWalletService } from '@/services/secureWalletService';
-import { blockchainService } from '@/services/blockchainService';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface WalletBalance {
   asset: string;
@@ -34,11 +34,25 @@ export function useWalletBalance() {
 
       setWalletAddress(address);
 
-      // Fetch balances for USDC and XAUT
-      const [usdcBalance, xautBalance] = await Promise.all([
-        blockchainService.getTokenBalance(address, 'USDC').catch(() => 0),
-        blockchainService.getTokenBalance(address, 'XAUT').catch(() => 0)
-      ]);
+      // Fetch live balances from blockchain via edge function
+      const { data: usdcResult } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance',
+          address: address,
+          asset: 'USDC'
+        }
+      });
+
+      const { data: xautResult } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance', 
+          address: address,
+          asset: 'XAUT'
+        }
+      });
+      
+      const usdcBalance = usdcResult?.success ? usdcResult.balance : 0;
+      const xautBalance = xautResult?.success ? xautResult.balance : 0;
 
       const newBalances: WalletBalance[] = [
         {
