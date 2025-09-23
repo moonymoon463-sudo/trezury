@@ -51,7 +51,7 @@ serve(async (req) => {
       const templateKey = personaTemplateId.startsWith('vtmpl_') ? 'verification-template-id' : 'inquiry-template-id'
       console.log('Creating Persona inquiry with template', { templateKey, personaTemplateId })
 
-      const personaResponse = await fetch('https://withpersona.com/api/v1/inquiries', {
+      const personaResponse = await fetch('https://withpersona.com/api/v1/hosted-inquiries', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${personaApiKey}`,
@@ -60,7 +60,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           data: {
-            type: 'inquiry',
+            type: 'hosted-inquiry',
             attributes: {
               [templateKey]: personaTemplateId,
               'reference-id': user.id,
@@ -93,10 +93,7 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           inquiryId: inquiryData.id,
-          sessionToken: inquiryData.attributes['session-token'],
-          url: inquiryData.attributes.url || (inquiryData.attributes['session-token']
-            ? `https://withpersona.com/verify?inquiry-id=${inquiryData.id}&inquiry-session-token=${inquiryData.attributes['session-token']}`
-            : undefined)
+          url: inquiryData.attributes.url
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
