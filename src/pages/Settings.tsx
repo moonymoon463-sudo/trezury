@@ -206,33 +206,33 @@ const Settings = () => {
   const IconComponent = kycInfo.icon;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
-      <header className="p-4 bg-background">
-        <div className="flex items-center justify-between max-w-md mx-auto">
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-foreground hover:bg-surface-elevated"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <AurumLogo compact />
-          <div className="w-10"></div>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 overflow-y-auto pb-20">
-        <div className="max-w-md mx-auto space-y-6">
-          {/* Profile Information */}
-          <div className="bg-card rounded-xl p-4">
-            <h3 className="text-foreground text-lg font-bold mb-4 flex items-center gap-2">
-              <User size={20} />
-              Profile Information
-            </h3>
-            <div className="space-y-4">
+      <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
+        {/* Profile Information */}
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <User size={20} />
+            Profile Information
+          </h3>
+          <div className="space-y-4">
             <div>
               <Label htmlFor="email" className="text-gray-400 text-sm">Email</Label>
               <Input
@@ -516,7 +516,6 @@ const Settings = () => {
             <LogOut size={16} />
             Sign Out
           </Button>
-          </div>
         </div>
       </main>
 

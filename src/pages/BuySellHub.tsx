@@ -10,38 +10,39 @@ const BuySellHub = () => {
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
-      <header className="p-4 bg-background">
-        <div className="flex items-center justify-between max-w-md mx-auto">
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-foreground hover:bg-surface-elevated"
+            className="text-white hover:bg-gray-800"
           >
             <ArrowLeft size={24} />
           </Button>
-          <AurumLogo compact />
-          <div className="w-10"></div>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 px-4 pb-20">
+      <main className="flex-1 px-4 pb-4">
         <div className="max-w-md mx-auto space-y-6">
           {/* Gold Price Section */}
-          <div className="bg-card rounded-xl p-4">
+          <div className="bg-[#2C2C2E] rounded-xl p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-foreground text-lg font-bold">
+              <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">
                 Current Gold Price
               </h3>
               {priceLoading ? (
                 <div className="animate-pulse">
-                  <div className="h-4 w-16 bg-muted rounded"></div>
+                  <div className="h-4 w-16 bg-gray-600 rounded"></div>
                 </div>
               ) : goldPrice && (
-                <div className="flex items-center gap-1 text-primary">
+                <div className="flex items-center gap-1 text-[#f9b006]">
                   <TrendingUp size={16} />
                   <span className="text-sm font-medium">
                     {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
@@ -49,16 +50,16 @@ const BuySellHub = () => {
                 </div>
               )}
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <p className="text-muted-foreground text-sm">USD/oz</p>
-                <p className="text-foreground text-lg font-semibold">
+            <div className="space-y-1">
+              <div className="flex justify-between gap-x-6 py-1">
+                <p className="text-gray-400 text-sm font-normal">USD/oz</p>
+                <p className="text-white text-sm font-semibold text-right">
                   {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
                 </p>
               </div>
-              <div className="flex justify-between items-center">
-                <p className="text-muted-foreground text-sm">USD/g</p>
-                <p className="text-foreground text-lg font-semibold">
+              <div className="flex justify-between gap-x-6 py-1">
+                <p className="text-gray-400 text-sm font-normal">USD/g</p>
+                <p className="text-white text-sm font-semibold text-right">
                   {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
                 </p>
               </div>
@@ -69,37 +70,37 @@ const BuySellHub = () => {
           <div className="space-y-4">
             <div 
               onClick={() => navigate("/buy-gold")}
-              className="bg-card rounded-xl p-6 cursor-pointer hover:bg-accent transition-colors"
+              className="bg-[#2C2C2E] rounded-xl p-6 cursor-pointer hover:bg-[#2C2C2E]/80 transition-colors"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                  <TrendingUp size={24} className="text-primary-foreground" />
+                <div className="w-12 h-12 bg-[#f9b006] rounded-full flex items-center justify-center">
+                  <TrendingUp size={24} className="text-black" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-foreground text-lg font-bold mb-1">Buy Gold</h3>
-                  <p className="text-muted-foreground text-sm">
+                  <h3 className="text-white text-lg font-bold mb-1">Buy Gold</h3>
+                  <p className="text-gray-400 text-sm">
                     Purchase physical gold backed tokens with Credit card or USDC
                   </p>
                 </div>
-                <ArrowRightLeft size={20} className="text-muted-foreground rotate-90" />
+                <ArrowRightLeft size={20} className="text-gray-400 rotate-90" />
               </div>
             </div>
 
             <div 
               onClick={() => navigate("/sell-gold")}
-              className="bg-card rounded-xl p-6 cursor-pointer hover:bg-accent transition-colors"
+              className="bg-[#2C2C2E] rounded-xl p-6 cursor-pointer hover:bg-[#2C2C2E]/80 transition-colors"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-card border-2 border-primary rounded-full flex items-center justify-center">
-                  <DollarSign size={24} className="text-primary" />
+                <div className="w-12 h-12 bg-[#2C2C2E] border-2 border-[#f9b006] rounded-full flex items-center justify-center">
+                  <DollarSign size={24} className="text-[#f9b006]" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-foreground text-lg font-bold mb-1">Sell Gold</h3>
-                  <p className="text-muted-foreground text-sm">
+                  <h3 className="text-white text-lg font-bold mb-1">Sell Gold</h3>
+                  <p className="text-gray-400 text-sm">
                     Convert your gold tokens back to USDC or Fiat
                   </p>
                 </div>
-                <ArrowRightLeft size={20} className="text-muted-foreground rotate-90" />
+                <ArrowRightLeft size={20} className="text-gray-400 rotate-90" />
               </div>
             </div>
           </div>
