@@ -177,7 +177,7 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Activity className="h-4 w-4 text-primary" />
-          Portfolio Dashboard
+          Overview
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3">

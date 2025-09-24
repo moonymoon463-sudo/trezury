@@ -72,7 +72,7 @@ export default function Portfolio() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <AurumLogo className="h-8" />
+          <AurumLogo compact size="header" />
           <Button 
             variant="ghost" 
             size="sm" 
@@ -123,11 +123,8 @@ export default function Portfolio() {
         {/* Health Monitor */}
         <HealthMonitorCard summary={portfolioSummary} />
 
-        {/* Asset Allocation & Positions */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <AssetAllocationChart assets={portfolioAssets} />
-          <PositionsCard assetsByType={assetsByType} />
-        </div>
+        {/* Asset Allocation */}
+        <AssetAllocationChart assets={portfolioAssets} />
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
