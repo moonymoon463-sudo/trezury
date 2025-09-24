@@ -139,9 +139,19 @@ const Swap = () => {
       
       if (result.success) {
         console.log('🎉 REAL swap completed successfully!');
+        
+        // Enhanced success message with gas info
+        let successDescription = `Successfully swapped ${fromAmount} ${fromAsset} for ${toAsset}`;
+        if (result.gasFeePaidInTokens) {
+          successDescription += ` (Gas paid from ${fromAsset}: ${result.gasFeeInTokens?.toFixed(6)})`;
+        }
+        if (result.hash) {
+          successDescription += `. Tx: ${result.hash.slice(0, 10)}...`;
+        }
+        
         toast({
-          title: "Real Swap Successful!",
-          description: `Successfully executed REAL on-chain swap: ${fromAmount} ${fromAsset} for ${toAsset}. Tx: ${result.hash}`
+          title: "Swap Successful!",
+          description: successDescription
         });
         
         // Reset form
@@ -152,10 +162,21 @@ const Swap = () => {
         refreshBalances();
       } else {
         console.error('❌ REAL swap failed:', result.error);
+        
+        // Enhanced error messages
+        let errorMessage = result.error || "Swap execution failed";
+        if (errorMessage.includes("insufficient")) {
+          errorMessage = "Insufficient balance for swap and gas fees";
+        } else if (errorMessage.includes("slippage")) {
+          errorMessage = "Price moved too much - try again with higher slippage";
+        } else if (errorMessage.includes("gas")) {
+          errorMessage = "Gas estimation failed - please try again";
+        }
+        
         toast({
           variant: "destructive",
-          title: "Real Swap Failed", 
-          description: result.error || "Failed to execute real on-chain swap"
+          title: "Swap Failed", 
+          description: errorMessage
         });
       }
     } catch (error) {
@@ -282,7 +303,7 @@ const Swap = () => {
 
           <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">
             <span className="text-white">Transaction Fees</span>
-            <span className="text-white">Paid in {toAsset} tokens</span>
+            <span className="text-white">Auto-paid from {fromAsset} if needed</span>
           </div>
 
           <div className="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl">

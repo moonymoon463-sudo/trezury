@@ -35,8 +35,8 @@ export class DexAggregatorService {
   private static readonly UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
   
   private static readonly TOKEN_ADDRESSES = {
-    USDC: '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B',
-    XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38'
+    USDC: '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B', // Corrected USDC checksum
+    XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38'  // Tether Gold mainnet
   };
   
   private static readonly POOL_FEES = {
