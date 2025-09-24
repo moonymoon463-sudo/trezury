@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { goldPriceService } from "./goldPrice";
+import { DexAggregatorService } from "./dexAggregatorService";
 
 export interface SwapQuote {
   id: string;
@@ -126,22 +127,33 @@ class SwapService {
         };
       }
 
-      // Execute blockchain transaction via edge function
-      const { data: blockchainResult, error: blockchainError } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'execute_swap',
-          quoteId: quoteId,
-          inputAsset: quoteData.input_asset,
-          outputAsset: quoteData.output_asset,
-          amount: quoteData.input_amount,
-          userId: userId
-        }
-      });
+      // Get optimal DEX route
+      const routes = await DexAggregatorService.getBestRoute(
+        quoteData.input_asset,
+        quoteData.output_asset,
+        quoteData.input_amount
+      );
 
-      if (blockchainError || !blockchainResult?.success) {
+      if (!routes || routes.length === 0) {
         return {
           success: false,
-          error: blockchainResult?.error || blockchainError?.message || 'Blockchain transaction failed'
+          error: 'No available swap routes found'
+        };
+      }
+
+      const bestRoute = routes[0];
+      
+      // Execute swap through DEX aggregator
+      const swapResult = await DexAggregatorService.executeOptimalSwap(
+        bestRoute,
+        userId,
+        this.SLIPPAGE_BPS / 100
+      );
+
+      if (!swapResult.success) {
+        return {
+          success: false,
+          error: swapResult.error || 'DEX swap execution failed'
         };
       }
 
@@ -159,10 +171,13 @@ class SwapService {
           status: 'completed',
           input_asset: quoteData.input_asset,
           output_asset: quoteData.output_asset,
-          tx_hash: blockchainResult.hash,
+          tx_hash: swapResult.txHash,
           metadata: {
-            swapType: 'direct',
-            exchangeRate: (quoteData as any).route?.goldPrice || 0,
+            swapType: 'dex',
+            protocol: bestRoute.protocol,
+            route: bestRoute.route,
+            priceImpact: bestRoute.priceImpact,
+            gasEstimate: bestRoute.gasEstimate,
             slippage: this.SLIPPAGE_BPS,
             platformFee: this.FEE_BPS
           }
@@ -201,7 +216,7 @@ class SwapService {
       return {
         success: true,
         transactionId: transaction?.id,
-        hash: blockchainResult.hash
+        hash: swapResult.txHash
       };
 
     } catch (err) {

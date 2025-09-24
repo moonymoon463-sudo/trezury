@@ -158,39 +158,30 @@ export class DexAggregatorService {
     slippage: number = 0.5
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      // Execute swap through chosen DEX aggregator
-      console.log(`Executing swap via ${route.protocol}:`, {
-        inputAsset: route.inputAsset,
-        outputAsset: route.outputAsset,
-        amount: route.inputAmount,
-        minOutput: route.outputAmount * (1 - slippage / 100),
-        userAddress
-      });
-      
-      // Mock transaction execution
-      const txHash = `0x${Math.random().toString(16).substr(2, 64)}`;
-      
-      // Log the swap execution
-      await supabase.from('transactions').insert({
-        user_id: userAddress,
-        type: 'swap',
-        asset: route.outputAsset,
-        input_asset: route.inputAsset,
-        output_asset: route.outputAsset,
-        quantity: route.inputAmount,
-        unit_price_usd: route.outputAmount / route.inputAmount,
-        status: 'completed',
-        tx_hash: txHash,
-        metadata: {
-          protocol: route.protocol,
-          route: route.route,
-          gas_used: route.gasEstimate,
-          price_impact: route.priceImpact,
-          slippage_tolerance: slippage
+      // Execute swap through blockchain operations
+      const { data: swapResult, error: swapError } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'execute_swap',
+          inputAsset: route.inputAsset,
+          outputAsset: route.outputAsset,
+          amount: route.inputAmount,
+          userAddress: userAddress,
+          route: route,
+          slippage: slippage
         }
       });
-      
-      return { success: true, txHash };
+
+      if (swapError || !swapResult?.success) {
+        return {
+          success: false,
+          error: swapResult?.error || swapError?.message || 'Swap execution failed'
+        };
+      }
+
+      return { 
+        success: true, 
+        txHash: swapResult.txHash 
+      };
       
     } catch (error) {
       console.error('Error executing swap:', error);
