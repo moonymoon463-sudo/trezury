@@ -6,6 +6,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AurumLogo from "@/components/AurumLogo";
+import StandardHeader from "@/components/StandardHeader";
 
 const BuyGold = () => {
   const navigate = useNavigate();
@@ -63,21 +64,10 @@ const BuyGold = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/")}
-            className="text-foreground hover:bg-surface-elevated"
-          >
-            <ArrowLeft size={24} />
-          </Button>
-          <div className="flex-1 flex justify-center pr-6">
-            <AurumLogo compact />
-          </div>
-        </div>
-      </header>
+      <StandardHeader 
+        showBackButton
+        backPath="/"
+      />
 
       {/* Main Content */}
       <main className="flex-1 px-4 pb-4">

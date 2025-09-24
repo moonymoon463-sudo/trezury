@@ -13,6 +13,7 @@ import { RiskAnalysis } from "@/components/portfolio/RiskAnalysis";
 import { PerformanceAnalytics } from "@/components/portfolio/PerformanceAnalytics";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
+import StandardHeader from "@/components/StandardHeader";
 import { useState } from "react";
 
 export default function Portfolio() {
@@ -62,28 +63,13 @@ export default function Portfolio() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card px-6 py-4 border-b border-border">
-        <div className="flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate(-1)}
-            className="p-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <AurumLogo compact size="header" />
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="p-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </header>
+      <StandardHeader 
+        showBackButton
+        backPath="back"
+        showRefreshButton
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+      />
 
       {/* Main Content */}
       <main className="px-6 py-6 pb-24 space-y-6">

@@ -14,6 +14,7 @@ import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
+import StandardHeader from "@/components/StandardHeader";
 
 interface UserProfile {
   id: string;
@@ -206,23 +207,12 @@ const Settings = () => {
   const IconComponent = kycInfo.icon;
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/")}
-            className="text-white hover:bg-gray-800"
-          >
-            <ArrowLeft size={24} />
-          </Button>
-          <div className="flex-1 flex justify-center pr-6">
-            <AurumLogo compact />
-          </div>
-        </div>
-      </header>
+      <StandardHeader 
+        showBackButton
+        backPath="/"
+      />
 
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">

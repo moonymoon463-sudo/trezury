@@ -7,6 +7,7 @@ import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AurumLogo from "@/components/AurumLogo";
+import StandardHeader from "@/components/StandardHeader";
 import { useState } from "react";
 
 const Index = () => {
@@ -52,36 +53,21 @@ const Index = () => {
   ];
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-[#1A1A1A]">
+    <div className="relative flex h-screen w-full flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10 flex-shrink-0">
-        <div className="w-12"></div>
-        <div className="flex-1 flex justify-center">
-          <AurumLogo compact={true} />
-        </div>
-        <div className="flex w-12 items-center justify-end gap-2">
-          <button 
-            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
-          </button>
-          <button 
-            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
-            onClick={() => navigate("/settings")}
-          >
-            <Settings size={20} />
-          </button>
-        </div>
-      </div>
+      <StandardHeader 
+        showRefreshButton
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        showSettingsButton
+      />
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-20 space-y-3">
           {/* Gold Price Section */}
-          <div className="bg-[#2C2C2E] rounded-xl p-3">
+          <div className="bg-surface-elevated rounded-xl p-3">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-white text-base font-bold">Gold Price</h3>
+              <h3 className="text-foreground text-base font-bold">Gold Price</h3>
               {priceLoading ? (
                 <div className="animate-pulse">
                   <div className="h-4 w-16 bg-gray-600 rounded"></div>
@@ -97,16 +83,16 @@ const Index = () => {
             </div>
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-white text-lg font-bold">
+                <p className="text-foreground text-lg font-bold">
                   {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
                 </p>
-                <p className="text-gray-400 text-xs">USD/oz</p>
+                <p className="text-muted-foreground text-xs">USD/oz</p>
               </div>
               <div className="text-right">
-                <p className="text-white text-sm font-semibold">
+                <p className="text-foreground text-sm font-semibold">
                   {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
                 </p>
-                <p className="text-gray-400 text-xs">USD/g</p>
+                <p className="text-muted-foreground text-xs">USD/g</p>
               </div>
             </div>
           </div>
@@ -144,23 +130,23 @@ const Index = () => {
           </div>
 
           {/* Your Assets - Wallet Options */}
-          <div className="bg-[#2C2C2E] rounded-xl p-3">
-            <h3 className="text-white text-base font-bold mb-3">Your Assets</h3>
+          <div className="bg-surface-elevated rounded-xl p-3">
+            <h3 className="text-foreground text-base font-bold mb-3">Your Assets</h3>
             <div className="space-y-2">
               {tokens.map((token, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-[#1A1A1A] rounded-full flex items-center justify-center text-sm">
+                    <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center text-sm">
                       {token.icon}
                     </div>
                     <div>
-                      <p className="text-white font-medium text-sm">{token.name}</p>
-                      <p className="text-gray-400 text-xs">{token.symbol}</p>
+                      <p className="text-foreground font-medium text-sm">{token.name}</p>
+                      <p className="text-muted-foreground text-xs">{token.symbol}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-white font-medium text-sm">{token.amount}</p>
-                    <p className="text-gray-400 text-xs">{token.value}</p>
+                    <p className="text-foreground font-medium text-sm">{token.amount}</p>
+                    <p className="text-muted-foreground text-xs">{token.value}</p>
                   </div>
                 </div>
               ))}
