@@ -60,33 +60,34 @@ export default function Portfolio() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="bg-card px-6 py-4 border-b border-border">
-        <div className="flex items-center justify-between">
+      <header className="p-4 bg-background">
+        <div className="flex items-center justify-between max-w-md mx-auto">
           <Button 
             variant="ghost" 
-            size="sm" 
+            size="icon"
             onClick={() => navigate(-1)}
-            className="p-2"
+            className="text-foreground hover:bg-surface-elevated"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft size={24} />
           </Button>
-          <AurumLogo compact size="header" />
+          <AurumLogo compact />
           <Button 
             variant="ghost" 
-            size="sm" 
+            size="icon"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-2"
+            className="text-foreground hover:bg-surface-elevated"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="px-6 py-6 pb-24 space-y-6">
+      <main className="flex-1 px-4 pb-20 overflow-y-auto">
+        <div className="max-w-md mx-auto space-y-6">
         {/* Asset Allocation */}
         <AssetAllocationChart assets={portfolioAssets} />
 
@@ -119,22 +120,23 @@ export default function Portfolio() {
         {/* Health Monitor */}
         <HealthMonitorCard summary={portfolioSummary} />
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button 
-            onClick={() => navigate('/buy-gold')}
-            variant="default"
-            className="h-12"
-          >
-            Buy Gold
-          </Button>
-          <Button 
-            onClick={() => navigate('/trzry-reserves')}
-            variant="outline"
-            className="h-12"
-          >
-            TRZRY Reserves
-          </Button>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 gap-4">
+            <Button 
+              onClick={() => navigate('/buy-gold')}
+              variant="default"
+              className="h-12"
+            >
+              Buy Gold
+            </Button>
+            <Button 
+              onClick={() => navigate('/trzry-reserves')}
+              variant="outline"
+              className="h-12"
+            >
+              TRZRY Reserves
+            </Button>
+          </div>
         </div>
       </main>
 

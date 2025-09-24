@@ -63,8 +63,8 @@ const BuyGold = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
-        <div className="flex items-center">
+      <header className="p-4 bg-background">
+        <div className="flex items-center justify-between max-w-md mx-auto">
           <Button 
             variant="ghost" 
             size="icon"
@@ -73,16 +73,15 @@ const BuyGold = () => {
           >
             <ArrowLeft size={24} />
           </Button>
-          <div className="flex-1 flex justify-center pr-6">
-            <AurumLogo compact />
-          </div>
+          <AurumLogo compact />
+          <div className="w-10"></div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 px-4 pb-4">
         <div className="max-w-md mx-auto space-y-6">
-          <h2 className="text-2xl font-bold text-foreground mb-6">Payment Method</h2>
+          <h2 className="text-2xl font-bold text-foreground">Payment Method</h2>
           
           <div className="space-y-4">
             {/* Credit Card/Bank Option */}

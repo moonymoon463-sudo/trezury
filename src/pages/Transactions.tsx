@@ -59,102 +59,104 @@ const Transactions = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
-        <div className="flex items-center">
+      <header className="p-4 bg-background">
+        <div className="flex items-center justify-between max-w-md mx-auto">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-white hover:bg-gray-800"
+            className="text-foreground hover:bg-surface-elevated"
           >
             <ArrowLeft size={24} />
           </Button>
-          <div className="flex-1 flex justify-center pr-6">
-            <AurumLogo compact />
-          </div>
+          <AurumLogo compact />
+          <div className="w-10"></div>
         </div>
       </header>
 
-      {/* Filters */}
-      <div className="px-4 mb-6">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
-                activeFilter === filter
-                  ? "bg-[#f9b006] text-black"
-                  : "bg-[#2C2C2E] text-gray-400 hover:text-white"
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Main Content */}
+      <main className="flex-1 px-4 pb-20">
+        <div className="max-w-md mx-auto space-y-6">
+          {/* Filters */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {filters.map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
+                  activeFilter === filter
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
 
-      {/* Transactions List */}
-      <main className="flex-1 px-4">
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading transactions...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-destructive">Error: {error}</p>
-          </div>
-        ) : (
+          {/* Transactions List */}
           <div className="space-y-3">
-            {filteredTransactions.map((transaction) => {
-              const { icon: Icon, color } = getTransactionIcon(transaction.type);
-              
-              return (
-                <div
-                  key={transaction.id}
-                  onClick={() => handleTransactionClick(transaction.id)}
-                  className="bg-card border border-border p-4 rounded-xl cursor-pointer hover:bg-accent transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                      <Icon size={20} className={color} />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-foreground font-medium capitalize">{transaction.type}</p>
-                        <p className="text-foreground font-semibold">{formatTransactionAmount(transaction)}</p>
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading transactions...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <p className="text-destructive">Error: {error}</p>
+              </div>
+            ) : (
+              <>
+                {filteredTransactions.map((transaction) => {
+                  const { icon: Icon, color } = getTransactionIcon(transaction.type);
+                  
+                  return (
+                    <div
+                      key={transaction.id}
+                      onClick={() => handleTransactionClick(transaction.id)}
+                      className="bg-card border border-border p-4 rounded-xl cursor-pointer hover:bg-accent transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                          <Icon size={20} className={color} />
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-foreground font-medium capitalize">{transaction.type}</p>
+                            <p className="text-foreground font-semibold">{formatTransactionAmount(transaction)}</p>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <p className="text-muted-foreground text-sm">{formatTimestamp(transaction.created_at)}</p>
+                            <p className="text-muted-foreground text-sm">{formatTransactionValue(transaction)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            transaction.status === "completed"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                          </span>
+                        </div>
                       </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <p className="text-muted-foreground text-sm">{formatTimestamp(transaction.created_at)}</p>
-                        <p className="text-muted-foreground text-sm">{formatTransactionValue(transaction)}</p>
-                      </div>
                     </div>
-                    
-                    <div className="text-right">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        transaction.status === "completed"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}>
-                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                      </span>
-                    </div>
+                  );
+                })}
+                
+                {!loading && !error && filteredTransactions.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No transactions found</p>
                   </div>
-                </div>
-              );
-            })}
+                )}
+              </>
+            )}
           </div>
-        )}
-        
-        {!loading && !error && filteredTransactions.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No transactions found</p>
-          </div>
-        )}
+        </div>
       </main>
 
       {/* Bottom Navigation */}
