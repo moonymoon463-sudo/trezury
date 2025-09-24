@@ -371,6 +371,11 @@ serve(async (req) => {
           console.error('Uniswap swap execution failed:', error);
           throw error;
         }
+        break;
+
+      case 'get_uniswap_quote':
+        try {
+          const { inputAsset, outputAsset, amount, slippage } = body;
           console.log(`Getting Uniswap V3 quote: ${amount} ${inputAsset} to ${outputAsset}`);
           
           const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
@@ -409,7 +414,7 @@ serve(async (req) => {
         }
         break;
 
-      case 'execute_uniswap_swap':
+      case 'collect_fee':
         try {
           const { inputAsset, outputAsset, amount, userAddress, slippage } = body;
           console.log(`Executing Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset} for ${userAddress}`);
