@@ -206,15 +206,15 @@ const Settings = () => {
   const IconComponent = kycInfo.icon;
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
+      <header className="p-4 border-b border-border bg-card">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-white hover:bg-gray-800"
+            className="text-foreground hover:bg-surface-elevated"
           >
             <ArrowLeft size={24} />
           </Button>
@@ -225,39 +225,39 @@ const Settings = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
+      <main className="flex-1 px-4 py-6 space-y-6 overflow-y-auto pb-24">
         {/* Profile Information */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4">
-          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+        <div className="bg-card rounded-xl p-4 border border-border">
+          <h3 className="text-foreground text-lg font-bold mb-4 flex items-center gap-2">
             <User size={20} />
             Profile Information
           </h3>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="email" className="text-gray-400 text-sm">Email</Label>
+              <Label htmlFor="email" className="text-muted-foreground text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={profile.email}
                 disabled
-                className="bg-[#1C1C1E] border-gray-600 text-white mt-2"
+                className="bg-surface-elevated border-border text-foreground mt-2"
               />
             </div>
             <div>
-              <Label htmlFor="phone" className="text-gray-400 text-sm">Phone Number</Label>
+              <Label htmlFor="phone" className="text-muted-foreground text-sm">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Enter your phone number"
-                className="bg-[#1C1C1E] border-gray-600 text-white mt-2"
+                className="bg-surface-elevated border-border text-foreground mt-2"
               />
             </div>
             <Button 
               onClick={updateProfile} 
               disabled={saving} 
-              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+              className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
             >
               {saving ? "Updating..." : "Update Profile"}
             </Button>

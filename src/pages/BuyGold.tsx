@@ -63,7 +63,7 @@ const BuyGold = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
+      <header className="p-4 border-b border-border bg-card">
         <div className="flex items-center">
           <Button 
             variant="ghost" 
@@ -80,16 +80,16 @@ const BuyGold = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 pb-4">
-        <div className="max-w-md mx-auto space-y-6">
-          <h2 className="text-2xl font-bold text-foreground mb-6">Payment Method</h2>
+      <main className="flex-1 px-4 pb-24">
+        <div className="max-w-md mx-auto space-y-6 pt-6">
+          <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Payment Method</h2>
           
           <div className="space-y-4">
             {/* Credit Card/Bank Option */}
-            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all hover:scale-105 ${
               paymentMethod === "credit_card" 
                 ? "bg-primary/20 border-2 border-primary" 
-                : "bg-card border border-border"
+                : "bg-card border border-border hover:bg-surface-elevated"
             }`}>
               <div className="flex items-center gap-4">
                 <CreditCard className="text-muted-foreground" size={24} />
@@ -112,7 +112,7 @@ const BuyGold = () => {
 
             {/* KYC Warning for Credit Card */}
             {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' && (
-              <div className="bg-card border border-primary/30 rounded-xl p-4">
+              <div className="bg-card border border-primary/30 rounded-xl p-4 animate-fade-in">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-primary mt-0.5" />
                   <div>
@@ -127,10 +127,10 @@ const BuyGold = () => {
             )}
 
             {/* USDC Option */}
-            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all hover:scale-105 ${
               paymentMethod === "usdc" 
                 ? "bg-primary/20 border-2 border-primary" 
-                : "bg-card border border-border"
+                : "bg-card border border-border hover:bg-surface-elevated"
             }`}>
               <div className="flex items-center gap-4">
                 <DollarSign className="text-muted-foreground" size={24} />
@@ -151,9 +151,9 @@ const BuyGold = () => {
           </div>
 
           {/* Continue Button */}
-          <div className="pt-4">
+          <div className="pt-6">
             <Button 
-              className="w-full font-bold h-14 text-lg rounded-xl"
+              className="w-full font-bold h-14 text-lg rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105"
               onClick={handleContinue}
             >
               {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 
