@@ -1,26 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ChevronDown, ArrowUpDown, Edit } from "lucide-react";
+import { ArrowLeft, ChevronDown, ArrowUpDown, Edit, Wallet } from "lucide-react";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
-import { useBuyQuote } from "@/hooks/useBuyQuote";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { swapService, SwapQuote } from "@/services/swapService";
 import AurumLogo from "@/components/AurumLogo";
 
 const Swap = () => {
   const navigate = useNavigate();
-  const { balances, getBalance } = useWalletBalance();
+  const { balances, getBalance, refreshBalances, walletAddress } = useWalletBalance();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
   const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT'>('USDC');
   const [toAsset, setToAsset] = useState<'USDC' | 'XAUT'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Initialize wallet on component mount
+  useEffect(() => {
+    if (user && !secureWalletAddress) {
+      getWalletAddress();
+    }
+  }, [user, secureWalletAddress, getWalletAddress]);
   
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
@@ -138,10 +146,8 @@ const Swap = () => {
         setFromAmount('');
         setQuote(null);
         
-        // Refresh balances (assuming useWalletBalance has a refresh method)
-        if (typeof (window as any).location !== 'undefined') {
-          window.location.reload(); // Simple refresh for now
-        }
+        // Refresh balances
+        refreshBalances();
       } else {
         toast({
           variant: "destructive",
@@ -178,6 +184,18 @@ const Swap = () => {
             <AurumLogo compact />
           </div>
         </div>
+        
+        {/* Wallet Status */}
+        {secureWalletAddress && (
+          <div className="mt-4 bg-surface-secondary/50 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Wallet size={16} className="text-primary" />
+              <span className="text-sm text-foreground">
+                Wallet: {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
+              </span>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -303,13 +321,23 @@ const Swap = () => {
 
       {/* Bottom Button */}
       <div className="p-6">
-        <Button 
-          onClick={quote ? handleExecuteSwap : handlePreviewSwap}
-          disabled={loading || !fromAmount}
-          className="w-full h-14 bg-primary text-primary-foreground font-bold text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
-        </Button>
+        {!secureWalletAddress ? (
+          <Button 
+            onClick={() => navigate("/wallet")}
+            disabled={walletLoading}
+            className="w-full h-14 bg-secondary text-secondary-foreground font-bold text-lg rounded-xl hover:bg-secondary/90"
+          >
+            {walletLoading ? "Setting up wallet..." : "Set up wallet to swap"}
+          </Button>
+        ) : (
+          <Button 
+            onClick={quote ? handleExecuteSwap : handlePreviewSwap}
+            disabled={loading || !fromAmount}
+            className="w-full h-14 bg-primary text-primary-foreground font-bold text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50"
+          >
+            {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
+          </Button>
+        )}
       </div>
     </div>
   );

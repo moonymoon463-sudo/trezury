@@ -48,13 +48,14 @@ export class DexAggregatorService {
     inputAsset: string,
     outputAsset: string,
     amount: number,
-    slippage: number = 0.5
+    slippage: number = 0.5,
+    userAddress?: string
   ): Promise<DexRoute[]> {
     try {
       const routes: DexRoute[] = [];
       
       // Get Uniswap V3 quote via blockchain operations
-      const uniswapRoute = await this.getUniswapV3Quote(inputAsset, outputAsset, amount, slippage);
+      const uniswapRoute = await this.getUniswapV3Quote(inputAsset, outputAsset, amount, slippage, userAddress);
       if (uniswapRoute) {
         routes.push(uniswapRoute);
       }
@@ -71,7 +72,8 @@ export class DexAggregatorService {
     inputAsset: string,
     outputAsset: string,
     amount: number,
-    slippage: number
+    slippage: number,
+    userAddress?: string
   ): Promise<DexRoute | null> {
     try {
       const { data, error } = await supabase.functions.invoke('blockchain-operations', {
@@ -80,7 +82,8 @@ export class DexAggregatorService {
           inputAsset,
           outputAsset,
           amount,
-          slippage
+          slippage,
+          userAddress
         }
       });
 

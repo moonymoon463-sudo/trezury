@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { goldPriceService } from "./goldPrice";
 import { DexAggregatorService } from "./dexAggregatorService";
+import { secureWalletService } from "./secureWalletService";
 
 export interface SwapQuote {
   id: string;
@@ -104,6 +105,15 @@ class SwapService {
    */
   async executeSwap(quoteId: string, userId: string): Promise<SwapResult> {
     try {
+      // Get user's wallet address from secure wallet service
+      const userWalletAddress = await secureWalletService.getWalletAddress(userId);
+      if (!userWalletAddress) {
+        return {
+          success: false,
+          error: 'User wallet not found. Please set up your wallet first.'
+        };
+      }
+
       // Get quote from database
       const { data: quoteData, error } = await supabase
         .from('quotes')
@@ -127,11 +137,36 @@ class SwapService {
         };
       }
 
-      // Get optimal DEX route
+      // Verify user has sufficient on-chain balance
+      const { data: balanceData, error: balanceError } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance',
+          address: userWalletAddress,
+          asset: quoteData.input_asset
+        }
+      });
+
+      if (balanceError || !balanceData?.success) {
+        return {
+          success: false,
+          error: 'Failed to verify wallet balance'
+        };
+      }
+
+      if (balanceData.balance < quoteData.input_amount) {
+        return {
+          success: false,
+          error: `Insufficient ${quoteData.input_asset} balance. Required: ${quoteData.input_amount}, Available: ${balanceData.balance}`
+        };
+      }
+
+      // Get optimal DEX route with user's wallet address
       const routes = await DexAggregatorService.getBestRoute(
         quoteData.input_asset,
         quoteData.output_asset,
-        quoteData.input_amount
+        quoteData.input_amount,
+        this.SLIPPAGE_BPS / 100,
+        userWalletAddress
       );
 
       if (!routes || routes.length === 0) {
@@ -143,10 +178,10 @@ class SwapService {
 
       const bestRoute = routes[0];
       
-      // Execute swap through DEX aggregator
+      // Execute swap through DEX aggregator with user's wallet
       const swapResult = await DexAggregatorService.executeOptimalSwap(
         bestRoute,
-        userId,
+        userWalletAddress,
         this.SLIPPAGE_BPS / 100
       );
 
