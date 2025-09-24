@@ -422,19 +422,86 @@ serve(async (req) => {
           const gasPrice = await provider.getFeeData();
           const estimatedGasCost = gasEstimate * (gasPrice.gasPrice || BigInt(0));
           
+          // Calculate gas fee in input token instead of ETH
+          let gasInTokens = BigInt(0);
+          let adjustedAmountIn = requiredAmount;
+          
           if (ethBalance < estimatedGasCost) {
-            console.log(`⛽ Insufficient gas, topping up from platform wallet...`);
-            const gasTopUp = estimatedGasCost * BigInt(2); // 2x for safety
-            const topUpTx = await platformWallet.sendTransaction({
-              to: userWallet.address,
-              value: gasTopUp
-            });
-            await topUpTx.wait();
-            console.log(`✅ Gas top-up completed: ${topUpTx.hash}`);
+            console.log(`⛽ User has insufficient ETH for gas, deducting from ${tokenIn} instead...`);
+            
+            // Get current ETH price in terms of input token using Uniswap
+            try {
+              const wethAddress = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+              const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+              
+              // Get how much input token equals the gas cost in ETH
+              const gasInInputToken = await quoterContract.quoteExactInputSingle(
+                wethAddress,
+                tokenInAddress,
+                3000, // 0.3% pool fee for WETH pairs
+                estimatedGasCost,
+                0
+              );
+              
+              gasInTokens = gasInInputToken + (gasInInputToken * BigInt(10) / BigInt(100)); // Add 10% buffer
+              adjustedAmountIn = requiredAmount - gasInTokens;
+              
+              console.log(`💰 Gas fee in ${tokenIn}: ${ethers.formatUnits(gasInTokens, 6)}`);
+              console.log(`📊 Adjusted swap amount: ${ethers.formatUnits(adjustedAmountIn, 6)} ${tokenIn}`);
+              
+              // Verify user still has enough tokens after gas deduction
+              if (adjustedAmountIn <= 0) {
+                throw new Error(`Insufficient ${tokenIn} balance to cover both swap amount and gas fees`);
+              }
+              
+              // Perform the gas payment swap first (convert some input tokens to ETH for gas)
+              if (gasInTokens > 0) {
+                const gasSwapParams = {
+                  tokenIn: tokenInAddress,
+                  tokenOut: wethAddress,
+                  fee: 3000,
+                  recipient: userWallet.address,
+                  deadline: Math.floor(Date.now() / 1000) + 600,
+                  amountIn: gasInTokens,
+                  amountOutMinimum: estimatedGasCost * BigInt(95) / BigInt(100), // 5% slippage
+                  sqrtPriceLimitX96: 0
+                };
+                
+                const gasSwapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, platformWalletWithProvider);
+                const gasTx = await gasSwapRouter.exactInputSingle(gasSwapParams);
+                await gasTx.wait();
+                console.log(`✅ Gas swap completed: ${gasTx.hash}`);
+              }
+            } catch (gasSwapError) {
+              console.log(`⚠️ Gas-in-token swap failed, falling back to platform wallet top-up:`, gasSwapError);
+              // Fallback to original ETH top-up method
+              const gasTopUp = estimatedGasCost * BigInt(2);
+              const topUpTx = await platformWallet.sendTransaction({
+                to: userWallet.address,
+                value: gasTopUp
+              });
+              await topUpTx.wait();
+              console.log(`✅ Gas top-up completed: ${topUpTx.hash}`);
+              adjustedAmountIn = requiredAmount; // Reset to original amount
+              gasInTokens = BigInt(0);
+            }
           }
           
           // Execute the swap FROM USER'S WALLET
           const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+          
+          // Recalculate output amount if we used tokens for gas
+          let finalAmountOutMinimum = amountOutMinimum;
+          if (gasInTokens > 0) {
+            const adjustedAmountOut = await quoterContract.quoteExactInputSingle(
+              tokenInAddress,
+              tokenOutAddress,
+              fee,
+              adjustedAmountIn,
+              0
+            );
+            finalAmountOutMinimum = adjustedAmountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+          }
           
           const swapParams = {
             tokenIn: tokenInAddress,
@@ -442,8 +509,8 @@ serve(async (req) => {
             fee: fee,
             recipient: userWallet.address, // Receive tokens to user's wallet
             deadline: deadline,
-            amountIn: requiredAmount,
-            amountOutMinimum: amountOutMinimum,
+            amountIn: adjustedAmountIn, // Use adjusted amount after gas deduction
+            amountOutMinimum: finalAmountOutMinimum,
             sqrtPriceLimitX96: 0
           };
           
@@ -462,7 +529,10 @@ serve(async (req) => {
             effectiveGasPrice: receipt.effectiveGasPrice?.toString(),
             outputAmount: parseFloat(ethers.formatUnits(amountOut, 6)),
             slippage: slippage || 0.5,
-            userWallet: userWallet.address
+            userWallet: userWallet.address,
+            gasFeePaidInTokens: gasInTokens > 0,
+            gasFeeInTokens: gasInTokens > 0 ? parseFloat(ethers.formatUnits(gasInTokens, 6)) : 0,
+            adjustedInputAmount: parseFloat(ethers.formatUnits(adjustedAmountIn, 6))
           };
         } catch (error) {
           console.error('❌ REAL Uniswap swap execution failed:', error);

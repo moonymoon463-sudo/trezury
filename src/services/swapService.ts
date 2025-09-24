@@ -25,6 +25,9 @@ export interface SwapResult {
   transactionId?: string;
   hash?: string;
   error?: string;
+  gasFeePaidInTokens?: boolean;
+  gasFeeInTokens?: number;
+  adjustedInputAmount?: number;
 }
 
 class SwapService {
@@ -214,7 +217,11 @@ class SwapService {
             priceImpact: bestRoute.priceImpact,
             gasEstimate: bestRoute.gasEstimate,
             slippage: this.SLIPPAGE_BPS,
-            platformFee: this.FEE_BPS
+            platformFee: this.FEE_BPS,
+            gasFeePaidInTokens: swapResult.gasFeePaidInTokens || false,
+            gasFeeInTokens: swapResult.gasFeeInTokens || 0,
+            adjustedInputAmount: swapResult.adjustedInputAmount,
+            gasPaymentMethod: swapResult.gasFeePaidInTokens ? 'tokens' : 'eth'
           }
         })
         .select()
