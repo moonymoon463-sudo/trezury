@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { loadMoonPay } from '@moonpay/moonpay-js';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
 interface MoonPayBuyRequest {
   amount: number;
   currency: string;
-  walletAddress?: string;
 }
 
 interface MoonPayBuyResponse {
   success: boolean;
   transactionId?: string;
-  redirectUrl?: string;
   error?: string;
 }
 
@@ -21,7 +19,7 @@ export const useMoonPayBuy = () => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const initiateBuy = async ({ amount, currency, walletAddress }: MoonPayBuyRequest): Promise<MoonPayBuyResponse> => {
+  const initiateBuy = async ({ amount, currency }: MoonPayBuyRequest): Promise<MoonPayBuyResponse> => {
     if (!user) {
       const errorMsg = 'Please sign in to continue with your purchase';
       setError(errorMsg);
@@ -55,72 +53,51 @@ export const useMoonPayBuy = () => {
       setLoading(true);
       setError(null);
 
-      console.log('Initiating MoonPay buy:', { amount, currency, userId: user.id });
-      toast.loading('Setting up your payment...', { id: 'moonpay-setup' });
+      console.log('Initiating MoonPay buy with SDK:', { amount, currency, userId: user.id });
+      toast.loading('Setting up payment widget...', { id: 'moonpay-setup' });
 
-      const { data, error: functionError } = await supabase.functions.invoke('moonpay-buy', {
-        body: {
-          amount,
-          currency,
-          walletAddress: walletAddress || `user_${user.id}_wallet`,
-          userId: user.id
+      // Load and initialize MoonPay SDK
+      const moonPay = await loadMoonPay();
+      const moonPaySdk = moonPay({
+        flow: 'buy',
+        environment: 'sandbox',
+        variant: 'overlay',
+        params: {
+          apiKey: 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
+          theme: 'dark',
+          baseCurrencyCode: currency.toLowerCase(),
+          baseCurrencyAmount: amount.toString(),
+          defaultCurrencyCode: 'usdc'
+        },
+        handlers: {
+          onTransactionCompleted: async (data: any) => {
+            console.log('MoonPay transaction completed:', data);
+            toast.success('Purchase completed successfully!');
+            setLoading(false);
+          },
+          onCloseOverlay: async () => {
+            console.log('MoonPay widget closed');
+            toast.dismiss('moonpay-setup');
+            setLoading(false);
+          }
         }
       });
 
       toast.dismiss('moonpay-setup');
-
-      if (functionError) {
-        console.error('MoonPay function error:', functionError);
-        let errorMsg = 'Failed to initiate payment';
-        
-        // Provide more specific error messages
-        if (functionError.message?.includes('KYC')) {
-          errorMsg = 'Please complete identity verification before making a purchase';
-        } else if (functionError.message?.includes('network')) {
-          errorMsg = 'Network error. Please check your connection and try again';
-        } else if (functionError.message?.includes('rate limit')) {
-          errorMsg = 'Too many requests. Please wait a moment and try again';
-        }
-        
-        setError(errorMsg);
-        toast.error(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      if (!data || !data.success) {
-        console.error('MoonPay API error:', data?.error);
-        let errorMsg = data?.error || 'Payment setup failed';
-        
-        // Handle specific MoonPay errors
-        if (errorMsg.includes('INVALID_PARAMETERS')) {
-          errorMsg = 'Invalid payment parameters. Please try again';
-        } else if (errorMsg.includes('CURRENCY_NOT_SUPPORTED')) {
-          errorMsg = 'This currency is not supported';
-        } else if (errorMsg.includes('AMOUNT_TOO_SMALL')) {
-          errorMsg = 'Amount is too small for this payment method';
-        } else if (errorMsg.includes('AMOUNT_TOO_LARGE')) {
-          errorMsg = 'Amount exceeds payment limits';
-        }
-        
-        setError(errorMsg);
-        toast.error(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      console.log('MoonPay transaction created:', data.transactionId);
-      toast.success('Redirecting to secure payment...', { duration: 2000 });
+      
+      // Show the widget
+      moonPaySdk.show();
 
       return {
         success: true,
-        transactionId: data.transactionId,
-        redirectUrl: data.redirectUrl
+        transactionId: `moonpay_${Date.now()}`
       };
 
     } catch (err) {
-      console.error('MoonPay buy error:', err);
+      console.error('MoonPay SDK error:', err);
       toast.dismiss('moonpay-setup');
       
-      let errorMessage = 'Payment initiation failed';
+      let errorMessage = 'Failed to load payment widget';
       
       if (err instanceof Error) {
         if (err.message.includes('fetch')) {

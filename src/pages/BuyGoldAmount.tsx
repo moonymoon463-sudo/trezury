@@ -105,14 +105,9 @@ const BuyGoldAmount = () => {
           currency: 'USD'
         });
 
-        if (result.success && result.redirectUrl) {
-          // Show success message before redirect
-          toast.success('Redirecting to secure payment...', { duration: 3000 });
-          
-          // Small delay to allow user to see the message
-          setTimeout(() => {
-            window.location.href = result.redirectUrl!;
-          }, 1500);
+        if (result.success) {
+          // Success message and handling are done in the hook via SDK callbacks
+          console.log('MoonPay widget initiated successfully:', result.transactionId);
         } else {
           // Error handling is already done in the hook
           console.error('MoonPay initiation failed:', result.error);

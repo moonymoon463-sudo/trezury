@@ -74,28 +74,16 @@ const AddUSDC = () => {
     try {
       const result = await initiateBuy({
         amount: parseFloat(amount),
-        currency: 'usd',
-        walletAddress: depositAddress
+        currency: 'usd'
       });
 
-      if (result.success && result.redirectUrl) {
-        // Open MoonPay in a new window
-        const moonPayWindow = window.open(result.redirectUrl, '_blank', 'width=500,height=700');
-        
-        if (moonPayWindow) {
-          // Poll for window closure and refresh balances
-          const pollTimer = setInterval(() => {
-            if (moonPayWindow.closed) {
-              clearInterval(pollTimer);
-              fetchBalances();
-              toast({
-                title: "Purchase Initiated",
-                description: "Your USDC purchase is being processed"
-              });
-              navigate("/");
-            }
-          }, 1000);
-        }
+      if (result.success) {
+        // Success message and handling are done via SDK callbacks in the hook
+        fetchBalances();
+        toast({
+          title: "Purchase Widget Opened",
+          description: "Complete your purchase in the widget to receive USDC"
+        });
       }
     } catch (error) {
       console.error('Purchase failed:', error);
