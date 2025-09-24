@@ -5,11 +5,8 @@ import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus, R
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
-import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AurumLogo from "@/components/AurumLogo";
-import { PositionsCard } from "@/components/portfolio/PositionsCard";
-import { PortfolioSummaryCard } from "@/components/portfolio/PortfolioSummaryCard";
 import { useState } from "react";
 
 const Index = () => {
@@ -17,13 +14,6 @@ const Index = () => {
   const navigate = useNavigate();
   const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
   const { getBalance, loading: balanceLoading } = useWalletBalance();
-  const { 
-    portfolioSummary, 
-    portfolioPerformance, 
-    portfolioAssets, 
-    assetsByType, 
-    loading: portfolioLoading 
-  } = usePortfolioMonitoring();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get real balances
@@ -179,22 +169,6 @@ const Index = () => {
 
           {/* Gold Price Chart */}
           <GoldPriceChart />
-
-          {/* Portfolio Summary with Asset Allocation */}
-          {!portfolioLoading && (
-            <PortfolioSummaryCard 
-              summary={portfolioSummary} 
-              performance={portfolioPerformance}
-              assets={portfolioAssets}
-              compact={true}
-              interactive={true}
-            />
-          )}
-
-          {/* Portfolio Positions */}
-          {!portfolioLoading && (
-            <PositionsCard assetsByType={assetsByType} />
-          )}
         </div>
       </div>
 
