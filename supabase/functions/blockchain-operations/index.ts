@@ -23,16 +23,30 @@ const USDC_CONTRACT = '0xA0b86a33E6481b7C88047F0fE3BDD78Db8DC820b';
 const XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38';
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
+// Uniswap V3 contracts
+const UNISWAP_V3_QUOTER = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
+const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+
 // ERC20 ABI for basic operations
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
   "function transfer(address to, uint256 amount) returns (bool)",
   "function decimals() view returns (uint8)",
+  "function approve(address spender, uint256 amount) returns (bool)",
   "event Transfer(address indexed from, address indexed to, uint256 value)"
 ];
 
+// Uniswap V3 ABIs
+const QUOTER_ABI = [
+  "function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)"
+];
+
+const SWAP_ROUTER_ABI = [
+  "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)"
+];
+
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_rpc_url';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -251,6 +265,209 @@ serve(async (req) => {
           };
         } catch (error) {
           console.error('LIVE DEX swap failed:', error);
+          throw error;
+        }
+        break;
+
+      case 'get_uniswap_quote':
+        try {
+          const { inputAsset, outputAsset, amount, slippage } = body;
+          console.log(`Getting Uniswap V3 quote: ${amount} ${inputAsset} to ${outputAsset}`);
+          
+          const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const tokenOutAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const fee = 3000; // 0.3% pool fee
+          
+          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+          const amountIn = ethers.parseUnits(amount.toString(), 6); // Both USDC and XAUT have 6 decimals
+          
+          // Get quote from Uniswap V3 Quoter
+          const amountOut = await quoterContract.quoteExactInputSingle(
+            tokenInAddress,
+            tokenOutAddress,
+            fee,
+            amountIn,
+            0 // sqrtPriceLimitX96 (0 = no limit)
+          );
+          
+          const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
+          const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
+          
+          // Estimate gas for the swap
+          const gasEstimate = 200000; // Typical Uniswap V3 swap gas
+          
+          result = {
+            success: true,
+            outputAmount,
+            priceImpact,
+            gasEstimate,
+            fee,
+            route: 'uniswap-v3'
+          };
+        } catch (error) {
+          console.error('Uniswap quote failed:', error);
+          throw error;
+        }
+        break;
+
+      case 'execute_uniswap_swap':
+        try {
+          const { inputAsset, outputAsset, amount, userAddress, slippage } = body;
+          console.log(`Executing Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset} for ${userAddress}`);
+          
+          if (!userAddress || !isValidEthereumAddress(userAddress)) {
+            throw new Error('Valid user address required for swap');
+          }
+          
+          const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const tokenOutAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const fee = 3000; // 0.3% pool fee
+          
+          const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, platformWallet);
+          const amountIn = ethers.parseUnits(amount.toString(), 6);
+          
+          // Get quote first to calculate minimum output
+          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+          const amountOut = await quoterContract.quoteExactInputSingle(
+            tokenInAddress,
+            tokenOutAddress,
+            fee,
+            amountIn,
+            0
+          );
+          
+          // Apply slippage protection
+          const slippageBps = Math.floor((slippage || 0.5) * 100);
+          const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+          
+          // Execute the swap
+          const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+          
+          const swapParams = {
+            tokenIn: tokenInAddress,
+            tokenOut: tokenOutAddress,
+            fee: fee,
+            recipient: userAddress,
+            deadline: deadline,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMinimum,
+            sqrtPriceLimitX96: 0
+          };
+          
+          const tx = await swapRouter.exactInputSingle(swapParams);
+          const receipt = await tx.wait();
+          
+          console.log(`Uniswap V3 swap completed: ${receipt.hash}`);
+          
+          result = {
+            success: true,
+            txHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString(),
+            outputAmount: parseFloat(ethers.formatUnits(amountOut, 6)),
+            slippage: slippage || 0.5
+          };
+        } catch (error) {
+          console.error('Uniswap swap execution failed:', error);
+          throw error;
+        }
+          console.log(`Getting Uniswap V3 quote: ${amount} ${inputAsset} to ${outputAsset}`);
+          
+          const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const tokenOutAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const fee = 3000; // 0.3% pool fee
+          
+          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+          const amountIn = ethers.parseUnits(amount.toString(), 6); // Both USDC and XAUT have 6 decimals
+          
+          // Get quote from Uniswap V3 Quoter
+          const amountOut = await quoterContract.quoteExactInputSingle(
+            tokenInAddress,
+            tokenOutAddress,
+            fee,
+            amountIn,
+            0 // sqrtPriceLimitX96 (0 = no limit)
+          );
+          
+          const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
+          const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
+          
+          // Estimate gas for the swap
+          const gasEstimate = 200000; // Typical Uniswap V3 swap gas
+          
+          result = {
+            success: true,
+            outputAmount,
+            priceImpact,
+            gasEstimate,
+            fee,
+            route: 'uniswap-v3'
+          };
+        } catch (error) {
+          console.error('Uniswap quote failed:', error);
+          throw error;
+        }
+        break;
+
+      case 'execute_uniswap_swap':
+        try {
+          const { inputAsset, outputAsset, amount, userAddress, slippage } = body;
+          console.log(`Executing Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset} for ${userAddress}`);
+          
+          if (!userAddress || !isValidEthereumAddress(userAddress)) {
+            throw new Error('Valid user address required for swap');
+          }
+          
+          const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const tokenOutAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const fee = 3000; // 0.3% pool fee
+          
+          const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, platformWallet);
+          const amountIn = ethers.parseUnits(amount.toString(), 6);
+          
+          // Get quote first to calculate minimum output
+          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+          const amountOut = await quoterContract.quoteExactInputSingle(
+            tokenInAddress,
+            tokenOutAddress,
+            fee,
+            amountIn,
+            0
+          );
+          
+          // Apply slippage protection
+          const slippageBps = Math.floor((slippage || 0.5) * 100);
+          const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+          
+          // Execute the swap
+          const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+          
+          const swapParams = {
+            tokenIn: tokenInAddress,
+            tokenOut: tokenOutAddress,
+            fee: fee,
+            recipient: userAddress,
+            deadline: deadline,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMinimum,
+            sqrtPriceLimitX96: 0
+          };
+          
+          const tx = await swapRouter.exactInputSingle(swapParams);
+          const receipt = await tx.wait();
+          
+          console.log(`Uniswap V3 swap completed: ${receipt.hash}`);
+          
+          result = {
+            success: true,
+            txHash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString(),
+            outputAmount: parseFloat(ethers.formatUnits(amountOut, 6)),
+            slippage: slippage || 0.5
+          };
+        } catch (error) {
+          console.error('Uniswap swap execution failed:', error);
           throw error;
         }
         break;

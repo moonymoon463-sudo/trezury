@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import UniswapV3QuoterABI from "@/contracts/abis/UniswapV3Quoter.json";
 
 export interface DexRoute {
   id: string;
@@ -30,15 +31,18 @@ export interface ArbitrageOpportunity {
 }
 
 export class DexAggregatorService {
-  private static readonly SUPPORTED_PROTOCOLS = [
-    'uniswap-v3',
-    'uniswap-v2', 
-    'sushiswap',
-    'curve',
-    'balancer',
-    '1inch',
-    'paraswap'
-  ];
+  private static readonly UNISWAP_V3_QUOTER = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
+  private static readonly UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+  
+  private static readonly TOKEN_ADDRESSES = {
+    USDC: '0xA0b86a33E6481b7C88047F0fE3BDD78Db8DC820b',
+    XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38'
+  };
+  
+  private static readonly POOL_FEES = {
+    'USDC-XAUT': 3000, // 0.3%
+    'XAUT-USDC': 3000  // 0.3%
+  };
 
   static async getBestRoute(
     inputAsset: string,
@@ -47,50 +51,64 @@ export class DexAggregatorService {
     slippage: number = 0.5
   ): Promise<DexRoute[]> {
     try {
-      // Call external DEX aggregator APIs
       const routes: DexRoute[] = [];
       
-      // Mock implementation for demo - replace with actual API calls
-      const mockRoutes = [
-        {
-          id: `route-${Date.now()}-1`,
-          protocol: '1inch',
-          inputAsset,
-          outputAsset,
-          inputAmount: amount,
-          outputAmount: amount * 0.998, // 0.2% slippage
-          priceImpact: 0.15,
-          gasEstimate: 180000,
-          route: [
-            { protocol: 'uniswap-v3', poolFee: 0.3 },
-            { protocol: 'curve', poolAddress: '0x...' }
-          ],
-          confidence: 0.95
-        },
-        {
-          id: `route-${Date.now()}-2`,
-          protocol: 'paraswap',
-          inputAsset,
-          outputAsset,
-          inputAmount: amount,
-          outputAmount: amount * 0.9965, // 0.35% slippage
-          priceImpact: 0.22,
-          gasEstimate: 220000,
-          route: [
-            { protocol: 'sushiswap', poolFee: 0.25 }
-          ],
-          confidence: 0.92
-        }
-      ];
+      // Get Uniswap V3 quote via blockchain operations
+      const uniswapRoute = await this.getUniswapV3Quote(inputAsset, outputAsset, amount, slippage);
+      if (uniswapRoute) {
+        routes.push(uniswapRoute);
+      }
       
-      routes.push(...mockRoutes);
-      
-      // Sort by output amount (best rate first)
       return routes.sort((a, b) => b.outputAmount - a.outputAmount);
       
     } catch (error) {
       console.error('Error fetching DEX routes:', error);
       return [];
+    }
+  }
+
+  private static async getUniswapV3Quote(
+    inputAsset: string,
+    outputAsset: string,
+    amount: number,
+    slippage: number
+  ): Promise<DexRoute | null> {
+    try {
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_uniswap_quote',
+          inputAsset,
+          outputAsset,
+          amount,
+          slippage
+        }
+      });
+
+      if (error || !data?.success) {
+        console.error('Uniswap quote failed:', error || data?.error);
+        return null;
+      }
+
+      return {
+        id: `uniswap-v3-${Date.now()}`,
+        protocol: 'uniswap-v3',
+        inputAsset,
+        outputAsset,
+        inputAmount: amount,
+        outputAmount: data.outputAmount,
+        priceImpact: data.priceImpact,
+        gasEstimate: data.gasEstimate,
+        route: [{
+          protocol: 'uniswap-v3',
+          poolFee: this.POOL_FEES[`${inputAsset}-${outputAsset}` as keyof typeof this.POOL_FEES] || 3000,
+          tokenIn: this.TOKEN_ADDRESSES[inputAsset as keyof typeof this.TOKEN_ADDRESSES],
+          tokenOut: this.TOKEN_ADDRESSES[outputAsset as keyof typeof this.TOKEN_ADDRESSES]
+        }],
+        confidence: 0.98
+      };
+    } catch (error) {
+      console.error('Error getting Uniswap V3 quote:', error);
+      return null;
     }
   }
 
@@ -158,10 +176,10 @@ export class DexAggregatorService {
     slippage: number = 0.5
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      // Execute swap through blockchain operations
+      // Execute real Uniswap V3 swap through blockchain operations
       const { data: swapResult, error: swapError } = await supabase.functions.invoke('blockchain-operations', {
         body: {
-          operation: 'execute_swap',
+          operation: 'execute_uniswap_swap',
           inputAsset: route.inputAsset,
           outputAsset: route.outputAsset,
           amount: route.inputAmount,
