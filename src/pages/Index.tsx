@@ -52,46 +52,44 @@ const Index = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="relative flex h-screen w-full flex-col bg-[#1A1A1A]">
       {/* Header */}
-      <header className="px-4 py-3 bg-background border-b border-border/5">
-        <div className="flex items-center justify-between max-w-md mx-auto">
-          <Button 
-            variant="ghost" 
-            size="icon"
+      <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10 flex-shrink-0">
+        <div className="w-12"></div>
+        <div className="flex-1 flex justify-center">
+          <AurumLogo compact={true} />
+        </div>
+        <div className="flex w-12 items-center justify-end gap-2">
+          <button 
+            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="h-10 w-10"
           >
             <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
-          </Button>
-          <AurumLogo compact size="header" />
-          <Button 
-            variant="ghost" 
-            size="icon"
+          </button>
+          <button 
+            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
             onClick={() => navigate("/settings")}
-            className="h-10 w-10"
           >
             <Settings size={20} />
-          </Button>
+          </button>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
-        <div className="max-w-md mx-auto space-y-6">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-20 space-y-3">
           {/* Gold Price Section */}
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-foreground text-lg font-bold">Gold Price</h3>
+          <div className="bg-[#2C2C2E] rounded-xl p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-white text-base font-bold">Gold Price</h3>
               {priceLoading ? (
                 <div className="animate-pulse">
-                  <div className="h-4 w-16 bg-muted rounded"></div>
+                  <div className="h-4 w-16 bg-gray-600 rounded"></div>
                 </div>
               ) : goldPrice && (
-                <div className="flex items-center gap-1 text-primary">
+                <div className="flex items-center gap-1 text-[#f9b006]">
                   <TrendingUp size={14} />
-                  <span className="text-sm font-medium">
+                  <span className="text-xs font-medium">
                     {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
                   </span>
                 </div>
@@ -99,73 +97,70 @@ const Index = () => {
             </div>
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-foreground text-xl font-bold">
+                <p className="text-white text-lg font-bold">
                   {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
                 </p>
-                <p className="text-muted-foreground text-sm">USD/oz</p>
+                <p className="text-gray-400 text-xs">USD/oz</p>
               </div>
               <div className="text-right">
-                <p className="text-foreground text-lg font-semibold">
+                <p className="text-white text-sm font-semibold">
                   {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
                 </p>
-                <p className="text-muted-foreground text-sm">USD/g</p>
+                <p className="text-gray-400 text-xs">USD/g</p>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Action Buttons - Buy Options */}
+          <div className="grid grid-cols-2 gap-2">
             <Button 
-              className="h-12 rounded-xl font-semibold flex items-center justify-center gap-2"
+              className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
               onClick={() => navigate("/buy-sell-hub")}
             >
-              <ShoppingCart size={16} />
+              <ShoppingCart size={14} />
               Buy Gold
             </Button>
             <Button 
-              variant="outline"
-              className="h-12 rounded-xl font-semibold flex items-center justify-center gap-2"
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
               onClick={() => navigate("/buy-sell-hub")}
             >
-              <DollarSign size={16} />
+              <DollarSign size={14} />
               Sell/Cash Out
             </Button>
             <Button 
-              variant="outline"
-              className="h-12 rounded-xl font-semibold flex items-center justify-center gap-2"
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
               onClick={() => navigate("/swap")}
             >
-              <ArrowRightLeft size={16} />
+              <ArrowRightLeft size={14} />
               Swap
             </Button>
             <Button 
-              variant="outline"
-              className="h-12 rounded-xl font-semibold flex items-center justify-center gap-2"
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
               onClick={() => navigate("/trzry-reserves")}
             >
-              <TrendingUp size={16} />
+              <TrendingUp size={14} />
               Earn Interest
             </Button>
           </div>
 
-          {/* Your Assets */}
-          <div className="bg-card border border-border rounded-xl p-4">
-            <h3 className="text-foreground text-lg font-bold mb-4">Your Assets</h3>
-            <div className="space-y-3">
+          {/* Your Assets - Wallet Options */}
+          <div className="bg-[#2C2C2E] rounded-xl p-3">
+            <h3 className="text-white text-base font-bold mb-3">Your Assets</h3>
+            <div className="space-y-2">
               {tokens.map((token, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-surface-elevated rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center text-lg">
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-[#1A1A1A] rounded-full flex items-center justify-center text-sm">
                       {token.icon}
                     </div>
                     <div>
-                      <p className="text-foreground font-medium">{token.name}</p>
-                      <p className="text-muted-foreground text-sm">{token.symbol}</p>
+                      <p className="text-white font-medium text-sm">{token.name}</p>
+                      <p className="text-gray-400 text-xs">{token.symbol}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-foreground font-semibold">{token.amount}</p>
-                    <p className="text-muted-foreground text-sm">{token.value}</p>
+                    <p className="text-white font-medium text-sm">{token.amount}</p>
+                    <p className="text-gray-400 text-xs">{token.value}</p>
                   </div>
                 </div>
               ))}
@@ -175,7 +170,6 @@ const Index = () => {
           {/* Gold Price Chart */}
           <GoldPriceChart />
         </div>
-      </main>
 
       {/* Bottom Navigation */}
       <BottomNavigation />

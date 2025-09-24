@@ -206,63 +206,63 @@ const Settings = () => {
   const IconComponent = kycInfo.icon;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
-      <header className="px-4 py-3 bg-background border-b border-border/5">
-        <div className="flex items-center justify-between max-w-md mx-auto">
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="h-10 w-10"
+            className="text-white hover:bg-gray-800"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={24} />
           </Button>
-          <AurumLogo compact size="header" />
-          <div className="w-10"></div>
+          <div className="flex-1 flex justify-center pr-6">
+            <AurumLogo compact />
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 pt-4 pb-24 overflow-y-auto">
-        <div className="max-w-md mx-auto space-y-6">
-          {/* Profile Information */}
-          <div className="bg-card border border-border rounded-xl p-4">
-            <h3 className="text-foreground text-lg font-bold mb-4 flex items-center gap-2">
-              <User size={20} />
-              Profile Information
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email" className="text-muted-foreground text-sm">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  disabled
-                  className="mt-2"
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone" className="text-muted-foreground text-sm">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Enter your phone number"
-                  className="mt-2"
-                />
-              </div>
-              <Button 
-                onClick={updateProfile} 
-                disabled={saving} 
-                className="w-full font-bold"
-              >
-                {saving ? "Updating..." : "Update Profile"}
-              </Button>
+      <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
+        {/* Profile Information */}
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <User size={20} />
+            Profile Information
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="email" className="text-gray-400 text-sm">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={profile.email}
+                disabled
+                className="bg-[#1C1C1E] border-gray-600 text-white mt-2"
+              />
             </div>
+            <div>
+              <Label htmlFor="phone" className="text-gray-400 text-sm">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Enter your phone number"
+                className="bg-[#1C1C1E] border-gray-600 text-white mt-2"
+              />
+            </div>
+            <Button 
+              onClick={updateProfile} 
+              disabled={saving} 
+              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+            >
+              {saving ? "Updating..." : "Update Profile"}
+            </Button>
           </div>
+        </div>
 
         {/* KYC Status */}
         <div className="bg-[#2C2C2E] rounded-xl p-4">
@@ -516,7 +516,6 @@ const Settings = () => {
             <LogOut size={16} />
             Sign Out
           </Button>
-        </div>
         </div>
       </main>
 
