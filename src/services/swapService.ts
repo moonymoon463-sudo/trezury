@@ -224,29 +224,9 @@ class SwapService {
         console.error('Failed to create transaction record:', txError);
       }
 
-      // Update user balances
-      const timestamp = new Date().toISOString();
-      
-      // Deduct input asset
-      await supabase
-        .from('balance_snapshots')
-        .insert({
-          user_id: userId,
-          asset: quoteData.input_asset === 'XAUT' ? 'XAUT' : 'USDC',
-          amount: -quoteData.input_amount,
-          snapshot_at: timestamp
-        });
-
-      // Add output asset (minus fees)
-      const netOutput = quoteData.output_amount * (1 - this.FEE_BPS / 10000);
-      await supabase
-        .from('balance_snapshots')
-        .insert({
-          user_id: userId,
-          asset: quoteData.output_asset === 'XAUT' ? 'XAUT' : 'USDC',
-          amount: netOutput,
-          snapshot_at: timestamp
-        });
+      // NOTE: No balance snapshot updates needed since the swap happened on-chain
+      // Real balances are now reflected on the blockchain and will be fetched live
+      console.log('✅ REAL swap completed - balances updated on-chain');
 
       return {
         success: true,

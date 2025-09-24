@@ -35,7 +35,7 @@ export class DexAggregatorService {
   private static readonly UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
   
   private static readonly TOKEN_ADDRESSES = {
-    USDC: '0xA0b86a33E6481b7C88047F0fE3BDD78Db8DC820b',
+    USDC: '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B',
     XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38'
   };
   
@@ -52,18 +52,20 @@ export class DexAggregatorService {
     userAddress?: string
   ): Promise<DexRoute[]> {
     try {
+      console.log(`🔍 Finding REAL DEX routes: ${amount} ${inputAsset} → ${outputAsset}`);
       const routes: DexRoute[] = [];
       
-      // Get Uniswap V3 quote via blockchain operations
+      // Get REAL Uniswap V3 quote via blockchain operations
       const uniswapRoute = await this.getUniswapV3Quote(inputAsset, outputAsset, amount, slippage, userAddress);
       if (uniswapRoute) {
         routes.push(uniswapRoute);
       }
       
+      console.log(`✅ Found ${routes.length} REAL routes`);
       return routes.sort((a, b) => b.outputAmount - a.outputAmount);
       
     } catch (error) {
-      console.error('Error fetching DEX routes:', error);
+      console.error('❌ Error fetching REAL DEX routes:', error);
       return [];
     }
   }
@@ -76,6 +78,8 @@ export class DexAggregatorService {
     userAddress?: string
   ): Promise<DexRoute | null> {
     try {
+      console.log(`📊 Getting REAL Uniswap V3 quote: ${amount} ${inputAsset} → ${outputAsset}`);
+      
       const { data, error } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'get_uniswap_quote',
@@ -88,9 +92,11 @@ export class DexAggregatorService {
       });
 
       if (error || !data?.success) {
-        console.error('Uniswap quote failed:', error || data?.error);
+        console.error('❌ REAL Uniswap quote failed:', error || data?.error);
         return null;
       }
+
+      console.log(`✅ REAL Uniswap quote: ${data.outputAmount} ${outputAsset} (${data.priceImpact}% impact)`);
 
       return {
         id: `uniswap-v3-${Date.now()}`,
@@ -110,7 +116,7 @@ export class DexAggregatorService {
         confidence: 0.98
       };
     } catch (error) {
-      console.error('Error getting Uniswap V3 quote:', error);
+      console.error('❌ Error getting REAL Uniswap V3 quote:', error);
       return null;
     }
   }
@@ -179,25 +185,31 @@ export class DexAggregatorService {
     slippage: number = 0.5
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      // Execute real Uniswap V3 swap through blockchain operations
+      console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
+      console.log(`👤 User wallet: ${userAddress}`);
+      
+      // Execute REAL Uniswap V3 swap through blockchain operations with user's wallet
       const { data: swapResult, error: swapError } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'execute_uniswap_swap',
           inputAsset: route.inputAsset,
           outputAsset: route.outputAsset,
           amount: route.inputAmount,
-          userAddress: userAddress,
-          route: route,
           slippage: slippage
+          // userAddress is derived from JWT in the edge function
         }
       });
 
       if (swapError || !swapResult?.success) {
+        console.error(`❌ REAL ${route.protocol} swap failed:`, swapError || swapResult?.error);
         return {
           success: false,
-          error: swapResult?.error || swapError?.message || 'Swap execution failed'
+          error: swapResult?.error || swapError?.message || 'Real swap execution failed'
         };
       }
+
+      console.log(`🎉 REAL ${route.protocol} swap completed:`, swapResult.txHash);
+      console.log(`🏦 User wallet used: ${swapResult.userWallet}`);
 
       return { 
         success: true, 
@@ -205,10 +217,10 @@ export class DexAggregatorService {
       };
       
     } catch (error) {
-      console.error('Error executing swap:', error);
+      console.error('❌ Error executing REAL swap:', error);
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Real swap execution failed' 
       };
     }
   }

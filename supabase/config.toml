@@ -53,7 +53,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.blockchain-operations]
-verify_jwt = false
+verify_jwt = true
 
 [functions.fee-collection-webhook]
 verify_jwt = false

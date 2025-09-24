@@ -133,26 +133,29 @@ const Swap = () => {
     try {
       setLoading(true);
       
-      // Execute the swap transaction
+      // Execute the REAL swap transaction
+      console.log('🔄 Executing REAL on-chain swap...');
       const result = await swapService.executeSwap(quote.id, user.id);
       
       if (result.success) {
+        console.log('🎉 REAL swap completed successfully!');
         toast({
-          title: "Swap Successful",
-          description: `Successfully swapped ${fromAmount} ${fromAsset} for ${toAsset}`
+          title: "Real Swap Successful!",
+          description: `Successfully executed REAL on-chain swap: ${fromAmount} ${fromAsset} for ${toAsset}. Tx: ${result.hash}`
         });
         
         // Reset form
         setFromAmount('');
         setQuote(null);
         
-        // Refresh balances
+        // Refresh balances to show real on-chain data
         refreshBalances();
       } else {
+        console.error('❌ REAL swap failed:', result.error);
         toast({
           variant: "destructive",
-          title: "Swap Failed",
-          description: result.error || "Transaction failed"
+          title: "Real Swap Failed", 
+          description: result.error || "Failed to execute real on-chain swap"
         });
       }
     } catch (error) {
