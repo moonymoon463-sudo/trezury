@@ -87,13 +87,6 @@ export default function Portfolio() {
 
       {/* Main Content */}
       <main className="px-6 py-6 pb-24 space-y-6">
-        {/* Portfolio Summary */}
-        <PortfolioSummaryCard 
-          summary={portfolioSummary} 
-          performance={portfolioPerformance}
-          assets={portfolioAssets}
-        />
-
         {/* AI Insights Panel */}
         <AIInsightsPanel 
           insights={insights}
