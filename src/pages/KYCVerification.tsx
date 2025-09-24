@@ -93,21 +93,22 @@ const KYCVerification = () => {
 
   const handleRestartVerification = async () => {
     try {
-      // Reset KYC status directly in the database
+      // Reset KYC status to completely unverified state
       const { error } = await supabase
         .from('profiles')
         .update({
           kyc_status: 'pending',
           kyc_submitted_at: null,
-          kyc_verified_at: null
+          kyc_verified_at: null,
+          metadata: {}
         })
         .eq('id', user!.id);
 
       if (error) throw error;
 
       toast({
-        title: "KYC Reset",
-        description: "Starting fresh verification process..."
+        title: "KYC Reset Complete",
+        description: "You can now start a fresh verification process."
       });
 
       // Refresh the profile state
@@ -256,9 +257,18 @@ const KYCVerification = () => {
                   
                   <div className="space-y-3">
                     <Button
+                      onClick={handleRestartVerification}
+                      variant="destructive"
+                      className="w-full"
+                    >
+                      Reset & Start New Verification
+                    </Button>
+                    
+                    <Button
                       onClick={handleStartVerification}
                       disabled={moonpayLoading}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                      variant="outline"
+                      className="w-full"
                     >
                       {moonpayLoading ? (
                         <>
@@ -268,17 +278,9 @@ const KYCVerification = () => {
                       ) : (
                         <>
                           <Shield className="h-4 w-4 mr-2" />
-                          Resume Verification
+                          Resume Current Verification
                         </>
                       )}
-                    </Button>
-                    
-                    <Button
-                      onClick={handleRestartVerification}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Start New Verification
                     </Button>
                   </div>
                 </div>
