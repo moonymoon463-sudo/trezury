@@ -1,27 +1,55 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
-import { useMoonPaySell } from "@/hooks/useMoonPaySell";
+import { loadMoonPay } from '@moonpay/moonpay-js';
+import { toast } from "sonner";
 
 const SellGold = () => {
   const navigate = useNavigate();
-  const { initiateSell, loading: sellLoading } = useMoonPaySell();
+  const [loading, setLoading] = useState(false);
 
   const handleSellGold = async () => {
+    setLoading(true);
     try {
-      const result = await initiateSell({
-        amount: 100, // Default amount for demo
-        currency: 'USDC',
-        returnUrl: `${window.location.origin}/offramp/return`
+      // Initialize MoonPay SDK
+      const moonPay = await loadMoonPay();
+      
+      const moonPaySdk = moonPay({
+        flow: 'sell',
+        environment: 'sandbox', // Change to 'production' for live
+        variant: 'overlay',
+        params: {
+          apiKey: import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY || 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
+          theme: 'dark' as const,
+          currencyCode: 'usdc', // For sell flow, this is what we're selling
+          baseCurrencyAmount: '100',
+          colorCode: '#FFD700', // Gold theme
+          onTransactionCompleted: (transaction: any) => {
+            console.log('Transaction completed:', transaction);
+            toast.success('Sell transaction completed successfully!');
+            navigate('/transactions');
+          },
+          onTransactionFailed: (error: any) => {
+            console.error('Transaction failed:', error);
+            toast.error('Sell transaction failed. Please try again.');
+          },
+          onCloseWidget: () => {
+            console.log('Widget closed');
+            setLoading(false);
+          }
+        } as any
       });
 
-      if (result.success && result.redirectUrl) {
-        window.location.href = result.redirectUrl;
-      }
+      // Show the MoonPay widget
+      moonPaySdk.show();
+      
     } catch (error) {
-      console.error('Error initiating sell:', error);
+      console.error('Error initializing MoonPay sell:', error);
+      toast.error('Failed to initialize sell transaction');
+      setLoading(false);
     }
   };
 
@@ -52,7 +80,7 @@ const SellGold = () => {
           {/* GOLD Token Option */}
           <button 
             onClick={handleSellGold}
-            disabled={sellLoading}
+            disabled={loading}
             className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 transition-colors hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="flex-shrink-0">
@@ -64,7 +92,7 @@ const SellGold = () => {
               <p className="text-base font-semibold text-foreground">GOLD</p>
               <p className="text-sm text-muted-foreground">Aurum Gold Token</p>
             </div>
-            {sellLoading ? (
+            {loading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
             ) : (
               <ChevronRight size={20} className="text-muted-foreground" />
