@@ -1,11 +1,16 @@
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw, Brain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
+import { usePortfolioAI } from "@/hooks/usePortfolioAI";
 import { PortfolioSummaryCard } from "@/components/portfolio/PortfolioSummaryCard";
 import { HealthMonitorCard } from "@/components/portfolio/HealthMonitorCard";
 import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
 import { PositionsCard } from "@/components/portfolio/PositionsCard";
+import { AIInsightsPanel } from "@/components/portfolio/AIInsightsPanel";
+import { MarketForecast } from "@/components/portfolio/MarketForecast";
+import { RiskAnalysis } from "@/components/portfolio/RiskAnalysis";
+import { PerformanceAnalytics } from "@/components/portfolio/PerformanceAnalytics";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import { useState } from "react";
@@ -19,20 +24,36 @@ export default function Portfolio() {
     portfolioPerformance,
     portfolioAssets,
     assetsByType,
-    loading
+    loading,
+    refreshData
   } = usePortfolioMonitoring();
+
+  const {
+    insights,
+    forecasts,
+    riskAssessment,
+    loading: aiLoading,
+    refreshAnalysis
+  } = usePortfolioAI();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => setIsRefreshing(false), 1000);
+    try {
+      await Promise.all([refreshData(), refreshAnalysis()]);
+    } catch (error) {
+      console.error('Failed to refresh portfolio data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center space-y-2">
+          <Brain className="h-8 w-8 mx-auto text-primary animate-pulse" />
           <h2 className="text-2xl font-semibold">Loading Portfolio...</h2>
+          <p className="text-muted-foreground">Analyzing your holdings with AI</p>
         </div>
       </div>
     );
@@ -73,6 +94,32 @@ export default function Portfolio() {
           assets={portfolioAssets}
         />
 
+        {/* AI Insights Panel */}
+        <AIInsightsPanel 
+          insights={insights}
+          loading={aiLoading}
+          onRefresh={refreshAnalysis}
+        />
+
+        {/* Market Forecasts & Risk Analysis */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <MarketForecast 
+            forecasts={forecasts}
+            loading={aiLoading}
+          />
+          <RiskAnalysis 
+            riskAssessment={riskAssessment}
+            loading={aiLoading}
+          />
+        </div>
+
+        {/* Performance Analytics */}
+        <PerformanceAnalytics 
+          summary={portfolioSummary}
+          performance={portfolioPerformance}
+          loading={loading}
+        />
+
         {/* Health Monitor */}
         <HealthMonitorCard summary={portfolioSummary} />
 
@@ -85,58 +132,19 @@ export default function Portfolio() {
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Button 
-            onClick={() => navigate('/lending?tab=supply')}
+            onClick={() => navigate('/buy-gold')}
             variant="default"
             className="h-12"
           >
-            Supply Assets
+            Buy Gold
           </Button>
           <Button 
-            onClick={() => navigate('/lending?tab=borrow')}
+            onClick={() => navigate('/trzry-reserves')}
             variant="outline"
             className="h-12"
           >
-            Borrow Assets
+            TRZRY Reserves
           </Button>
-        </div>
-
-        {/* Performance Summary */}
-        <div className="bg-surface-elevated rounded-lg p-4 space-y-3">
-          <h3 className="font-semibold">Performance Summary</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Interest Earned</p>
-              <p className="font-semibold text-status-success">
-                +${portfolioPerformance.totalEarnedInterest.toLocaleString('en-US', { 
-                  minimumFractionDigits: 2, 
-                  maximumFractionDigits: 2 
-                })}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Interest Paid</p>
-              <p className="font-semibold text-status-error">
-                -${portfolioPerformance.totalPaidInterest.toLocaleString('en-US', { 
-                  minimumFractionDigits: 2, 
-                  maximumFractionDigits: 2 
-                })}
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-border pt-2">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Net Interest</span>
-              <span className={`font-semibold ${
-                portfolioPerformance.netInterest >= 0 ? 'text-status-success' : 'text-status-error'
-              }`}>
-                {portfolioPerformance.netInterest >= 0 ? '+' : ''}
-                ${portfolioPerformance.netInterest.toLocaleString('en-US', { 
-                  minimumFractionDigits: 2, 
-                  maximumFractionDigits: 2 
-                })}
-              </span>
-            </div>
-          </div>
         </div>
       </main>
 
