@@ -32,7 +32,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
       USDT: 'hsl(142, 76%, 36%)', // Green  
       DAI: 'hsl(45, 93%, 58%)', // Yellow
       XAUT: 'hsl(38, 92%, 50%)', // Gold
-      AURU: 'hsl(280, 100%, 70%)', // Purple
+      TRZRY: 'hsl(280, 100%, 70%)', // Purple for Treasury
     };
     return colors[asset] || 'hsl(0, 0%, 50%)'; // Default gray
   }
