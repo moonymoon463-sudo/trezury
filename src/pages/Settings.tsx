@@ -206,27 +206,33 @@ const Settings = () => {
   const IconComponent = kycInfo.icon;
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="p-4">
-        <div className="flex items-center">
+      <header className="h-16 bg-background border-b border-border flex items-center px-4 flex-shrink-0">
+        <div className="w-12 flex justify-start">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-white hover:bg-gray-800"
+            className="text-foreground hover:bg-surface-elevated h-10 w-10"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={20} />
           </Button>
-          <div className="flex-1 flex justify-center pr-6">
+        </div>
+        
+        <div className="flex-1 flex justify-center">
+          <div className="h-12 flex items-center">
             <AurumLogo compact />
           </div>
         </div>
+        
+        <div className="w-12"></div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
-        {/* Profile Information */}
+        <div className="max-w-md mx-auto space-y-6">
+          {/* Profile Information */}
         <div className="bg-[#2C2C2E] rounded-xl p-4">
           <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
             <User size={20} />
@@ -516,6 +522,7 @@ const Settings = () => {
             <LogOut size={16} />
             Sign Out
           </Button>
+        </div>
         </div>
       </main>
 

@@ -62,31 +62,40 @@ export default function Portfolio() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card px-6 py-4 border-b border-border">
-        <div className="flex items-center justify-between">
+      <header className="h-16 bg-background border-b border-border flex items-center px-4 flex-shrink-0">
+        <div className="w-12 flex justify-start">
           <Button 
             variant="ghost" 
-            size="sm" 
+            size="icon"
             onClick={() => navigate(-1)}
-            className="p-2"
+            className="text-foreground hover:bg-surface-elevated h-10 w-10"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft size={20} />
           </Button>
-          <AurumLogo compact size="header" />
+        </div>
+        
+        <div className="flex-1 flex justify-center">
+          <div className="h-12 flex items-center">
+            <AurumLogo compact />
+          </div>
+        </div>
+        
+        <div className="w-12 flex justify-end">
           <Button 
             variant="ghost" 
-            size="sm" 
+            size="icon"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="p-2"
+            className="text-foreground hover:bg-surface-elevated h-10 w-10"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
           </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="px-6 py-6 pb-24 space-y-6">
+      <main className="px-4 py-6 pb-24 space-y-6">
+        <div className="max-w-md mx-auto space-y-6">
         {/* Asset Allocation */}
         <AssetAllocationChart assets={portfolioAssets} />
 
@@ -135,6 +144,7 @@ export default function Portfolio() {
           >
             TRZRY Reserves
           </Button>
+        </div>
         </div>
       </main>
 

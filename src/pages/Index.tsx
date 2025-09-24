@@ -52,32 +52,41 @@ const Index = () => {
   ];
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-[#1A1A1A]">
+    <div className="relative flex h-screen w-full flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10 flex-shrink-0">
+      <header className="h-16 bg-background border-b border-border flex items-center px-4 flex-shrink-0 sticky top-0 z-10">
         <div className="w-12"></div>
+        
         <div className="flex-1 flex justify-center">
-          <AurumLogo compact={true} />
+          <div className="h-12 flex items-center">
+            <AurumLogo compact />
+          </div>
         </div>
-        <div className="flex w-12 items-center justify-end gap-2">
-          <button 
-            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
+        
+        <div className="w-12 flex justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleRefresh}
             disabled={isRefreshing}
+            className="text-foreground hover:bg-surface-elevated h-10 w-10"
           >
             <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
-          </button>
-          <button 
-            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate("/settings")}
+            className="text-foreground hover:bg-surface-elevated h-10 w-10"
           >
-            <Settings size={20} />
-          </button>
+            <Settings size={18} />
+          </Button>
         </div>
-      </div>
+      </header>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-20 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 space-y-3">
+        <div className="max-w-md mx-auto space-y-3">
           {/* Gold Price Section */}
           <div className="bg-[#2C2C2E] rounded-xl p-3">
             <div className="flex justify-between items-center mb-2">
@@ -170,6 +179,7 @@ const Index = () => {
           {/* Gold Price Chart */}
           <GoldPriceChart />
         </div>
+      </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation />
