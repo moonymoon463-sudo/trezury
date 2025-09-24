@@ -87,9 +87,6 @@ export default function Portfolio() {
 
       {/* Main Content */}
       <main className="px-6 py-6 pb-24 space-y-6">
-        {/* Asset Allocation Chart */}
-        <AssetAllocationChart assets={portfolioAssets} />
-
         {/* AI Insights Panel */}
         <AIInsightsPanel 
           insights={insights}

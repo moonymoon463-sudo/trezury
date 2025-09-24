@@ -48,7 +48,7 @@ const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, 
         
         {/* Compact Company Name */}
         <div className="font-bold text-base tracking-wide text-primary">
-          AURUM
+          TREZURY
         </div>
       </div>
     );
@@ -83,7 +83,7 @@ const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, 
       <div className={`flex flex-col items-center bg-card ${s.nameWrapPad} rounded-lg`}>
         <div className={`${s.nameStripeW} ${s.nameStripeH} bg-primary mb-2`}></div>
         <div className={`font-bold ${s.nameText} tracking-wider text-primary px-4`}>
-          AURUM
+          TREZURY
         </div>
         <div className={`${s.nameStripeW} ${s.nameStripeH} bg-primary mt-2`}></div>
       </div>
