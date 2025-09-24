@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown, Wallet, Copy, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
+import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
@@ -27,16 +29,20 @@ const Settings = () => {
   const { user, signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
+  const { walletAddress, getWalletAddress, revealPrivateKey, loading: walletLoading } = useSecureWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [phone, setPhone] = useState("");
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [privateKey, setPrivateKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
+      getWalletAddress();
     }
-  }, [user]);
+  }, [user, getWalletAddress]);
 
   const fetchProfile = async () => {
     try {
@@ -92,6 +98,34 @@ const Settings = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied",
+        description: `${label} copied to clipboard`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to copy",
+        description: "Unable to copy to clipboard",
+      });
+    }
+  };
+
+  const handleRevealPrivateKey = async () => {
+    try {
+      const key = await revealPrivateKey();
+      if (key) {
+        setPrivateKey(key);
+        setShowPrivateKey(true);
+      }
+    } catch (error) {
+      // Error already handled in hook
     }
   };
 
@@ -265,6 +299,131 @@ const Settings = () => {
               {profile.kyc_status === 'failed' ? 'Retry Verification' : 'Start Verification'}
             </Button>
           )}
+        </div>
+
+        {/* Wallet Management */}
+        <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <Wallet size={20} />
+            Wallet Management
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Manage your secure wallet and backup your private key
+          </p>
+          
+          <div className="space-y-4">
+            {/* Wallet Address */}
+            <div>
+              <Label className="text-gray-400 text-sm">Wallet Address</Label>
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  value={walletAddress || (walletLoading ? "Loading..." : "No wallet found")}
+                  readOnly
+                  className="bg-[#1C1C1E] border-gray-600 text-white font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => walletAddress && copyToClipboard(walletAddress, "Wallet address")}
+                  disabled={!walletAddress}
+                  className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700"
+                >
+                  <Copy size={16} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Private Key Backup */}
+            <div>
+              <Label className="text-gray-400 text-sm">Private Key Backup</Label>
+              <div className="space-y-3 mt-2">
+                <div className="p-3 bg-[#1C1C1E] rounded-lg border border-yellow-500/30">
+                  <div className="flex items-start gap-2">
+                    <Shield className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-gray-400">
+                      <p className="font-medium text-white mb-1">Important Security Information:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>Your private key gives full control over your wallet</li>
+                        <li>Never share your private key with anyone</li>
+                        <li>Store it securely - we cannot recover lost private keys</li>
+                        <li>Anyone with your private key can access your funds</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {showPrivateKey && privateKey ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={privateKey}
+                        readOnly
+                        type="text"
+                        className="bg-[#1C1C1E] border-gray-600 text-white font-mono text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(privateKey, "Private key")}
+                        className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700"
+                      >
+                        <Copy size={16} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowPrivateKey(false);
+                          setPrivateKey(null);
+                        }}
+                        className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700"
+                      >
+                        <EyeOff size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" disabled={walletLoading} className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700">
+                        <Eye className="h-4 w-4 mr-2" />
+                        Reveal Private Key
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-[#2C2C2E] border-gray-600">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-white">
+                          <Shield className="h-5 w-5 text-yellow-500" />
+                          Reveal Private Key
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-2 text-gray-400">
+                          <p>You are about to reveal your wallet's private key. This is extremely sensitive information.</p>
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            <p className="text-sm font-medium text-red-400">⚠️ Security Warning:</p>
+                            <ul className="text-sm text-red-300 mt-1 space-y-1">
+                              <li>• Anyone with this key can steal all your funds</li>
+                              <li>• Only reveal this for backup purposes</li>
+                              <li>• Never share it with anyone, including support</li>
+                              <li>• Store it in a secure location offline</li>
+                            </ul>
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleRevealPrivateKey}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          I Understand - Reveal Key
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Admin Section */}

@@ -10,6 +10,7 @@ export interface UseSecureWalletReturn {
   validateAccess: () => Promise<boolean>;
   signTransaction: (transactionData: Record<string, unknown>) => Promise<string | null>;
   getWalletAddress: () => Promise<string | null>;
+  revealPrivateKey: (userPassword?: string) => Promise<string | null>;
 }
 
 /**
@@ -124,12 +125,42 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
     }
   }, [user, createWallet]);
 
+  const revealPrivateKey = useCallback(async (userPassword?: string): Promise<string | null> => {
+    if (!user?.id) {
+      return null;
+    }
+
+    try {
+      setLoading(true);
+      
+      const privateKey = await secureWalletService.revealPrivateKey(user.id, userPassword);
+      
+      toast({
+        title: "Private Key Revealed",
+        description: "Please store this private key safely and never share it.",
+      });
+
+      return privateKey;
+    } catch (error) {
+      console.error('Failed to reveal private key:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Reveal Private Key",
+        description: "Unable to reveal private key. Please try again.",
+      });
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
   return {
     walletAddress,
     loading,
     createWallet,
     validateAccess,
     signTransaction,
-    getWalletAddress
+    getWalletAddress,
+    revealPrivateKey
   };
 };

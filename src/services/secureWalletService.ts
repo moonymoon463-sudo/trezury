@@ -197,6 +197,25 @@ class SecureWalletService {
       return false;
     }
   }
+
+  /**
+   * Reveals private key for user backup purposes
+   * WARNING: This should only be used for user-initiated backup operations
+   */
+  async revealPrivateKey(userId: string, userPassword?: string): Promise<string> {
+    try {
+      // Generate the deterministic wallet (private key is ephemeral)
+      const wallet = this.createUniqueWallet(userId, userPassword);
+      
+      console.log('🔐 Private key revealed for backup (user-initiated)');
+      
+      // Return the private key for user backup
+      return wallet.privateKey;
+    } catch (error) {
+      console.error('Failed to reveal private key:', error);
+      throw new Error('Unable to reveal private key. Please check your credentials.');
+    }
+  }
 }
 
 export const secureWalletService = new SecureWalletService();
