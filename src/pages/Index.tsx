@@ -52,32 +52,32 @@ const Index = () => {
   ];
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#1A1A1A] justify-between">
-      <div className="flex-grow">
-        {/* Header */}
-        <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10">
-          <div className="w-12"></div>
-          <div className="flex-1 flex justify-center">
-            <AurumLogo compact={true} />
-          </div>
-          <div className="flex w-12 items-center justify-end gap-2">
-            <button 
-              className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
-            </button>
-            <button 
-              className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
-              onClick={() => navigate("/settings")}
-            >
-              <Settings size={20} />
-            </button>
-          </div>
+    <div className="relative flex h-screen w-full flex-col bg-[#1A1A1A]">
+      {/* Header */}
+      <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10 flex-shrink-0">
+        <div className="w-12"></div>
+        <div className="flex-1 flex justify-center">
+          <AurumLogo compact={true} />
         </div>
+        <div className="flex w-12 items-center justify-end gap-2">
+          <button 
+            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
+          </button>
+          <button 
+            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
+            onClick={() => navigate("/settings")}
+          >
+            <Settings size={20} />
+          </button>
+        </div>
+      </div>
 
-        <div className="px-4 pt-6 pb-4 space-y-3">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-20 space-y-3">
           {/* Gold Price Section */}
           <div className="bg-[#2C2C2E] rounded-xl p-3">
             <div className="flex justify-between items-center mb-2">
@@ -170,7 +170,6 @@ const Index = () => {
           {/* Gold Price Chart */}
           <GoldPriceChart />
         </div>
-      </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation />
