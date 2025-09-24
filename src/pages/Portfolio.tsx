@@ -72,7 +72,7 @@ export default function Portfolio() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <AurumLogo className="h-8" />
+          <AurumLogo compact={true} className="h-6" />
           <Button 
             variant="ghost" 
             size="sm" 
