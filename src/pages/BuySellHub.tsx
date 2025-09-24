@@ -10,32 +10,27 @@ const BuySellHub = () => {
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-[#1C1C1E]">
       {/* Header */}
-      <header className="h-16 bg-background border-b border-border flex items-center px-4 flex-shrink-0">
-        <div className="w-12 flex justify-start">
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-foreground hover:bg-surface-elevated h-10 w-10"
+            className="text-white hover:bg-gray-800"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={24} />
           </Button>
-        </div>
-        
-        <div className="flex-1 flex justify-center">
-          <div className="h-12 flex items-center">
+          <div className="flex-1 flex justify-center pr-6">
             <AurumLogo compact />
           </div>
         </div>
-        
-        <div className="w-12"></div>
       </header>
 
       {/* Content */}
       <main className="flex-1 px-4 pb-4">
-        <div className="max-w-md mx-auto space-y-6 pt-4">
+        <div className="max-w-md mx-auto space-y-6">
           {/* Gold Price Section */}
           <div className="bg-[#2C2C2E] rounded-xl p-4">
             <div className="flex justify-between items-center mb-4">

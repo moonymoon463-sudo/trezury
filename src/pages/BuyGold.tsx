@@ -63,25 +63,20 @@ const BuyGold = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="h-16 bg-background border-b border-border flex items-center px-4 flex-shrink-0">
-        <div className="w-12 flex justify-start">
+      <header className="p-4">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/")}
-            className="text-foreground hover:bg-surface-elevated h-10 w-10"
+            className="text-foreground hover:bg-surface-elevated"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={24} />
           </Button>
-        </div>
-        
-        <div className="flex-1 flex justify-center">
-          <div className="h-12 flex items-center">
+          <div className="flex-1 flex justify-center pr-6">
             <AurumLogo compact />
           </div>
         </div>
-        
-        <div className="w-12"></div>
       </header>
 
       {/* Main Content */}
