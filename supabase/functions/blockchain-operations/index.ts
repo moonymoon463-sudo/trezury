@@ -19,7 +19,7 @@ const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
 // Contract addresses (Ethereum mainnet)
-const USDC_CONTRACT = '0xA0b86a33E6481b7C88047F0fE3BDD78Db8DC820b';
+const USDC_CONTRACT = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B';
 const XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38';
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
@@ -414,7 +414,7 @@ serve(async (req) => {
         }
         break;
 
-      case 'collect_fee':
+      case 'execute_uniswap_swap':
         try {
           const { inputAsset, outputAsset, amount, userAddress, slippage } = body;
           console.log(`Executing Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset} for ${userAddress}`);
