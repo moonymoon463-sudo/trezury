@@ -40,11 +40,20 @@ export interface PortfolioPerformance {
   netInterest?: number;
 }
 
-// Real-time portfolio monitoring with live data
+// Real-time portfolio monitoring with live data - v2.0
 export function usePortfolioMonitoring() {
+  console.log('usePortfolioMonitoring: Starting hook execution');
+  
   const { balances, loading: walletLoading, totalValue } = useWalletBalance();
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
   const { reserveValue, totalXautBalance, loading: trzryLoading } = useTrzryReserves();
+  
+  console.log('usePortfolioMonitoring: Hook dependencies loaded', {
+    balances: balances?.length || 0,
+    goldPrice: goldPrice?.usd_per_oz || 'loading',
+    reserveValue,
+    totalXautBalance
+  });
   
   const [loading, setLoading] = useState(true);
   const [previousValue, setPreviousValue] = useState(0);
