@@ -50,9 +50,18 @@ export function useWalletBalance() {
           asset: 'XAUT'
         }
       });
+
+      const { data: trzryResult } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance', 
+          address: address,
+          asset: 'TRZRY'
+        }
+      });
       
       const usdcBalance = usdcResult?.success ? usdcResult.balance : 0;
       const xautBalance = xautResult?.success ? xautResult.balance : 0;
+      const trzryBalance = trzryResult?.success ? trzryResult.balance : 0;
 
       const newBalances: WalletBalance[] = [
         {
@@ -63,6 +72,11 @@ export function useWalletBalance() {
         {
           asset: 'XAUT',
           amount: xautBalance,
+          chain: 'ethereum'
+        },
+        {
+          asset: 'TRZRY',
+          amount: trzryBalance,
           chain: 'ethereum'
         }
       ];

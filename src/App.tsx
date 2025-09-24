@@ -44,6 +44,7 @@ import AdminKYC from "./pages/AdminKYC";
 import AdminTransactions from "./pages/AdminTransactions";
 import WalletManagement from "./pages/WalletManagement";
 import Portfolio from "./pages/Portfolio";
+import TrzryReserves from "./pages/TrzryReserves";
 
 const queryClient = new QueryClient();
 
@@ -109,6 +110,7 @@ const AppRoutes = () => {
       <Route path="/admin/fees" element={<ProtectedRoute><AdminFees /></ProtectedRoute>} />
       <Route path="/admin/fees-external" element={<ProtectedRoute><AdminFeesNew /></ProtectedRoute>} />
       <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
+      <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

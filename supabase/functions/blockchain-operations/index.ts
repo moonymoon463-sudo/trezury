@@ -21,6 +21,7 @@ const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 // Contract addresses (Ethereum mainnet) - CORRECTED CHECKSUMS
 const USDC_CONTRACT = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B'; // Fixed USDC checksum
 const XAUT_CONTRACT = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold
+const TRZRY_CONTRACT = '0xTrzryContractAddressHere'; // TRZRY token (to be provided)
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
 // Uniswap V3 contracts
@@ -147,7 +148,10 @@ serve(async (req) => {
             throw new Error('Invalid Ethereum address');
           }
           
-          const contractAddress = asset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const contractAddress = asset === 'USDC' ? USDC_CONTRACT : 
+                                asset === 'XAUT' ? XAUT_CONTRACT : 
+                                asset === 'TRZRY' ? TRZRY_CONTRACT : 
+                                (() => { throw new Error(`Unsupported asset: ${asset}`); })();
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
           const balance = await contract.balanceOf(address);
@@ -605,7 +609,10 @@ serve(async (req) => {
           
           // Use checksummed contract address
           const contractAddress = asset === 'USDC' ? 
-            ethers.getAddress(USDC_CONTRACT) : ethers.getAddress(XAUT_CONTRACT);
+            ethers.getAddress(USDC_CONTRACT) : 
+            asset === 'XAUT' ? ethers.getAddress(XAUT_CONTRACT) :
+            asset === 'TRZRY' ? ethers.getAddress(TRZRY_CONTRACT) :
+            (() => { throw new Error(`Unsupported asset: ${asset}`); })();
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
           const balance = await contract.balanceOf(address);

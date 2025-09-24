@@ -136,7 +136,7 @@ const Index = () => {
             </Button>
             <Button 
               className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
-              onClick={() => navigate("/lending?tab=supply")}
+              onClick={() => navigate("/trzry-reserves")}
             >
               <TrendingUp size={14} />
               Earn Interest
