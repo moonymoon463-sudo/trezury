@@ -357,6 +357,42 @@ export type Database = {
         }
         Relationships: []
       }
+      gold_prices: {
+        Row: {
+          change_24h: number | null
+          change_percent_24h: number | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          source: string
+          timestamp: string
+          usd_per_gram: number
+          usd_per_oz: number
+        }
+        Insert: {
+          change_24h?: number | null
+          change_percent_24h?: number | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          source: string
+          timestamp?: string
+          usd_per_gram: number
+          usd_per_oz: number
+        }
+        Update: {
+          change_24h?: number | null
+          change_percent_24h?: number | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          source?: string
+          timestamp?: string
+          usd_per_gram?: number
+          usd_per_oz?: number
+        }
+        Relationships: []
+      }
       institutional_accounts: {
         Row: {
           admin_email: string
@@ -1098,6 +1134,17 @@ export type Database = {
       get_encrypted_profile_field: {
         Args: { field_name: string; target_user_id?: string }
         Returns: string
+      }
+      get_latest_gold_price: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          change_24h: number
+          change_percent_24h: number
+          last_updated: string
+          source: string
+          usd_per_gram: number
+          usd_per_oz: number
+        }[]
       }
       get_public_config: {
         Args: { key_name: string }

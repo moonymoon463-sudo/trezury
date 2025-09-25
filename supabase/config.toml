@@ -1,5 +1,11 @@
 project_id = "auntkvllzejtfqmousxg"
 
+[functions.gold-price-collector]
+verify_jwt = false
+
+[functions.gold-price-public-api]
+verify_jwt = false
+
 [functions.contract-deployment]
 verify_jwt = false
 
