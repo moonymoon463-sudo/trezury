@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { useGoldPrice } from './useGoldPrice';
 import { useIsMobile } from './use-mobile';
@@ -62,6 +62,11 @@ export function useMobileOptimizedPortfolio() {
   const [error, setError] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Keep track of last known good values for seamless mobile experience
+  const lastKnownGoldPrice = useRef<any>(null);
+  const lastKnownAssets = useRef<PortfolioAsset[]>([]);
+  const hasInitialLoad = useRef(false);
 
   // Mobile-specific cache duration
   const cacheDuration = isMobile ? MOBILE_CACHE_DURATION : DESKTOP_CACHE_DURATION;
@@ -205,9 +210,21 @@ export function useMobileOptimizedPortfolio() {
     }
   }, [user?.id, isMobile, getCachedData, setCachedData]);
 
-  // Extract portfolio calculation logic for reuse
+  // Extract portfolio calculation logic for reuse with seamless mobile fallback
   const calculatePortfolioAssets = useCallback((balances: WalletBalance[], goldPrice: any): PortfolioAsset[] => {
-    if (!balances.length || !goldPrice?.usd_per_oz) return [];
+    if (!balances.length) return lastKnownAssets.current;
+
+    // Use current gold price or fallback to last known price for seamless mobile experience
+    const effectiveGoldPrice = goldPrice?.usd_per_oz ? goldPrice : lastKnownGoldPrice.current;
+    if (!effectiveGoldPrice?.usd_per_oz) {
+      // If no gold price at all, return last known assets to avoid empty portfolio
+      return lastKnownAssets.current;
+    }
+
+    // Store last known good price
+    if (goldPrice?.usd_per_oz) {
+      lastKnownGoldPrice.current = goldPrice;
+    }
 
     const assets: PortfolioAsset[] = [];
     let totalValue = 0;
@@ -222,7 +239,7 @@ export function useMobileOptimizedPortfolio() {
           apy = 0;
           break;
         case 'XAUT':
-          valueUSD = balance.amount * goldPrice.usd_per_oz;
+          valueUSD = balance.amount * effectiveGoldPrice.usd_per_oz;
           apy = 0;
           break;
         case 'TRZRY':
@@ -247,10 +264,17 @@ export function useMobileOptimizedPortfolio() {
     });
 
     // Calculate allocations
-    return assets.map(asset => ({
+    const calculatedAssets = assets.map(asset => ({
       ...asset,
       allocation: totalValue > 0 ? (asset.value / totalValue) * 100 : 0
     }));
+
+    // Store as last known good assets
+    if (calculatedAssets.length > 0) {
+      lastKnownAssets.current = calculatedAssets;
+    }
+
+    return calculatedAssets;
   }, []);
 
   // Calculate portfolio assets with mobile optimization
@@ -275,15 +299,15 @@ export function useMobileOptimizedPortfolio() {
     };
   }, []);
 
-  // Main data refresh function
+  // Main data refresh function with seamless mobile experience
   const refreshData = useCallback(async (forceRefresh = false) => {
     if (!user?.id) return;
 
     try {
       setError(null);
       
-      // Show loading only for initial load on mobile
-      if (!balances.length || !isMobile) {
+      // Show loading only for first load on mobile
+      if (!hasInitialLoad.current || (!isMobile && forceRefresh)) {
         setLoading(true);
       }
 
@@ -295,13 +319,15 @@ export function useMobileOptimizedPortfolio() {
       const summary = calculateSummary(freshAssets);
       setPortfolioSummary(summary);
 
+      hasInitialLoad.current = true;
+
     } catch (err) {
       console.error('📱 Portfolio refresh failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to load portfolio');
     } finally {
       setLoading(false);
     }
-  }, [user?.id, fetchBalances, portfolioAssets, calculateSummary, balances.length, isMobile]);
+  }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary, isMobile]);
 
   // Initial load with mobile optimization (only on user change, not gold price changes)
   useEffect(() => {
