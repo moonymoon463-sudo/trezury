@@ -20,7 +20,17 @@ const GoldPriceChart = () => {
     const generateChartData = async () => {
       try {
         setLoading(true);
-        const history = await goldPriceService.getHistoricalPrices(timeframe);
+        console.log(`🎯 Chart requesting data for timeframe: ${timeframe}`);
+        
+        // Add timeout to prevent chart from hanging
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Chart data request timeout')), 15000); // 15 second timeout
+        });
+        
+        const dataPromise = goldPriceService.getHistoricalPrices(timeframe);
+        const history = await Promise.race([dataPromise, timeoutPromise]);
+        
+        console.log(`📊 Chart received ${history.length} data points`);
         
         const formattedData: ChartData[] = history.map(point => {
           const date = new Date(point.timestamp);
@@ -73,8 +83,11 @@ const GoldPriceChart = () => {
         });
 
         setChartData(formattedData);
+        console.log(`✅ Chart data updated with ${formattedData.length} points`);
       } catch (error) {
-        console.error('Failed to load chart data:', error);
+        console.error('❌ Failed to load chart data:', error);
+        // Set empty data so chart shows "No chart data available" instead of staying in loading
+        setChartData([]);
       } finally {
         setLoading(false);
       }
