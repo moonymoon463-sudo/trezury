@@ -45,21 +45,43 @@ Deno.serve(async (req) => {
 
     console.log('Starting historical gold price collection...')
 
-    // Fetch historical data from Yahoo Finance (2 years of daily data)
-    // Using XAUUSD=X symbol for spot gold prices
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?range=2y&interval=1d&includePrePost=false&events=div%2Csplit`
-    
-    console.log('Fetching from Yahoo Finance:', yahooUrl)
-    
-    const response = await fetch(yahooUrl)
-    const data: YahooHistoricalResponse = await response.json()
+    // Try multiple gold symbols for reliability
+    const goldSymbols = ['GC=F', 'XAU=X', 'XAUUSD=X']
+    let data: YahooHistoricalResponse | null = null
+    let usedSymbol = ''
 
-    if (data.chart.error) {
-      console.error('Yahoo Finance API error:', data.chart.error)
+    for (const symbol of goldSymbols) {
+      try {
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=2y&interval=1d&includePrePost=false&events=div%2Csplit`
+        
+        console.log(`Trying symbol ${symbol}:`, yahooUrl)
+        
+        const response = await fetch(yahooUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; GoldPriceBot/1.0)'
+          }
+        })
+        const symbolData: YahooHistoricalResponse = await response.json()
+
+        if (!symbolData.chart.error && symbolData.chart.result?.[0]?.timestamp) {
+          console.log(`✅ Successfully fetched data using symbol: ${symbol}`)
+          data = symbolData
+          usedSymbol = symbol
+          break
+        } else {
+          console.log(`❌ Symbol ${symbol} failed:`, symbolData.chart.error?.description || 'No data available')
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching ${symbol}:`, error)
+      }
+    }
+
+    if (!data) {
+      console.error('All gold symbols failed to return data')
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: data.chart.error.description || 'Yahoo Finance API error'
+          error: 'No historical data available from any gold symbol'
         }),
         { 
           status: 400, 
@@ -68,20 +90,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const result = data.chart.result?.[0]
-    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
-      console.error('No historical data received from Yahoo Finance')
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'No historical data available from Yahoo Finance'
-        }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
+    const result = data.chart.result[0]
 
     const timestamps = result.timestamp
     const quote = result.indicators.quote[0]
@@ -159,10 +168,11 @@ Deno.serve(async (req) => {
           change_24h: change24h,
           change_percent_24h: changePercent24h,
           source: 'yahoo_finance_historical',
-          metadata: {
-            latest_historical_date: latestDate,
-            collection_type: 'historical_backfill'
-          }
+           metadata: {
+             latest_historical_date: latestDate,
+             collection_type: 'historical_backfill',
+             symbol: usedSymbol
+           }
         })
 
       if (currentPriceError) {
@@ -181,7 +191,8 @@ Deno.serve(async (req) => {
           inserted: insertedCount,
           skipped: skippedCount,
           latest_date: latestDate,
-          latest_price: close[latestIndex]
+          latest_price: close[latestIndex],
+          symbol_used: usedSymbol
         }
       }),
       { 

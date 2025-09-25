@@ -164,39 +164,49 @@ async function fetchFromTradingView(): Promise<GoldPrice | null> {
 
 async function fetchFromYahooFinance(): Promise<GoldPrice | null> {
   try {
-    // Yahoo Finance API approach
-    const symbol = 'XAUUSD=X'; // Spot gold vs USD (1 troy ounce)
-    const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    // Try multiple gold symbols for reliability
+    const goldSymbols = ['GC=F', 'XAU=X', 'XAUUSD=X']
+    
+    for (const symbol of goldSymbols) {
+      try {
+        const response = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          }
+        );
+        
+        const data = await response.json();
+        
+        if (data.chart?.result?.[0]?.meta?.regularMarketPrice) {
+          const price = data.chart.result[0].meta.regularMarketPrice;
+          const previousClose = data.chart.result[0].meta.previousClose || price;
+          const change = price - previousClose;
+          const changePercent = (change / previousClose) * 100;
+          
+          console.log(`✅ Yahoo Finance using symbol: ${symbol}`);
+          return {
+            usd_per_oz: Number(price.toFixed(2)),
+            usd_per_gram: Number((price / 31.1035).toFixed(2)),
+            change_24h: Number(change.toFixed(2)),
+            change_percent_24h: Number(changePercent.toFixed(2)),
+            source: 'yahoo_finance',
+            metadata: {
+              symbol: symbol,
+              market_state: data.chart.result[0].meta.marketState
+            }
+          };
         }
+        
+        console.log(`❌ Symbol ${symbol} failed: no valid data`);
+      } catch (error) {
+        console.log(`❌ Symbol ${symbol} error:`, error);
       }
-    );
-    
-    const data = await response.json();
-    
-    if (data.chart?.result?.[0]?.meta?.regularMarketPrice) {
-      const price = data.chart.result[0].meta.regularMarketPrice;
-      const previousClose = data.chart.result[0].meta.previousClose || price;
-      const change = price - previousClose;
-      const changePercent = (change / previousClose) * 100;
-      
-      return {
-        usd_per_oz: Number(price.toFixed(2)),
-        usd_per_gram: Number((price / 31.1035).toFixed(2)),
-        change_24h: Number(change.toFixed(2)),
-        change_percent_24h: Number(changePercent.toFixed(2)),
-        source: 'yahoo_finance',
-        metadata: {
-          symbol: symbol,
-          market_state: data.chart.result[0].meta.marketState
-        }
-      };
     }
     
-    throw new Error('Invalid Yahoo Finance API response structure');
+    throw new Error('All Yahoo Finance symbols failed');
   } catch (error) {
     throw new Error(`Yahoo Finance API failed: ${error instanceof Error ? error.message : String(error)}`);
   }
