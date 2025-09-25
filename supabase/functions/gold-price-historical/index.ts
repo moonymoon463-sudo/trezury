@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 
     // Fetch historical data from Alpha Vantage
     // Using GOLD symbol for daily gold prices in USD
-    const alphaVantageUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=GOLD&apikey=${alphaVantageKey}&outputsize=full`
+    const alphaVantageUrl = `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=XAU&to_symbol=USD&apikey=${alphaVantageKey}&outputsize=full`
     
     console.log('Fetching from Alpha Vantage:', alphaVantageUrl.replace(alphaVantageKey, 'HIDDEN'))
     
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const timeSeries = data['Time Series (Daily)']
+    const timeSeries = (data as any)['Time Series FX (Daily)']
     if (!timeSeries) {
       console.error('No time series data received from Alpha Vantage')
       return new Response(

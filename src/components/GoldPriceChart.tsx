@@ -83,86 +83,8 @@ const GoldPriceChart = () => {
     generateChartData();
   }, [timeframe]);
 
-  // Add current price to chart data
-  useEffect(() => {
-    if (currentPrice && chartData.length > 0) {
-      const now = new Date();
-      let timeLabel: string;
-      
-      switch (timeframe) {
-        case '1h':
-        case '24h':
-          timeLabel = now.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
-          break;
-        case '7d':
-          timeLabel = now.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            hour: '2-digit'
-          });
-          break;
-        case '30d':
-        case '3m':
-          timeLabel = now.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          });
-          break;
-        default:
-          timeLabel = now.toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
-      }
+  // Removed client-side merging of current price into chart series to avoid synthetic points
 
-      setChartData(prev => {
-        const updated = [...prev];
-        const lastPoint = updated[updated.length - 1];
-        
-        // Update last point or add new one
-        if (lastPoint && lastPoint.time === timeLabel) {
-          lastPoint.price = currentPrice.usd_per_oz;
-        } else {
-          updated.push({
-            time: timeLabel,
-            price: currentPrice.usd_per_oz,
-            timestamp: now.getTime()
-          });
-        }
-        
-        // Keep reasonable number of points based on timeframe
-        let maxPoints: number;
-        switch (timeframe) {
-          case '1h':
-            maxPoints = 60;
-            break;
-          case '24h':
-            maxPoints = 144;
-            break;
-          case '7d':
-            maxPoints = 168;
-            break;
-          case '30d':
-            maxPoints = 180;
-            break;
-          case '3m':
-            maxPoints = 90;
-            break;
-          default:
-            maxPoints = 144;
-        }
-        
-        if (updated.length > maxPoints) {
-          return updated.slice(-maxPoints);
-        }
-        
-        return updated;
-      });
-    }
-  }, [currentPrice, timeframe, chartData.length]);
 
   const formatPrice = (value: number) => `$${value.toFixed(2)}`;
 
@@ -255,7 +177,7 @@ const GoldPriceChart = () => {
                 height={40}
               />
               <YAxis 
-                domain={['dataMin - 20', 'dataMax + 20']}
+                domain={['dataMin', 'dataMax']}
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}

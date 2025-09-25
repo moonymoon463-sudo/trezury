@@ -59,15 +59,18 @@ serve(async (req) => {
     );
 
     if (prices.length === 0) {
-      // Generate fallback data if all sources fail
-      console.log('⚠️ All sources failed, generating fallback data');
-      const fallbackPrice = generateFallbackPrice();
-      prices.push(fallbackPrice);
+      console.warn('⚠️ All sources failed, no price collected.');
+      // Do not generate or store fallback prices; return empty result
     }
 
     // Store prices in database with deduplication
     const storedPrices = [];
     for (const price of prices) {
+      // Basic sanity filter: skip obviously invalid values
+      if (price.usd_per_oz < 500 || price.usd_per_oz > 5000) {
+        console.warn(`⏭️ Skipping outlier from ${price.source}: $${price.usd_per_oz}/oz`);
+        continue;
+      }
       try {
         const { data, error } = await supabase
           .from('gold_prices')
@@ -81,7 +84,7 @@ serve(async (req) => {
           });
 
         if (error) {
-          if (error.code === '23505') { // Unique constraint violation
+          if ((error as any).code === '23505') { // Unique constraint violation
             console.log(`🔄 Price from ${price.source} already exists for current timestamp`);
           } else {
             throw error;
@@ -162,7 +165,7 @@ async function fetchFromTradingView(): Promise<GoldPrice | null> {
 async function fetchFromYahooFinance(): Promise<GoldPrice | null> {
   try {
     // Yahoo Finance API approach
-    const symbol = 'GC=F'; // Gold futures symbol
+    const symbol = 'XAUUSD=X'; // Spot gold vs USD (1 troy ounce)
     const response = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`,
       {
@@ -270,24 +273,4 @@ async function fetchFromAlphaVantage(): Promise<GoldPrice | null> {
   } catch (error) {
     throw new Error(`Alpha Vantage failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
-
-function generateFallbackPrice(): GoldPrice {
-  const basePrice = 2350; // Reasonable base price
-  const variation = (Math.random() - 0.5) * 50; // ±$25 variation
-  const price = basePrice + variation;
-  const change = variation;
-  const changePercent = (change / basePrice) * 100;
-
-  return {
-    usd_per_oz: Number(price.toFixed(2)),
-    usd_per_gram: Number((price / 31.1035).toFixed(2)),
-    change_24h: Number(change.toFixed(2)),
-    change_percent_24h: Number(changePercent.toFixed(2)),
-    source: 'fallback',
-    metadata: { 
-      generated_at: new Date().toISOString(),
-      note: 'Generated when all external sources failed'
-    }
-  };
 }
