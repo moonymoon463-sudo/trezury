@@ -215,7 +215,7 @@ const Settings = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
+      <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto pb-24">
         {/* Profile Information */}
         <div className="bg-[#2C2C2E] rounded-xl p-4">
           <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
