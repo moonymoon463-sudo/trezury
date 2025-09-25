@@ -46,6 +46,12 @@ const BuyGold = () => {
       return;
     }
     
+    if (paymentMethod === "usdc") {
+      // Redirect to swap page for USDC → XAUT conversion
+      navigate("/swap?from=USDC&to=XAUT&flow=buy-gold");
+      return;
+    }
+    
     // Store payment method for later use
     sessionStorage.setItem('selectedPaymentMethod', paymentMethod);
     navigate("/buy-gold/amount");
@@ -126,7 +132,7 @@ const BuyGold = () => {
                 <DollarSign className="text-muted-foreground" size={24} />
                 <div>
                   <span className="text-foreground font-medium block">USDC</span>
-                  <span className="text-xs text-muted-foreground">Use existing wallet balance</span>
+                  <span className="text-xs text-muted-foreground">Swap USDC for Gold</span>
                 </div>
               </div>
               <input
