@@ -13,6 +13,15 @@ export interface GoldPriceHistory {
   price: number;
 }
 
+export interface GoldPriceHistoryEntry {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 class GoldPriceService {
   private currentPrice: GoldPrice | null = null;
   private subscribers: Set<(price: GoldPrice) => void> = new Set();
@@ -152,15 +161,163 @@ class GoldPriceService {
     this.isUpdating = false;
   }
 
+  async getHistoricalData(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistoryEntry[]> {
+    try {
+      // Calculate date range based on timeframe
+      let daysBack = 1;
+      switch (timeframe) {
+        case '1h':
+          daysBack = 1;
+          break;
+        case '24h':
+          daysBack = 2;
+          break;
+        case '7d':
+          daysBack = 8;
+          break;
+        case '30d':
+          daysBack = 32;
+          break;
+        case '3m':
+          daysBack = 95;
+          break;
+      }
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Fetch real historical data from database
+      const { data: historicalData, error } = await supabase
+        .from('gold_price_history')
+        .select('*')
+        .gte('date', startDateStr)
+        .order('date', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching historical data:', error);
+        // Fall back to synthetic data if database fetch fails
+        return this.generateSyntheticHistoricalData(timeframe);
+      }
+
+      if (!historicalData || historicalData.length === 0) {
+        console.log('No historical data found, using synthetic data');
+        return this.generateSyntheticHistoricalData(timeframe);
+      }
+
+      // Convert database format to expected format
+      return historicalData.map(entry => ({
+        date: entry.date,
+        open: entry.open_price,
+        high: entry.high_price,
+        low: entry.low_price,
+        close: entry.close_price,
+        volume: entry.volume || 0
+      }));
+
+    } catch (error) {
+      console.error('Error in getHistoricalData:', error);
+      return this.generateSyntheticHistoricalData(timeframe);
+    }
+  }
+
+  private async generateSyntheticHistoricalData(timeframe: '1h' | '24h' | '7d' | '30d' | '3m'): Promise<GoldPriceHistoryEntry[]> {
+    // Get current price as base
+    const currentPrice = await this.getCurrentPrice();
+    const basePrice = currentPrice.usd_per_oz;
+
+    const data: GoldPriceHistoryEntry[] = [];
+    let currentValue = basePrice;
+
+    // Enhanced volatility and realism factors
+    const config = {
+      '1h': { points: 60, interval: 1, volatility: 0.008 },
+      '24h': { points: 144, interval: 10, volatility: 0.015 },
+      '7d': { points: 168, interval: 60, volatility: 0.025 },
+      '30d': { points: 120, interval: 360, volatility: 0.035 },
+      '3m': { points: 90, interval: 1440, volatility: 0.05 }
+    };
+
+    const { points, interval, volatility } = config[timeframe];
+    const now = new Date();
+
+    for (let i = points - 1; i >= 0; i--) {
+      const timestamp = new Date(now.getTime() - (i * interval * 60 * 1000));
+      
+      // Create realistic daily OHLC patterns
+      const dayChange = (Math.random() - 0.5) * volatility * 2;
+      const intraHighLow = volatility * 0.6;
+      
+      const open = currentValue;
+      const close = open * (1 + dayChange);
+      const high = Math.max(open, close) * (1 + Math.random() * intraHighLow);
+      const low = Math.min(open, close) * (1 - Math.random() * intraHighLow);
+      
+      data.push({
+        date: timestamp.toISOString().split('T')[0],
+        open: parseFloat(open.toFixed(2)),
+        high: parseFloat(high.toFixed(2)),
+        low: parseFloat(low.toFixed(2)),
+        close: parseFloat(close.toFixed(2)),
+        volume: Math.floor(Math.random() * 1000000) + 100000
+      });
+      
+      currentValue = close;
+    }
+
+    return data.reverse();
+  }
+
   async getHistoricalPrices(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistory[]> {
+    // Try to get real historical data first
+    try {
+      const historicalData = await this.getHistoricalData(timeframe);
+      
+      if (historicalData.length > 0) {
+        // Convert historical OHLC data to price points for chart
+        const chartData: GoldPriceHistory[] = [];
+        
+        for (const entry of historicalData) {
+          // For different timeframes, use different price points
+          if (timeframe === '1h' || timeframe === '24h') {
+            // Use OHLC progression for intraday
+            const baseTime = new Date(entry.date + 'T00:00:00Z').getTime();
+            const interval = timeframe === '1h' ? 15 * 60 * 1000 : 6 * 60 * 60 * 1000; // 15min or 6h
+            
+            chartData.push(
+              { timestamp: new Date(baseTime).toISOString(), price: entry.open },
+              { timestamp: new Date(baseTime + interval).toISOString(), price: entry.high },
+              { timestamp: new Date(baseTime + interval * 2).toISOString(), price: entry.low },
+              { timestamp: new Date(baseTime + interval * 3).toISOString(), price: entry.close }
+            );
+          } else {
+            // Use close price for daily/weekly/monthly views
+            chartData.push({
+              timestamp: new Date(entry.date + 'T12:00:00Z').toISOString(),
+              price: entry.close
+            });
+          }
+        }
+        
+        return chartData.slice(0, this.getMaxPoints(timeframe));
+      }
+    } catch (error) {
+      console.error('Error getting historical data, falling back to synthetic:', error);
+    }
+
+    // Fallback to synthetic data if no real data available
+    return this.generateSyntheticChartData(timeframe);
+  }
+
+  private generateSyntheticChartData(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): GoldPriceHistory[] {
     const history: GoldPriceHistory[] = [];
     const now = new Date();
     
     // Use current price as reference, fallback to realistic price
     const currentPrice = this.currentPrice?.usd_per_oz || 2650;
     
-    // Create seed based on timeframe for consistent data generation
-    const seedString = `${timeframe}-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`;
+    // Create seed based on date for consistent data generation
+    const seedString = `gold-${timeframe}-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`;
     let seed = seedString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     
     // Simple seeded random function for consistency
@@ -275,6 +432,17 @@ class GoldPriceService {
 
     // Sort by timestamp (oldest first)
     return history.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }
+
+  private getMaxPoints(timeframe: string): number {
+    const maxPoints = {
+      '1h': 60,
+      '24h': 144,
+      '7d': 168,
+      '30d': 120,
+      '3m': 90
+    };
+    return maxPoints[timeframe as keyof typeof maxPoints] || 144;
   }
 }
 

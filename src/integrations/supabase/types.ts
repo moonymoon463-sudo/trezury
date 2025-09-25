@@ -357,6 +357,45 @@ export type Database = {
         }
         Relationships: []
       }
+      gold_price_history: {
+        Row: {
+          close_price: number
+          created_at: string
+          date: string
+          high_price: number
+          id: string
+          low_price: number
+          open_price: number
+          source: string
+          updated_at: string
+          volume: number | null
+        }
+        Insert: {
+          close_price: number
+          created_at?: string
+          date: string
+          high_price: number
+          id?: string
+          low_price: number
+          open_price: number
+          source?: string
+          updated_at?: string
+          volume?: number | null
+        }
+        Update: {
+          close_price?: number
+          created_at?: string
+          date?: string
+          high_price?: number
+          id?: string
+          low_price?: number
+          open_price?: number
+          source?: string
+          updated_at?: string
+          volume?: number | null
+        }
+        Relationships: []
+      }
       gold_prices: {
         Row: {
           change_24h: number | null
