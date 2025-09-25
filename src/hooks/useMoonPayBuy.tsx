@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { loadMoonPay } from '@moonpay/moonpay-js';
 import { useAuth } from './useAuth';
+import { secureWalletService } from '@/services/secureWalletService';
 import { toast } from 'sonner';
 
 interface MoonPayBuyRequest {
@@ -56,6 +57,14 @@ export const useMoonPayBuy = () => {
       console.log('Initiating MoonPay buy with SDK:', { amount, currency, userId: user.id });
       toast.loading('Setting up payment widget...', { id: 'moonpay-setup' });
 
+      // Get user's wallet address for prefilling
+      const walletAddress = await secureWalletService.getWalletAddress(user.id);
+      if (!walletAddress) {
+        throw new Error('Unable to retrieve wallet address. Please ensure your wallet is set up.');
+      }
+
+      console.log('Prefilling wallet address:', walletAddress);
+
       // Load and initialize MoonPay SDK
       const moonPay = await loadMoonPay();
       const moonPaySdk = moonPay({
@@ -67,7 +76,9 @@ export const useMoonPayBuy = () => {
           theme: 'dark',
           baseCurrencyCode: currency.toLowerCase(),
           baseCurrencyAmount: amount.toString(),
-          defaultCurrencyCode: 'usdc'
+          defaultCurrencyCode: 'usdc',
+          walletAddress: walletAddress,
+          externalCustomerId: user.id
         },
         handlers: {
           onTransactionCompleted: async (data: any) => {

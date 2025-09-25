@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { secureWalletService } from '@/services/secureWalletService';
 import { toast } from 'sonner';
 
 interface MoonPaySellRequest {
@@ -48,13 +49,22 @@ export const useMoonPaySell = () => {
     try {
       console.log('Initiating MoonPay sell with:', { amount, currency, userId: user.id });
 
+      // Get user's wallet address for prefilling
+      const walletAddress = await secureWalletService.getWalletAddress(user.id);
+      if (!walletAddress) {
+        throw new Error('Unable to retrieve wallet address. Please ensure your wallet is set up.');
+      }
+
+      console.log('Prefilling wallet address for sell:', walletAddress);
+
       const { data, error: functionError } = await supabase.functions.invoke('moonpay-sell', {
         body: {
           amount,
           currency,
           returnUrl,
           bankDetails,
-          userId: user.id
+          userId: user.id,
+          walletAddress
         }
       });
 

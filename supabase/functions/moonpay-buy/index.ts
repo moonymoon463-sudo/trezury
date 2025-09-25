@@ -21,6 +21,22 @@ serve(async (req) => {
     const { amount, currency, walletAddress, userId } = await req.json()
 
     console.log('MoonPay buy request:', { amount, currency, walletAddress, userId })
+    
+    // Get user's wallet address if not provided
+    let finalWalletAddress = walletAddress
+    if (!finalWalletAddress) {
+      // Query user's stored wallet address from onchain_addresses table
+      const { data: addresses } = await supabase
+        .from('onchain_addresses')
+        .select('address')
+        .eq('user_id', userId)
+        .limit(1)
+      
+      if (addresses && addresses.length > 0) {
+        finalWalletAddress = addresses[0].address
+        console.log('Retrieved stored wallet address:', finalWalletAddress)
+      }
+    }
 
     // Validate user
     const { data: profile, error: profileError } = await supabase
@@ -64,7 +80,7 @@ serve(async (req) => {
         baseCurrencyAmount: amount,
         baseCurrencyCode: currency.toLowerCase(),
         currencyCode: 'usdc',
-        walletAddress: walletAddress,
+        walletAddress: finalWalletAddress,
         redirectURL: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
         externalCustomerId: userId,
       }),

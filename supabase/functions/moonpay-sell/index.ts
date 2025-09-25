@@ -18,9 +18,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { amount, currency, returnUrl, bankDetails, userId } = await req.json()
+    const { amount, currency, returnUrl, bankDetails, userId, walletAddress } = await req.json()
 
     console.log('MoonPay sell request:', { amount, currency, returnUrl, userId })
+    console.log('Wallet address for prefilling:', walletAddress)
 
     // Validate user
     const { data: profile, error: profileError } = await supabase
@@ -94,7 +95,8 @@ serve(async (req) => {
       baseCurrencyAmount: amount.toFixed(2), // Amount of USDC to sell
       quoteCurrencyCode: 'usd', // Target fiat currency
       externalCustomerId: userId,
-      redirectUrl: finalReturnUrl
+      redirectUrl: finalReturnUrl,
+      ...(walletAddress && { walletAddress: walletAddress }) // Prefill wallet address if provided
     })
     
     const sellWidgetUrl = `${baseUrl}?${params.toString()}`
