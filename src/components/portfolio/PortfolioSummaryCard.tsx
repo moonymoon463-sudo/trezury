@@ -160,7 +160,7 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
             <div>
               <p className="text-xs text-muted-foreground">Total Value</p>
               <p className="text-xl font-bold">
-                ${summary.totalValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                ${(summary.totalValueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </p>
             </div>
             <Badge variant={isPositiveChange ? "default" : "destructive"}>
@@ -195,7 +195,7 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Total Portfolio Value</p>
                 <p className="text-2xl font-bold text-foreground">
-                  ${summary.totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(summary.totalValueUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <div className="flex items-center gap-1 mt-1">
                   {isPositiveChange ? (
@@ -273,14 +273,14 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
             <div className="grid grid-cols-2 gap-2">
               <InteractiveMetricCard
                 title="Wallet"
-                value={`$${summary.walletValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                value={`$${(summary.walletValueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                 icon={Wallet}
                 onClick={() => navigate('/wallet')}
                 action="Manage"
               />
               <InteractiveMetricCard
                 title="Lending"
-                value={`$${summary.suppliedValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                value={`$${(summary.suppliedValueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                 icon={PiggyBank}
                 trend={{ value: 2.3, isPositive: true }}
                 onClick={() => navigate('/lending?tab=supply')}
@@ -288,14 +288,14 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
               />
               <InteractiveMetricCard
                 title="Borrowed"
-                value={`$${summary.borrowedValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                value={`$${(summary.borrowedValueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                 icon={TrendingDown}
                 onClick={() => navigate('/lending?tab=borrow')}
                 action="Repay"
               />
               <InteractiveMetricCard
                 title="Net Worth"
-                value={`$${summary.netValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                value={`$${(summary.netValueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                 icon={BarChart3}
                 trend={{ value: 1.8, isPositive: true }}
               />

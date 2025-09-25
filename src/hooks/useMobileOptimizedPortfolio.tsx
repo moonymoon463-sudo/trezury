@@ -205,8 +205,8 @@ export function useMobileOptimizedPortfolio() {
     }
   }, [user?.id, isMobile, getCachedData, setCachedData]);
 
-  // Calculate portfolio assets with mobile optimization
-  const portfolioAssets = useMemo((): PortfolioAsset[] => {
+  // Extract portfolio calculation logic for reuse
+  const calculatePortfolioAssets = useCallback((balances: WalletBalance[], goldPrice: any): PortfolioAsset[] => {
     if (!balances.length || !goldPrice?.usd_per_oz) return [];
 
     const assets: PortfolioAsset[] = [];
@@ -251,7 +251,12 @@ export function useMobileOptimizedPortfolio() {
       ...asset,
       allocation: totalValue > 0 ? (asset.value / totalValue) * 100 : 0
     }));
-  }, [balances, goldPrice]);
+  }, []);
+
+  // Calculate portfolio assets with mobile optimization
+  const portfolioAssets = useMemo((): PortfolioAsset[] => {
+    return calculatePortfolioAssets(balances, goldPrice);
+  }, [balances, goldPrice, calculatePortfolioAssets]);
 
   // Calculate portfolio summary
   const calculateSummary = useCallback((assets: PortfolioAsset[]): PortfolioSummary => {
@@ -285,8 +290,9 @@ export function useMobileOptimizedPortfolio() {
       const newBalances = await fetchBalances(forceRefresh);
       setBalances(newBalances);
 
-      const assets = portfolioAssets;
-      const summary = calculateSummary(assets);
+      // Calculate assets directly to avoid race condition with useMemo
+      const freshAssets = calculatePortfolioAssets(newBalances, goldPrice);
+      const summary = calculateSummary(freshAssets);
       setPortfolioSummary(summary);
 
     } catch (err) {

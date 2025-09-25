@@ -44,7 +44,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
         <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
           <p className="text-sm font-medium">{data.name}</p>
           <p className="text-sm text-primary">
-            ${data.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${(data.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-xs text-muted-foreground">
             {((data.value / data.payload.totalValue) * 100).toFixed(1)}%
