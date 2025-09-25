@@ -19,9 +19,9 @@ const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
 // Contract addresses (Ethereum mainnet) - Raw addresses, checksummed at runtime
-const USDC_CONTRACT_RAW = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B'; // USDC mainnet
+const USDC_CONTRACT_RAW = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820b'; // USDC mainnet (fixed checksum)
 const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold
-// TRZRY contract not currently deployed, skip TRZRY operations for now
+const TRZRY_CONTRACT_RAW = '0x726951bef4b0C6E972da44b186a4Db8749A4B9B9'; // Mock TRZRY for demo
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
 // Helper function to get checksummed contract address
@@ -34,8 +34,10 @@ function getContractAddress(asset: string | undefined): string {
       return ethers.getAddress(USDC_CONTRACT_RAW);
     case 'XAUT':
       return ethers.getAddress(XAUT_CONTRACT_RAW);
+    case 'TRZRY':
+      return ethers.getAddress(TRZRY_CONTRACT_RAW);
     default:
-      throw new Error(`Unsupported asset: ${asset}. Only USDC and XAUT are supported.`);
+      throw new Error(`Unsupported asset: ${asset}. Only USDC, XAUT, and TRZRY are supported.`);
   }
 }
 
@@ -791,18 +793,49 @@ serve(async (req) => {
         });
 
       case 'estimate_gas':
-        console.log('Estimating gas for:', body.asset, body.amount);
-        
-        // Simple fee estimation based on asset
-        const estimatedFee = body.asset === 'USDC' ? 0.005 : 0.0001; // Higher for USDC, lower for XAUT
-        
-        return new Response(JSON.stringify({ 
-          success: true,
-          fee_in_token: estimatedFee,
-          fee_usd: estimatedFee * (body.asset === 'USDC' ? 1 : 2000) // Rough USD conversion
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        try {
+          console.log('Estimating gas for:', body.asset, body.amount);
+          
+          // Get current gas price from network
+          const gasPrice = await provider.getFeeData();
+          const gasLimit = BigInt(21000); // Standard ERC20 transfer gas limit
+          const estimatedGasWei = gasLimit * (gasPrice.gasPrice || BigInt(20000000000));
+          const estimatedGasETH = Number(estimatedGasWei) / 1e18;
+          
+          // Convert ETH to USD (approximate $2500/ETH)
+          const ethPriceUSD = 2500;
+          const estimatedFeeUSD = estimatedGasETH * ethPriceUSD;
+          
+          // Convert USD to token amount
+          let tokenPriceUSD = 1; // Default for USDC
+          if (body.asset === 'XAUT') tokenPriceUSD = 2000; // Gold price
+          if (body.asset === 'TRZRY') tokenPriceUSD = 1; // Treasury token
+          
+          const feeInToken = estimatedFeeUSD / tokenPriceUSD;
+          
+          console.log(`Gas estimate: ${estimatedFeeUSD.toFixed(4)} USD (${feeInToken.toFixed(6)} ${body.asset})`);
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            fee_in_token: Number(feeInToken.toFixed(6)),
+            fee_usd: Number(estimatedFeeUSD.toFixed(4)),
+            gas_price: gasPrice.gasPrice?.toString(),
+            gas_limit: gasLimit.toString()
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          console.error('Gas estimation failed:', error);
+          // Fallback to simple estimation
+          const fallbackFee = body.asset === 'USDC' ? 0.005 : 0.0001;
+          return new Response(JSON.stringify({ 
+            success: true,
+            fee_in_token: fallbackFee,
+            fee_usd: fallbackFee * (body.asset === 'USDC' ? 1 : 2000)
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
 
       case 'transfer':
         const { asset, to_address, amount, from_address } = body;

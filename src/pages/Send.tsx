@@ -31,6 +31,7 @@ const Send = () => {
   const assets = [
     { value: "USDC", label: "USDC", icon: "💲" },
     { value: "XAUT", label: "Gold (XAUT)", icon: "🥇" },
+    { value: "TRZRY", label: "Treasury (TRZRY)", icon: "🏛️" },
   ];
 
   useEffect(() => {
