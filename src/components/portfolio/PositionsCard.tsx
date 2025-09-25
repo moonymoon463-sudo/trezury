@@ -56,14 +56,14 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
       </div>
       <div className="text-right">
         <p className="font-semibold text-sm">
-          {asset.balance >= 0 ? '' : '-'}
-          {Math.abs(asset.balance).toLocaleString('en-US', { 
+          {(asset.balance || 0) >= 0 ? '' : '-'}
+          {Math.abs(asset.balance || 0).toLocaleString('en-US', { 
             minimumFractionDigits: 2, 
             maximumFractionDigits: 4 
           })}
         </p>
         <p className="text-xs text-muted-foreground">
-          ${Math.abs(asset.valueUSD).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          ${Math.abs(asset.valueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
         </p>
         {asset.apy && asset.apy > 0 && (
           <div className={`text-xs flex items-center gap-1 ${

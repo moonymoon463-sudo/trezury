@@ -9,7 +9,12 @@ interface HealthMonitorCardProps {
 }
 
 export function HealthMonitorCard({ summary }: HealthMonitorCardProps) {
-  const { healthFactor, totalCollateralUSD, borrowedValueUSD, availableBorrowUSD } = summary;
+  const { 
+    healthFactor = 1, 
+    totalCollateralUSD = 0, 
+    borrowedValueUSD = 0, 
+    availableBorrowUSD = 0 
+  } = summary || {};
   
   // Health factor status
   const getHealthStatus = (factor: number) => {
@@ -65,8 +70,8 @@ export function HealthMonitorCard({ summary }: HealthMonitorCardProps) {
             className="h-2"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>${borrowedValueUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })} borrowed</span>
-            <span>${(totalCollateralUSD * 0.8).toLocaleString('en-US', { maximumFractionDigits: 0 })} max</span>
+            <span>${(borrowedValueUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })} borrowed</span>
+            <span>${((totalCollateralUSD || 0) * 0.8).toLocaleString('en-US', { maximumFractionDigits: 0 })} max</span>
           </div>
         </div>
 
@@ -91,7 +96,7 @@ export function HealthMonitorCard({ summary }: HealthMonitorCardProps) {
               <span className="text-sm font-medium">Available to Borrow</span>
             </div>
             <span className="text-sm font-bold text-primary">
-              ${availableBorrowUSD.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              ${(availableBorrowUSD || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
             </span>
           </div>
         )}

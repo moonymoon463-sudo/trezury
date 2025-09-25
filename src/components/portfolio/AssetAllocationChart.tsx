@@ -118,7 +118,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
             <div className="text-center lg:text-left mb-3">
               <div className="text-sm text-muted-foreground">Total Value</div>
               <div className="text-xl font-bold">
-                ${totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                ${(totalValue || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </div>
             </div>
             
@@ -134,7 +134,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
                     <div className="font-medium">
-                      ${item.value.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      ${(item.value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {((item.value / totalValue) * 100).toFixed(1)}%
