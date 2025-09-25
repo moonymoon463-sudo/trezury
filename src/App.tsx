@@ -45,6 +45,8 @@ import AdminTransactions from "./pages/AdminTransactions";
 import WalletManagement from "./pages/WalletManagement";
 import Portfolio from "./pages/Portfolio";
 import TrzryReserves from "./pages/TrzryReserves";
+import Send from "./pages/Send";
+import Receive from "./pages/Receive";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +113,8 @@ const AppRoutes = () => {
       <Route path="/admin/fees-external" element={<ProtectedRoute><AdminFeesNew /></ProtectedRoute>} />
       <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
       <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />
+      <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
+      <Route path="/receive" element={<ProtectedRoute><Receive /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

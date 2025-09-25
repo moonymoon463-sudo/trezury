@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import AurumLogo from '@/components/AurumLogo';
 
 interface StandardHeaderProps {
+  title?: string;
   showBackButton?: boolean;
   backPath?: string;
+  onBack?: () => void;
   showRefreshButton?: boolean;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -15,8 +17,10 @@ interface StandardHeaderProps {
 }
 
 const StandardHeader: React.FC<StandardHeaderProps> = ({
+  title,
   showBackButton = false,
   backPath = "/",
+  onBack,
   showRefreshButton = false,
   onRefresh,
   isRefreshing = false,
@@ -26,7 +30,9 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
   const navigate = useNavigate();
 
   const handleBack = () => {
-    if (backPath === "back") {
+    if (onBack) {
+      onBack();
+    } else if (backPath === "back") {
       navigate(-1);
     } else {
       navigate(backPath);
@@ -50,9 +56,13 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
           )}
         </div>
 
-        {/* Center Section - Logo */}
+        {/* Center Section - Logo or Title */}
         <div className="flex-1 flex justify-center">
-          <AurumLogo compact />
+          {title ? (
+            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          ) : (
+            <AurumLogo compact />
+          )}
         </div>
 
         {/* Right Section */}

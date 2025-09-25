@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus, RefreshCw } from "lucide-react";
+import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus, RefreshCw, Send, Download } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
@@ -97,7 +97,7 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Action Buttons - Buy Options */}
+          {/* Action Buttons - 2x3 Grid */}
           <div className="grid grid-cols-2 gap-2">
             <Button 
               className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
@@ -126,6 +126,20 @@ const Index = () => {
             >
               <TrendingUp size={14} />
               Earn Interest
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
+              onClick={() => navigate("/send")}
+            >
+              <Send size={14} />
+              Send
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#2C2C2E]/80"
+              onClick={() => navigate("/receive")}
+            >
+              <Download size={14} />
+              Receive
             </Button>
           </div>
 
