@@ -1139,10 +1139,11 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           active: boolean
+          database: string
+          jobid: number
           jobname: string
-          last_run: string
-          next_run: string
           schedule: string
+          username: string
         }[]
       }
       get_latest_gold_price: {
@@ -1245,6 +1246,10 @@ export type Database = {
       mask_ssn: {
         Args: { ssn_value: string }
         Returns: string
+      }
+      trigger_gold_price_collection: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       user_can_see_sensitive_data: {
         Args: Record<PropertyKey, never>
