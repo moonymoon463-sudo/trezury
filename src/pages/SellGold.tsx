@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
-import AurumLogo from "@/components/AurumLogo";
+import StandardHeader from "@/components/StandardHeader";
 import { loadMoonPay } from '@moonpay/moonpay-js';
 import { toast } from "sonner";
 
@@ -55,22 +55,7 @@ const SellGold = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <header className="p-4">
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/")}
-            className="text-foreground hover:bg-accent"
-          >
-            <ArrowLeft size={24} />
-          </Button>
-          <div className="flex-1 flex justify-center pr-6">
-            <AurumLogo compact />
-          </div>
-        </div>
-      </header>
+      <StandardHeader showBackButton backPath="/" />
 
       {/* Main Content */}
       <main className="flex-1 p-4">
