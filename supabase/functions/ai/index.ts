@@ -177,7 +177,7 @@ Focus on actionable, personalized advice based on current market conditions and 
   } catch (error) {
     console.error('AI analysis error:', error);
     return new Response(JSON.stringify({ 
-      error: error.message || 'Failed to generate AI analysis' 
+      error: error instanceof Error ? error.message : 'Failed to generate AI analysis' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

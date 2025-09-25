@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_analysis_cache: {
+        Row: {
+          analysis: string
+          analysis_type: string
+          created_at: string
+          id: string
+          portfolio_snapshot: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis: string
+          analysis_type: string
+          created_at?: string
+          id?: string
+          portfolio_snapshot?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis?: string
+          analysis_type?: string
+          created_at?: string
+          id?: string
+          portfolio_snapshot?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           id: string

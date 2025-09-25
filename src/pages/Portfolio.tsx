@@ -2,7 +2,7 @@ import { ArrowLeft, RefreshCw, Brain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
-import { usePortfolioAI } from "@/hooks/usePortfolioAI";
+import { useOptimizedPortfolioAI } from "@/hooks/useOptimizedPortfolioAI";
 import { PortfolioSummaryCard } from "@/components/portfolio/PortfolioSummaryCard";
 import { HealthMonitorCard } from "@/components/portfolio/HealthMonitorCard";
 import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
@@ -35,7 +35,7 @@ export default function Portfolio() {
     riskAssessment,
     loading: aiLoading,
     refreshAnalysis
-  } = usePortfolioAI();
+  } = useOptimizedPortfolioAI();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
