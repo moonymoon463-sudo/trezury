@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from './useAuth';
-import { useWalletBalance } from './useWalletBalance';
+import { useOptimizedWalletBalance } from './useOptimizedWalletBalance';
 import { useGoldPrice } from './useGoldPrice';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -58,7 +58,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export function useOptimizedPortfolioAI() {
   const { user } = useAuth();
-  const { balances, totalValue, loading: balancesLoading } = useWalletBalance();
+  const { balances, totalValue, loading: balancesLoading } = useOptimizedWalletBalance();
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
   
   const [insights, setInsights] = useState<AIInsight[]>([]);
