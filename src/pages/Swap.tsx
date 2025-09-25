@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ArrowUpDown, Edit, Wallet } from "lucide-react";
@@ -12,19 +12,13 @@ import StandardHeader from "@/components/StandardHeader";
 
 const Swap = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { balances, getBalance, refreshBalances, walletAddress } = useWalletBalance();
   const { user } = useAuth();
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
-  // Get initial assets from URL params or defaults
-  const initialFromAsset = (searchParams.get('from') as 'USDC' | 'XAUT') || 'USDC';
-  const initialToAsset = (searchParams.get('to') as 'USDC' | 'XAUT') || 'XAUT';
-  const flowType = searchParams.get('flow'); // 'buy-gold' or null
-  
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT'>(initialFromAsset);
-  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT'>(initialToAsset);
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
@@ -197,20 +191,9 @@ const Swap = () => {
     }
   };
 
-  const getHeaderTitle = () => {
-    if (flowType === 'buy-gold') {
-      return 'Buy Gold';
-    }
-    return 'Swap';
-  };
-
   return (
     <div className="flex flex-col h-screen bg-background">
-      <StandardHeader 
-        showBackButton 
-        backPath={flowType === 'buy-gold' ? '/buy-gold' : '/'} 
-        title={getHeaderTitle()}
-      />
+      <StandardHeader showBackButton backPath="/" />
       
       {/* Wallet Status */}
       {secureWalletAddress && (

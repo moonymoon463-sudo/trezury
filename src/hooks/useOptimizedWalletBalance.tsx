@@ -232,12 +232,9 @@ export function useOptimizedWalletBalance() {
     };
   }, [balances.length, scheduleBackgroundRefresh]);
 
-  // Real-time updates via Supabase with cooldown
+  // Real-time updates via Supabase
   useEffect(() => {
     if (!user?.id) return;
-
-    let lastRealTimeUpdate = 0;
-    const REALTIME_COOLDOWN = isMobile ? 5 * 60 * 1000 : 60 * 1000; // 5 min mobile, 1 min desktop
 
     const channel = supabase
       .channel('balance-updates')
@@ -250,13 +247,8 @@ export function useOptimizedWalletBalance() {
           filter: `user_id=eq.${user.id}`
         },
         () => {
-          const now = Date.now();
-          // Apply cooldown to prevent spam refreshes
-          if (now - lastRealTimeUpdate >= REALTIME_COOLDOWN) {
-            lastRealTimeUpdate = now;
-            // Silent refresh on mobile to prevent UI flicker
-            fetchBalances(true, isMobile);
-          }
+          // Refresh balances when new snapshot is inserted
+          fetchBalances(true);
         }
       )
       .subscribe();
@@ -264,7 +256,7 @@ export function useOptimizedWalletBalance() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchBalances, isMobile]);
+  }, [user?.id, fetchBalances]);
 
   // Performance monitoring
   const performanceMetrics = useMemo(() => ({

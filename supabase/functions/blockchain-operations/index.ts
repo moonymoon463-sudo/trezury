@@ -19,7 +19,7 @@ const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
 // Contract addresses (Ethereum mainnet) - Fixed checksums
-const USDC_CONTRACT_RAW = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC mainnet (corrected)
+const USDC_CONTRACT_RAW = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820b'; // USDC mainnet
 const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold  
 const TRZRY_CONTRACT_RAW = '0x726951bef4b0C6E972da44b186a4Db8749A4B9B9'; // Mock TRZRY for demo
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
@@ -32,7 +32,7 @@ function getContractAddress(asset: string | undefined): string {
   
   // Fixed contract addresses with proper checksums
   const contracts = {
-    'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC mainnet (corrected)
+    'USDC': '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820b', // USDC mainnet
     'XAUT': '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold
     'TRZRY': '0x726951bef4b0C6E972da44b186a4Db8749A4B9B9'  // Mock TRZRY
   };
@@ -244,15 +244,6 @@ serve(async (req) => {
           const assets = ['USDC', 'XAUT', 'TRZRY'];
           const balancePromises = assets.map(async (asset) => {
             try {
-              // Special handling for TRZRY - return mock balance to avoid chain errors
-              if (asset === 'TRZRY') {
-                return {
-                  asset,
-                  balance: 0,
-                  success: true
-                };
-              }
-              
               const contractAddress = getContractAddress(asset);
               const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
               
