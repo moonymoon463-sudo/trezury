@@ -153,7 +153,7 @@ async function handleActivityAnalysis(
 
     // Check for activity from multiple IPs
     const uniqueIPs = new Set();
-    recentActivity?.forEach(event => {
+    recentActivity?.forEach((event: any) => {
       if (event.metadata?.ip_address) {
         uniqueIPs.add(event.metadata.ip_address);
       }
@@ -196,7 +196,7 @@ async function handleActivityAnalysis(
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
       .limit(10);
 
-    const hasNewIP = !recentIPs?.some(event => event.metadata?.ip_address === clientIP);
+    const hasNewIP = !recentIPs?.some((event: any) => event.metadata?.ip_address === clientIP);
     if (hasNewIP && recentIPs && recentIPs.length > 0) {
       riskScore += 25;
       reasons.push('Activity from new IP address');

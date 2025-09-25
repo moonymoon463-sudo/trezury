@@ -172,7 +172,7 @@ serve(async (req) => {
         return acc;
       }, {}) || {};
 
-      const gnosisBatch = Object.entries(batchesByAsset).map(([asset, requests]: [string, any[]]) => ({
+      const gnosisBatch = Object.entries(batchesByAsset).map(([asset, requests]) => ({
         to: "0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835", // Platform wallet
         value: "0",
         data: null,
@@ -183,7 +183,7 @@ serve(async (req) => {
         },
         contractInputsValues: {
           _to: "0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835",
-          _value: requests.reduce((sum, req) => sum + parseFloat(req.amount.toString()), 0).toString()
+          _value: (requests as any[]).reduce((sum: number, req: any) => sum + parseFloat(req.amount.toString()), 0).toString()
         }
       }));
 

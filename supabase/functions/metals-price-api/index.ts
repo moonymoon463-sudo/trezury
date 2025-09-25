@@ -5,6 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper function to safely extract error messages
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Unknown error';
+}
+
 interface MetalsApiResponse {
   success: boolean;
   timestamp: number;
@@ -72,7 +79,7 @@ serve(async (req) => {
           }
         }
       } catch (error) {
-        console.log('Metals API failed:', error.message);
+        console.log('Metals API failed:', getErrorMessage(error));
       }
     }
 
@@ -116,7 +123,7 @@ serve(async (req) => {
           }
         }
       } catch (error) {
-        console.log('Alpha Vantage API failed:', error.message);
+        console.log('Alpha Vantage API failed:', getErrorMessage(error));
       }
     }
 
