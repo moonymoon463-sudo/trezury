@@ -46,6 +46,12 @@ const BuyGold = () => {
       return;
     }
     
+    if (paymentMethod === "usdc") {
+      // Redirect to swap page for USDC purchases
+      navigate("/swap");
+      return;
+    }
+    
     // Store payment method for later use
     sessionStorage.setItem('selectedPaymentMethod', paymentMethod);
     navigate("/buy-gold/amount");
