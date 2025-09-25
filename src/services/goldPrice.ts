@@ -81,8 +81,9 @@ class GoldPriceService {
   }
 
   private getMockPrice(): GoldPrice {
-    const basePrice = 2345.67;
-    const variation = (Math.random() - 0.5) * 20; // ±$10
+    // Use realistic current gold price (around $2650/oz as of late 2024)
+    const basePrice = 2650;
+    const variation = (Math.random() - 0.5) * 20; // ±$10 variation
     const price = basePrice + variation;
     const change = variation;
     const changePercent = (change / basePrice) * 100;
@@ -151,26 +152,91 @@ class GoldPriceService {
     this.isUpdating = false;
   }
 
-  async getHistoricalPrices(days: number = 30): Promise<GoldPriceHistory[]> {
-    // For now, generate mock historical data
+  async getHistoricalPrices(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistory[]> {
     const history: GoldPriceHistory[] = [];
     const now = new Date();
-    const basePrice = 2345.67;
+    
+    // Use current price as reference, fallback to realistic price
+    const currentPrice = this.currentPrice?.usd_per_oz || 2650;
+    
+    let intervals: number;
+    let intervalMs: number;
+    let volatilityFactor: number;
+    
+    switch (timeframe) {
+      case '1h':
+        intervals = 60; // Every minute for 1 hour
+        intervalMs = 60 * 1000;
+        volatilityFactor = 0.001; // 0.1% per minute max
+        break;
+      case '24h':
+        intervals = 144; // Every 10 minutes for 24 hours
+        intervalMs = 10 * 60 * 1000;
+        volatilityFactor = 0.003; // 0.3% per 10-minute interval
+        break;
+      case '7d':
+        intervals = 168; // Every hour for 7 days
+        intervalMs = 60 * 60 * 1000;
+        volatilityFactor = 0.008; // 0.8% per hour
+        break;
+      case '30d':
+        intervals = 180; // Every 4 hours for 30 days
+        intervalMs = 4 * 60 * 60 * 1000;
+        volatilityFactor = 0.015; // 1.5% per 4-hour period
+        break;
+      case '3m':
+        intervals = 90; // Every day for 3 months
+        intervalMs = 24 * 60 * 60 * 1000;
+        volatilityFactor = 0.025; // 2.5% daily volatility
+        break;
+      default:
+        intervals = 144;
+        intervalMs = 10 * 60 * 1000;
+        volatilityFactor = 0.003;
+    }
 
-    for (let i = days; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
+    // Generate realistic price movements
+    let price = currentPrice;
+    let trend = 0; // Overall trend direction
+    
+    for (let i = intervals; i >= 0; i--) {
+      const timestamp = new Date(now.getTime() - (i * intervalMs));
       
-      const variation = (Math.random() - 0.5) * 100;
-      const price = basePrice + variation;
+      // Add some trending behavior (gold tends to trend over time)
+      if (Math.random() < 0.1) { // 10% chance to change trend
+        trend = (Math.random() - 0.5) * 0.02; // ±1% trend per period
+      }
+      
+      // Market hours volatility (higher during US/London trading)
+      const hour = timestamp.getUTCHours();
+      const isMarketHours = (hour >= 13 && hour <= 20); // 8 AM - 3 PM EST in UTC
+      const hourVolatilityMultiplier = isMarketHours ? 1.5 : 0.7;
+      
+      // Weekend reduced volatility
+      const isWeekend = timestamp.getDay() === 0 || timestamp.getDay() === 6;
+      const weekendMultiplier = isWeekend ? 0.5 : 1.0;
+      
+      // Generate price movement with trend + random walk + volatility clustering
+      const randomComponent = (Math.random() - 0.5) * volatilityFactor * hourVolatilityMultiplier * weekendMultiplier;
+      const trendComponent = trend;
+      
+      // Occasional spikes (news events, etc.)
+      const spikeChance = Math.random();
+      const spikeComponent = spikeChance < 0.005 ? (Math.random() - 0.5) * 0.03 : 0; // 0.5% chance of ±3% spike
+      
+      price = price * (1 + trendComponent + randomComponent + spikeComponent);
+      
+      // Keep price within reasonable bounds ($2000-$4000)
+      price = Math.max(2000, Math.min(4000, price));
       
       history.push({
-        timestamp: date.toISOString(),
+        timestamp: timestamp.toISOString(),
         price: Number(price.toFixed(2))
       });
     }
 
-    return history;
+    // Sort by timestamp (oldest first)
+    return history.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   }
 }
 
