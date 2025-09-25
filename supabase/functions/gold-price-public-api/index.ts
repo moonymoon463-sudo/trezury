@@ -75,7 +75,7 @@ serve(async (req) => {
     console.error('🚨 Gold Price API error:', error);
     return new Response(JSON.stringify({
       error: 'Internal server error',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -121,7 +121,7 @@ async function handleLatest(supabase: any) {
     });
 
   } catch (error) {
-    throw new Error(`Failed to fetch latest price: ${error.message}`);
+    throw new Error(`Failed to fetch latest price: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -164,7 +164,7 @@ async function handleHistory(supabase: any, days: number) {
     });
 
   } catch (error) {
-    throw new Error(`Failed to fetch price history: ${error.message}`);
+    throw new Error(`Failed to fetch price history: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -231,7 +231,7 @@ async function handleAverage(supabase: any, period: string) {
     });
 
   } catch (error) {
-    throw new Error(`Failed to calculate average: ${error.message}`);
+    throw new Error(`Failed to calculate average: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -268,7 +268,7 @@ async function handleSources(supabase: any) {
     });
 
   } catch (error) {
-    throw new Error(`Failed to fetch source info: ${error.message}`);
+    throw new Error(`Failed to fetch source info: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

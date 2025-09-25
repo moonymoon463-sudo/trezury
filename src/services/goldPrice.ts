@@ -23,7 +23,32 @@ class GoldPriceService {
 
   async getCurrentPrice(): Promise<GoldPrice> {
     try {
-      // Try new metals price API first, fallback to original
+      // First, try to get the latest price from database
+      const { data: dbPrice, error: dbError } = await supabase
+        .from('gold_prices')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (dbPrice && !dbError) {
+        console.log('✅ Using database-stored gold price');
+        const goldPrice: GoldPrice = {
+          usd_per_oz: Number(dbPrice.usd_per_oz),
+          usd_per_gram: Number(dbPrice.usd_per_gram),
+          change_24h: Number(dbPrice.change_24h || 0),
+          change_percent_24h: Number(dbPrice.change_percent_24h || 0),
+          last_updated: new Date(dbPrice.timestamp).getTime()
+        };
+        
+        this.currentPrice = goldPrice;
+        this.notifySubscribers(goldPrice);
+        return goldPrice;
+      }
+
+      console.log('📡 Database empty, falling back to live APIs');
+      
+      // Fallback to live APIs if database is empty or outdated
       const { data, error } = await supabase.functions.invoke('metals-price-api');
       
       if (error) {

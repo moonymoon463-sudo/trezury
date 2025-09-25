@@ -1135,6 +1135,16 @@ export type Database = {
         Args: { field_name: string; target_user_id?: string }
         Returns: string
       }
+      get_gold_price_cron_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active: boolean
+          jobname: string
+          last_run: string
+          next_run: string
+          schedule: string
+        }[]
+      }
       get_latest_gold_price: {
         Args: Record<PropertyKey, never>
         Returns: {

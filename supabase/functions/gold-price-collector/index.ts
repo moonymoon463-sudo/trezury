@@ -50,7 +50,7 @@ serve(async (req) => {
             return price;
           }
         } catch (error) {
-          const errorMsg = `${source.name}: ${error.message}`;
+          const errorMsg = `${source.name}: ${error instanceof Error ? error.message : String(error)}`;
           console.error(`❌ ${errorMsg}`);
           errors.push(errorMsg);
           return null;
@@ -92,7 +92,7 @@ serve(async (req) => {
         }
       } catch (storeError) {
         console.error(`Failed to store price from ${price.source}:`, storeError);
-        errors.push(`Storage error for ${price.source}: ${storeError.message}`);
+        errors.push(`Storage error for ${price.source}: ${storeError instanceof Error ? storeError.message : String(storeError)}`);
       }
     }
 
@@ -111,7 +111,7 @@ serve(async (req) => {
     console.error('💥 Gold price collection failed:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -155,7 +155,7 @@ async function fetchFromTradingView(): Promise<GoldPrice | null> {
     
     throw new Error('Price not found in TradingView HTML');
   } catch (error) {
-    throw new Error(`TradingView scraping failed: ${error.message}`);
+    throw new Error(`TradingView scraping failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -195,7 +195,7 @@ async function fetchFromYahooFinance(): Promise<GoldPrice | null> {
     
     throw new Error('Invalid Yahoo Finance API response structure');
   } catch (error) {
-    throw new Error(`Yahoo Finance API failed: ${error.message}`);
+    throw new Error(`Yahoo Finance API failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -228,7 +228,7 @@ async function fetchFromMetalsAPI(): Promise<GoldPrice | null> {
     
     throw new Error(`Metals API error: ${data.error?.info || 'Invalid response'}`);
   } catch (error) {
-    throw new Error(`Metals API failed: ${error.message}`);
+    throw new Error(`Metals API failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -268,7 +268,7 @@ async function fetchFromAlphaVantage(): Promise<GoldPrice | null> {
     
     throw new Error(`Alpha Vantage error: ${JSON.stringify(data)}`);
   } catch (error) {
-    throw new Error(`Alpha Vantage failed: ${error.message}`);
+    throw new Error(`Alpha Vantage failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
