@@ -5,17 +5,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface FXDailyResponse {
-  'Time Series FX (Daily)'?: {
-    [date: string]: {
-      '1. open': string
-      '2. high': string
-      '3. low': string
-      '4. close': string
+interface YahooHistoricalResponse {
+  chart: {
+    result: Array<{
+      meta: {
+        symbol: string
+        currency: string
+        regularMarketPrice: number
+      }
+      timestamp: number[]
+      indicators: {
+        quote: Array<{
+          open: number[]
+          high: number[]
+          low: number[]
+          close: number[]
+          volume: number[]
+        }>
+      }
+    }>
+    error?: {
+      code: string
+      description: string
     }
   }
-  'Error Message'?: string
-  Note?: string
 }
 
 Deno.serve(async (req) => {
@@ -30,29 +43,23 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get Alpha Vantage API key
-    const alphaVantageKey = Deno.env.get('ALPHA_VANTAGE_API_KEY')
-    if (!alphaVantageKey) {
-      throw new Error('Alpha Vantage API key not configured')
-    }
-
     console.log('Starting historical gold price collection...')
 
-    // Fetch historical data from Alpha Vantage
-    // Using GOLD symbol for daily gold prices in USD
-    const alphaVantageUrl = `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=XAU&to_symbol=USD&apikey=${alphaVantageKey}&outputsize=full`
+    // Fetch historical data from Yahoo Finance (2 years of daily data)
+    // Using XAUUSD=X symbol for spot gold prices
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?range=2y&interval=1d&includePrePost=false&events=div%2Csplit`
     
-    console.log('Fetching from Alpha Vantage:', alphaVantageUrl.replace(alphaVantageKey, 'HIDDEN'))
+    console.log('Fetching from Yahoo Finance:', yahooUrl)
     
-    const response = await fetch(alphaVantageUrl)
-    const data: FXDailyResponse = await response.json()
+    const response = await fetch(yahooUrl)
+    const data: YahooHistoricalResponse = await response.json()
 
-    if (data['Error Message'] || data.Note) {
-      console.error('Alpha Vantage API error:', data['Error Message'] || data.Note)
+    if (data.chart.error) {
+      console.error('Yahoo Finance API error:', data.chart.error)
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: data['Error Message'] || data.Note || 'API limit reached'
+          error: data.chart.error.description || 'Yahoo Finance API error'
         }),
         { 
           status: 400, 
@@ -61,13 +68,13 @@ Deno.serve(async (req) => {
       )
     }
 
-    const timeSeries = data['Time Series FX (Daily)']
-    if (!timeSeries) {
-      console.error('No time series data received from Alpha Vantage')
+    const result = data.chart.result?.[0]
+    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
+      console.error('No historical data received from Yahoo Finance')
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'No historical data available from Alpha Vantage'
+          error: 'No historical data available from Yahoo Finance'
         }),
         { 
           status: 400, 
@@ -76,23 +83,36 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Processing ${Object.keys(timeSeries).length} historical data points...`)
+    const timestamps = result.timestamp
+    const quote = result.indicators.quote[0]
+    const { open, high, low, close } = quote
+
+    console.log(`Processing ${timestamps.length} historical data points...`)
 
     // Convert and insert historical data
     const historicalData = []
     let insertedCount = 0
     let skippedCount = 0
 
-    for (const [dateStr, values] of Object.entries(timeSeries)) {
+    for (let i = 0; i < timestamps.length; i++) {
       try {
+        // Convert timestamp to date string
+        const date = new Date(timestamps[i] * 1000).toISOString().split('T')[0]
+        
+        // Skip if any OHLC value is null
+        if (open[i] == null || high[i] == null || low[i] == null || close[i] == null) {
+          skippedCount++
+          continue
+        }
+
         const historicalEntry = {
-          date: dateStr,
-          open_price: parseFloat(values['1. open']),
-          high_price: parseFloat(values['2. high']),
-          low_price: parseFloat(values['3. low']),
-          close_price: parseFloat(values['4. close']),
+          date: date,
+          open_price: open[i],
+          high_price: high[i],
+          low_price: low[i],
+          close_price: close[i],
           volume: 0,
-          source: 'alpha_vantage'
+          source: 'yahoo_finance'
         }
 
         // Insert into database with conflict handling
@@ -104,7 +124,7 @@ Deno.serve(async (req) => {
           })
 
         if (error) {
-          console.error(`Error inserting data for ${dateStr}:`, error)
+          console.error(`Error inserting data for ${date}:`, error)
           skippedCount++
         } else {
           insertedCount++
@@ -112,7 +132,7 @@ Deno.serve(async (req) => {
 
         historicalData.push(historicalEntry)
       } catch (err) {
-        console.error(`Error processing data for ${dateStr}:`, err)
+        console.error(`Error processing data point ${i}:`, err)
         skippedCount++
       }
     }
@@ -120,13 +140,13 @@ Deno.serve(async (req) => {
     console.log(`Historical data collection complete: ${insertedCount} inserted, ${skippedCount} skipped`)
 
     // Also update current price if we have recent data
-    const sortedDates = Object.keys(timeSeries).sort().reverse()
-    const latestDate = sortedDates[0]
-    const latestData = timeSeries[latestDate]
+    const latestIndex = timestamps.length - 1
+    const latestTimestamp = timestamps[latestIndex]
+    const latestDate = new Date(latestTimestamp * 1000).toISOString().split('T')[0]
 
-    if (latestData) {
-      const currentPrice = parseFloat(latestData['4. close'])
-      const previousPrice = sortedDates[1] ? parseFloat(timeSeries[sortedDates[1]]['4. close']) : currentPrice
+    if (close[latestIndex] != null) {
+      const currentPrice = close[latestIndex]
+      const previousPrice = latestIndex > 0 && close[latestIndex - 1] != null ? close[latestIndex - 1] : currentPrice
       const change24h = currentPrice - previousPrice
       const changePercent24h = previousPrice > 0 ? (change24h / previousPrice) * 100 : 0
 
@@ -138,7 +158,7 @@ Deno.serve(async (req) => {
           usd_per_gram: currentPrice / 31.1035, // Convert to per gram
           change_24h: change24h,
           change_percent_24h: changePercent24h,
-          source: 'alpha_vantage_historical',
+          source: 'yahoo_finance_historical',
           metadata: {
             latest_historical_date: latestDate,
             collection_type: 'historical_backfill'
@@ -157,11 +177,11 @@ Deno.serve(async (req) => {
         success: true,
         message: 'Historical gold price data collected successfully',
         data: {
-          total_processed: Object.keys(timeSeries).length,
+          total_processed: timestamps.length,
           inserted: insertedCount,
           skipped: skippedCount,
           latest_date: latestDate,
-          latest_price: latestData ? parseFloat(latestData['4. close']) : null
+          latest_price: close[latestIndex]
         }
       }),
       { 
