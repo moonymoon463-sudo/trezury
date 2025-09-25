@@ -1,7 +1,8 @@
-import { ArrowLeft, RefreshCw, Brain } from "lucide-react";
+import { ArrowLeft, RefreshCw, Brain, Wifi, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useMobileOptimizedPortfolio } from "@/hooks/useMobileOptimizedPortfolio";
 import { useOptimizedPortfolioAI } from "@/hooks/useOptimizedPortfolioAI";
 import { PortfolioSummaryCard } from "@/components/portfolio/PortfolioSummaryCard";
 import { HealthMonitorCard } from "@/components/portfolio/HealthMonitorCard";
@@ -11,6 +12,7 @@ import { AIInsightsPanel } from "@/components/portfolio/AIInsightsPanel";
 import { MarketForecast } from "@/components/portfolio/MarketForecast";
 import { RiskAnalysis } from "@/components/portfolio/RiskAnalysis";
 import { PerformanceAnalytics } from "@/components/portfolio/PerformanceAnalytics";
+import { MobileLoadingSkeleton } from "@/components/portfolio/MobileLoadingSkeleton";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
@@ -20,14 +22,17 @@ export default function Portfolio() {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Use mobile-optimized portfolio hook
   const {
-    portfolioSummary,
-    portfolioPerformance,
     portfolioAssets,
-    assetsByType,
+    portfolioSummary,
     loading,
-    refreshData
-  } = usePortfolioMonitoring();
+    error,
+    isOffline,
+    isMobile,
+    refreshData,
+    totalValue
+  } = useMobileOptimizedPortfolio();
 
   const {
     insights,
@@ -48,7 +53,27 @@ export default function Portfolio() {
     }
   };
 
-  if (loading) {
+  // Mobile-optimized loading with skeleton
+  if (loading && isMobile) {
+    return (
+      <div className="min-h-screen bg-background">
+        <StandardHeader 
+          showBackButton
+          backPath="back"
+          showRefreshButton
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
+        <main className="px-6 py-6 pb-24">
+          <MobileLoadingSkeleton />
+        </main>
+        <BottomNavigation />
+      </div>
+    );
+  }
+
+  // Desktop/full loading screen
+  if (loading && !isMobile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-2">
@@ -73,6 +98,24 @@ export default function Portfolio() {
 
       {/* Main Content */}
       <main className="px-6 py-6 pb-24 space-y-6">
+        {/* Offline/Error Alert */}
+        {isOffline && (
+          <Alert variant="destructive">
+            <WifiOff className="h-4 w-4" />
+            <AlertDescription>
+              You're offline. Showing cached portfolio data.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {error && !isOffline && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {error} {isMobile && "- Using cached data if available"}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Asset Allocation */}
         <AssetAllocationChart assets={portfolioAssets} />
 
@@ -98,7 +141,10 @@ export default function Portfolio() {
         {/* Performance Analytics */}
         <PerformanceAnalytics 
           summary={portfolioSummary}
-          performance={portfolioPerformance}
+          performance={{
+            period: '24h',
+            return: 0
+          }}
           loading={loading}
         />
 

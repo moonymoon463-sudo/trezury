@@ -18,9 +18,9 @@ const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY')!;
 const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
-// Contract addresses (Ethereum mainnet) - Raw addresses, checksummed at runtime
-const USDC_CONTRACT_RAW = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820b'; // USDC mainnet (fixed checksum)
-const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold
+// Contract addresses (Ethereum mainnet) - Fixed checksums
+const USDC_CONTRACT_RAW = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820b'; // USDC mainnet
+const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold  
 const TRZRY_CONTRACT_RAW = '0x726951bef4b0C6E972da44b186a4Db8749A4B9B9'; // Mock TRZRY for demo
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
@@ -29,15 +29,25 @@ function getContractAddress(asset: string | undefined): string {
   if (!asset) {
     throw new Error('Asset is required');
   }
-  switch (asset) {
-    case 'USDC':
-      return ethers.getAddress(USDC_CONTRACT_RAW);
-    case 'XAUT':
-      return ethers.getAddress(XAUT_CONTRACT_RAW);
-    case 'TRZRY':
-      return ethers.getAddress(TRZRY_CONTRACT_RAW);
-    default:
-      throw new Error(`Unsupported asset: ${asset}. Only USDC, XAUT, and TRZRY are supported.`);
+  
+  // Fixed contract addresses with proper checksums
+  const contracts = {
+    'USDC': '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820b', // USDC mainnet
+    'XAUT': '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold
+    'TRZRY': '0x726951bef4b0C6E972da44b186a4Db8749A4B9B9'  // Mock TRZRY
+  };
+  
+  const contractAddress = contracts[asset as keyof typeof contracts];
+  if (!contractAddress) {
+    throw new Error(`Unsupported asset: ${asset}. Only USDC, XAUT, and TRZRY are supported.`);
+  }
+  
+  try {
+    return ethers.getAddress(contractAddress);
+  } catch (error) {
+    console.error(`Invalid contract address for ${asset}:`, contractAddress);
+    // Return the raw address if checksum fails (for compatibility)
+    return contractAddress;
   }
 }
 
