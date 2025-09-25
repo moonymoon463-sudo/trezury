@@ -159,6 +159,16 @@ class GoldPriceService {
     // Use current price as reference, fallback to realistic price
     const currentPrice = this.currentPrice?.usd_per_oz || 2650;
     
+    // Create seed based on timeframe for consistent data generation
+    const seedString = `${timeframe}-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`;
+    let seed = seedString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    // Simple seeded random function for consistency
+    const seededRandom = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+    
     let intervals: number;
     let intervalMs: number;
     let volatilityFactor: number;
@@ -167,67 +177,95 @@ class GoldPriceService {
       case '1h':
         intervals = 60; // Every minute for 1 hour
         intervalMs = 60 * 1000;
-        volatilityFactor = 0.001; // 0.1% per minute max
+        volatilityFactor = 0.005; // 0.5% per minute - increased significantly
         break;
       case '24h':
         intervals = 144; // Every 10 minutes for 24 hours
         intervalMs = 10 * 60 * 1000;
-        volatilityFactor = 0.003; // 0.3% per 10-minute interval
+        volatilityFactor = 0.01; // 1% per 10-minute interval - increased significantly
         break;
       case '7d':
         intervals = 168; // Every hour for 7 days
         intervalMs = 60 * 60 * 1000;
-        volatilityFactor = 0.008; // 0.8% per hour
+        volatilityFactor = 0.02; // 2% per hour - increased significantly
         break;
       case '30d':
         intervals = 180; // Every 4 hours for 30 days
         intervalMs = 4 * 60 * 60 * 1000;
-        volatilityFactor = 0.015; // 1.5% per 4-hour period
+        volatilityFactor = 0.03; // 3% per 4-hour period - increased significantly
         break;
       case '3m':
         intervals = 90; // Every day for 3 months
         intervalMs = 24 * 60 * 60 * 1000;
-        volatilityFactor = 0.025; // 2.5% daily volatility
+        volatilityFactor = 0.05; // 5% daily volatility - increased significantly
         break;
       default:
         intervals = 144;
         intervalMs = 10 * 60 * 1000;
-        volatilityFactor = 0.003;
+        volatilityFactor = 0.01;
     }
 
     // Generate realistic price movements
     let price = currentPrice;
     let trend = 0; // Overall trend direction
+    let momentum = 0; // Price momentum for more realistic movement
+    let supportLevel = currentPrice * 0.95; // Support level
+    let resistanceLevel = currentPrice * 1.05; // Resistance level
     
     for (let i = intervals; i >= 0; i--) {
       const timestamp = new Date(now.getTime() - (i * intervalMs));
       
-      // Add some trending behavior (gold tends to trend over time)
-      if (Math.random() < 0.1) { // 10% chance to change trend
-        trend = (Math.random() - 0.5) * 0.02; // ±1% trend per period
+      // Add trending behavior with momentum
+      if (seededRandom() < 0.15) { // 15% chance to change trend
+        trend = (seededRandom() - 0.5) * 0.03; // ±1.5% trend per period
       }
       
       // Market hours volatility (higher during US/London trading)
       const hour = timestamp.getUTCHours();
       const isMarketHours = (hour >= 13 && hour <= 20); // 8 AM - 3 PM EST in UTC
-      const hourVolatilityMultiplier = isMarketHours ? 1.5 : 0.7;
+      const hourVolatilityMultiplier = isMarketHours ? 1.8 : 0.6;
       
       // Weekend reduced volatility
       const isWeekend = timestamp.getDay() === 0 || timestamp.getDay() === 6;
-      const weekendMultiplier = isWeekend ? 0.5 : 1.0;
+      const weekendMultiplier = isWeekend ? 0.4 : 1.0;
       
-      // Generate price movement with trend + random walk + volatility clustering
-      const randomComponent = (Math.random() - 0.5) * volatilityFactor * hourVolatilityMultiplier * weekendMultiplier;
+      // Add momentum to create trending behavior
+      momentum = momentum * 0.8 + trend * 0.2; // Momentum decay with new trend influence
+      
+      // Support/resistance behavior
+      let srInfluence = 0;
+      if (price <= supportLevel) {
+        srInfluence = 0.01; // Bounce off support
+        supportLevel = price * 0.98; // Update support
+      } else if (price >= resistanceLevel) {
+        srInfluence = -0.01; // Resistance pressure
+        resistanceLevel = price * 1.02; // Update resistance
+      }
+      
+      // Generate price movement with multiple components
+      const randomComponent = (seededRandom() - 0.5) * volatilityFactor * hourVolatilityMultiplier * weekendMultiplier;
       const trendComponent = trend;
+      const momentumComponent = momentum * 0.5;
       
-      // Occasional spikes (news events, etc.)
-      const spikeChance = Math.random();
-      const spikeComponent = spikeChance < 0.005 ? (Math.random() - 0.5) * 0.03 : 0; // 0.5% chance of ±3% spike
+      // Occasional news events/spikes
+      const spikeChance = seededRandom();
+      const spikeComponent = spikeChance < 0.008 ? (seededRandom() - 0.5) * 0.05 : 0; // 0.8% chance of ±5% spike
       
-      price = price * (1 + trendComponent + randomComponent + spikeComponent);
+      // Intraday patterns (higher volatility at open/close)
+      const minute = timestamp.getUTCMinutes();
+      const intradayMultiplier = (minute < 30 || minute > 30) ? 1.2 : 1.0;
       
-      // Keep price within reasonable bounds ($2000-$4000)
-      price = Math.max(2000, Math.min(4000, price));
+      price = price * (1 + trendComponent + randomComponent + momentumComponent + spikeComponent + srInfluence) * intradayMultiplier;
+      
+      // Keep price within reasonable bounds ($2200-$3200)
+      price = Math.max(2200, Math.min(3200, price));
+      
+      // Update dynamic support/resistance levels
+      if (i % 10 === 0) { // Update every 10 intervals
+        const range = price * 0.05; // 5% range
+        supportLevel = Math.max(supportLevel, price - range);
+        resistanceLevel = Math.min(resistanceLevel, price + range);
+      }
       
       history.push({
         timestamp: timestamp.toISOString(),

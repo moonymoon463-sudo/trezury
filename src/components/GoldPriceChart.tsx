@@ -164,9 +164,7 @@ const GoldPriceChart = () => {
     }
   }, [currentPrice, timeframe, chartData.length]);
 
-  const formatTooltip = (value: number) => {
-    return [`$${value.toFixed(2)}`, 'Gold Price'];
-  };
+  const formatPrice = (value: number) => `$${value.toFixed(2)}`;
 
   return (
     <div className="bg-card rounded-xl p-4">
@@ -230,7 +228,7 @@ const GoldPriceChart = () => {
         </div>
       )}
 
-      <div className="h-64 relative">
+      <div className="h-80 relative">
         {loading ? (
           <div className="h-full bg-surface-elevated rounded-lg flex items-center justify-center">
             <div className="flex items-center gap-2">
@@ -240,61 +238,86 @@ const GoldPriceChart = () => {
           </div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <defs>
                 <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f9b006" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#f9b006" stopOpacity={0.1}/>
+                  <stop offset="0%" stopColor="hsl(var(--chart-primary))" stopOpacity={0.3}/>
+                  <stop offset="50%" stopColor="hsl(var(--chart-primary))" stopOpacity={0.1}/>
+                  <stop offset="100%" stopColor="hsl(var(--chart-primary))" stopOpacity={0.05}/>
                 </linearGradient>
               </defs>
               <XAxis 
                 dataKey="time" 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                 interval="preserveStartEnd"
+                height={40}
               />
               <YAxis 
-                domain={['dataMin - 5', 'dataMax + 5']}
+                domain={['dataMin - 20', 'dataMax + 20']}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                width={60}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                width={65}
                 tickFormatter={(value) => `$${value.toFixed(0)}`}
               />
               <Tooltip 
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
+                  backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
-                  color: 'hsl(var(--foreground))',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  color: 'hsl(var(--popover-foreground))',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                  fontSize: '13px'
                 }}
-                formatter={formatTooltip}
-                labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                formatter={(value: number, name: string) => [
+                  `$${value.toFixed(2)}`,
+                  'Gold Price'
+                ]}
+                labelStyle={{ 
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: '12px',
+                  marginBottom: '4px'
+                }}
+                cursor={{ 
+                  stroke: 'hsl(var(--chart-primary))', 
+                  strokeWidth: 1,
+                  strokeOpacity: 0.5,
+                  strokeDasharray: '4 4'
+                }}
               />
+              {/* Grid lines */}
+              <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" strokeOpacity="0.1"/>
+                </pattern>
+              </defs>
               {/* Reference line for current price */}
               {currentPrice && (
                 <ReferenceLine 
                   y={currentPrice.usd_per_oz} 
-                  stroke="#f9b006" 
-                  strokeDasharray="2 2" 
-                  strokeOpacity={0.5}
+                  stroke="hsl(var(--chart-primary))" 
+                  strokeDasharray="3 3" 
+                  strokeOpacity={0.6}
+                  strokeWidth={1.5}
                 />
               )}
               <Line 
                 type="monotone" 
                 dataKey="price" 
-                stroke="#f9b006" 
-                strokeWidth={2}
+                stroke="hsl(var(--chart-primary))" 
+                strokeWidth={2.5}
                 dot={false}
                 activeDot={{ 
-                  r: 5, 
-                  fill: '#f9b006', 
-                  stroke: '#fff', 
-                  strokeWidth: 2 
+                  r: 6, 
+                  fill: 'hsl(var(--chart-primary))', 
+                  stroke: 'hsl(var(--background))', 
+                  strokeWidth: 3,
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                 }}
                 fill="url(#priceGradient)"
+                fillOpacity={1}
               />
             </LineChart>
           </ResponsiveContainer>
