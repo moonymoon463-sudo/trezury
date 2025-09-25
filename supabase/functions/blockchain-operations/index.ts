@@ -18,11 +18,26 @@ const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY')!;
 const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
-// Contract addresses (Ethereum mainnet) - PROPERLY CHECKSUMMED
-const USDC_CONTRACT = ethers.getAddress('0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B'); // USDC mainnet
-const XAUT_CONTRACT = ethers.getAddress('0x68749665FF8D2d112Fa859AA293F07A622782F38'); // Tether Gold
+// Contract addresses (Ethereum mainnet) - Raw addresses, checksummed at runtime
+const USDC_CONTRACT_RAW = '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B'; // USDC mainnet
+const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold
 // TRZRY contract not currently deployed, skip TRZRY operations for now
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+
+// Helper function to get checksummed contract address
+function getContractAddress(asset: string | undefined): string {
+  if (!asset) {
+    throw new Error('Asset is required');
+  }
+  switch (asset) {
+    case 'USDC':
+      return ethers.getAddress(USDC_CONTRACT_RAW);
+    case 'XAUT':
+      return ethers.getAddress(XAUT_CONTRACT_RAW);
+    default:
+      throw new Error(`Unsupported asset: ${asset}. Only USDC and XAUT are supported.`);
+  }
+}
 
 // Uniswap V3 contracts
 const UNISWAP_V3_QUOTER = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
@@ -150,9 +165,7 @@ serve(async (req) => {
             throw new Error('Invalid Ethereum address');
           }
           
-          const contractAddress = asset === 'USDC' ? USDC_CONTRACT : 
-                                asset === 'XAUT' ? XAUT_CONTRACT : 
-                                (() => { throw new Error(`Unsupported asset: ${asset}. Only USDC and XAUT are supported.`); })();
+          const contractAddress = getContractAddress(asset);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
           const balance = await contract.balanceOf(address);
@@ -202,7 +215,7 @@ serve(async (req) => {
           }
           
           // Execute the live blockchain transaction
-          const contractAddress = quote.side === 'buy' ? XAUT_CONTRACT : USDC_CONTRACT;
+          const contractAddress = quote.side === 'buy' ? getContractAddress('XAUT') : getContractAddress('USDC');
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
           
           const amount = ethers.parseUnits(
@@ -240,7 +253,7 @@ serve(async (req) => {
             throw new Error('Amount is required');
           }
           
-          const contractAddress = asset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const contractAddress = getContractAddress(asset);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
           
           const transferAmount = ethers.parseUnits(amount.toString(), 6);
@@ -277,7 +290,7 @@ serve(async (req) => {
           }
           
           // Validate platform wallet has sufficient balance for output token
-          const outputContractAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const outputContractAddress = getContractAddress(outputAsset);
           const outputContract = new ethers.Contract(outputContractAddress, ERC20_ABI, provider);
           const platformBalance = await outputContract.balanceOf(PLATFORM_WALLET);
           const outputDecimals = outputAsset === 'USDC' ? 6 : 6;
@@ -334,8 +347,8 @@ serve(async (req) => {
             throw new Error('Amount is required for quote');
           }
           
-          const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
-          const tokenOutAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
+          const tokenInAddress = getContractAddress(inputAsset);
+          const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
           
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
@@ -389,10 +402,8 @@ serve(async (req) => {
           console.log(`👤 User wallet: ${userWallet.address}`);
           
           // Validate token addresses (checksum corrected)
-          const tokenInAddress = inputAsset === 'USDC' ? 
-            ethers.getAddress(USDC_CONTRACT) : ethers.getAddress(XAUT_CONTRACT);
-          const tokenOutAddress = outputAsset === 'USDC' ? 
-            ethers.getAddress(USDC_CONTRACT) : ethers.getAddress(XAUT_CONTRACT);
+          const tokenInAddress = getContractAddress(inputAsset);
+          const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
@@ -588,10 +599,8 @@ serve(async (req) => {
           }
           
           // Use checksummed addresses
-          const tokenInAddress = inputAsset === 'USDC' ? 
-            ethers.getAddress(USDC_CONTRACT) : ethers.getAddress(XAUT_CONTRACT);
-          const tokenOutAddress = outputAsset === 'USDC' ? 
-            ethers.getAddress(USDC_CONTRACT) : ethers.getAddress(XAUT_CONTRACT);
+          const tokenInAddress = getContractAddress(inputAsset);
+          const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
           
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
@@ -643,10 +652,7 @@ serve(async (req) => {
           }
           
           // Use checksummed contract address
-          const contractAddress = asset === 'USDC' ? 
-            USDC_CONTRACT : 
-            asset === 'XAUT' ? XAUT_CONTRACT :
-            (() => { throw new Error(`Unsupported asset: ${asset}. Only USDC and XAUT are supported.`); })();
+          const contractAddress = getContractAddress(asset);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
           const balance = await contract.balanceOf(address);
