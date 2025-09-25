@@ -19,6 +19,7 @@ class GoldPriceService {
   private updateInterval: number | null = null;
   private lastNotifiedPrice: number = 0;
   private readonly PRICE_CHANGE_THRESHOLD = 0.001; // 0.1% threshold
+  private isUpdating = false; // Prevent duplicate intervals
 
   async getCurrentPrice(): Promise<GoldPrice> {
     try {
@@ -97,9 +98,16 @@ class GoldPriceService {
   }
 
   startRealTimeUpdates(intervalMs: number = 300000): void {
+    // Prevent multiple intervals
+    if (this.isUpdating) {
+      return;
+    }
+    
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
     }
+
+    this.isUpdating = true;
 
     // Get initial price
     this.getCurrentPrice();
@@ -115,6 +123,7 @@ class GoldPriceService {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
     }
+    this.isUpdating = false;
   }
 
   async getHistoricalPrices(days: number = 30): Promise<GoldPriceHistory[]> {

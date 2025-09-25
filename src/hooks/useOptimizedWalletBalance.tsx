@@ -9,8 +9,8 @@ export interface WalletBalance {
   chain: string;
 }
 
-// Cache management with improved stability
-const BALANCE_CACHE_DURATION = 30 * 1000; // 30 seconds for more responsive updates
+// Cache management with mobile optimization
+import { useIsMobile } from './use-mobile';
 const balanceCache = new Map<string, { balances: WalletBalance[]; timestamp: number }>();
 
 // Batch operation utility
@@ -114,24 +114,31 @@ class BatchBalanceManager {
 
 export function useOptimizedWalletBalance() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<number>(0);
+  
+  // Mobile-optimized cache duration
+  const BALANCE_CACHE_DURATION = isMobile ? 5 * 60 * 1000 : 30 * 1000; // 5 min mobile, 30s desktop
   
   const fetchTimeoutRef = useRef<NodeJS.Timeout>();
   const batchManager = useMemo(() => BatchBalanceManager.getInstance(), []);
 
   const getCacheKey = useCallback((address: string) => `balances_${address}`, []);
 
-  const fetchBalances = useCallback(async (forceRefresh = false) => {
+  const fetchBalances = useCallback(async (forceRefresh = false, silent = false) => {
     if (!user?.id) {
       setBalances([]);
       return;
     }
 
     try {
-      setLoading(true);
+      // Only show loading on initial load or explicit refresh, not background updates
+      if (!silent) {
+        setLoading(true);
+      }
       
       // Get user's wallet address
       const address = await secureWalletService.getWalletAddress(user.id);
@@ -170,11 +177,13 @@ export function useOptimizedWalletBalance() {
       console.error('Failed to fetch wallet balances:', error);
       setBalances([]);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
-  }, [user?.id, getCacheKey, batchManager]);
+  }, [user?.id, getCacheKey, batchManager, BALANCE_CACHE_DURATION]);
 
-  // Background refresh function
+  // Background refresh function - silent on mobile
   const scheduleBackgroundRefresh = useCallback(() => {
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
@@ -182,10 +191,10 @@ export function useOptimizedWalletBalance() {
 
     fetchTimeoutRef.current = setTimeout(() => {
       if (Date.now() - lastFetch >= BALANCE_CACHE_DURATION) {
-        fetchBalances(false); // Background refresh without forcing
+        fetchBalances(false, isMobile); // Silent refresh on mobile
       }
     }, BALANCE_CACHE_DURATION);
-  }, [fetchBalances, lastFetch]);
+  }, [fetchBalances, lastFetch, BALANCE_CACHE_DURATION, isMobile]);
 
   const refreshBalances = useCallback(() => {
     return fetchBalances(true);

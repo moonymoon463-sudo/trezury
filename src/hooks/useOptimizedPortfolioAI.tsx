@@ -35,11 +35,12 @@ export interface RiskAssessment {
   recommendations: string[];
 }
 
-// Cache management with stability optimizations
+// Cache management with mobile optimizations
+import { useIsMobile } from './use-mobile';
+
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for better stability
 const analysisCache = new Map<string, { data: any; timestamp: number }>();
 let lastAnalysisTime = 0;
-const MIN_ANALYSIS_INTERVAL = 2 * 60 * 1000; // Minimum 2 minutes between analysis
 
 // Debounce utility
 function useDebounce<T>(value: T, delay: number): T {
@@ -62,6 +63,10 @@ export function useOptimizedPortfolioAI() {
   const { user } = useAuth();
   const { balances, totalValue, loading: balancesLoading } = useOptimizedWalletBalance();
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
+  const isMobile = useIsMobile();
+  
+  // Mobile-specific analysis interval
+  const MIN_ANALYSIS_INTERVAL = isMobile ? 10 * 60 * 1000 : 2 * 60 * 1000; // 10 min mobile, 2 min desktop
   
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [forecasts, setForecasts] = useState<MarketForecast[]>([]);
@@ -109,6 +114,17 @@ export function useOptimizedPortfolioAI() {
     if (!skipCache && now - lastAnalysisTime < MIN_ANALYSIS_INTERVAL) {
       console.log('Skipping analysis due to circuit breaker');
       return;
+    }
+
+    // On mobile, check for significant value changes before re-analyzing
+    if (isMobile && !skipCache) {
+      const lastCacheEntry = Array.from(analysisCache.values()).pop();
+      if (lastCacheEntry) {
+        const valueChange = Math.abs(portfolioData.totalValue - (lastCacheEntry.data.portfolioValue || 0)) / Math.max(portfolioData.totalValue, 1);
+        if (valueChange < 0.03) { // Skip if less than 3% change
+          return;
+        }
+      }
     }
 
     const cacheKey = getCacheKey(portfolioData);
@@ -177,12 +193,13 @@ export function useOptimizedPortfolioAI() {
         setForecasts(enhancedForecasts);
         setRiskAssessment(enhancedRisk);
 
-        // Cache the results
+        // Cache the results with portfolio value for mobile comparison
         analysisCache.set(cacheKey, {
           data: {
             insights: enhancedInsights,
             forecasts: enhancedForecasts,
-            riskAssessment: enhancedRisk
+            riskAssessment: enhancedRisk,
+            portfolioValue: portfolioData.totalValue
           },
           timestamp: Date.now()
         });
@@ -201,7 +218,7 @@ export function useOptimizedPortfolioAI() {
       setLoading(false);
       analysisRef.current = null;
     }
-  }, [portfolioData, getCacheKey]);
+  }, [portfolioData, getCacheKey, MIN_ANALYSIS_INTERVAL, isMobile]);
 
   // Generate local insights immediately
   const generateLocalInsights = useCallback((data: any): AIInsight[] => {

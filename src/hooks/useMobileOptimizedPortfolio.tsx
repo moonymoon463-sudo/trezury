@@ -297,12 +297,12 @@ export function useMobileOptimizedPortfolio() {
     }
   }, [user?.id, fetchBalances, portfolioAssets, calculateSummary, balances.length, isMobile]);
 
-  // Initial load with mobile optimization
+  // Initial load with mobile optimization (only on user change, not gold price changes)
   useEffect(() => {
-    if (user?.id && goldPrice && !goldPriceLoading) {
+    if (user?.id) {
       refreshData();
     }
-  }, [user?.id, goldPrice, goldPriceLoading, refreshData]);
+  }, [user?.id, refreshData]);
 
   // Network status monitoring for mobile
   useEffect(() => {
