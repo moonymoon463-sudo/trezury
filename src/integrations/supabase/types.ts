@@ -1247,6 +1247,10 @@ export type Database = {
         Args: { ssn_value: string }
         Returns: string
       }
+      test_gold_price_collection: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       trigger_gold_price_collection: {
         Args: Record<PropertyKey, never>
         Returns: Json
