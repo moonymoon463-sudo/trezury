@@ -5,14 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface AlphaVantageResponse {
-  'Time Series (Daily)'?: {
+interface FXDailyResponse {
+  'Time Series FX (Daily)'?: {
     [date: string]: {
       '1. open': string
       '2. high': string
       '3. low': string
       '4. close': string
-      '5. volume': string
     }
   }
   'Error Message'?: string
@@ -46,7 +45,7 @@ Deno.serve(async (req) => {
     console.log('Fetching from Alpha Vantage:', alphaVantageUrl.replace(alphaVantageKey, 'HIDDEN'))
     
     const response = await fetch(alphaVantageUrl)
-    const data: AlphaVantageResponse = await response.json()
+    const data: FXDailyResponse = await response.json()
 
     if (data['Error Message'] || data.Note) {
       console.error('Alpha Vantage API error:', data['Error Message'] || data.Note)
@@ -62,7 +61,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const timeSeries = (data as any)['Time Series FX (Daily)']
+    const timeSeries = data['Time Series FX (Daily)']
     if (!timeSeries) {
       console.error('No time series data received from Alpha Vantage')
       return new Response(
@@ -92,7 +91,7 @@ Deno.serve(async (req) => {
           high_price: parseFloat(values['2. high']),
           low_price: parseFloat(values['3. low']),
           close_price: parseFloat(values['4. close']),
-          volume: parseInt(values['5. volume']) || 0,
+          volume: 0,
           source: 'alpha_vantage'
         }
 
