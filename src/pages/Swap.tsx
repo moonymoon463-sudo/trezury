@@ -304,7 +304,7 @@ const Swap = () => {
               </div>
               
               <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-                <span className="text-foreground">Platform Fee (1.5%)</span>
+                <span className="text-foreground">Platform Fee (0.8%)</span>
                 <span className="text-foreground">
                   {quote.fee.toFixed(6)} {fromAsset}
                 </span>

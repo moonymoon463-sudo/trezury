@@ -8,7 +8,7 @@ export interface SwapFeeCalculation {
 }
 
 class SwapFeeService {
-  private readonly PLATFORM_FEE_BPS = 100; // Simplified 1% platform fee
+  private readonly PLATFORM_FEE_BPS = 80; // Standardized 0.8% platform fee
   private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   /**
@@ -88,7 +88,7 @@ class SwapFeeService {
     totalFee: number;
     netAmount: number;
   } {
-    // Simplified 1% total fee
+    // Standardized 0.8% total fee
     const totalFee = (baseAmount * this.PLATFORM_FEE_BPS) / 10000;
     const netAmount = baseAmount - totalFee;
 

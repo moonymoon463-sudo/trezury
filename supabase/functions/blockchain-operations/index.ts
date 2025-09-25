@@ -63,6 +63,8 @@ interface BlockchainOperationRequest {
   asset?: string;
   feeAmount?: number;
   chain?: string; // For multi-chain fee collection
+  route?: any; // DEX route information
+  slippage?: number; // Slippage tolerance
 }
 
 // Helper function to create deterministic user wallet
@@ -144,7 +146,7 @@ serve(async (req) => {
           const { address, asset } = body;
           console.log(`Getting LIVE balance for ${address}, asset: ${asset}`);
           
-          if (!isValidEthereumAddress(address)) {
+          if (!address || !isValidEthereumAddress(address)) {
             throw new Error('Invalid Ethereum address');
           }
           
@@ -234,6 +236,10 @@ serve(async (req) => {
         try {
           const { from, to, amount, asset, userId } = body;
           console.log(`Executing LIVE transfer: ${amount} ${asset} from ${from} to ${to}`);
+          
+          if (!amount) {
+            throw new Error('Amount is required');
+          }
           
           const contractAddress = asset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
@@ -325,6 +331,10 @@ serve(async (req) => {
           const { inputAsset, outputAsset, amount, slippage } = body;
           console.log(`Getting Uniswap V3 quote: ${amount} ${inputAsset} to ${outputAsset}`);
           
+          if (!amount) {
+            throw new Error('Amount is required for quote');
+          }
+          
           const tokenInAddress = inputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
           const tokenOutAddress = outputAsset === 'USDC' ? USDC_CONTRACT : XAUT_CONTRACT;
           const fee = 3000; // 0.3% pool fee
@@ -370,6 +380,10 @@ serve(async (req) => {
           const { inputAsset, outputAsset, amount, slippage } = body;
           console.log(`🔄 Executing REAL Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
           
+          if (!amount) {
+            throw new Error('Amount is required for swap execution');
+          }
+          
           // Create user wallet deterministically
           const userWallet = createUserWallet(authenticatedUserId);
           const userWalletWithProvider = userWallet.connect(provider);
@@ -398,7 +412,7 @@ serve(async (req) => {
           if (currentAllowance < requiredAmount) {
             console.log(`📝 Approving ${inputAsset} for Uniswap router...`);
             const inputTokenWithSigner = inputTokenContract.connect(userWalletWithProvider);
-            const approveTx = await inputTokenWithSigner.approve(UNISWAP_V3_ROUTER, requiredAmount);
+            const approveTx = await (inputTokenWithSigner as any).approve(UNISWAP_V3_ROUTER, requiredAmount);
             await approveTx.wait();
             console.log(`✅ Approval completed: ${approveTx.hash}`);
           }
@@ -431,7 +445,7 @@ serve(async (req) => {
           let adjustedAmountIn = requiredAmount;
           
           if (ethBalance < estimatedGasCost) {
-            console.log(`⛽ User has insufficient ETH for gas, deducting from ${tokenIn} instead...`);
+            console.log(`⛽ User has insufficient ETH for gas, deducting from ${inputAsset} instead...`);
             
             // Get current ETH price in terms of input token using Uniswap
             try {
@@ -450,12 +464,12 @@ serve(async (req) => {
               gasInTokens = gasInInputToken + (gasInInputToken * BigInt(10) / BigInt(100)); // Add 10% buffer
               adjustedAmountIn = requiredAmount - gasInTokens;
               
-              console.log(`💰 Gas fee in ${tokenIn}: ${ethers.formatUnits(gasInTokens, 6)}`);
-              console.log(`📊 Adjusted swap amount: ${ethers.formatUnits(adjustedAmountIn, 6)} ${tokenIn}`);
+              console.log(`💰 Gas fee in ${inputAsset}: ${ethers.formatUnits(gasInTokens, 6)}`);
+              console.log(`📊 Adjusted swap amount: ${ethers.formatUnits(adjustedAmountIn, 6)} ${inputAsset}`);
               
               // Verify user still has enough tokens after gas deduction
               if (adjustedAmountIn <= 0) {
-                throw new Error(`Insufficient ${tokenIn} balance to cover both swap amount and gas fees`);
+                throw new Error(`Insufficient ${inputAsset} balance to cover both swap amount and gas fees`);
               }
               
               // Perform the gas payment swap first (convert some input tokens to ETH for gas)
@@ -471,7 +485,7 @@ serve(async (req) => {
                   sqrtPriceLimitX96: 0
                 };
                 
-                const gasSwapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, platformWalletWithProvider);
+                const gasSwapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, userWalletWithProvider);
                 const gasTx = await gasSwapRouter.exactInputSingle(gasSwapParams);
                 await gasTx.wait();
                 console.log(`✅ Gas swap completed: ${gasTx.hash}`);
@@ -525,6 +539,22 @@ serve(async (req) => {
           
           console.log(`🎉 REAL Uniswap V3 swap completed: ${receipt.hash}`);
           
+          // Calculate and collect 0.8% platform fee from output tokens
+          const PLATFORM_FEE_BPS = 80; // 0.8%
+          const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
+          const userOutputBalance = await outputTokenContract.balanceOf(userWallet.address);
+          const feeAmount = userOutputBalance * BigInt(PLATFORM_FEE_BPS) / BigInt(10000);
+          let platformFeeCollected = 0;
+          
+          if (feeAmount > 0) {
+            // Transfer fee to platform wallet
+            const outputTokenWithUserSigner = outputTokenContract.connect(userWalletWithProvider);
+            const feeTx = await (outputTokenWithUserSigner as any).transfer(PLATFORM_WALLET, feeAmount);
+            await feeTx.wait();
+            platformFeeCollected = parseFloat(ethers.formatUnits(feeAmount, 6));
+            console.log(`💰 Platform fee collected: ${platformFeeCollected} ${outputAsset} -> ${PLATFORM_WALLET}`);
+          }
+          
           result = {
             success: true,
             txHash: receipt.hash,
@@ -536,7 +566,9 @@ serve(async (req) => {
             userWallet: userWallet.address,
             gasFeePaidInTokens: gasInTokens > 0,
             gasFeeInTokens: gasInTokens > 0 ? parseFloat(ethers.formatUnits(gasInTokens, 6)) : 0,
-            adjustedInputAmount: parseFloat(ethers.formatUnits(adjustedAmountIn, 6))
+            adjustedInputAmount: parseFloat(ethers.formatUnits(adjustedAmountIn, 6)),
+            platformFeeCollected: platformFeeCollected,
+            platformFeeAsset: outputAsset
           };
         } catch (error) {
           console.error('❌ REAL Uniswap swap execution failed:', error);
@@ -551,6 +583,10 @@ serve(async (req) => {
         try {
           const { inputAsset, outputAsset, amount, slippage } = body;
           console.log(`📊 Getting REAL Uniswap V3 quote: ${amount} ${inputAsset} to ${outputAsset}`);
+          
+          if (!amount) {
+            throw new Error('Amount is required for quote');
+          }
           
           // Use checksummed addresses
           const tokenInAddress = inputAsset === 'USDC' ? 
@@ -603,7 +639,7 @@ serve(async (req) => {
           const { address, asset } = body;
           console.log(`📊 Getting LIVE balance for ${address}, asset: ${asset}`);
           
-          if (!isValidEthereumAddress(address)) {
+          if (!address || !isValidEthereumAddress(address)) {
             throw new Error('Invalid Ethereum address');
           }
           
@@ -752,7 +788,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
         live_mode: true
       }),

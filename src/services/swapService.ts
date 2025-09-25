@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { goldPriceService } from "./goldPrice";
 import { DexAggregatorService } from "./dexAggregatorService";
 import { secureWalletService } from "./secureWalletService";
+import { swapFeeService } from "./swapFeeService";
 
 export interface SwapQuote {
   id: string;
@@ -31,7 +32,7 @@ export interface SwapResult {
 }
 
 class SwapService {
-  private readonly FEE_BPS = 150; // 1.5% total fee
+  private readonly FEE_BPS = 80; // 0.8% total fee
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
   private readonly QUOTE_VALIDITY_MINUTES = 5;
 
@@ -231,9 +232,26 @@ class SwapService {
         console.error('Failed to create transaction record:', txError);
       }
 
+      // Calculate and record swap fee
+      const feeCalculation = swapFeeService.calculateSwapFee(
+        quoteData.output_amount,
+        quoteData.output_asset as 'USDC' | 'GOLD',
+        quoteData.input_asset as 'USDC' | 'GOLD'
+      );
+
+      // Record fee collection for tracking
+      if (transaction?.id) {
+        await swapFeeService.recordSwapFeeCollection(
+          userId,
+          transaction.id,
+          feeCalculation
+        );
+      }
+
       // NOTE: No balance snapshot updates needed since the swap happened on-chain
       // Real balances are now reflected on the blockchain and will be fetched live
       console.log('✅ REAL swap completed - balances updated on-chain');
+      console.log(`💰 Platform fee collected: ${feeCalculation.feeAmount} ${feeCalculation.feeAsset}`);
 
       return {
         success: true,
