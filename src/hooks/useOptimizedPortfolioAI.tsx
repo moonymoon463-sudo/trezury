@@ -35,9 +35,11 @@ export interface RiskAssessment {
   recommendations: string[];
 }
 
-// Cache management
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+// Cache management with stability optimizations
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for better stability
 const analysisCache = new Map<string, { data: any; timestamp: number }>();
+let lastAnalysisTime = 0;
+const MIN_ANALYSIS_INTERVAL = 2 * 60 * 1000; // Minimum 2 minutes between analysis
 
 // Debounce utility
 function useDebounce<T>(value: T, delay: number): T {
@@ -70,18 +72,21 @@ export function useOptimizedPortfolioAI() {
   const analysisRef = useRef<AbortController | null>(null);
   const lastAnalysisParams = useRef<string>('');
 
-  // Debounce portfolio changes to avoid excessive API calls
-  const debouncedBalances = useDebounce(balances, 1000);
-  const debouncedGoldPrice = useDebounce(goldPrice, 1000);
+  // Reduce debounce delay for better responsiveness
+  const debouncedBalances = useDebounce(balances, 300);
+  const debouncedGoldPrice = useDebounce(goldPrice, 300);
 
-  // Memoized portfolio data
+  // Memoized portfolio data with stability optimizations
   const portfolioData = useMemo(() => {
     if (!user?.id || !debouncedBalances.length || !debouncedGoldPrice) return null;
     
+    // Round gold price to nearest dollar for stable cache keys
+    const roundedGoldPrice = Math.round(debouncedGoldPrice.usd_per_oz || 0);
+    
     return {
       balances: debouncedBalances,
-      totalValue,
-      goldPrice: debouncedGoldPrice.usd_per_oz,
+      totalValue: Math.round(totalValue * 100) / 100, // Round to prevent minor fluctuations
+      goldPrice: roundedGoldPrice,
       userId: user.id
     };
   }, [user?.id, debouncedBalances, totalValue, debouncedGoldPrice]);
@@ -95,9 +100,16 @@ export function useOptimizedPortfolioAI() {
     });
   }, []);
 
-  // Optimized AI analysis with caching and deduplication
+  // Optimized AI analysis with circuit breaker and caching
   const generateAIAnalysis = useCallback(async (skipCache = false) => {
     if (!portfolioData) return;
+
+    // Circuit breaker: prevent frequent analysis
+    const now = Date.now();
+    if (!skipCache && now - lastAnalysisTime < MIN_ANALYSIS_INTERVAL) {
+      console.log('Skipping analysis due to circuit breaker');
+      return;
+    }
 
     const cacheKey = getCacheKey(portfolioData);
     
@@ -117,6 +129,9 @@ export function useOptimizedPortfolioAI() {
         return;
       }
     }
+
+    // Update last analysis time
+    lastAnalysisTime = now;
 
     // Cancel previous request
     if (analysisRef.current) {

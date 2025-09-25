@@ -17,6 +17,8 @@ class GoldPriceService {
   private currentPrice: GoldPrice | null = null;
   private subscribers: Set<(price: GoldPrice) => void> = new Set();
   private updateInterval: number | null = null;
+  private lastNotifiedPrice: number = 0;
+  private readonly PRICE_CHANGE_THRESHOLD = 0.001; // 0.1% threshold
 
   async getCurrentPrice(): Promise<GoldPrice> {
     try {
@@ -86,10 +88,15 @@ class GoldPriceService {
   }
 
   private notifySubscribers(price: GoldPrice): void {
-    this.subscribers.forEach(callback => callback(price));
+    // Only notify if price changed significantly
+    const priceChange = Math.abs(price.usd_per_oz - this.lastNotifiedPrice) / this.lastNotifiedPrice;
+    if (this.lastNotifiedPrice === 0 || priceChange >= this.PRICE_CHANGE_THRESHOLD) {
+      this.lastNotifiedPrice = price.usd_per_oz;
+      this.subscribers.forEach(callback => callback(price));
+    }
   }
 
-  startRealTimeUpdates(intervalMs: number = 30000): void {
+  startRealTimeUpdates(intervalMs: number = 300000): void {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
     }
@@ -97,7 +104,7 @@ class GoldPriceService {
     // Get initial price
     this.getCurrentPrice();
 
-    // Set up periodic updates
+    // Set up periodic updates (default 5 minutes for stability)
     this.updateInterval = window.setInterval(() => {
       this.getCurrentPrice();
     }, intervalMs);

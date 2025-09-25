@@ -37,8 +37,8 @@ export const useGoldPrice = () => {
       }
     });
 
-    // Start real-time updates (every 30 seconds)
-    goldPriceService.startRealTimeUpdates(30000);
+    // Start real-time updates (every 5 minutes for stability)
+    goldPriceService.startRealTimeUpdates(300000);
 
     // Load initial price
     loadInitialPrice();

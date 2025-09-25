@@ -64,7 +64,7 @@ const SWAP_ROUTER_ABI = [
 ];
 
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -107,6 +107,10 @@ function validateJWTAndGetUserId(req: Request): string {
   const token = authHeader.substring(7);
   try {
     const [header, payload, signature] = token.split('.');
+    if (!payload) {
+      throw new Error('Invalid token format');
+    }
+    
     const decodedPayload = JSON.parse(atob(payload));
     
     if (!decodedPayload.sub) {
@@ -115,7 +119,28 @@ function validateJWTAndGetUserId(req: Request): string {
     
     return decodedPayload.sub;
   } catch (error) {
+    console.error('JWT validation error:', error);
     throw new Error('Invalid JWT token');
+  }
+}
+
+// Helper function to validate Ethereum address
+function isValidEthereumAddress(address: string): boolean {
+  if (!address || typeof address !== 'string') {
+    return false;
+  }
+  
+  try {
+    // Check if it's a valid hex string of correct length
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return false;
+    }
+    
+    // Validate checksum if mixed case
+    ethers.getAddress(address);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -167,7 +192,7 @@ serve(async (req) => {
           console.log(`Getting LIVE balance for ${address}, asset: ${asset}`);
           
           if (!address || !isValidEthereumAddress(address)) {
-            throw new Error('Invalid Ethereum address');
+            throw new Error('Invalid Ethereum address provided');
           }
           
           const contractAddress = getContractAddress(asset);
@@ -187,7 +212,67 @@ serve(async (req) => {
           };
         } catch (error) {
           console.error('LIVE balance query failed:', error);
-          throw error;
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            balance: 0,
+            asset: body.asset,
+            address: body.address
+          };
+        }
+        break;
+
+      case 'get_all_balances':
+        try {
+          const { address } = body;
+          console.log(`Getting all LIVE balances for ${address}`);
+          
+          if (!address || !isValidEthereumAddress(address)) {
+            throw new Error('Invalid Ethereum address provided');
+          }
+          
+          const assets = ['USDC', 'XAUT', 'TRZRY'];
+          const balancePromises = assets.map(async (asset) => {
+            try {
+              const contractAddress = getContractAddress(asset);
+              const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
+              
+              const balance = await contract.balanceOf(address);
+              const decimals = await contract.decimals();
+              const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
+              
+              return {
+                asset,
+                balance: formattedBalance,
+                success: true
+              };
+            } catch (error) {
+              console.error(`Failed to get ${asset} balance:`, error);
+              return {
+                asset,
+                balance: 0,
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+              };
+            }
+          });
+          
+          const balances = await Promise.all(balancePromises);
+          console.log(`All LIVE balances retrieved:`, balances);
+          
+          result = {
+            success: true,
+            balances,
+            address
+          };
+        } catch (error) {
+          console.error('LIVE batch balance query failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            balances: [],
+            address: body.address
+          };
         }
         break;
 
@@ -931,8 +1016,4 @@ function generateTransactionHash(): string {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
-}
-
-function isValidEthereumAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address);
 }

@@ -9,8 +9,8 @@ export interface WalletBalance {
   chain: string;
 }
 
-// Cache management
-const BALANCE_CACHE_DURATION = 60 * 1000; // 1 minute
+// Cache management with improved stability
+const BALANCE_CACHE_DURATION = 30 * 1000; // 30 seconds for more responsive updates
 const balanceCache = new Map<string, { balances: WalletBalance[]; timestamp: number }>();
 
 // Batch operation utility
@@ -45,7 +45,26 @@ class BatchBalanceManager {
 
   private async fetchBalancesInternal(address: string): Promise<WalletBalance[]> {
     try {
-      // Parallel blockchain calls for all assets
+      // Single optimized call to get all balances at once
+      const { data: batchResult, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_all_balances',
+          address: address
+        }
+      });
+
+      if (error) throw error;
+
+      if (batchResult?.success && batchResult?.balances) {
+        return batchResult.balances.map((balance: any) => ({
+          asset: balance.asset,
+          amount: balance.balance || 0,
+          chain: 'ethereum'
+        }));
+      }
+
+      // Fallback to individual calls if batch fails
+      console.warn('Batch balance fetch failed, falling back to individual calls');
       const [usdcResult, xautResult, trzryResult] = await Promise.allSettled([
         supabase.functions.invoke('blockchain-operations', {
           body: {
