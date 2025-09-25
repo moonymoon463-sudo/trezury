@@ -1119,6 +1119,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      collect_gold_prices: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       create_security_alert: {
         Args: { alert_type: string; details?: Json; severity?: string }
         Returns: undefined
