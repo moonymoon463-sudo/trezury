@@ -40,7 +40,7 @@ serve(async (req) => {
         console.error('Failed to update payment transaction:', updateError)
       }
 
-      // If transaction completed, add USDC to user balance
+      // If transaction completed, add USDC to user balance and create transaction record
       if (status === 'completed') {
         console.log('Transaction completed, adding USDC to balance:', {
           userId: externalCustomerId,
@@ -60,6 +60,33 @@ serve(async (req) => {
           console.error('Failed to update user balance:', balanceError)
         } else {
           console.log('Successfully added USDC to user balance')
+        }
+
+        // Create transaction record for MoonPay purchase
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: externalCustomerId,
+            type: 'buy',
+            asset: 'USDC',
+            quantity: currencyAmount,
+            unit_price_usd: baseCurrencyAmount / currencyAmount,
+            status: 'completed',
+            input_asset: 'USD',
+            output_asset: 'USDC',
+            metadata: {
+              provider: 'moonpay',
+              external_transaction_id: id,
+              base_currency_amount: baseCurrencyAmount,
+              transaction_source: 'moonpay_purchase',
+              payment_method: 'fiat'
+            }
+          })
+
+        if (transactionError) {
+          console.error('Failed to create transaction record:', transactionError)
+        } else {
+          console.log('Successfully created transaction record for MoonPay purchase')
         }
       }
     }

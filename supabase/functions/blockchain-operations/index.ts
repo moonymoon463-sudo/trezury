@@ -62,7 +62,7 @@ const SWAP_ROUTER_ABI = [
 ];
 
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -72,9 +72,10 @@ interface BlockchainOperationRequest {
   from?: string;
   to?: string;
   toAddress?: string; // Chain-specific fee collection address
+  address?: string; // For transaction history queries
+  limit?: number; // For limiting results
   transactionId?: string;
   paymentMethod?: string;
-  address?: string;
   asset?: string;
   feeAmount?: number;
   chain?: string; // For multi-chain fee collection
