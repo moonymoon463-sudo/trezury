@@ -63,7 +63,7 @@ const Index = () => {
       />
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-2 pb-16 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-2 pb-12 md:pb-16 space-y-3">
           {/* Gold Price Section */}
           <div className="bg-surface-elevated rounded-xl p-3">
             <div className="flex justify-between items-center mb-2">

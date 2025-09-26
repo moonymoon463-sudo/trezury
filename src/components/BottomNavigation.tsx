@@ -54,8 +54,8 @@ const BottomNavigation = () => {
   return (
     <nav className={`fixed bottom-0 inset-x-0 z-[60] bg-card border-t shadow-lg ${
       isMobile 
-        ? "px-2 py-[calc(0.5rem+env(safe-area-inset-bottom))]" 
-        : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))]"
+        ? "px-2 py-[calc(0.25rem+env(safe-area-inset-bottom))] h-12" 
+        : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))] h-16"
     }`}>
       <div className="flex justify-around">
         {navItems.map((item) => {
@@ -66,14 +66,14 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center ${isMobile ? "space-y-0.5" : "space-y-1"}`}
+              className={`flex flex-col items-center justify-center ${isMobile ? "space-y-0" : "space-y-1"} ${isMobile ? "h-10" : "h-12"}`}
             >
               <Icon 
-                size={isMobile ? 18 : 20} 
+                size={isMobile ? 16 : 20} 
                 className={active ? "text-primary" : "text-muted-foreground"} 
               />
               <span 
-                className={`${isMobile ? "text-[10px]" : "text-xs"} ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`${isMobile ? "text-[9px] leading-none" : "text-xs"} ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>

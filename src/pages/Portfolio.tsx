@@ -64,7 +64,7 @@ export default function Portfolio() {
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
-        <main className="px-3 md:px-6 py-4 md:py-6 pb-16">
+        <main className="px-3 md:px-6 py-4 md:py-6 pb-12 md:pb-16">
           <MobileLoadingSkeleton />
         </main>
         <BottomNavigation />
@@ -97,7 +97,7 @@ export default function Portfolio() {
       />
 
       {/* Main Content */}
-      <main className="px-3 md:px-6 py-4 md:py-6 pb-16 space-y-4 md:space-y-6">
+      <main className="px-3 md:px-6 py-4 md:py-6 pb-12 md:pb-16 space-y-4 md:space-y-6">
         {/* Offline/Error Alert */}
         {isOffline && (
           <Alert variant="destructive">
