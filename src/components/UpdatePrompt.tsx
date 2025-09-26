@@ -6,9 +6,8 @@ import { usePWA } from '@/hooks/usePWA';
 export const UpdatePrompt = () => {
   const { isUpdateAvailable, updateApp } = usePWA();
 
-  if (!isUpdateAvailable) {
-    return null;
-  }
+  // Temporarily disabled to prevent deployment interface glitches
+  return null;
 
   return (
     <Card className="fixed top-4 left-4 right-4 z-50 p-4 bg-card border border-border shadow-lg md:left-auto md:right-4 md:w-80 animate-in slide-in-from-top">

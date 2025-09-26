@@ -49,21 +49,21 @@
       "name": "Buy Gold",
       "short_name": "Buy",
       "description": "Purchase gold instantly",
-      "url": "/buy-sell-hub",
+      "url": "/buy",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Sell Gold", 
       "short_name": "Sell",
       "description": "Sell your gold holdings",
-      "url": "/buy-sell-hub",
+      "url": "/sell",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Portfolio",
       "short_name": "Wallet", 
       "description": "View your gold wallet",
-      "url": "/portfolio",
+      "url": "/wallet",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ],

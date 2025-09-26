@@ -38,7 +38,7 @@ export interface RiskAssessment {
 // Cache management with mobile optimizations
 import { useIsMobile } from './use-mobile';
 
-const CACHE_DURATION = 12 * 60 * 1000; // 12 minutes for consistent mobile experience
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes for performance
 const analysisCache = new Map<string, { data: any; timestamp: number }>();
 let lastAnalysisTime = 0;
 
