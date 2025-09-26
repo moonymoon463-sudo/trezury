@@ -1,11 +1,27 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, TrendingUp, PieChart } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useEffect, useRef } from "react";
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const navRef = useRef<HTMLElement>(null);
+
+  // Expose nav height as CSS variable for content padding
+  useEffect(() => {
+    const updateNavHeight = () => {
+      if (navRef.current) {
+        const height = navRef.current.offsetHeight;
+        document.documentElement.style.setProperty('--bottom-nav-height', `${height}px`);
+      }
+    };
+
+    updateNavHeight();
+    window.addEventListener('resize', updateNavHeight);
+    return () => window.removeEventListener('resize', updateNavHeight);
+  }, []);
 
   const navItems = [
     {
@@ -52,11 +68,15 @@ const BottomNavigation = () => {
   };
 
   return (
-    <nav className={`fixed bottom-0 inset-x-0 z-[60] bg-card border-t shadow-lg ${
-      isMobile 
-        ? "px-2 py-[calc(0.25rem+env(safe-area-inset-bottom))] h-12" 
-        : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))] h-16"
-    }`}>
+    <nav 
+      ref={navRef}
+      id="bottom-nav"
+      className={`fixed bottom-0 inset-x-0 z-[60] bg-card border-t shadow-lg ${
+        isMobile 
+          ? "px-2 py-[calc(0.25rem+env(safe-area-inset-bottom))] h-12" 
+          : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))] h-16"
+      }`}
+    >
       <div className="flex justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;

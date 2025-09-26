@@ -124,6 +124,18 @@ All colors MUST be HSL.
     -webkit-user-select: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
+    /* Mobile safe area padding */
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Mobile optimization utilities */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* iOS viewport fix */
+  html, body {
+    height: -webkit-fill-available;
   }
 }
 

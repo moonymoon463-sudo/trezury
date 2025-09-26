@@ -202,7 +202,7 @@ const Swap = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="relative flex min-h-[100dvh] w-full flex-col bg-background">
       <StandardHeader showBackButton backPath="/" />
       
       {/* Wallet Status */}
@@ -218,7 +218,7 @@ const Swap = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 px-4">
+      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-2">
         {/* Swap Interface */}
         <div className="relative flex flex-col gap-2 my-8">
           {/* From Section */}
@@ -345,7 +345,7 @@ const Swap = () => {
       </main>
 
       {/* Bottom Button */}
-      <div className="p-6">
+      <div className="p-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
         {!secureWalletAddress ? (
           <Button 
             onClick={() => navigate("/wallet")}

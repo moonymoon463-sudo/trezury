@@ -10,11 +10,11 @@ const BuySellHub = () => {
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="relative flex min-h-[100dvh] w-full flex-col bg-background">
       <StandardHeader showBackButton backPath="/" />
 
       {/* Content */}
-      <main className="flex-1 px-4 pb-4">
+      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-2 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
         <div className="max-w-md mx-auto space-y-6">
           {/* Gold Price Section */}
           <div className="bg-card rounded-xl p-4">
