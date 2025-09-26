@@ -1,35 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import AurumLogo from "@/components/AurumLogo";
-import { usePWA } from "@/hooks/usePWA";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
 
 const LandingPage = () => {
-  const { isInstallable, installApp, isInstalled } = usePWA();
-  const [isIOS] = useState(/iPad|iPhone|iPod/.test(navigator.userAgent));
-  const [isInstalling, setIsInstalling] = useState(false);
-
-  const handleInstallApp = async () => {
-    if (isIOS) {
-      // Show iOS-specific instructions
-      alert('To install this app on iOS:\n1. Tap the Share button in Safari\n2. Select "Add to Home Screen"\n3. Tap "Add" to confirm');
-      return;
-    }
-    
-    if (!isInstallable) return;
-    
-    setIsInstalling(true);
-    try {
-      await installApp();
-    } catch (error) {
-      console.error('Installation failed:', error);
-    } finally {
-      setIsInstalling(false);
-    }
-  };
-
   const features = [
     {
       icon: TrendingUp,
@@ -54,7 +30,7 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface-elevated overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface-elevated">
       {/* Header */}
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-2 flex items-center justify-between">
@@ -94,39 +70,29 @@ const LandingPage = () => {
           </div>
           
           {/* Download App Section */}
-          <div className="bg-surface-elevated/50 rounded-2xl p-6 max-w-lg mx-auto">
+          <div className="bg-surface-elevated/50 rounded-2xl p-8 max-w-2xl mx-auto">
             <h3 className="text-2xl font-semibold mb-4 text-foreground">Download Our Mobile App</h3>
             <p className="text-muted-foreground mb-6">Trade gold on the go with our secure mobile application</p>
-            <div className="flex flex-col gap-4 items-center max-w-sm mx-auto">
+            <div className="flex flex-col gap-6 items-center max-w-md mx-auto">
               {/* PWA Install Button */}
-              {(isInstallable || isIOS) && !isInstalled && (
-                <div className="w-full space-y-3">
-                  <Button 
-                    size="lg" 
-                    className="w-full bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-6 py-3"
-                    onClick={handleInstallApp}
-                    disabled={isInstalling}
-                  >
-                    <Smartphone className="w-5 h-5 mr-2" />
-                    {isInstalling ? 'Installing...' : isIOS ? 'Add to Home Screen' : 'Install Mobile App'}
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground">
-                    {isIOS ? 'Use Safari share menu to install' : 'Install to your phone for quick access'}
-                  </p>
-                </div>
-              )}
-              
-              {isInstalled && (
-                <div className="w-full space-y-3">
-                  <div className="flex items-center justify-center p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <Shield className="w-5 h-5 mr-2 text-green-500" />
-                    <span className="text-green-500 font-medium">App Already Installed</span>
-                  </div>
-                  <p className="text-xs text-center text-muted-foreground">
-                    Launch the app from your home screen
-                  </p>
-                </div>
-              )}
+              <div className="w-full space-y-3">
+                <Button 
+                  size="lg" 
+                  className="w-full bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-6 py-3"
+                  onClick={() => {
+                    if ('serviceWorker' in navigator) {
+                      const event = new CustomEvent('showInstallPrompt');
+                      window.dispatchEvent(event);
+                    }
+                  }}
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  Install Mobile App
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Install to your phone for quick access
+                </p>
+              </div>
 
               {/* Native App Store Badges */}
               <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -295,6 +261,8 @@ const LandingPage = () => {
         </div>
       </footer>
       
+      {/* Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 };
