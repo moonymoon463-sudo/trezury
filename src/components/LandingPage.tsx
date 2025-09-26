@@ -1,11 +1,35 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import AurumLogo from "@/components/AurumLogo";
-import { InstallPrompt } from "@/components/InstallPrompt";
+import { usePWA } from "@/hooks/usePWA";
 import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 const LandingPage = () => {
+  const { isInstallable, installApp, isInstalled } = usePWA();
+  const [isIOS] = useState(/iPad|iPhone|iPod/.test(navigator.userAgent));
+  const [isInstalling, setIsInstalling] = useState(false);
+
+  const handleInstallApp = async () => {
+    if (isIOS) {
+      // Show iOS-specific instructions
+      alert('To install this app on iOS:\n1. Tap the Share button in Safari\n2. Select "Add to Home Screen"\n3. Tap "Add" to confirm');
+      return;
+    }
+    
+    if (!isInstallable) return;
+    
+    setIsInstalling(true);
+    try {
+      await installApp();
+    } catch (error) {
+      console.error('Installation failed:', error);
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+
   const features = [
     {
       icon: TrendingUp,
@@ -75,24 +99,34 @@ const LandingPage = () => {
             <p className="text-muted-foreground mb-6">Trade gold on the go with our secure mobile application</p>
             <div className="flex flex-col gap-6 items-center max-w-md mx-auto">
               {/* PWA Install Button */}
-              <div className="w-full space-y-3">
-                <Button 
-                  size="lg" 
-                  className="w-full bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-6 py-3"
-                  onClick={() => {
-                    if ('serviceWorker' in navigator) {
-                      const event = new CustomEvent('showInstallPrompt');
-                      window.dispatchEvent(event);
-                    }
-                  }}
-                >
-                  <Smartphone className="w-5 h-5 mr-2" />
-                  Install Mobile App
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Install to your phone for quick access
-                </p>
-              </div>
+              {(isInstallable || isIOS) && !isInstalled && (
+                <div className="w-full space-y-3">
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-6 py-3"
+                    onClick={handleInstallApp}
+                    disabled={isInstalling}
+                  >
+                    <Smartphone className="w-5 h-5 mr-2" />
+                    {isInstalling ? 'Installing...' : isIOS ? 'Add to Home Screen' : 'Install Mobile App'}
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground">
+                    {isIOS ? 'Use Safari share menu to install' : 'Install to your phone for quick access'}
+                  </p>
+                </div>
+              )}
+              
+              {isInstalled && (
+                <div className="w-full space-y-3">
+                  <div className="flex items-center justify-center p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <Shield className="w-5 h-5 mr-2 text-green-500" />
+                    <span className="text-green-500 font-medium">App Already Installed</span>
+                  </div>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Launch the app from your home screen
+                  </p>
+                </div>
+              )}
 
               {/* Native App Store Badges */}
               <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -261,8 +295,6 @@ const LandingPage = () => {
         </div>
       </footer>
       
-      {/* Install Prompt */}
-      <InstallPrompt />
     </div>
   );
 };
