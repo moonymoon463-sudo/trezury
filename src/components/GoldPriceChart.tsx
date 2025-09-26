@@ -163,7 +163,7 @@ const GoldPriceChart = () => {
         </div>
       )}
 
-      <div className="h-60 relative">
+      <div className="h-32 relative">
         {loading ? (
           <div className="h-full bg-surface-elevated rounded-lg flex items-center justify-center">
             <div className="flex items-center gap-2">
