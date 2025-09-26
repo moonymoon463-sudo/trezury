@@ -6,8 +6,8 @@ import { swapFeeService } from "./swapFeeService";
 
 export interface SwapQuote {
   id: string;
-  inputAsset: 'USDC' | 'XAUT';
-  outputAsset: 'USDC' | 'XAUT';
+  inputAsset: 'USDC' | 'XAUT' | 'TRZRY';
+  outputAsset: 'USDC' | 'XAUT' | 'TRZRY';
   inputAmount: number;
   outputAmount: number;
   exchangeRate: number;
@@ -15,8 +15,9 @@ export interface SwapQuote {
   minimumReceived: number;
   expiresAt: string;
   route: {
-    provider: 'aurum';
-    goldPrice: number;
+    provider: 'aurum' | 'dex';
+    goldPrice?: number;
+    trzryPrice?: number;
     timestamp: string;
   };
 }
@@ -37,38 +38,80 @@ class SwapService {
   private readonly QUOTE_VALIDITY_MINUTES = 5;
 
   /**
-   * Generate swap quote between USDC and XAUT (Tether Gold)
+   * Generate swap quote between supported assets
    */
   async generateSwapQuote(
-    inputAsset: 'USDC' | 'XAUT',
-    outputAsset: 'USDC' | 'XAUT',
+    inputAsset: 'USDC' | 'XAUT' | 'TRZRY',
+    outputAsset: 'USDC' | 'XAUT' | 'TRZRY',
     inputAmount: number,
     userId: string
   ): Promise<SwapQuote> {
     try {
-      // Get current gold price
-      const goldPrice = await goldPriceService.getCurrentPrice();
-      const goldPriceUsd = goldPrice.usd_per_gram;
+      // Validate supported pairs
+      if (inputAsset === outputAsset) {
+        throw new Error('Input and output assets cannot be the same');
+      }
       
+      const supportedPairs = [
+        ['USDC', 'XAUT'], ['XAUT', 'USDC'],
+        ['USDC', 'TRZRY'], ['TRZRY', 'USDC']
+      ];
+      
+      const pairExists = supportedPairs.some(([asset1, asset2]) => 
+        (inputAsset === asset1 && outputAsset === asset2)
+      );
+      
+      if (!pairExists) {
+        throw new Error('Only USDC ⟷ XAUT and USDC ⟷ TRZRY swaps are currently supported');
+      }
+
       let outputAmount: number;
       let exchangeRate: number;
+      let provider: 'aurum' | 'dex' = 'aurum';
+      let priceSource: any = {};
 
-      if (inputAsset === 'USDC' && outputAsset === 'XAUT') {
-        // Buying gold with USDC - need to convert to troy oz (XAUT is 1 token = 1 troy oz)
-        const feeAmount = (inputAmount * this.FEE_BPS) / 10000;
-        const netUsdAmount = inputAmount - feeAmount;
-        const goldPricePerOz = goldPriceUsd * 31.1035; // Convert gram price to oz
-        outputAmount = netUsdAmount / goldPricePerOz; // Output in troy oz
-        exchangeRate = goldPricePerOz;
-      } else if (inputAsset === 'XAUT' && outputAsset === 'USDC') {
-        // Selling gold for USDC - XAUT input is in troy oz
-        const goldPricePerOz = goldPriceUsd * 31.1035; // Convert gram price to oz
-        const grossUsdAmount = inputAmount * goldPricePerOz;
-        const feeAmount = (grossUsdAmount * this.FEE_BPS) / 10000;
-        outputAmount = grossUsdAmount - feeAmount;
-        exchangeRate = goldPricePerOz;
+      if ((inputAsset === 'USDC' && outputAsset === 'XAUT') || (inputAsset === 'XAUT' && outputAsset === 'USDC')) {
+        // Gold swaps - use existing gold price logic
+        const goldPrice = await goldPriceService.getCurrentPrice();
+        const goldPriceUsd = goldPrice.usd_per_gram;
+        priceSource.goldPrice = goldPriceUsd;
+        priceSource.timestamp = new Date(goldPrice.last_updated).toISOString();
+
+        if (inputAsset === 'USDC' && outputAsset === 'XAUT') {
+          // Buying gold with USDC
+          const feeAmount = (inputAmount * this.FEE_BPS) / 10000;
+          const netUsdAmount = inputAmount - feeAmount;
+          const goldPricePerOz = goldPriceUsd * 31.1035;
+          outputAmount = netUsdAmount / goldPricePerOz;
+          exchangeRate = goldPricePerOz;
+        } else {
+          // Selling gold for USDC
+          const goldPricePerOz = goldPriceUsd * 31.1035;
+          const grossUsdAmount = inputAmount * goldPricePerOz;
+          const feeAmount = (grossUsdAmount * this.FEE_BPS) / 10000;
+          outputAmount = grossUsdAmount - feeAmount;
+          exchangeRate = goldPricePerOz;
+        }
+      } else if ((inputAsset === 'USDC' && outputAsset === 'TRZRY') || (inputAsset === 'TRZRY' && outputAsset === 'USDC')) {
+        // TRZRY swaps - use fixed rate for now (1:1 with USDC)
+        provider = 'dex';
+        const trzryPrice = 1.0; // Fixed rate for demo
+        priceSource.trzryPrice = trzryPrice;
+        priceSource.timestamp = new Date().toISOString();
+
+        if (inputAsset === 'USDC' && outputAsset === 'TRZRY') {
+          const feeAmount = (inputAmount * this.FEE_BPS) / 10000;
+          const netUsdAmount = inputAmount - feeAmount;
+          outputAmount = netUsdAmount / trzryPrice;
+          exchangeRate = trzryPrice;
+        } else {
+          const grossUsdAmount = inputAmount * trzryPrice;
+          const feeAmount = (grossUsdAmount * this.FEE_BPS) / 10000;
+          outputAmount = grossUsdAmount - feeAmount;
+          exchangeRate = trzryPrice;
+        }
       } else {
-        throw new Error('Invalid asset pair for swap - must swap between USDC and XAUT');
+        throw new Error('Unsupported asset pair');
       }
 
       const fee = (inputAsset === 'USDC' ? inputAmount : outputAmount) * (this.FEE_BPS / 10000);
@@ -83,14 +126,13 @@ class SwapService {
         outputAsset,
         inputAmount: Number(inputAmount.toFixed(6)),
         outputAmount: Number(outputAmount.toFixed(6)),
-        exchangeRate: Number(exchangeRate.toFixed(2)),
+        exchangeRate: Number(exchangeRate.toFixed(6)),
         fee: Number(fee.toFixed(6)),
         minimumReceived: Number(minimumReceived.toFixed(6)),
         expiresAt: expiresAt.toISOString(),
         route: {
-          provider: 'aurum',
-          goldPrice: goldPriceUsd,
-          timestamp: new Date(goldPrice.last_updated).toISOString()
+          provider,
+          ...priceSource
         }
       };
 
@@ -280,8 +322,9 @@ class SwapService {
         output_asset: quote.outputAsset,
         input_amount: quote.inputAmount,
         output_amount: quote.outputAmount,
-        grams: quote.outputAsset === 'XAUT' ? quote.outputAmount * 31.1035 : quote.inputAmount / quote.route.goldPrice, // Convert oz to grams for storage
-        unit_price_usd: quote.route.goldPrice,
+        grams: quote.outputAsset === 'XAUT' ? quote.outputAmount * 31.1035 : 
+               quote.inputAsset === 'XAUT' ? quote.inputAmount * 31.1035 : 0,
+        unit_price_usd: quote.route.goldPrice || quote.route.trzryPrice || 1,
         fee_bps: this.FEE_BPS,
         expires_at: quote.expiresAt,
         route: {

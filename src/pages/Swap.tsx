@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ArrowUpDown, Edit, Wallet } from "lucide-react";
@@ -12,29 +12,39 @@ import StandardHeader from "@/components/StandardHeader";
 
 const Swap = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { balances, getBalance, refreshBalances, walletAddress } = useWalletBalance();
   const { user } = useAuth();
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT'>('USDC');
-  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT'>('XAUT');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Initialize wallet on component mount
+  // Handle URL parameters and initialize wallet
   useEffect(() => {
     if (user && !secureWalletAddress) {
       getWalletAddress();
     }
-  }, [user, secureWalletAddress, getWalletAddress]);
+    
+    // Handle URL parameters for pre-selecting assets
+    const toParam = searchParams.get('to');
+    if (toParam && ['USDC', 'XAUT', 'TRZRY'].includes(toParam)) {
+      setToAsset(toParam as 'USDC' | 'XAUT' | 'TRZRY');
+      if (toParam === 'TRZRY') {
+        setFromAsset('USDC'); // Default to USDC when buying TRZRY
+      }
+    }
+  }, [user, secureWalletAddress, getWalletAddress, searchParams]);
   
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'USDC' | 'XAUT') => {
-    return 'Ethereum'; // Both assets on Ethereum mainnet
+  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY') => {
+    return 'Ethereum'; // All assets on Ethereum mainnet
   };
   
   const handleSwapTokens = () => {
@@ -219,7 +229,10 @@ const Swap = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
-                <div className={`w-10 h-10 ${fromAsset === 'XAUT' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
+                <div className={`w-10 h-10 ${
+                  fromAsset === 'XAUT' ? 'bg-yellow-600' : 
+                  fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
+                } rounded-full flex items-center justify-center`}>
                   <span className="text-white text-xs font-bold">{fromAsset}</span>
                 </div>
                 <div>
@@ -257,7 +270,10 @@ const Swap = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 flex-1">
-                <div className={`w-10 h-10 ${toAsset === 'XAUT' ? 'bg-yellow-600' : 'bg-blue-600'} rounded-full flex items-center justify-center`}>
+                <div className={`w-10 h-10 ${
+                  toAsset === 'XAUT' ? 'bg-yellow-600' : 
+                  toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
+                } rounded-full flex items-center justify-center`}>
                   <span className="text-white text-xs font-bold">{toAsset}</span>
                 </div>
                 <div>
