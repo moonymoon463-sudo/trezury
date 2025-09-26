@@ -36,9 +36,9 @@ export interface PortfolioPerformance {
   percentage: number;
 }
 
-// Mobile-optimized cache with longer duration
-const MOBILE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for mobile
-const DESKTOP_CACHE_DURATION = 30 * 1000; // 30 seconds for desktop
+// Aggressive caching for performance
+const MOBILE_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for mobile
+const DESKTOP_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for desktop
 const portfolioCache = new Map<string, { data: any; timestamp: number }>();
 
 // Request deduplication for mobile
@@ -88,17 +88,17 @@ export function useMobileOptimizedPortfolio() {
     });
   }, []);
 
-  // Mobile-optimized balance fetching with timeout and retry
-  const fetchBalances = useCallback(async (forceRefresh = false): Promise<WalletBalance[]> => {
+  // Fast balance fetching with immediate cache return
+  const fetchBalances = useCallback(async (forceRefresh = false, silent = false): Promise<WalletBalance[]> => {
     if (!user?.id) return [];
 
     const cacheKey = `balances_${user.id}`;
     
-    // Check cache first on mobile
-    if (!forceRefresh && isMobile) {
+    // Show cached data immediately for fast loading
+    if (!forceRefresh) {
       const cached = getCachedData(cacheKey);
       if (cached) {
-        console.log('📱 Using cached balances for mobile');
+        console.log('📦 Showing cached balances immediately');
         return cached;
       }
     }
@@ -119,8 +119,8 @@ export function useMobileOptimizedPortfolio() {
 
         setWalletAddress(address);
 
-        // Mobile-specific timeout and error handling
-        const timeoutMs = isMobile ? 15000 : 8000; // Longer timeout for mobile
+        // Aggressive timeout reduction for fast loading
+        const timeoutMs = isMobile ? 3000 : 2000; // 3s mobile, 2s desktop
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -174,10 +174,10 @@ export function useMobileOptimizedPortfolio() {
             throw new Error('Request timeout - check your connection');
           }
           
-          // Return cached data if available on error
+          // Always use cached data if available on error
           const fallbackCache = getCachedData(cacheKey);
-          if (fallbackCache && isMobile) {
-            console.log('📱 Using fallback cache due to error');
+          if (fallbackCache) {
+            console.log('📦 Using fallback cache due to error');
             return fallbackCache;
           }
           
@@ -187,14 +187,12 @@ export function useMobileOptimizedPortfolio() {
       } catch (error) {
         console.error('📱 Balance fetch failed:', error);
         
-        // Return empty balances for mobile to avoid blocking UI
-        if (isMobile) {
-          return [
-            { asset: 'USDC', amount: 0, chain: 'ethereum' },
-            { asset: 'XAUT', amount: 0, chain: 'ethereum' },
-            { asset: 'TRZRY', amount: 0, chain: 'ethereum' }
-          ];
-        }
+        // Return zero balances as fallback to avoid blocking UI
+        return [
+          { asset: 'USDC', amount: 0, chain: 'ethereum' },
+          { asset: 'XAUT', amount: 0, chain: 'ethereum' },
+          { asset: 'TRZRY', amount: 0, chain: 'ethereum' }
+        ];
         throw error;
       }
     };
@@ -299,19 +297,16 @@ export function useMobileOptimizedPortfolio() {
     };
   }, []);
 
-  // Main data refresh function with seamless mobile experience
+  // Background refresh function for fast loading
   const refreshData = useCallback(async (forceRefresh = false) => {
     if (!user?.id) return;
 
     try {
       setError(null);
       
-      // Show loading only for first load on mobile
-      if (!hasInitialLoad.current || (!isMobile && forceRefresh)) {
-        setLoading(true);
-      }
-
-      const newBalances = await fetchBalances(forceRefresh);
+      // Background refresh: fetch fresh data silently
+      console.log('🔄 Background refresh started...');
+      const newBalances = await fetchBalances(forceRefresh, true);
       setBalances(newBalances);
 
       // Calculate assets directly to avoid race condition with useMemo
@@ -320,28 +315,40 @@ export function useMobileOptimizedPortfolio() {
       setPortfolioSummary(summary);
 
       hasInitialLoad.current = true;
+      console.log('✅ Background refresh completed');
 
     } catch (err) {
-      console.error('📱 Portfolio refresh failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load portfolio');
-    } finally {
-      setLoading(false);
+      console.error('❌ Background refresh failed:', err);
+      // Don't show error for background refresh
     }
-  }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary, isMobile]);
+  }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary]);
 
-  // Initial load with mobile optimization (only on user change, not gold price changes)
+  // Fast initial load with background refresh
   useEffect(() => {
     if (user?.id) {
-      refreshData();
+      // Fast initial load
+      fetchBalances().then((balances) => {
+        setBalances(balances);
+        const assets = calculatePortfolioAssets(balances, goldPrice);
+        const summary = calculateSummary(assets);
+        setPortfolioSummary(summary);
+        setLoading(false);
+        hasInitialLoad.current = true;
+        
+        // Schedule background refresh after 2 seconds
+        setTimeout(() => {
+          refreshData(true);
+        }, 2000);
+      });
     }
-  }, [user?.id, refreshData]);
+  }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary, refreshData]);
 
   // Network status monitoring for mobile
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
       if (user?.id) {
-        refreshData(true); // Force refresh when coming back online
+        fetchBalances(true, true); // Silent refresh when coming back online
       }
     };
 

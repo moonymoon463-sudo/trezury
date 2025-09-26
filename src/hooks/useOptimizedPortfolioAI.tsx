@@ -38,7 +38,7 @@ export interface RiskAssessment {
 // Cache management with mobile optimizations
 import { useIsMobile } from './use-mobile';
 
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for better stability
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes for performance
 const analysisCache = new Map<string, { data: any; timestamp: number }>();
 let lastAnalysisTime = 0;
 
@@ -65,8 +65,8 @@ export function useOptimizedPortfolioAI() {
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
   const isMobile = useIsMobile();
   
-  // Mobile-specific analysis interval
-  const MIN_ANALYSIS_INTERVAL = isMobile ? 10 * 60 * 1000 : 2 * 60 * 1000; // 10 min mobile, 2 min desktop
+  // Extended analysis interval for performance
+  const MIN_ANALYSIS_INTERVAL = isMobile ? 5 * 60 * 1000 : 3 * 60 * 1000; // 5 min mobile, 3 min desktop
   
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [forecasts, setForecasts] = useState<MarketForecast[]>([]);

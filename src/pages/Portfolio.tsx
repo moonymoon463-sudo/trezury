@@ -53,8 +53,8 @@ export default function Portfolio() {
     }
   };
 
-  // Mobile-optimized loading with skeleton
-  if (loading && isMobile) {
+  // Progressive loading: only show skeleton if no data at all
+  if (loading && portfolioAssets.length === 0 && isMobile) {
     return (
       <div className="min-h-screen bg-background">
         <StandardHeader 
@@ -72,14 +72,14 @@ export default function Portfolio() {
     );
   }
 
-  // Desktop/full loading screen
-  if (loading && !isMobile) {
+  // Desktop: only show full loading if no data
+  if (loading && portfolioAssets.length === 0 && !isMobile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-2">
           <Brain className="h-8 w-8 mx-auto text-primary animate-pulse" />
           <h2 className="text-2xl font-semibold">Loading Portfolio...</h2>
-          <p className="text-muted-foreground">Analyzing your holdings with AI</p>
+          <p className="text-muted-foreground">Getting your latest data...</p>
         </div>
       </div>
     );
@@ -119,7 +119,7 @@ export default function Portfolio() {
         {/* Asset Allocation */}
         <AssetAllocationChart assets={portfolioAssets} />
 
-        {/* AI Insights Panel */}
+        {/* AI Insights Panel - Independent loading */}
         <AIInsightsPanel 
           insights={insights}
           loading={aiLoading}
