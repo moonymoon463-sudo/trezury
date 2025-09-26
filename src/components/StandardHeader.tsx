@@ -40,7 +40,7 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
   };
 
   return (
-    <header className="h-16 bg-background border-b border-border px-4 flex-shrink-0">
+    <header className="h-14 md:h-16 bg-background border-b border-border px-3 md:px-4 flex-shrink-0">
       <div className="flex items-center justify-between h-full">
         {/* Left Section */}
         <div className="w-12 flex justify-start">
