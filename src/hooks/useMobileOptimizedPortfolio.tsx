@@ -36,8 +36,8 @@ export interface PortfolioPerformance {
   percentage: number;
 }
 
-// Aggressive caching for performance
-const MOBILE_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for mobile
+// Optimized caching for consistent mobile experience
+const MOBILE_CACHE_DURATION = 8 * 60 * 1000; // 8 minutes for mobile
 const DESKTOP_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for desktop
 const portfolioCache = new Map<string, { data: any; timestamp: number }>();
 
