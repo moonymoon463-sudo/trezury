@@ -1,9 +1,11 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, TrendingUp, PieChart } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const BottomNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   const navItems = [
     {
@@ -50,7 +52,11 @@ const BottomNavigation = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-[60] bg-card px-6 py-[calc(1rem+env(safe-area-inset-bottom))] border-t shadow-lg">
+    <nav className={`fixed bottom-0 inset-x-0 z-[60] bg-card border-t shadow-lg ${
+      isMobile 
+        ? "px-2 py-[calc(0.5rem+env(safe-area-inset-bottom))]" 
+        : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))]"
+    }`}>
       <div className="flex justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -60,14 +66,14 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center space-y-1"
+              className={`flex flex-col items-center ${isMobile ? "space-y-0.5" : "space-y-1"}`}
             >
               <Icon 
-                size={20} 
+                size={isMobile ? 18 : 20} 
                 className={active ? "text-primary" : "text-muted-foreground"} 
               />
               <span 
-                className={`text-xs ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`${isMobile ? "text-[10px]" : "text-xs"} ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>
