@@ -173,7 +173,7 @@ const GoldPriceChart = () => {
           </div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>
                 <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(var(--chart-primary))" stopOpacity={0.3}/>
@@ -185,16 +185,16 @@ const GoldPriceChart = () => {
                 dataKey="time" 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                 interval="preserveStartEnd"
-                height={40}
+                height={25}
               />
               <YAxis 
                 domain={['dataMin', 'dataMax']}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                width={65}
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                width={50}
                 tickFormatter={(value) => `$${value.toFixed(0)}`}
               />
               <Tooltip 
