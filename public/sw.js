@@ -1,6 +1,6 @@
-const CACHE_NAME = 'trezury-v3';
-const STATIC_CACHE = 'trezury-static-v3';
-const DYNAMIC_CACHE = 'trezury-dynamic-v3';
+const CACHE_NAME = 'trezury-v4';
+const STATIC_CACHE = 'trezury-static-v4';
+const DYNAMIC_CACHE = 'trezury-dynamic-v4';
 
 const urlsToCache = [
   '/',

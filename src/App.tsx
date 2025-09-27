@@ -56,7 +56,7 @@ const AppRoutes = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="text-center">
           <h2 className="text-2xl font-semibold">Loading...</h2>
         </div>
