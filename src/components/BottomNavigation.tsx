@@ -73,11 +73,11 @@ const BottomNavigation = () => {
       id="bottom-nav"
       className={`fixed bottom-0 inset-x-0 z-[60] bg-card border-t shadow-lg ${
         isMobile 
-          ? "px-2 py-[calc(0.25rem+env(safe-area-inset-bottom))] h-12" 
-          : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))] h-16"
+          ? "px-1 py-[calc(0.5rem+env(safe-area-inset-bottom))] min-h-[60px]" 
+          : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))] min-h-[72px]"
       }`}
     >
-      <div className="flex justify-around">
+      <div className="flex justify-around items-center h-full max-w-full">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -86,13 +86,19 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center justify-center ${isMobile ? "space-y-0" : "space-y-1"} ${isMobile ? "h-10" : "h-12"}`}
+              className={`flex flex-col items-center justify-center min-w-0 flex-1 ${
+                isMobile ? "gap-1 py-1" : "gap-2 py-2"
+              }`}
             >
               <Icon 
-                className={`w-4 h-4 sm:w-5 sm:h-5 ${active ? "text-primary" : "text-muted-foreground"}`} 
+                className={`flex-shrink-0 ${
+                  isMobile ? "w-5 h-5" : "w-6 h-6"
+                } ${active ? "text-primary" : "text-muted-foreground"}`} 
               />
               <span 
-                className={`text-[10px] sm:text-xs leading-tight break-words ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`text-center leading-none truncate max-w-full ${
+                  isMobile ? "text-[9px]" : "text-xs"
+                } ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>
