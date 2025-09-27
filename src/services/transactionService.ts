@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { securityMonitoringService } from "@/services/securityMonitoringService";
 
 export interface TransactionResult {
   success: boolean;
@@ -36,6 +37,18 @@ class TransactionService {
 
       if (error) {
         console.error('Transaction execution error:', error);
+        
+        // Log security event for failed transaction
+        await securityMonitoringService.logSecurityEvent({
+          event_type: 'transaction_execution_failed',
+          severity: 'medium',
+          event_data: {
+            quote_id: quoteId,
+            payment_method: paymentMethod,
+            error_message: error.message
+          }
+        });
+
         return {
           success: false,
           error: error.message || 'Failed to execute transaction'
@@ -43,7 +56,22 @@ class TransactionService {
       }
 
       if (typeof data === 'object' && data !== null && 'success' in data) {
-        return data as unknown as TransactionResult;
+        const result = data as unknown as TransactionResult;
+        
+        // Monitor successful transactions for security
+        if (result.success && result.transaction_id) {
+          // Get transaction details for monitoring
+          const transaction = await this.getTransaction(result.transaction_id);
+          if (transaction) {
+            await securityMonitoringService.monitorTransaction(
+              transaction.id,
+              transaction.quantity * (transaction.unit_price_usd || 0),
+              transaction.asset
+            );
+          }
+        }
+        
+        return result;
       }
 
       return {
@@ -52,6 +80,17 @@ class TransactionService {
       };
     } catch (err) {
       console.error('Transaction service error:', err);
+      
+      // Log security event for unexpected errors
+      await securityMonitoringService.logSecurityEvent({
+        event_type: 'transaction_service_error',
+        severity: 'high',
+        event_data: {
+          quote_id: quoteId,
+          error: err instanceof Error ? err.message : 'Unknown error'
+        }
+      });
+
       return {
         success: false,
         error: err instanceof Error ? err.message : 'Unknown error occurred'

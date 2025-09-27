@@ -840,6 +840,56 @@ export type Database = {
           },
         ]
       }
+      real_time_security_events: {
+        Row: {
+          created_at: string | null
+          detected_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          resolved: boolean | null
+          session_id: string | null
+          severity: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          detected_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          resolved?: boolean | null
+          session_id?: string | null
+          severity: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          detected_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          resolved?: boolean | null
+          session_id?: string | null
+          severity?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "real_time_security_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_audit: {
         Row: {
           id: string
@@ -968,6 +1018,42 @@ export type Database = {
           output_asset?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      system_health_metrics: {
+        Row: {
+          id: string
+          metadata: Json | null
+          metric_name: string
+          metric_unit: string | null
+          metric_value: number
+          recorded_at: string | null
+          status: string | null
+          threshold_critical: number | null
+          threshold_warning: number | null
+        }
+        Insert: {
+          id?: string
+          metadata?: Json | null
+          metric_name: string
+          metric_unit?: string | null
+          metric_value: number
+          recorded_at?: string | null
+          status?: string | null
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+        }
+        Update: {
+          id?: string
+          metadata?: Json | null
+          metric_name?: string
+          metric_unit?: string | null
+          metric_value?: number
+          recorded_at?: string | null
+          status?: string | null
+          threshold_critical?: number | null
+          threshold_warning?: number | null
         }
         Relationships: []
       }
@@ -1227,6 +1313,10 @@ export type Database = {
         Args: { end_date?: string; start_date?: string }
         Returns: Json
       }
+      admin_get_security_overview: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       admin_get_users: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1392,6 +1482,16 @@ export type Database = {
         Args: { ssn_value: string }
         Returns: string
       }
+      record_system_metric: {
+        Args: {
+          p_metric_name: string
+          p_metric_unit?: string
+          p_metric_value: number
+          p_threshold_critical?: number
+          p_threshold_warning?: number
+        }
+        Returns: string
+      }
       test_gold_price_collection: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1399,6 +1499,16 @@ export type Database = {
       trigger_gold_price_collection: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      trigger_security_alert: {
+        Args: {
+          p_event_data?: Json
+          p_event_type: string
+          p_session_id?: string
+          p_severity: string
+          p_user_id?: string
+        }
+        Returns: string
       }
       user_can_see_sensitive_data: {
         Args: Record<PropertyKey, never>
