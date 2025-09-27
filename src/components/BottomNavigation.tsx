@@ -9,19 +9,6 @@ const BottomNavigation = () => {
   const isMobile = useIsMobile();
   const navRef = useRef<HTMLElement>(null);
 
-  // Expose nav height as CSS variable for content padding
-  useEffect(() => {
-    const updateNavHeight = () => {
-      if (navRef.current) {
-        const height = navRef.current.offsetHeight;
-        document.documentElement.style.setProperty('--bottom-nav-height', `${height}px`);
-      }
-    };
-
-    updateNavHeight();
-    window.addEventListener('resize', updateNavHeight);
-    return () => window.removeEventListener('resize', updateNavHeight);
-  }, []);
 
   const navItems = [
     {
@@ -71,13 +58,9 @@ const BottomNavigation = () => {
     <nav 
       ref={navRef}
       id="bottom-nav"
-      className={`fixed bottom-0 inset-x-0 z-[60] bg-card border-t shadow-lg ${
-        isMobile 
-          ? "px-1 py-[calc(0.5rem+env(safe-area-inset-bottom))] min-h-[60px]" 
-          : "px-6 py-[calc(1rem+env(safe-area-inset-bottom))] min-h-[72px]"
-      }`}
+      className="fixed bottom-0 inset-x-0 z-50 h-16 bg-background/90 backdrop-blur border-t overflow-visible pb-[max(env(safe-area-inset-bottom),0px)]"
     >
-      <div className="flex justify-around items-center h-full max-w-full">
+      <div className="flex items-center justify-around h-full px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -86,19 +69,13 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center justify-center min-w-0 flex-1 ${
-                isMobile ? "gap-1 py-1" : "gap-2 py-2"
-              }`}
+              className="flex flex-col items-center justify-center gap-1 leading-none min-w-0 flex-1"
             >
               <Icon 
-                className={`flex-shrink-0 ${
-                  isMobile ? "w-5 h-5" : "w-6 h-6"
-                } ${active ? "text-primary" : "text-muted-foreground"}`} 
+                className={`w-6 h-6 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
               />
               <span 
-                className={`text-center leading-none truncate max-w-full ${
-                  isMobile ? "text-[9px]" : "text-xs"
-                } ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`text-[10px] text-center leading-none truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>

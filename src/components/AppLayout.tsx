@@ -40,7 +40,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
         <div className="container mx-auto max-w-screen-xl">
           <div className={`
             px-4 sm:px-6 lg:px-8
-            ${showBottomNav ? 'pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)]' : 'pb-4'}
+            ${showBottomNav ? 'pb-[calc(4rem+env(safe-area-inset-bottom))]' : 'pb-4'}
             ${showHeader ? 'pt-2' : 'pt-4'}
             min-h-[calc(100dvh-4rem)]
           `}>
