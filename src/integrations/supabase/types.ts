@@ -879,6 +879,53 @@ export type Database = {
         }
         Relationships: []
       }
+      security_incidents: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          incident_type: string
+          metadata: Json | null
+          resolved_at: string | null
+          severity: string
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          incident_type: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          severity: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          incident_type?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_incidents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       swap_quotes: {
         Row: {
           created_at: string
@@ -967,6 +1014,53 @@ export type Database = {
             columns: ["institutional_account_id"]
             isOneToOne: false
             referencedRelation: "institutional_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          description: string
+          id: string
+          metadata: Json | null
+          resolved: boolean | null
+          resolved_at: string | null
+          severity: string
+          transaction_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          description: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_alerts_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1153,6 +1247,14 @@ export type Database = {
       can_access_sensitive_pii: {
         Args: { target_user_id: string; user_uuid: string }
         Returns: boolean
+      }
+      check_extension_security: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          extension_name: string
+          schema_name: string
+          security_status: string
+        }[]
       }
       check_pii_rate_limit: {
         Args: { user_uuid: string }
