@@ -259,6 +259,42 @@ const AdminDashboard = () => {
                 <Receipt className="h-6 w-6" />
                 <span className="text-sm">External Wallets</span>
               </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/monitoring')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <Activity className="h-6 w-6" />
+                <span className="text-sm">System Monitor</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/webhooks')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <Clock className="h-6 w-6" />
+                <span className="text-sm">Webhooks</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/swap-analytics')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <TrendingUp className="h-6 w-6" />
+                <span className="text-sm">Swap Analytics</span>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/alerts')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <Shield className="h-6 w-6" />
+                <span className="text-sm">Alert Management</span>
+              </Button>
             </div>
           </CardContent>
         </Card>

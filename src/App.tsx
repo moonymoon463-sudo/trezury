@@ -47,6 +47,11 @@ import Portfolio from "./pages/Portfolio";
 import TrzryReserves from "./pages/TrzryReserves";
 import Send from "./pages/Send";
 import Receive from "./pages/Receive";
+import RealTimeSystemMonitor from "./components/admin/RealTimeSystemMonitor";
+import WebhookMonitoringDashboard from "./components/admin/WebhookMonitoringDashboard";
+import SwapAnalyticsDashboard from "./components/admin/SwapAnalyticsDashboard";
+import AlertManagementSystem from "./components/admin/AlertManagementSystem";
+import CapacityPlanningDashboard from "./components/admin/CapacityPlanningDashboard";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +117,11 @@ const AppRoutes = () => {
       <Route path="/admin/fees" element={<ProtectedRoute><AdminFees /></ProtectedRoute>} />
       <Route path="/admin/fees-external" element={<ProtectedRoute><AdminFeesNew /></ProtectedRoute>} />
       <Route path="/admin/wallet" element={<ProtectedRoute><WalletManagement /></ProtectedRoute>} />
+      <Route path="/admin/monitoring" element={<ProtectedRoute><RealTimeSystemMonitor /></ProtectedRoute>} />
+      <Route path="/admin/webhooks" element={<ProtectedRoute><WebhookMonitoringDashboard /></ProtectedRoute>} />
+      <Route path="/admin/swap-analytics" element={<ProtectedRoute><SwapAnalyticsDashboard /></ProtectedRoute>} />
+      <Route path="/admin/alerts" element={<ProtectedRoute><AlertManagementSystem /></ProtectedRoute>} />
+      <Route path="/admin/capacity-planning" element={<ProtectedRoute><CapacityPlanningDashboard /></ProtectedRoute>} />
       <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />
       <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
       <Route path="/receive" element={<ProtectedRoute><Receive /></ProtectedRoute>} />
