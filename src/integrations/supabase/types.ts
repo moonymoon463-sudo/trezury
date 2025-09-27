@@ -80,6 +80,36 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_attempts: {
+        Row: {
+          attempted_at: string | null
+          email: string
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          success: boolean | null
+          user_agent: string | null
+        }
+        Insert: {
+          attempted_at?: string | null
+          email: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Update: {
+          attempted_at?: string | null
+          email?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       balance_snapshots: {
         Row: {
           amount: number
@@ -890,6 +920,54 @@ export type Database = {
           },
         ]
       }
+      security_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          description: string
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          title: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          description: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          title: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          title?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       security_audit: {
         Row: {
           id: string
@@ -926,6 +1004,33 @@ export type Database = {
           timestamp?: string | null
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      security_config: {
+        Row: {
+          config_key: string
+          config_value: Json
+          created_at: string | null
+          created_by: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          config_key: string
+          config_value: Json
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          config_key?: string
+          config_value?: Json
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1501,6 +1606,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_account_locked: {
+        Args: { p_email: string }
+        Returns: boolean
+      }
       is_admin: {
         Args: { _user_id?: string }
         Returns: boolean
@@ -1536,6 +1645,19 @@ export type Database = {
         Args: { event_data?: Json; event_type: string }
         Returns: undefined
       }
+      log_security_event_enhanced: {
+        Args: {
+          p_description: string
+          p_event_type: string
+          p_ip_address?: unknown
+          p_metadata?: Json
+          p_severity: string
+          p_title: string
+          p_user_agent?: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
       log_sensitive_access: {
         Args: {
           p_metadata?: Json
@@ -1556,6 +1678,19 @@ export type Database = {
       mask_ssn: {
         Args: { ssn_value: string }
         Returns: string
+      }
+      monitor_system_health: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      record_auth_attempt: {
+        Args: {
+          p_email: string
+          p_ip_address?: unknown
+          p_success?: boolean
+          p_user_agent?: string
+        }
+        Returns: undefined
       }
       record_system_metric: {
         Args: {
