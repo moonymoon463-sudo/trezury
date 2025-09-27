@@ -31,7 +31,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-[100dvh] w-full bg-background">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
       {/* Header */}
       {showHeader && <StandardHeader {...headerProps} />}
 

@@ -58,9 +58,9 @@ const BottomNavigation = () => {
     <nav 
       ref={navRef}
       id="bottom-nav"
-      className="fixed bottom-0 inset-x-0 z-50 h-16 bg-background/90 backdrop-blur border-t pb-[max(env(safe-area-inset-bottom),0px)]"
+      className="fixed bottom-0 inset-x-0 z-50 h-16 bg-background/90 backdrop-blur border-t overflow-visible pb-[max(env(safe-area-inset-bottom),0px)]"
     >
-      <div className="grid grid-cols-6 w-full h-full">
+      <div className="flex items-center justify-around h-full px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -69,16 +69,16 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center justify-center gap-1 leading-none"
+              className="flex flex-col items-center justify-center gap-1 leading-none min-w-0 flex-1"
             >
-                <Icon 
-                  className={`w-6 h-6 ${active ? "text-primary" : "text-muted-foreground"}`} 
-                />
-                <span 
-                  className={`text-xs opacity-80 ${active ? "text-primary" : "text-muted-foreground"}`}
-                >
-                  {item.label}
-                </span>
+              <Icon 
+                className={`w-6 h-6 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
+              />
+              <span 
+                className={`text-[10px] text-center leading-none truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
+              >
+                {item.label}
+              </span>
             </button>
           );
         })}
