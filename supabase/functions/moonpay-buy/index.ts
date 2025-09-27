@@ -18,7 +18,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { amount, currency, walletAddress, userId } = await req.json()
+    const { amount, currency, walletAddress, userId, returnUrl } = await req.json()
 
     console.log('MoonPay buy request:', { amount, currency, walletAddress, userId })
     
@@ -81,7 +81,7 @@ serve(async (req) => {
         baseCurrencyCode: currency.toLowerCase(),
         currencyCode: 'usdc',
         walletAddress: finalWalletAddress,
-        redirectURL: `${Deno.env.get('SUPABASE_URL')}/functions/v1/moonpay-webhook`,
+        redirectURL: returnUrl || 'https://auntkvllzejtfqmousxg.lovable.app/buy-gold-success',
         externalCustomerId: userId,
       }),
     })

@@ -86,7 +86,7 @@ serve(async (req) => {
 
     // Create MoonPay hosted sell widget URL
     const baseUrl = 'https://sell.moonpay.com'
-    const defaultReturnUrl = `https://auntkvllzejtfqmousxg.supabase.co/offramp/return?sell=moonpay`
+    const defaultReturnUrl = `https://auntkvllzejtfqmousxg.lovable.app/sell-gold-success`
     const finalReturnUrl = returnUrl || defaultReturnUrl
     
     const params = new URLSearchParams({

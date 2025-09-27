@@ -70,6 +70,8 @@ verify_jwt = false
 [functions.security-monitor]
 verify_jwt = false
 
+[functions.moonpay-diagnostics]
+verify_jwt = false
 
 [functions.real-time-rates]
 verify_jwt = false

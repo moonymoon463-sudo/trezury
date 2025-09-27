@@ -72,7 +72,7 @@ export const useMoonPayBuy = () => {
         environment: 'sandbox',
         variant: 'overlay',
         params: {
-          apiKey: 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
+          apiKey: import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY,
           theme: 'dark',
           baseCurrencyCode: currency.toLowerCase(),
           baseCurrencyAmount: amount.toString(),
