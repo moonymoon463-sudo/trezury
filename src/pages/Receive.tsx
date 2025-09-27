@@ -83,33 +83,33 @@ const Receive = () => {
     .slice(0, 5);
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-background">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
       <StandardHeader 
         title="Receive Tokens"
         showBackButton
         onBack={() => navigate("/")}
       />
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 space-y-4">
+      <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)] pt-2 space-y-4">
         {/* Wallet Address Section */}
-        <div className="bg-surface-elevated rounded-xl p-4 space-y-4">
+        <div className="bg-surface-elevated rounded-xl p-4 space-y-4 max-w-full">
           <div className="text-center space-y-4">
-            <h3 className="text-foreground text-lg font-bold">Your Wallet Address</h3>
+            <h3 className="text-foreground text-lg sm:text-xl font-bold">Your Wallet Address</h3>
             
             {qrCodeUrl && (
               <div className="flex justify-center">
-                <div className="bg-white p-4 rounded-lg">
+                <div className="bg-white p-2 sm:p-4 rounded-lg max-w-full">
                   <img 
                     src={qrCodeUrl} 
                     alt="Wallet Address QR Code"
-                    className="w-48 h-48"
+                    className="w-32 sm:w-48 lg:w-56 h-auto max-w-full"
                   />
                 </div>
               </div>
             )}
 
-            <div className="bg-background rounded-lg p-3 space-y-3">
-              <div className="font-mono text-sm text-foreground break-all">
+            <div className="bg-background rounded-lg p-3 space-y-3 max-w-full">
+              <div className="font-mono text-xs sm:text-sm text-foreground break-all overflow-wrap-anywhere">
                 {walletAddress || "Loading..."}
               </div>
               
@@ -136,9 +136,9 @@ const Receive = () => {
         </div>
 
         {/* Instructions */}
-        <div className="bg-surface-elevated rounded-xl p-4">
-          <h4 className="text-foreground font-semibold mb-3">How to Receive Tokens</h4>
-          <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="bg-surface-elevated rounded-xl p-4 max-w-full">
+          <h4 className="text-foreground font-semibold mb-3 text-base sm:text-lg">How to Receive Tokens</h4>
+          <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
             <div className="flex items-start gap-2">
               <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mt-0.5">1</span>
               <span>Share your wallet address or QR code with the sender</span>

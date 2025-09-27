@@ -40,60 +40,66 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
   };
 
   return (
-    <header className="h-12 md:h-16 bg-background border-b border-border px-3 md:px-4 flex-shrink-0">
-      <div className="flex items-center justify-between h-full">
-        {/* Left Section */}
-        <div className="w-12 flex justify-start">
-          {showBackButton && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleBack}
-              className="p-2 hover:bg-surface-elevated"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          )}
-        </div>
+    <header className="h-12 sm:h-14 lg:h-16 bg-background border-b border-border flex-shrink-0">
+      <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 h-full">
+        <div className="flex items-center justify-between h-full">
+          {/* Left Section */}
+          <div className="w-8 sm:w-10 lg:w-12 flex justify-start">
+            {showBackButton && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleBack}
+                className="p-1 sm:p-2 hover:bg-surface-elevated"
+              >
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+            )}
+          </div>
 
-        {/* Center Section - Logo or Title */}
-        <div className="flex-1 flex justify-center">
-          {title ? (
-            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          ) : (
-            <AurumLogo compact />
-          )}
-        </div>
+          {/* Center Section - Logo or Title */}
+          <div className="flex-1 flex justify-center max-w-full overflow-hidden">
+            {title ? (
+              <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground truncate px-2">{title}</h1>
+            ) : (
+              <div className="w-auto max-w-full">
+                <AurumLogo compact />
+              </div>
+            )}
+          </div>
 
-        {/* Right Section */}
-        <div className="w-12 flex justify-end gap-1">
-          {rightActions ? (
-            rightActions
-          ) : (
-            <>
-              {showRefreshButton && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  className="p-2 hover:bg-surface-elevated"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </Button>
-              )}
-              {showSettingsButton && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => navigate("/settings")}
-                  className="p-2 hover:bg-surface-elevated"
-                >
-                  <Settings className="h-5 w-5" />
-                </Button>
-              )}
-            </>
-          )}
+          {/* Right Section */}
+          <div className="w-8 sm:w-10 lg:w-12 flex justify-end gap-1">
+            {rightActions ? (
+              <div className="flex items-center gap-1 max-w-full overflow-hidden">
+                {rightActions}
+              </div>
+            ) : (
+              <>
+                {showRefreshButton && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                    className="p-1 sm:p-2 hover:bg-surface-elevated"
+                  >
+                    <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                )}
+                {showSettingsButton && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => navigate("/settings")}
+                    className="p-1 sm:p-2 hover:bg-surface-elevated"
+                  >
+                    <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

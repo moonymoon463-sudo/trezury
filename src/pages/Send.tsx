@@ -149,15 +149,15 @@ const Send = () => {
   };
 
   return (
-    <div className="relative flex h-screen w-full flex-col bg-background">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
       <StandardHeader 
         title="Send Tokens"
         showBackButton
         onBack={() => navigate("/")}
       />
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20 space-y-4">
-        <div className="bg-surface-elevated rounded-xl p-4 space-y-4">
+      <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)] pt-2 space-y-4">
+        <div className="bg-surface-elevated rounded-xl p-4 space-y-4 max-w-full">
           <div className="space-y-2">
             <Label htmlFor="asset">Select Asset</Label>
             <Select value={asset} onValueChange={setAsset}>
@@ -190,7 +190,7 @@ const Send = () => {
               placeholder="0x..."
               value={recipientAddress}
               onChange={(e) => setRecipientAddress(e.target.value)}
-              className={cn("font-mono", errors.recipient && "border-destructive")}
+              className={cn("font-mono text-xs sm:text-sm break-all", errors.recipient && "border-destructive")}
             />
             {errors.recipient && (
               <p className="text-destructive text-sm">{errors.recipient}</p>

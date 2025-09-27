@@ -89,11 +89,10 @@ const BottomNavigation = () => {
               className={`flex flex-col items-center justify-center ${isMobile ? "space-y-0" : "space-y-1"} ${isMobile ? "h-10" : "h-12"}`}
             >
               <Icon 
-                size={isMobile ? 16 : 20} 
-                className={active ? "text-primary" : "text-muted-foreground"} 
+                className={`w-4 h-4 sm:w-5 sm:h-5 ${active ? "text-primary" : "text-muted-foreground"}`} 
               />
               <span 
-                className={`${isMobile ? "text-[9px] leading-none" : "text-xs"} ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`text-[10px] sm:text-xs leading-tight break-words ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>

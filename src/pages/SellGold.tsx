@@ -54,19 +54,19 @@ const SellGold = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
       <StandardHeader showBackButton backPath="/" />
 
       {/* Main Content */}
-      <main className="flex-1 p-4">
-        <h2 className="text-2xl font-bold text-foreground mb-8">Which gold would you like to sell?</h2>
+      <main className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)] pt-2">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-6 sm:mb-8">Which gold would you like to sell?</h2>
         
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-full">
           {/* GOLD Token Option */}
           <button 
             onClick={handleSellGold}
             disabled={loading}
-            className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 transition-colors hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 sm:p-6 transition-colors hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed max-w-full"
           >
             <div className="flex-shrink-0">
               <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">

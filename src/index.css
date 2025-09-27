@@ -137,6 +137,48 @@ All colors MUST be HSL.
   html, body {
     height: -webkit-fill-available;
   }
+
+  /* Responsive grid utilities */
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .responsive-grid-auto {
+    @apply grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4;
+  }
+
+  /* Typography utilities */
+  .responsive-heading {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+
+  .responsive-subheading {
+    @apply text-base sm:text-lg lg:text-xl;
+  }
+
+  .responsive-body {
+    @apply text-sm sm:text-base;
+  }
+
+  /* Container utilities */
+  .responsive-container {
+    @apply container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .responsive-spacing {
+    @apply space-y-4 sm:space-y-6 lg:space-y-8;
+  }
+
+  /* Overflow protection */
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Mobile-first spacing */
+  .mobile-safe-bottom {
+    @apply pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)];
+  }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
