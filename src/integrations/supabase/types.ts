@@ -1289,6 +1289,81 @@ export type Database = {
           },
         ]
       }
+      webhook_processing_log: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          external_id: string | null
+          id: string
+          ip_address: unknown | null
+          processing_time_ms: number | null
+          retry_count: number | null
+          status: string
+          user_id: string | null
+          webhook_id: string
+          webhook_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          processing_time_ms?: number | null
+          retry_count?: number | null
+          status?: string
+          user_id?: string | null
+          webhook_id: string
+          webhook_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          processing_time_ms?: number | null
+          retry_count?: number | null
+          status?: string
+          user_id?: string | null
+          webhook_id?: string
+          webhook_type?: string
+        }
+        Relationships: []
+      }
+      webhook_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          request_count: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          created_at?: string
+          id?: string
+          ip_address: unknown
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
