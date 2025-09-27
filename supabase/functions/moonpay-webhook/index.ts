@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { createHmac } from "https://deno.land/std@0.168.0/crypto/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -301,7 +300,7 @@ serve(async (req) => {
               currency: 'USDC'
             }
           })
-          .catch(err => console.error('Failed to create notification:', err))
+          
 
         console.log('✅ Successfully processed completed transaction')
       }
@@ -383,7 +382,7 @@ serve(async (req) => {
               moonpay_customer_id: customerId
             }
           })
-          .catch(err => console.error('Failed to create KYC notification:', err))
+          
 
         console.log(`✅ Successfully updated KYC status to ${kycStatus} for user ${externalCustomerId}`)
       }
@@ -419,7 +418,7 @@ serve(async (req) => {
               processed_at: new Date().toISOString()
             }
           })
-          .catch(err => console.error('Failed to create refund record:', err))
+          
 
         // Create notification
         await supabase
@@ -434,7 +433,7 @@ serve(async (req) => {
               amount: amount
             }
           })
-          .catch(err => console.error('Failed to create refund notification:', err))
+          
       }
     }
 
@@ -459,7 +458,7 @@ serve(async (req) => {
           }
         })
         .eq('external_id', id)
-        .catch(err => console.error('Failed to update failed transaction:', err))
+        
 
       // Create notification for user
       if (externalCustomerId) {
@@ -475,7 +474,7 @@ serve(async (req) => {
               failure_reason: failureReason
             }
           })
-          .catch(err => console.error('Failed to create failure notification:', err))
+          
       }
     }
 
@@ -506,7 +505,7 @@ serve(async (req) => {
       )
       
       const webhookData = webhookBody ? JSON.parse(webhookBody) : {}
-      await logWebhookEvent(supabase, webhookData.type || 'unknown', webhookData, 'error', error.message)
+      await logWebhookEvent(supabase, webhookData.type || 'unknown', webhookData, 'error', error instanceof Error ? error.message : 'Unknown error')
     } catch (logError) {
       console.error('Failed to log error:', logError)
     }
