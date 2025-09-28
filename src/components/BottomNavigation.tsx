@@ -58,9 +58,9 @@ const BottomNavigation = () => {
     <nav 
       ref={navRef}
       id="bottom-nav"
-      className="fixed bottom-0 inset-x-0 z-50 h-16 bg-background/90 backdrop-blur border-t overflow-visible pb-[max(env(safe-area-inset-bottom),0px)]"
+      className="fixed bottom-0 inset-x-0 z-50 h-14 bg-background/90 backdrop-blur border-t overflow-visible pb-[max(env(safe-area-inset-bottom),0px)]"
     >
-      <div className="flex items-center justify-around h-full px-2">
+      <div className="flex items-center justify-around h-full px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -69,13 +69,13 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center justify-center gap-1 leading-none min-w-0 flex-1"
+              className="flex flex-col items-center justify-center gap-0.5 leading-none min-w-0 flex-1 py-1.5 px-1 min-h-[44px]"
             >
               <Icon 
-                className={`w-6 h-6 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
+                className={`w-5 h-5 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
               />
               <span 
-                className={`text-[10px] text-center leading-none truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`text-xs text-center leading-tight truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>
