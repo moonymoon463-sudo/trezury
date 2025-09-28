@@ -58,6 +58,7 @@ const Index = () => {
         isRefreshing: isRefreshing,
         showSettingsButton: true
       }}
+      showBottomNavOnAllScreens={true}
       className="overflow-y-auto"
     >
       <div className="space-y-3">

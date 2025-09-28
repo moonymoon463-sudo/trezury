@@ -18,6 +18,7 @@ interface AppLayoutProps {
   };
   showHeader?: boolean;
   showBottomNav?: boolean;
+  showBottomNavOnAllScreens?: boolean;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   headerProps,
   showHeader = true,
   showBottomNav = true,
+  showBottomNavOnAllScreens = false,
   className = ""
 }) => {
   const isMobile = useIsMobile();
@@ -50,7 +52,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       </main>
 
       {/* Bottom Navigation */}
-      {showBottomNav && isMobile && <BottomNavigation />}
+      {showBottomNav && (showBottomNavOnAllScreens || isMobile) && <BottomNavigation />}
     </div>
   );
 };
