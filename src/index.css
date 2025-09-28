@@ -175,10 +175,18 @@ All colors MUST be HSL.
     word-break: break-word;
   }
 
-  /* Mobile-first spacing */
-  .mobile-safe-bottom {
-    @apply pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)];
-  }
+    /* Layout height variables */
+    --header-height: 3rem; /* 48px on mobile, responsive */
+    --bottom-nav-height: 3.5rem; /* 56px - matches current bottom nav */
+    
+    /* Mobile-first spacing */
+    .mobile-safe-bottom {
+      @apply pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)];
+    }
+    
+    .mobile-safe-top {
+      @apply pt-[calc(var(--header-height)+env(safe-area-inset-top))];
+    }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');

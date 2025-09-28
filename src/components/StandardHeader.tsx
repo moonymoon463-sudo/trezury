@@ -40,7 +40,7 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
   };
 
   return (
-    <header className="h-12 sm:h-14 lg:h-16 bg-background border-b border-border flex-shrink-0">
+    <header className="fixed top-0 inset-x-0 z-50 h-12 sm:h-14 lg:h-16 bg-background/90 backdrop-blur border-b border-border flex-shrink-0" style={{ height: 'var(--header-height)' }}>
       <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left Section */}
