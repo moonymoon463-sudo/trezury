@@ -58,10 +58,18 @@ const BottomNavigation = () => {
     <nav 
       ref={navRef}
       id="bottom-nav"
-      className="fixed bottom-0 inset-x-0 z-50 bg-background backdrop-blur border-t border-border overflow-visible shadow-sm"
-      style={{ height: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))" }}
+      className="fixed bottom-0 inset-x-0 z-50 overflow-visible"
+      style={{ height: "var(--bottom-nav-height)" }}
     >
-      <div className="flex items-center justify-evenly h-full px-1">
+      {/* Background extender to cover safe area */}
+      <div 
+        className="absolute inset-0 bg-background backdrop-blur border-t border-border shadow-sm"
+        style={{ 
+          height: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))",
+          bottom: "calc(-1 * env(safe-area-inset-bottom))"
+        }}
+      />
+      <div className="relative flex items-center justify-evenly h-full px-1 z-10">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -73,10 +81,10 @@ const BottomNavigation = () => {
               className="flex flex-col items-center justify-center gap-0 sm:gap-0.5 leading-none min-w-0 flex-1 py-0.5 sm:py-1 px-1 min-h-[32px]"
             >
               <Icon 
-                className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
+                className={`w-3.5 h-3.5 sm:w-5 sm:h-5 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
               />
               <span 
-                className={`text-[10px] sm:text-xs text-center leading-tight truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`text-[9px] sm:text-xs text-center leading-tight truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
               >
                 {item.label}
               </span>
