@@ -58,9 +58,10 @@ const BottomNavigation = () => {
     <nav 
       ref={navRef}
       id="bottom-nav"
-      className="fixed bottom-0 inset-x-0 z-50 bg-background backdrop-blur border-t border-border overflow-visible shadow-sm mobile-nav-safe"
+      className="fixed bottom-0 inset-x-0 z-50 bg-background backdrop-blur border-t border-border overflow-visible shadow-sm"
+      style={{ height: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))" }}
     >
-      <div className="flex items-center justify-around h-10 sm:h-14 px-1">
+      <div className="flex items-center justify-evenly h-full px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -69,7 +70,7 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center justify-center gap-0 sm:gap-0.5 leading-none min-w-0 flex-1 py-1 sm:py-1.5 px-1 min-h-[44px]"
+              className="flex flex-col items-center justify-center gap-0 sm:gap-0.5 leading-none min-w-0 flex-1 py-0.5 sm:py-1 px-1 min-h-[40px]"
             >
               <Icon 
                 className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
