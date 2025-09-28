@@ -41,7 +41,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
           <div className={`
             px-4 sm:px-6 lg:px-8
             ${showBottomNav ? 'pb-[calc(4rem+env(safe-area-inset-bottom))]' : 'pb-4'}
-            ${showHeader ? 'pt-2' : 'pt-4'}
+            ${showHeader ? 'pt-[calc(3rem+0.5rem)] sm:pt-[calc(3.5rem+0.5rem)] lg:pt-[calc(4rem+0.5rem)]' : 'pt-4'}
             min-h-[calc(100dvh-4rem)]
           `}>
             {children}
