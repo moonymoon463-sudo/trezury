@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AurumLogo from "@/components/AurumLogo";
 
 const Auth = () => {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, signInWithGoogle, loading } = useAuth();
   const [mode, setMode] = useState<'welcome' | 'signin' | 'signup'>('welcome');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -50,6 +50,15 @@ const Auth = () => {
     const { error } = await signUp(email, password);
     if (!error) {
       setMode('welcome');
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsSubmitting(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      console.error('Google sign-in error:', error);
     }
     setIsSubmitting(false);
   };
@@ -210,6 +219,8 @@ const Auth = () => {
                   type="button"
                   variant="aurum-secondary"
                   className="w-full h-14 rounded-xl text-base flex items-center justify-center gap-3"
+                  onClick={handleGoogleSignIn}
+                  disabled={isSubmitting}
                 >
                   <svg className="text-white" fill="none" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -217,7 +228,7 @@ const Auth = () => {
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
-                  Sign Up with Google
+                  {isSubmitting ? "Signing up..." : "Sign Up with Google"}
                 </Button>
               </div>
             </form>
@@ -306,6 +317,8 @@ const Auth = () => {
           <Button 
             variant="ghost"
             className="h-12 px-4 bg-transparent text-white gap-2.5 text-sm font-semibold leading-normal hover:bg-white/10"
+            onClick={handleGoogleSignIn}
+            disabled={isSubmitting}
           >
             <svg className="text-white" fill="none" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -313,7 +326,7 @@ const Auth = () => {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign In with Google
+            {isSubmitting ? "Signing in..." : "Sign In with Google"}
           </Button>
         </div>
       </div>

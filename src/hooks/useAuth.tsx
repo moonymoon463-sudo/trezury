@@ -11,6 +11,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string) => Promise<{ error?: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error?: Error | null }>;
+  signInWithGoogle: () => Promise<{ error?: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -215,6 +216,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const signInWithGoogle = async () => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl
+        }
+      });
+
+      // Log OAuth attempt
+      await enhancedSecurityService.logSecurityEvent({
+        event_type: 'oauth_attempt',
+        severity: 'medium',
+        title: 'Google OAuth Sign-in Attempt',
+        description: 'User attempting to sign in with Google',
+        metadata: {
+          provider: 'google',
+          user_agent: navigator.userAgent
+        }
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "OAuth Error",
+          description: error.message,
+        });
+
+        // Log failed OAuth
+        await enhancedSecurityService.logSecurityEvent({
+          event_type: 'oauth_failed',
+          severity: 'high',
+          title: 'Google OAuth Failed',
+          description: `OAuth sign-in failed: ${error.message}`,
+          metadata: {
+            provider: 'google',
+            error_message: error.message,
+            user_agent: navigator.userAgent
+          }
+        });
+      }
+
+      return { error };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast({
+        variant: "destructive",
+        title: "Sign In Error",
+        description: errorMessage,
+      });
+      return { error: error instanceof Error ? error : new Error(errorMessage) };
+    }
+  };
+
   const signOut = async () => {
     const currentUser = user;
     
@@ -256,6 +313,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signUp,
       signIn,
+      signInWithGoogle,
       signOut,
     }}>
       {children}
