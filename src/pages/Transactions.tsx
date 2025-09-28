@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '@/components/AppLayout';
+import StandardHeader from '@/components/StandardHeader';
+import BottomNavigation from '@/components/BottomNavigation';
 import { useTransactionTracker } from '@/hooks/useTransactionTracker';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -20,21 +21,21 @@ const Transactions = () => {
   const getReactIcon = (type: string) => {
     switch (type.toLowerCase()) {
       case 'buy':
-        return <ArrowDownIcon className="h-4 w-4 text-status-success" />;
+        return <ArrowDownIcon className="h-4 w-4 text-green-500" />;
       case 'sell':
-        return <ArrowUpIcon className="h-4 w-4 text-status-error" />;
+        return <ArrowUpIcon className="h-4 w-4 text-red-500" />;
       case 'swap':
-        return <RefreshCwIcon className="h-4 w-4 text-status-info" />;
+        return <RefreshCwIcon className="h-4 w-4 text-blue-500" />;
       case 'send':
-        return <SendIcon className="h-4 w-4 text-status-warning" />;
+        return <SendIcon className="h-4 w-4 text-orange-500" />;
       case 'receive':
-        return <DownloadIcon className="h-4 w-4 text-status-success" />;
+        return <DownloadIcon className="h-4 w-4 text-green-500" />;
       case 'deposit':
-        return <DownloadIcon className="h-4 w-4 text-status-info" />;
+        return <DownloadIcon className="h-4 w-4 text-blue-500" />;
       case 'withdrawal':
-        return <UploadIcon className="h-4 w-4 text-status-warning" />;
+        return <UploadIcon className="h-4 w-4 text-orange-500" />;
       default:
-        return <DollarSignIcon className="h-4 w-4 text-muted-foreground" />;
+        return <DollarSignIcon className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -62,10 +63,10 @@ const Transactions = () => {
 
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case 'completed': return 'bg-status-success/10 text-status-success border-status-success/20';
-      case 'pending': return 'bg-status-warning/10 text-status-warning border-status-warning/20';
-      case 'failed': return 'bg-status-error/10 text-status-error border-status-error/20';
-      default: return 'bg-muted text-muted-foreground';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -90,111 +91,120 @@ const Transactions = () => {
 
   if (loading) {
     return (
-      <AppLayout 
-        headerProps={{ title: "Transactions" }}
-        className="flex items-center justify-center"
-      >
-        <div className="text-muted-foreground">Loading activity...</div>
-      </AppLayout>
+      <div className="min-h-screen bg-background">
+        <StandardHeader />
+        <div className="p-4">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-muted-foreground">Loading activity...</div>
+          </div>
+        </div>
+        <BottomNavigation />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <AppLayout 
-        headerProps={{ title: "Transactions" }}
-        className="flex items-center justify-center"
-      >
-        <div className="text-status-error">Error loading activity: {error}</div>
-      </AppLayout>
+      <div className="min-h-screen bg-background">
+        <StandardHeader />
+        <div className="p-4">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-destructive">Error loading activity: {error}</div>
+          </div>
+        </div>
+        <BottomNavigation />
+      </div>
     );
   }
 
   return (
-    <AppLayout 
-      headerProps={{ title: "Transactions" }}
-      className="space-y-4"
-    >
-      {/* Filter buttons */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {['all', 'buy', 'sell', 'swap', 'send', 'receive', 'deposit', 'withdrawal'].map((filter) => (
-          <Button
-            key={filter}
-            variant={activeFilter === filter ? "default" : "outline"}
-            size="sm"
-            className="whitespace-nowrap capitalize"
-            onClick={() => setActiveFilter(filter)}
-          >
-            {filter}
-          </Button>
-        ))}
-      </div>
-
-      {/* Activities list */}
-      <div className="space-y-3">
-        {filteredActivities.length === 0 ? (
-          <Card className="p-6 text-center">
-            <div className="text-muted-foreground">
-              {activeFilter === 'all' 
-                ? "No activity found"
-                : `No ${activeFilter} activity found`
-              }
-            </div>
-          </Card>
-        ) : (
-          filteredActivities.map((activity) => (
-            <Card 
-              key={`${activity.activity_type}-${activity.id}`}
-              className="p-4 cursor-pointer hover:bg-surface-elevated/50 transition-colors duration-200 border-border/50"
-              onClick={() => handleActivityClick(activity)}
+    <div className="relative flex min-h-[100dvh] w-full flex-col bg-background">
+      <StandardHeader />
+      
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-2 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))] space-y-4">
+        {/* Filter buttons */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {['all', 'buy', 'sell', 'swap', 'send', 'receive', 'deposit', 'withdrawal'].map((filter) => (
+            <Button
+              key={filter}
+              variant={activeFilter === filter ? "default" : "outline"}
+              size="sm"
+              className="whitespace-nowrap capitalize"
+              onClick={() => setActiveFilter(filter)}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {getReactIcon(activity.type)}
-                  <div>
-                    <div className="font-medium flex items-center gap-2">
-                      <span className="capitalize">{activity.type}</span>
-                      {getSourceBadge(activity)}
+              {filter}
+            </Button>
+          ))}
+        </div>
+
+        {/* Activities list */}
+        <div className="space-y-3">
+          {filteredActivities.length === 0 ? (
+            <Card className="p-6 text-center">
+              <div className="text-muted-foreground">
+                {activeFilter === 'all' 
+                  ? "No activity found"
+                  : `No ${activeFilter} activity found`
+                }
+              </div>
+            </Card>
+          ) : (
+            filteredActivities.map((activity) => (
+              <Card 
+                key={`${activity.activity_type}-${activity.id}`}
+                className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={() => handleActivityClick(activity)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {getReactIcon(activity.type)}
+                    <div>
+                      <div className="font-medium flex items-center gap-2">
+                        <span className="capitalize">{activity.type}</span>
+                        {getSourceBadge(activity)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {getActivityDescription(activity)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="font-medium">
+                      {formatValue(activity)}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {getActivityDescription(activity)}
+                      {formatTimestamp(activity.timestamp)}
                     </div>
                   </div>
                 </div>
                 
-                <div className="text-right">
-                  <div className="font-medium">
-                    {formatValue(activity)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {formatTimestamp(activity.timestamp)}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-2 flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">
-                  {formatAmount(activity)}
-                </span>
-                {activity.status && (
-                  <Badge className={getStatusColor(activity.status)}>
-                    {activity.status}
-                  </Badge>
-                )}
-              </div>
-
-              {activity.tx_hash && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <span className="font-mono">
-                    {activity.tx_hash.slice(0, 10)}...{activity.tx_hash.slice(-8)}
+                <div className="mt-2 flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">
+                    {formatAmount(activity)}
                   </span>
+                  {activity.status && (
+                    <Badge className={getStatusColor(activity.status)}>
+                      {activity.status}
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </Card>
-          ))
-        )}
+
+                {activity.tx_hash && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    <span className="font-mono">
+                      {activity.tx_hash.slice(0, 10)}...{activity.tx_hash.slice(-8)}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            ))
+          )}
+        </div>
       </div>
-    </AppLayout>
+      
+      <BottomNavigation />
+    </div>
   );
 };
 

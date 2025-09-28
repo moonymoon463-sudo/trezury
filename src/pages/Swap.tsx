@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { swapService, SwapQuote } from "@/services/swapService";
-import AppLayout from "@/components/AppLayout";
+import StandardHeader from "@/components/StandardHeader";
 
 const Swap = () => {
   const navigate = useNavigate();
@@ -202,15 +202,12 @@ const Swap = () => {
   };
 
   return (
-    <AppLayout 
-      headerProps={{ 
-        showBackButton: true, 
-        backPath: "/" 
-      }}
-    >
+    <div className="relative flex min-h-[100dvh] w-full flex-col bg-background">
+      <StandardHeader showBackButton backPath="/" />
+      
       {/* Wallet Status */}
       {secureWalletAddress && (
-        <div className="bg-card p-3 rounded-lg mb-4">
+        <div className="mx-4 mt-2 bg-card p-3 rounded-lg">
           <div className="flex items-center gap-2">
             <Wallet size={16} className="text-primary" />
             <span className="text-sm text-foreground">
@@ -220,132 +217,135 @@ const Swap = () => {
         </div>
       )}
 
-      {/* Swap Interface */}
-      <div className="relative flex flex-col gap-2 my-8">
-        {/* From Section */}
-        <div className="bg-card p-4 rounded-xl">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-muted-foreground">From</span>
-            <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <div className={`w-10 h-10 ${
-                fromAsset === 'XAUT' ? 'bg-yellow-600' : 
-                fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
-              } rounded-full flex items-center justify-center`}>
-                <span className="text-white text-xs font-bold">{fromAsset}</span>
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-2">
+        {/* Swap Interface */}
+        <div className="relative flex flex-col gap-2 my-8">
+          {/* From Section */}
+          <div className="bg-card p-4 rounded-xl">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-muted-foreground">From</span>
+              <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-10 h-10 ${
+                  fromAsset === 'XAUT' ? 'bg-yellow-600' : 
+                  fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
+                } rounded-full flex items-center justify-center`}>
+                  <span className="text-white text-xs font-bold">{fromAsset}</span>
+                </div>
+                <div>
+                  <span className="text-foreground text-lg font-bold">{fromAsset}</span>
+                  <div className="text-xs text-muted-foreground">{getNetworkForAsset(fromAsset)}</div>
+                </div>
+                <ChevronDown className="text-muted-foreground" size={20} />
               </div>
-              <div>
-                <span className="text-foreground text-lg font-bold">{fromAsset}</span>
-                <div className="text-xs text-muted-foreground">{getNetworkForAsset(fromAsset)}</div>
+              <Input
+                className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
+                placeholder="0.00"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Swap Button */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleSwapTokens}
+              className="bg-accent rounded-full p-2 text-foreground border-4 border-card hover:bg-accent/80"
+            >
+              <ArrowUpDown size={20} />
+            </Button>
+          </div>
+
+          {/* To Section */}
+          <div className="bg-card p-4 rounded-xl">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-muted-foreground">To</span>
+              <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-10 h-10 ${
+                  toAsset === 'XAUT' ? 'bg-yellow-600' : 
+                  toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
+                } rounded-full flex items-center justify-center`}>
+                  <span className="text-white text-xs font-bold">{toAsset}</span>
+                </div>
+                <div>
+                  <span className="text-foreground text-lg font-bold">{toAsset}</span>
+                  <div className="text-xs text-muted-foreground">{getNetworkForAsset(toAsset)}</div>
+                </div>
+                <ChevronDown className="text-muted-foreground" size={20} />
               </div>
-              <ChevronDown className="text-muted-foreground" size={20} />
+              <Input
+                className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
+                placeholder="0.00"
+                value={quote ? quote.outputAmount.toFixed(6) : ''}
+                readOnly
+              />
             </div>
-            <Input
-              className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
-              placeholder="0.00"
-              value={fromAmount}
-              onChange={(e) => setFromAmount(e.target.value)}
-            />
           </div>
         </div>
 
-        {/* Swap Button */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleSwapTokens}
-            className="bg-accent rounded-full p-2 text-foreground border-4 border-card hover:bg-accent/80"
-          >
-            <ArrowUpDown size={20} />
-          </Button>
-        </div>
-
-        {/* To Section */}
-        <div className="bg-card p-4 rounded-xl">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-muted-foreground">To</span>
-            <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
+        {/* Trading Details */}
+        <div className="space-y-3 mb-8">
+          <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <span className="text-foreground">Slippage Tolerance</span>
+            <div className="flex items-center gap-2">
+              <span className="text-foreground">0.5%</span>
+              <Edit className="text-muted-foreground" size={16} />
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <div className={`w-10 h-10 ${
-                toAsset === 'XAUT' ? 'bg-yellow-600' : 
-                toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
-              } rounded-full flex items-center justify-center`}>
-                <span className="text-white text-xs font-bold">{toAsset}</span>
+
+          <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <span className="text-foreground">Transaction Fees</span>
+            <span className="text-foreground">Auto-paid from {fromAsset} if needed</span>
+          </div>
+
+          <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <span className="text-foreground">Route</span>
+            <span className="text-foreground">{fromAsset} → {toAsset}</span>
+          </div>
+          
+          {quote && (
+            <>
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">Exchange Rate</span>
+                <span className="text-foreground">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
               </div>
-              <div>
-                <span className="text-foreground text-lg font-bold">{toAsset}</span>
-                <div className="text-xs text-muted-foreground">{getNetworkForAsset(toAsset)}</div>
+              
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">Platform Fee (0.8%)</span>
+                <span className="text-foreground">
+                  {quote.fee.toFixed(6)} {fromAsset}
+                </span>
               </div>
-              <ChevronDown className="text-muted-foreground" size={20} />
-            </div>
-            <Input
-              className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
-              placeholder="0.00"
-              value={quote ? quote.outputAmount.toFixed(6) : ''}
-              readOnly
-            />
-          </div>
-        </div>
-      </div>
+              
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">Minimum Received</span>
+                <span className="text-foreground">
+                  {quote.minimumReceived.toFixed(6)} {toAsset}
+                </span>
+              </div>
 
-      {/* Trading Details */}
-      <div className="space-y-3 mb-8">
-        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-          <span className="text-foreground">Slippage Tolerance</span>
-          <div className="flex items-center gap-2">
-            <span className="text-foreground">0.5%</span>
-            <Edit className="text-muted-foreground" size={16} />
-          </div>
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">You'll receive</span>
+                <span className="text-foreground font-bold">
+                  ≈ {quote.outputAmount.toFixed(6)} {toAsset}
+                </span>
+              </div>
+            </>
+          )}
         </div>
-
-        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-          <span className="text-foreground">Transaction Fees</span>
-          <span className="text-foreground">Auto-paid from {fromAsset} if needed</span>
-        </div>
-
-        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-          <span className="text-foreground">Route</span>
-          <span className="text-foreground">{fromAsset} → {toAsset}</span>
-        </div>
-        
-        {quote && (
-          <>
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-              <span className="text-foreground">Exchange Rate</span>
-              <span className="text-foreground">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
-            </div>
-            
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-              <span className="text-foreground">Platform Fee (0.8%)</span>
-              <span className="text-foreground">
-                {quote.fee.toFixed(6)} {fromAsset}
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-              <span className="text-foreground">Minimum Received</span>
-              <span className="text-foreground">
-                {quote.minimumReceived.toFixed(6)} {toAsset}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
-              <span className="text-foreground">You'll receive</span>
-              <span className="text-foreground font-bold">
-                ≈ {quote.outputAmount.toFixed(6)} {toAsset}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+      </main>
 
       {/* Bottom Button */}
-      <div className="mt-auto pt-4">
+      <div className="p-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
         {!secureWalletAddress ? (
           <Button 
             onClick={() => navigate("/wallet")}
@@ -364,7 +364,7 @@ const Swap = () => {
           </Button>
         )}
       </div>
-    </AppLayout>
+    </div>
   );
 };
 

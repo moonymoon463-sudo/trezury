@@ -175,34 +175,9 @@ All colors MUST be HSL.
     word-break: break-word;
   }
 
-  /* Layout variables for mobile-first fixed header/nav system */
-  --header-height: 48px;  /* Mobile: 48px (3rem) */
-  --bottom-nav-height: 56px; /* Mobile: 56px (3.5rem) */
-  
-  /* Responsive header heights */
-  --header-height-mobile: 48px;   /* 3rem */
-  --header-height-tablet: 56px;   /* 3.5rem */
-  --header-height-desktop: 64px;  /* 4rem */
-    
-  .mobile-safe-top {
-    padding-top: calc(var(--header-height) + env(safe-area-inset-top));
-  }
-
+  /* Mobile-first spacing */
   .mobile-safe-bottom {
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-  }
-
-  /* Responsive header height updates */
-  @media (min-width: 640px) {
-    :root {
-      --header-height: var(--header-height-tablet);
-    }
-  }
-
-  @media (min-width: 1024px) {
-    :root {
-      --header-height: var(--header-height-desktop);
-    }
+    @apply pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)];
   }
 }
 
