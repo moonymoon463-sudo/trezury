@@ -84,21 +84,21 @@ const BuyGold = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 px-3 sm:px-4 pb-4">
-        <div className="w-full max-w-md mx-auto mobile-form-spacing">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-4 sm:mb-6">Payment Method</h2>
+      <main className="flex-1 px-4 pb-4">
+        <div className="max-w-md mx-auto space-y-6">
+          <h2 className="text-2xl font-bold text-foreground mb-6">Payment Method</h2>
           
-          <div className="mobile-form-spacing">
+          <div className="space-y-4">
             {/* Credit Card/Bank Option */}
-            <label className={`flex items-center justify-between rounded-xl mobile-touch-padding cursor-pointer transition-all touch-target ${
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
               paymentMethod === "credit_card" 
                 ? "bg-primary/20 border-2 border-primary" 
                 : "bg-card border border-border"
             }`}>
-              <div className="flex items-center gap-3 sm:gap-4">
-                <CreditCard className="text-muted-foreground" size={20} />
+              <div className="flex items-center gap-4">
+                <CreditCard className="text-muted-foreground" size={24} />
                 <div>
-                  <span className="text-foreground font-medium block text-sm sm:text-base">Credit Card/Bank</span>
+                  <span className="text-foreground font-medium block">Credit Card/Bank</span>
                   {profile?.kyc_status !== 'verified' && (
                     <span className="text-xs text-muted-foreground">Requires identity verification</span>
                   )}
@@ -116,9 +116,9 @@ const BuyGold = () => {
 
             {/* KYC Warning for Credit Card */}
             {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' && (
-              <div className="bg-card border border-primary/30 rounded-xl mobile-touch-padding">
+              <div className="bg-card border border-primary/30 rounded-xl p-4">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className="h-5 w-5 text-primary mt-0.5" />
                   <div>
                     <p className="font-semibold text-primary text-sm">Identity Verification Required</p>
                     <p className="text-muted-foreground text-sm mt-1">
@@ -131,15 +131,15 @@ const BuyGold = () => {
             )}
 
             {/* USDC Option */}
-            <label className={`flex items-center justify-between rounded-xl mobile-touch-padding cursor-pointer transition-all touch-target ${
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
               paymentMethod === "usdc" 
                 ? "bg-primary/20 border-2 border-primary" 
                 : "bg-card border border-border"
             }`}>
-              <div className="flex items-center gap-3 sm:gap-4">
-                <DollarSign className="text-muted-foreground" size={20} />
+              <div className="flex items-center gap-4">
+                <DollarSign className="text-muted-foreground" size={24} />
                 <div>
-                  <span className="text-foreground font-medium block text-sm sm:text-base">USDC</span>
+                  <span className="text-foreground font-medium block">USDC</span>
                   <span className="text-xs text-muted-foreground">Use existing wallet balance</span>
                 </div>
               </div>
@@ -154,15 +154,15 @@ const BuyGold = () => {
             </label>
 
             {/* Auto-Invest Option */}
-            <label className={`flex items-center justify-between rounded-xl mobile-touch-padding cursor-pointer transition-all touch-target ${
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
               paymentMethod === "auto_invest" 
                 ? "bg-primary/20 border-2 border-primary" 
                 : "bg-card border border-border"
             }`}>
-              <div className="flex items-center gap-3 sm:gap-4">
-                <Calendar className="text-muted-foreground" size={20} />
+              <div className="flex items-center gap-4">
+                <Calendar className="text-muted-foreground" size={24} />
                 <div>
-                  <span className="text-foreground font-medium block text-sm sm:text-base">Auto-Invest</span>
+                  <span className="text-foreground font-medium block">Auto-Invest</span>
                   <span className="text-xs text-muted-foreground">Schedule recurring purchases</span>
                 </div>
               </div>
@@ -180,7 +180,7 @@ const BuyGold = () => {
           {/* Continue Button */}
           <div className="pt-4">
             <Button 
-              className="w-full font-bold h-12 sm:h-14 text-base sm:text-lg rounded-xl touch-target"
+              className="w-full font-bold h-14 text-lg rounded-xl"
               onClick={handleContinue}
             >
               {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 

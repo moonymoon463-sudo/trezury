@@ -218,31 +218,31 @@ const Swap = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-3 sm:px-4 pt-2 pb-6">
+      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-2">
         {/* Swap Interface */}
-        <div className="relative flex flex-col gap-2 my-6 sm:my-8">
+        <div className="relative flex flex-col gap-2 my-8">
           {/* From Section */}
-          <div className="bg-card mobile-touch-padding rounded-xl">
+          <div className="bg-card p-4 rounded-xl">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-muted-foreground">From</span>
-              <span className="text-xs sm:text-sm text-muted-foreground break-anywhere">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
+              <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
             </div>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 ${
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-10 h-10 ${
                   fromAsset === 'XAUT' ? 'bg-yellow-600' : 
                   fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
-                } rounded-full flex items-center justify-center flex-shrink-0`}>
+                } rounded-full flex items-center justify-center`}>
                   <span className="text-white text-xs font-bold">{fromAsset}</span>
                 </div>
-                <div className="min-w-0">
-                  <span className="text-foreground text-base sm:text-lg font-bold">{fromAsset}</span>
-                  <div className="text-xs text-muted-foreground truncate">{getNetworkForAsset(fromAsset)}</div>
+                <div>
+                  <span className="text-foreground text-lg font-bold">{fromAsset}</span>
+                  <div className="text-xs text-muted-foreground">{getNetworkForAsset(fromAsset)}</div>
                 </div>
-                <ChevronDown className="text-muted-foreground flex-shrink-0" size={18} />
+                <ChevronDown className="text-muted-foreground" size={20} />
               </div>
               <Input
-                className="bg-transparent border-none text-foreground text-right text-lg sm:text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 w-24 sm:w-32"
+                className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
                 placeholder="0.00"
                 value={fromAmount}
                 onChange={(e) => setFromAmount(e.target.value)}
@@ -256,34 +256,34 @@ const Swap = () => {
               variant="ghost" 
               size="icon"
               onClick={handleSwapTokens}
-              className="bg-accent rounded-full p-2 text-foreground border-4 border-card hover:bg-accent/80 touch-target"
+              className="bg-accent rounded-full p-2 text-foreground border-4 border-card hover:bg-accent/80"
             >
-              <ArrowUpDown size={18} />
+              <ArrowUpDown size={20} />
             </Button>
           </div>
 
           {/* To Section */}
-          <div className="bg-card mobile-touch-padding rounded-xl">
+          <div className="bg-card p-4 rounded-xl">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-muted-foreground">To</span>
-              <span className="text-xs sm:text-sm text-muted-foreground break-anywhere">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
+              <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
             </div>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 ${
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <div className={`w-10 h-10 ${
                   toAsset === 'XAUT' ? 'bg-yellow-600' : 
                   toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
-                } rounded-full flex items-center justify-center flex-shrink-0`}>
+                } rounded-full flex items-center justify-center`}>
                   <span className="text-white text-xs font-bold">{toAsset}</span>
                 </div>
-                <div className="min-w-0">
-                  <span className="text-foreground text-base sm:text-lg font-bold">{toAsset}</span>
-                  <div className="text-xs text-muted-foreground truncate">{getNetworkForAsset(toAsset)}</div>
+                <div>
+                  <span className="text-foreground text-lg font-bold">{toAsset}</span>
+                  <div className="text-xs text-muted-foreground">{getNetworkForAsset(toAsset)}</div>
                 </div>
-                <ChevronDown className="text-muted-foreground flex-shrink-0" size={18} />
+                <ChevronDown className="text-muted-foreground" size={20} />
               </div>
               <Input
-                className="bg-transparent border-none text-foreground text-right text-lg sm:text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 w-24 sm:w-32"
+                className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
                 placeholder="0.00"
                 value={quote ? quote.outputAmount.toFixed(6) : ''}
                 readOnly
@@ -293,49 +293,49 @@ const Swap = () => {
         </div>
 
         {/* Trading Details */}
-        <div className="mobile-spacing mb-6 sm:mb-8">
-          <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-            <span className="text-foreground text-sm sm:text-base">Slippage Tolerance</span>
+        <div className="space-y-3 mb-8">
+          <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <span className="text-foreground">Slippage Tolerance</span>
             <div className="flex items-center gap-2">
-              <span className="text-foreground text-sm sm:text-base">0.5%</span>
+              <span className="text-foreground">0.5%</span>
               <Edit className="text-muted-foreground" size={16} />
             </div>
           </div>
 
-          <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-            <span className="text-foreground text-sm sm:text-base">Transaction Fees</span>
-            <span className="text-foreground text-xs sm:text-sm text-right break-anywhere">Auto-paid from {fromAsset} if needed</span>
+          <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <span className="text-foreground">Transaction Fees</span>
+            <span className="text-foreground">Auto-paid from {fromAsset} if needed</span>
           </div>
 
-          <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-            <span className="text-foreground text-sm sm:text-base">Route</span>
-            <span className="text-foreground text-sm sm:text-base">{fromAsset} → {toAsset}</span>
+          <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <span className="text-foreground">Route</span>
+            <span className="text-foreground">{fromAsset} → {toAsset}</span>
           </div>
           
           {quote && (
             <>
-              <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-                <span className="text-foreground text-sm sm:text-base">Exchange Rate</span>
-                <span className="text-foreground text-sm sm:text-base">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">Exchange Rate</span>
+                <span className="text-foreground">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
               </div>
               
-              <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-                <span className="text-foreground text-sm sm:text-base">Platform Fee (0.8%)</span>
-                <span className="text-foreground text-sm sm:text-base">
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">Platform Fee (0.8%)</span>
+                <span className="text-foreground">
                   {quote.fee.toFixed(6)} {fromAsset}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-                <span className="text-foreground text-sm sm:text-base">Minimum Received</span>
-                <span className="text-foreground text-sm sm:text-base">
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">Minimum Received</span>
+                <span className="text-foreground">
                   {quote.minimumReceived.toFixed(6)} {toAsset}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center bg-card mobile-touch-padding rounded-xl">
-                <span className="text-foreground text-sm sm:text-base">You'll receive</span>
-                <span className="text-foreground font-bold text-sm sm:text-base">
+              <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+                <span className="text-foreground">You'll receive</span>
+                <span className="text-foreground font-bold">
                   ≈ {quote.outputAmount.toFixed(6)} {toAsset}
                 </span>
               </div>
@@ -345,12 +345,12 @@ const Swap = () => {
       </main>
 
       {/* Bottom Button */}
-      <div className="p-3 sm:p-4 pb-[calc(5rem+max(env(safe-area-inset-bottom),8px))] border-t border-border/20">
+      <div className="p-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
         {!secureWalletAddress ? (
           <Button 
             onClick={() => navigate("/wallet")}
             disabled={walletLoading}
-            className="w-full h-12 sm:h-14 bg-secondary text-secondary-foreground font-bold text-base sm:text-lg rounded-xl hover:bg-secondary/90 touch-target"
+            className="w-full h-14 bg-secondary text-secondary-foreground font-bold text-lg rounded-xl hover:bg-secondary/90"
           >
             {walletLoading ? "Setting up wallet..." : "Set up wallet to swap"}
           </Button>
@@ -358,7 +358,7 @@ const Swap = () => {
           <Button 
             onClick={quote ? handleExecuteSwap : handlePreviewSwap}
             disabled={loading || !fromAmount}
-            className="w-full h-12 sm:h-14 bg-primary text-primary-foreground font-bold text-base sm:text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50 touch-target"
+            className="w-full h-14 bg-primary text-primary-foreground font-bold text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50"
           >
             {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
           </Button>

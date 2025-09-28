@@ -2,10 +2,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Settings, TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Plus, RefreshCw, Send, Download } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import GoldPriceChart from "@/components/GoldPriceChart";
-import AppLayout from "@/components/AppLayout";
+import AurumLogo from "@/components/AurumLogo";
+import StandardHeader from "@/components/StandardHeader";
 import { useState } from "react";
 
 const Index = () => {
@@ -51,111 +53,127 @@ const Index = () => {
   ];
 
   return (
-    <AppLayout 
-      headerProps={{
-        showRefreshButton: true,
-        onRefresh: handleRefresh,
-        isRefreshing: isRefreshing,
-        showSettingsButton: true,
-        rightActions: (
-          <button 
-            onClick={() => navigate("/settings")}
-            className="p-2 text-muted-foreground hover:text-foreground transition-colors touch-target"
-          >
-            <Settings size={20} />
-          </button>
-        )
-      }}
-    >
-      <div className="mobile-spacing">
-        {/* Gold Price Display */}
-        <div className="bg-card rounded-xl mobile-touch-padding text-center mb-4">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span className="text-xl sm:text-2xl font-bold text-foreground">
-              ${priceLoading ? "Loading..." : goldPrice ? goldPrice.usd_per_oz.toFixed(2) : "N/A"}
-            </span>
-            <span className="text-sm text-muted-foreground">/oz</span>
-          </div>
-          {goldPrice && (
-            <div className={`flex items-center justify-center gap-1 ${goldPrice.change_percent_24h >= 0 ? "text-green-500" : "text-red-500"}`}>
-              <TrendingUp className={goldPrice.change_percent_24h >= 0 ? "" : "rotate-180"} size={14} />
-              <span className="text-sm font-medium">
-                {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
-              </span>
-              <span className="text-xs text-muted-foreground">24h</span>
+    <div className="relative flex min-h-[100dvh] w-full flex-col bg-background">
+      {/* Header */}
+      <StandardHeader 
+        showRefreshButton
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        showSettingsButton
+      />
+
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-2 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))] space-y-3">
+          {/* Gold Price Section */}
+          <div className="bg-surface-elevated rounded-xl p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-foreground text-base font-bold">Gold Price</h3>
+              {priceLoading ? (
+                <div className="animate-pulse">
+                  <div className="h-4 w-16 bg-gray-600 rounded"></div>
+                </div>
+              ) : goldPrice && (
+                <div className="flex items-center gap-1 text-[#f9b006]">
+                  <TrendingUp size={14} />
+                  <span className="text-xs font-medium">
+                    {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Action Buttons Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <Button 
-            onClick={() => navigate("/buy-sell-hub")}
-            variant="outline"
-            className="flex flex-col items-center gap-2 h-16 sm:h-20 text-xs sm:text-sm font-medium touch-target"
-          >
-            <ShoppingCart size={18} />
-            <span>Buy/Sell</span>
-          </Button>
-          <Button 
-            onClick={() => navigate("/swap")}
-            variant="outline"
-            className="flex flex-col items-center gap-2 h-16 sm:h-20 text-xs sm:text-sm font-medium touch-target"
-          >
-            <ArrowRightLeft size={18} />
-            <span>Swap</span>
-          </Button>
-          <Button 
-            onClick={() => navigate("/send")}
-            variant="outline"
-            className="flex flex-col items-center gap-2 h-16 sm:h-20 text-xs sm:text-sm font-medium touch-target"
-          >
-            <Send size={18} />
-            <span>Send</span>
-          </Button>
-          <Button 
-            onClick={() => navigate("/receive")}
-            variant="outline"
-            className="flex flex-col items-center gap-2 h-16 sm:h-20 text-xs sm:text-sm font-medium touch-target"
-          >
-            <Download size={18} />
-            <span>Receive</span>
-          </Button>
-        </div>
-
-        {/* Portfolio Summary */}
-        <div className="bg-card rounded-xl mobile-touch-padding mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-base sm:text-lg font-bold text-foreground">Portfolio</h2>
-            <span className="text-base sm:text-lg font-bold text-foreground">
-              ${totalPortfolioValue.toFixed(2)}
-            </span>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-foreground text-lg font-bold">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_oz.toFixed(2)}` : "N/A"}
+                </p>
+                <p className="text-muted-foreground text-xs">USD/oz</p>
+              </div>
+              <div className="text-right">
+                <p className="text-foreground text-sm font-semibold">
+                  {priceLoading ? "Loading..." : goldPrice ? `$${goldPrice.usd_per_gram.toFixed(2)}` : "N/A"}
+                </p>
+                <p className="text-muted-foreground text-xs">USD/g</p>
+              </div>
+            </div>
           </div>
-          <div className="mobile-spacing">
-            {tokens.map((token, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">{token.icon}</span>
-                  <div>
-                    <p className="text-foreground font-medium text-sm">{token.name}</p>
-                    <p className="text-muted-foreground text-xs">{token.symbol}</p>
+
+          {/* Action Buttons - 2x3 Grid */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
+              onClick={() => navigate("/buy-sell-hub")}
+            >
+              <ShoppingCart size={14} />
+              Buy Gold
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+              onClick={() => navigate("/buy-sell-hub")}
+            >
+              <DollarSign size={14} />
+              Sell/Cash Out
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+              onClick={() => navigate("/swap")}
+            >
+              <ArrowRightLeft size={14} />
+              Swap
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+              onClick={() => navigate("/swap?to=TRZRY")}
+            >
+              <TrendingUp size={14} />
+              Buy Trzry
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+              onClick={() => navigate("/send")}
+            >
+              <Send size={14} />
+              Send
+            </Button>
+            <Button 
+              className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+              onClick={() => navigate("/receive")}
+            >
+              <Download size={14} />
+              Receive
+            </Button>
+          </div>
+
+          {/* Your Assets - Wallet Options */}
+          <div className="bg-surface-elevated rounded-xl p-3">
+            <h3 className="text-foreground text-base font-bold mb-3">Your Assets</h3>
+            <div className="space-y-2">
+              {tokens.map((token, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center text-sm">
+                      {token.icon}
+                    </div>
+                    <div>
+                      <p className="text-foreground font-medium text-sm">{token.name}</p>
+                      <p className="text-muted-foreground text-xs">{token.symbol}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-foreground font-medium text-sm">{token.amount}</p>
+                    <p className="text-muted-foreground text-xs">{token.value}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-foreground font-medium text-sm">{token.amount}</p>
-                  <p className="text-muted-foreground text-xs">{token.value}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Gold Price Chart */}
-        <div className="bg-card rounded-xl mobile-touch-padding">
+          {/* Gold Price Chart */}
           <GoldPriceChart />
         </div>
-      </div>
-    </AppLayout>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
+    </div>
   );
 };
 

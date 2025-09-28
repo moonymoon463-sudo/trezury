@@ -36,17 +36,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
       {showHeader && <StandardHeader {...headerProps} />}
 
       {/* Main Content Container */}
-      <main className={`flex-1 w-full ${className}`}>
-        <div className="w-full max-w-screen-xl mx-auto">
+      <main className={`flex-1 ${className}`}>
+        <div className="container mx-auto max-w-screen-xl">
           <div className={`
-            px-3 sm:px-4 md:px-6 lg:px-8
-            ${showBottomNav && isMobile 
-              ? 'pb-[calc(5rem+max(env(safe-area-inset-bottom),8px))]' 
-              : 'pb-4 sm:pb-6'
-            }
-            ${showHeader ? 'pt-2 sm:pt-3' : 'pt-4 sm:pt-6'}
+            px-4 sm:px-6 lg:px-8
+            ${showBottomNav ? 'pb-[calc(4rem+env(safe-area-inset-bottom))]' : 'pb-4'}
+            ${showHeader ? 'pt-2' : 'pt-4'}
             min-h-[calc(100dvh-4rem)]
-            w-full
           `}>
             {children}
           </div>
