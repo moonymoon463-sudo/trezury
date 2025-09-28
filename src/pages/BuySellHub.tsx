@@ -71,23 +71,6 @@ const BuySellHub = () => {
               </div>
             </div>
 
-            <div 
-              onClick={() => navigate("/sell-gold")}
-              className="bg-card rounded-xl p-6 cursor-pointer hover:bg-accent transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-card border-2 border-primary rounded-full flex items-center justify-center">
-                  <DollarSign size={24} className="text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-foreground text-lg font-bold mb-1">Sell Gold</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Convert your gold tokens back to USDC or Fiat
-                  </p>
-                </div>
-                <ArrowRightLeft size={20} className="text-muted-foreground rotate-90" />
-              </div>
-            </div>
           </div>
 
           {/* Info Section */}
@@ -99,8 +82,8 @@ const BuySellHub = () => {
                   1
                 </div>
                 <div>
-                  <p className="text-foreground font-medium">Choose your transaction</p>
-                  <p className="text-muted-foreground">Select buy or sell based on your needs</p>
+                  <p className="text-foreground font-medium">Choose your payment method</p>
+                  <p className="text-muted-foreground">Select from credit card, USDC, or auto-invest</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -109,7 +92,7 @@ const BuySellHub = () => {
                 </div>
                 <div>
                   <p className="text-foreground font-medium">Enter amount</p>
-                  <p className="text-muted-foreground">Specify how much you want to buy or sell</p>
+                  <p className="text-muted-foreground">Specify how much gold you want to purchase</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -117,28 +100,21 @@ const BuySellHub = () => {
                   3
                 </div>
                 <div>
-                  <p className="text-foreground font-medium">Confirm transaction</p>
-                  <p className="text-muted-foreground">Review details and complete your trade</p>
+                  <p className="text-foreground font-medium">Confirm purchase</p>
+                  <p className="text-muted-foreground">Review details and complete your gold purchase</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex justify-center">
             <Button 
-              className="bg-primary text-primary-foreground font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90"
+              className="bg-primary text-primary-foreground font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90 w-full max-w-xs"
               onClick={() => navigate("/buy-gold")}
             >
               <TrendingUp size={16} />
               Quick Buy
-            </Button>
-            <Button 
-              className="bg-card border-2 border-primary text-primary font-bold h-12 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
-              onClick={() => navigate("/sell-gold")}
-            >
-              <DollarSign size={16} />
-              Quick Sell
             </Button>
           </div>
         </div>
