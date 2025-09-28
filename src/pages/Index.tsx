@@ -6,7 +6,7 @@ import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AppLayout from "@/components/AppLayout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -14,6 +14,11 @@ const Index = () => {
   const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
   const { getBalance, loading: balanceLoading } = useWalletBalance();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Get real balances
   const usdcBalance = getBalance('USDC');
@@ -61,9 +66,9 @@ const Index = () => {
       showBottomNavOnAllScreens={true}
       className="overflow-y-auto"
     >
-      <div className="space-y-3">
+      <div className="max-w-2xl mx-auto space-y-4">
         {/* Gold Price Section */}
-        <div className="bg-surface-elevated rounded-xl p-3">
+        <div className="bg-surface-elevated rounded-xl p-4">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-foreground text-base font-bold">Gold Price</h3>
             {priceLoading ? (
@@ -96,7 +101,7 @@ const Index = () => {
         </div>
 
         {/* Action Buttons - 2x3 Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           <Button 
             className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
             onClick={() => navigate("/buy-sell-hub")}
@@ -142,7 +147,7 @@ const Index = () => {
         </div>
 
         {/* Your Assets - Wallet Options */}
-        <div className="bg-surface-elevated rounded-xl p-3">
+        <div className="bg-surface-elevated rounded-xl p-4">
           <h3 className="text-foreground text-base font-bold mb-3">Your Assets</h3>
           <div className="space-y-2">
             {tokens.map((token, index) => (
