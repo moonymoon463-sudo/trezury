@@ -15,7 +15,7 @@ All colors MUST be HSL.
     --safe-right: env(safe-area-inset-right);
     
     /* Bottom navigation height */
-    --bottom-nav-height: 40px;
+    --bottom-nav-height: 32px;
     
     --background: 0 0% 9%; /* #171717 - clean dark gray */
     --foreground: 0 0% 100%; /* white */
