@@ -179,6 +179,38 @@ All colors MUST be HSL.
   .mobile-safe-bottom {
     @apply pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)];
   }
+
+  /* Enhanced touch targets for mobile */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better responsive spacing */
+  .mobile-spacing {
+    @apply space-y-3 sm:space-y-4 lg:space-y-6;
+  }
+  
+  /* Improved button spacing for mobile */
+  .mobile-button-spacing > * + * {
+    margin-top: 0.75rem;
+  }
+  
+  @media (min-width: 640px) {
+    .mobile-button-spacing > * + * {
+      margin-top: 1rem;
+    }
+  }
+
+  /* Better form spacing */
+  .mobile-form-spacing {
+    @apply space-y-4 sm:space-y-5;
+  }
+
+  /* Touch-friendly padding */
+  .mobile-touch-padding {
+    @apply p-3 sm:p-4 lg:p-5;
+  }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
