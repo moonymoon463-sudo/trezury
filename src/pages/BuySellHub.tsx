@@ -10,10 +10,10 @@ const BuySellHub = () => {
 
   return (
     <AppLayout headerProps={{ showBackButton: true, backPath: "/" }} showBottomNavOnAllScreens={true}>
-      <div className="max-w-md mx-auto space-y-6">
+      <div className="max-w-md mx-auto space-y-3 h-[calc(100vh-8rem)] overflow-y-auto">
         {/* Gold Price Section */}
-        <div className="bg-card rounded-xl p-4">
-          <div className="flex justify-between items-center mb-4">
+        <div className="bg-card rounded-xl p-3">
+          <div className="flex justify-between items-center mb-2">
             <h3 className="text-foreground text-lg font-bold leading-tight tracking-[-0.015em]">
               Current Gold Price
             </h3>
@@ -47,14 +47,14 @@ const BuySellHub = () => {
         </div>
 
         {/* Action Cards */}
-        <div className="space-y-4">
+        <div>
           <div 
             onClick={() => navigate("/buy-gold")}
-            className="bg-card rounded-xl p-6 cursor-pointer hover:bg-accent transition-colors"
+            className="bg-card rounded-xl p-4 cursor-pointer hover:bg-accent transition-colors"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                <TrendingUp size={24} className="text-primary-foreground" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                <TrendingUp size={20} className="text-primary-foreground" />
               </div>
               <div className="flex-1">
                 <h3 className="text-foreground text-lg font-bold mb-1">Buy Gold</h3>
@@ -68,11 +68,11 @@ const BuySellHub = () => {
         </div>
 
         {/* Info Section */}
-        <div className="bg-card rounded-xl p-4">
-          <h4 className="text-foreground font-semibold mb-3">How it works</h4>
-          <div className="space-y-3 text-sm">
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs">
+        <div className="bg-card rounded-xl p-3">
+          <h4 className="text-foreground font-semibold mb-2">How it works</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex gap-2">
+              <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs mt-0.5">
                 1
               </div>
               <div>
@@ -80,8 +80,8 @@ const BuySellHub = () => {
                 <p className="text-muted-foreground">Select from credit card, USDC, or auto-invest</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs">
+            <div className="flex gap-2">
+              <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs mt-0.5">
                 2
               </div>
               <div>
@@ -89,8 +89,8 @@ const BuySellHub = () => {
                 <p className="text-muted-foreground">Specify how much gold you want to purchase</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs">
+            <div className="flex gap-2">
+              <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-xs mt-0.5">
                 3
               </div>
               <div>
