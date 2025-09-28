@@ -204,6 +204,7 @@ const Swap = () => {
   return (
     <AppLayout
       headerProps={{ showBackButton: true, backPath: "/" }}
+      showBottomNavOnAllScreens={true}
       className="overflow-y-auto"
     >
       {/* Wallet Status */}

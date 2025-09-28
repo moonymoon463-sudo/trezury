@@ -9,7 +9,7 @@ const BuySellHub = () => {
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
 
   return (
-    <AppLayout headerProps={{ showBackButton: true, backPath: "/" }}>
+    <AppLayout headerProps={{ showBackButton: true, backPath: "/" }} showBottomNavOnAllScreens={true}>
       <div className="max-w-md mx-auto space-y-6">
         {/* Gold Price Section */}
         <div className="bg-card rounded-xl p-4">
