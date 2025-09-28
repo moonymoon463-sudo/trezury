@@ -262,22 +262,4 @@ All colors MUST be HSL.
   }
 }
 
-/* App-wide mobile scaling helpers */
-.mobile-zoom {
-  transform: scale(1.08);
-  transform-origin: top center;
-}
-@media (min-width: 768px) {
-  .mobile-zoom { 
-    transform: none; 
-  }
-}
-
-/* Tighten container on mobile so scaled content fits nicely */
-.mobile-fit {
-  width: 100%;
-  max-width: min(100%, 480px);
-  margin-inline: auto;
-}
-
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');

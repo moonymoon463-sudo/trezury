@@ -207,9 +207,7 @@ const Swap = () => {
       showBottomNavOnAllScreens={true}
       className="flex flex-col h-full overflow-hidden"
     >
-      <div className="mobile-fit md:max-w-2xl mx-auto">
-        <div className="mobile-zoom">
-          <div className="flex-1 flex flex-col px-4 py-2 space-y-2">
+      <div className="flex-1 flex flex-col px-4 py-2 space-y-2">
         {/* Wallet Status */}
         {secureWalletAddress && (
           <div className="bg-card p-2 rounded-lg">
@@ -222,10 +220,10 @@ const Swap = () => {
           </div>
         )}
 
-            {/* Swap Interface */}
-            <div className="relative flex flex-col gap-1">
-              {/* From Section */}
-              <div className="bg-card p-4 sm:p-3 rounded-xl">
+        {/* Swap Interface */}
+        <div className="relative flex flex-col gap-1">
+          {/* From Section */}
+          <div className="bg-card p-3 rounded-xl">
             <div className="flex justify-between items-center mb-1">
               <span className="text-xs text-muted-foreground">From</span>
               <span className="text-xs text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
@@ -245,7 +243,7 @@ const Swap = () => {
                 <ChevronDown className="text-muted-foreground" size={16} />
               </div>
               <Input
-                className="bg-transparent border-none text-foreground text-right text-2xl sm:text-xl font-bold placeholder:text-muted-foreground focus:ring-0 h-12 sm:h-auto"
+                className="bg-transparent border-none text-foreground text-right text-xl font-bold placeholder:text-muted-foreground focus:ring-0"
                 placeholder="0.00"
                 value={fromAmount}
                 onChange={(e) => setFromAmount(e.target.value)}
@@ -253,20 +251,20 @@ const Swap = () => {
             </div>
           </div>
 
-              {/* Swap Button */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={handleSwapTokens}
-                  className="bg-accent rounded-full p-1.5 text-foreground border-2 border-card hover:bg-accent/80 h-10 w-10 sm:h-8 sm:w-8"
-                >
-                  <ArrowUpDown className="h-5 w-5 sm:h-4 sm:w-4" />
-                </Button>
-              </div>
+          {/* Swap Button */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleSwapTokens}
+              className="bg-accent rounded-full p-1.5 text-foreground border-2 border-card hover:bg-accent/80"
+            >
+              <ArrowUpDown size={16} />
+            </Button>
+          </div>
 
-              {/* To Section */}
-              <div className="bg-card p-4 sm:p-3 rounded-xl">
+          {/* To Section */}
+          <div className="bg-card p-3 rounded-xl">
             <div className="flex justify-between items-center mb-1">
               <span className="text-xs text-muted-foreground">To</span>
               <span className="text-xs text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
@@ -286,17 +284,17 @@ const Swap = () => {
                 <ChevronDown className="text-muted-foreground" size={16} />
               </div>
               <Input
-                className="bg-transparent border-none text-foreground text-right text-2xl sm:text-xl font-bold placeholder:text-muted-foreground focus:ring-0 h-12 sm:h-auto"
+                className="bg-transparent border-none text-foreground text-right text-xl font-bold placeholder:text-muted-foreground focus:ring-0"
                 placeholder="0.00"
                 value={quote ? quote.outputAmount.toFixed(6) : ''}
                 readOnly
               />
             </div>
           </div>
-            </div>
+        </div>
 
-            {/* Trading Details */}
-            <div className="space-y-1.5 flex-1 overflow-y-auto">
+        {/* Trading Details */}
+        <div className="space-y-1.5 flex-1 overflow-y-auto">
           <div className="flex justify-between items-center bg-card p-2.5 rounded-lg">
             <span className="text-sm text-foreground">Slippage Tolerance</span>
             <div className="flex items-center gap-1">
@@ -344,29 +342,27 @@ const Swap = () => {
               </div>
             </>
           )}
-            </div>
+        </div>
 
-            {/* Bottom Button */}
-            <div className="pt-2">
-              {!secureWalletAddress ? (
-                <Button 
-                  onClick={() => navigate("/wallet")}
-                  disabled={walletLoading}
-                  className="w-full h-14 sm:h-12 bg-secondary text-secondary-foreground font-bold text-base sm:text-sm rounded-xl hover:bg-secondary/90"
-                >
-                  {walletLoading ? "Setting up wallet..." : "Set up wallet to swap"}
-                </Button>
-              ) : (
-                <Button 
-                  onClick={quote ? handleExecuteSwap : handlePreviewSwap}
-                  disabled={loading || !fromAmount}
-                  className="w-full h-14 sm:h-12 bg-primary text-primary-foreground font-bold text-base sm:text-sm rounded-xl hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
-                </Button>
-              )}
-            </div>
-          </div>
+        {/* Bottom Button */}
+        <div className="pt-2">
+          {!secureWalletAddress ? (
+            <Button 
+              onClick={() => navigate("/wallet")}
+              disabled={walletLoading}
+              className="w-full h-12 bg-secondary text-secondary-foreground font-bold text-base rounded-xl hover:bg-secondary/90"
+            >
+              {walletLoading ? "Setting up wallet..." : "Set up wallet to swap"}
+            </Button>
+          ) : (
+            <Button 
+              onClick={quote ? handleExecuteSwap : handlePreviewSwap}
+              disabled={loading || !fromAmount}
+              className="w-full h-12 bg-primary text-primary-foreground font-bold text-base rounded-xl hover:bg-primary/90 disabled:opacity-50"
+            >
+              {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
+            </Button>
+          )}
         </div>
       </div>
     </AppLayout>
