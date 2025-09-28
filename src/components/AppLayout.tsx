@@ -33,17 +33,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
+    <div className="screen flex flex-col bg-background">
       {/* Header */}
       {showHeader && <StandardHeader {...headerProps} />}
 
       {/* Main Content Container */}
-      <main className={`flex-1 ${className}`}>
+      <main className={`flex-1 overflow-auto ${className}`}>
         <div className="container mx-auto max-w-screen-xl">
           <div className={`
             px-4 sm:px-6 lg:px-8
-            ${showBottomNav ? 'pb-[calc(4rem+env(safe-area-inset-bottom))]' : 'pb-4'}
-            ${showHeader ? 'pt-[calc(3rem+0.5rem)] sm:pt-[calc(3.5rem+0.5rem)] lg:pt-[calc(4rem+0.5rem)]' : 'pt-4'}
+            ${showBottomNav ? 'pb-[calc(4rem+max(16px,env(safe-area-inset-bottom)))]' : 'pb-4'}
+            ${showHeader ? 'pt-[calc(3rem+max(8px,env(safe-area-inset-top))+0.5rem)] sm:pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] lg:pt-[calc(4rem+max(8px,env(safe-area-inset-top))+0.5rem)]' : 'pt-4'}
             min-h-[calc(100dvh-4rem)]
           `}>
             {children}
