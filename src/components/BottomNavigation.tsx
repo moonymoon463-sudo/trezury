@@ -81,7 +81,7 @@ const BottomNavigation = () => {
               className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 leading-none min-w-0 flex-1 py-1 sm:py-1.5 px-1 min-h-[32px]"
             >
               <Icon 
-                className={`w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
+                className={`w-6 h-6 sm:w-6 sm:h-6 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
               />
               <span 
                 className={`text-[10px] sm:text-xs text-center leading-tight truncate max-w-full ${active ? "text-primary" : "text-muted-foreground"}`}
