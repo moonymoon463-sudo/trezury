@@ -61,15 +61,15 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
 
   if (data.length === 0) {
     return (
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-2 px-4 pt-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
             <PieChartIcon className="h-4 w-4 text-primary" />
             Asset Allocation
           </CardTitle>
         </CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">
+        <CardContent>
+          <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
             No assets to display
           </div>
         </CardContent>
@@ -78,25 +78,25 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2 px-4 pt-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
           <PieChartIcon className="h-4 w-4 text-primary" />
           Asset Allocation
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 px-4 pb-4">
-        <div className="flex flex-col lg:flex-row gap-3">
+      <CardContent className="pt-0">
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Compact Donut Chart */}
-          <div className="h-28 w-28 mx-auto lg:mx-0 flex-shrink-0">
+          <div className="h-32 w-32 mx-auto lg:mx-0 flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={dataWithTotal}
                   cx="50%"
                   cy="50%"
-                  innerRadius={30}
-                  outerRadius={50}
+                  innerRadius={35}
+                  outerRadius={55}
                   paddingAngle={2}
                   dataKey="value"
                   stroke="none"
@@ -115,19 +115,19 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
 
           {/* Compact Legend */}
           <div className="flex-1 min-w-0">
-            <div className="text-center lg:text-left mb-2">
-              <div className="text-xs text-muted-foreground">Total Value</div>
-              <div className="text-lg font-bold">
+            <div className="text-center lg:text-left mb-3">
+              <div className="text-sm text-muted-foreground">Total Value</div>
+              <div className="text-xl font-bold">
                 ${(totalValue || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </div>
             </div>
             
-            <div className="space-y-1.5">
-              {data.slice(0, 4).map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 min-w-0">
+            <div className="space-y-2">
+              {data.map((item, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div 
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="font-medium text-foreground truncate">{item.name}</span>
@@ -142,11 +142,6 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
                   </div>
                 </div>
               ))}
-              {data.length > 4 && (
-                <div className="text-xs text-muted-foreground text-center pt-1">
-                  +{data.length - 4} more assets
-                </div>
-              )}
             </div>
           </div>
         </div>
