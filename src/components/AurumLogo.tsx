@@ -8,15 +8,15 @@ interface AurumLogoProps {
 
 const sizeMap = {
   header: {
-    vaultBorder: 'border-2 p-3',
-    gridWrap: 'grid grid-cols-6 gap-1 w-16 h-10',
-    dot: 'w-2.5 h-2.5',
-    vaultSpacing: 'mb-2',
-    nameWrapPad: 'px-4 py-2',
-    nameStripeW: 'w-24',
+    vaultBorder: 'border p-1.5',
+    gridWrap: 'grid grid-cols-3 gap-0.5 w-6 h-4',
+    dot: 'w-1 h-1',
+    vaultSpacing: 'mb-0',
+    nameWrapPad: 'px-2 py-0.5',
+    nameStripeW: 'w-12',
     nameStripeH: 'h-px',
-    nameText: 'text-xl',
-    tagline: 'text-xs mt-2',
+    nameText: 'text-sm',
+    tagline: 'text-xs mt-1',
   },
   default: {
     vaultBorder: 'border-4 p-6',
@@ -33,21 +33,22 @@ const sizeMap = {
 
 const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, size = 'default' }) => {
   if (compact) {
+    const isHeader = size === 'header';
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         {/* Compact Vault Symbol */}
-        <div className="border border-primary p-1 bg-surface-elevated rounded">
-          <div className="grid grid-cols-3 gap-0.5 w-4 h-3">
-            <div className="col-start-2 w-1 h-1 bg-primary rounded-full"></div>
-            <div className="w-1 h-1 bg-primary rounded-full"></div>
-            <div className="w-1 h-1 bg-primary rounded-full"></div>
-            <div className="w-1 h-1 bg-primary rounded-full"></div>
-            <div className="col-start-2 w-1 h-1 bg-primary rounded-full"></div>
+        <div className={`border border-primary ${isHeader ? 'p-0.5' : 'p-1'} bg-surface-elevated rounded`}>
+          <div className={`grid grid-cols-3 gap-0.5 ${isHeader ? 'w-3 h-2.5' : 'w-4 h-3'}`}>
+            <div className={`col-start-2 ${isHeader ? 'w-0.5 h-0.5' : 'w-1 h-1'} bg-primary rounded-full`}></div>
+            <div className={`${isHeader ? 'w-0.5 h-0.5' : 'w-1 h-1'} bg-primary rounded-full`}></div>
+            <div className={`${isHeader ? 'w-0.5 h-0.5' : 'w-1 h-1'} bg-primary rounded-full`}></div>
+            <div className={`${isHeader ? 'w-0.5 h-0.5' : 'w-1 h-1'} bg-primary rounded-full`}></div>
+            <div className={`col-start-2 ${isHeader ? 'w-0.5 h-0.5' : 'w-1 h-1'} bg-primary rounded-full`}></div>
           </div>
         </div>
         
         {/* Compact Company Name */}
-        <div className="font-bold text-base tracking-wide text-primary">
+        <div className={`font-bold tracking-wide text-primary ${isHeader ? 'text-sm' : 'text-base'}`}>
           TREZURY
         </div>
       </div>

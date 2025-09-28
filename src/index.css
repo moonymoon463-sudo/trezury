@@ -175,18 +175,35 @@ All colors MUST be HSL.
     word-break: break-word;
   }
 
-    /* Layout height variables */
-    --header-height: 3rem; /* 48px on mobile, responsive */
-    --bottom-nav-height: 3.5rem; /* 56px - matches current bottom nav */
+  /* Layout variables for mobile-first fixed header/nav system */
+  --header-height: 48px;  /* Mobile: 48px (3rem) */
+  --bottom-nav-height: 56px; /* Mobile: 56px (3.5rem) */
+  
+  /* Responsive header heights */
+  --header-height-mobile: 48px;   /* 3rem */
+  --header-height-tablet: 56px;   /* 3.5rem */
+  --header-height-desktop: 64px;  /* 4rem */
     
-    /* Mobile-first spacing */
-    .mobile-safe-bottom {
-      @apply pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+1rem)];
+  .mobile-safe-top {
+    padding-top: calc(var(--header-height) + env(safe-area-inset-top));
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  /* Responsive header height updates */
+  @media (min-width: 640px) {
+    :root {
+      --header-height: var(--header-height-tablet);
     }
-    
-    .mobile-safe-top {
-      @apply pt-[calc(var(--header-height)+env(safe-area-inset-top))];
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --header-height: var(--header-height-desktop);
     }
+  }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
