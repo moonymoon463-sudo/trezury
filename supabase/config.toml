@@ -76,6 +76,9 @@ verify_jwt = false
 [functions.security-health-check]
 verify_jwt = false
 
+[functions.moonpay-status]
+verify_jwt = true
+
 [functions.real-time-rates]
 verify_jwt = false
 

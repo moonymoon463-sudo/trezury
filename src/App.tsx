@@ -42,6 +42,8 @@ import AdminSetup from "./pages/AdminSetup";
 import AdminUsers from "./pages/AdminUsers";
 import AdminKYC from "./pages/AdminKYC";
 import AdminTransactions from "./pages/AdminTransactions";
+import AutoInvest from "./pages/AutoInvest";
+import MoonPayCallback from "./pages/MoonPayCallback";
 import WalletManagement from "./pages/WalletManagement";
 import Portfolio from "./pages/Portfolio";
 import TrzryReserves from "./pages/TrzryReserves";
@@ -125,6 +127,8 @@ const AppRoutes = () => {
       <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />
       <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
       <Route path="/receive" element={<ProtectedRoute><Receive /></ProtectedRoute>} />
+      <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
+      <Route path="/moonpay/callback" element={<ProtectedRoute><MoonPayCallback /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

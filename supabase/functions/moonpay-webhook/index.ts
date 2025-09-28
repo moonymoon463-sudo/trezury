@@ -437,46 +437,110 @@ serve(async (req) => {
       }
     }
 
-    // Handle failed transactions
-    else if (type === 'transaction_failed') {
-      const { id, failureReason, externalCustomerId } = data
-      
-      console.log('Processing failed transaction:', {
-        transactionId: id,
-        failureReason,
-        userId: externalCustomerId
-      })
-
-      // Update payment transaction status to failed
-      await supabase
-        .from('payment_transactions')
-        .update({
-          status: 'failed',
-          metadata: {
-            failure_reason: failureReason,
-            failed_at: new Date().toISOString()
-          }
-        })
-        .eq('external_id', id)
+      // Handle failed transactions
+      else if (type === 'transaction_failed') {
+        const { id, failureReason, externalCustomerId } = data
         
+        console.log('Processing failed transaction:', {
+          transactionId: id,
+          failureReason,
+          userId: externalCustomerId
+        })
 
-      // Create notification for user
-      if (externalCustomerId) {
+        // Update payment transaction status to failed
         await supabase
-          .from('notifications')
-          .insert({
-            user_id: externalCustomerId,
-            title: 'Transaction Failed',
-            body: `Your transaction failed: ${failureReason}. Please try again or contact support.`,
-            kind: 'transaction_failed',
+          .from('payment_transactions')
+          .update({
+            status: 'failed',
             metadata: {
-              transaction_id: id,
-              failure_reason: failureReason
+              failure_reason: failureReason,
+              failed_at: new Date().toISOString()
             }
           })
-          
+          .eq('external_id', id)
+
+        // Also update moonpay_transactions if it exists
+        await supabase
+          .from('moonpay_transactions')
+          .update({
+            status: 'failed',
+            raw_webhook: webhookData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('moonpay_tx_id', id)
+
+        // Create notification for user
+        if (externalCustomerId) {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: externalCustomerId,
+              title: 'Transaction Failed',
+              body: `Your transaction failed: ${failureReason}. Please try again or contact support.`,
+              kind: 'transaction_failed',
+              metadata: {
+                transaction_id: id,
+                failure_reason: failureReason
+              }
+            })
+        }
       }
-    }
+
+      // Handle recurring transaction events
+      else if (type === 'recurring_purchase_updated') {
+        const { id, status, amount, currency, cryptoCurrency, externalCustomerId, recurringScheduleId } = data
+        
+        console.log('Processing recurring purchase update:', {
+          recurringPurchaseId: id,
+          status,
+          scheduleId: recurringScheduleId,
+          userId: externalCustomerId
+        })
+
+        if (externalCustomerId) {
+          // Update or insert moonpay_transactions record
+          const { error: upsertError } = await supabase
+            .from('moonpay_transactions')
+            .upsert({
+              user_id: externalCustomerId,
+              moonpay_tx_id: id,
+              asset_symbol: cryptoCurrency?.toUpperCase() || 'UNKNOWN',
+              amount_fiat: amount,
+              currency_fiat: currency?.toUpperCase(),
+              status: status,
+              is_recurring: true,
+              raw_webhook: webhookData,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'moonpay_tx_id'
+            })
+
+          if (upsertError) {
+            console.error('Failed to update recurring transaction:', upsertError)
+            throw upsertError
+          }
+
+          // Store webhook for audit
+          await supabase
+            .from('moonpay_webhooks')
+            .insert({
+              event_type: type,
+              payload: webhookData,
+              signature: signature || null
+            })
+
+          console.log('✅ Successfully processed recurring purchase update')
+        }
+      }
+
+    // Store webhook for audit (for all webhook types)
+    await supabase
+      .from('moonpay_webhooks')
+      .insert({
+        event_type: type,
+        payload: webhookData,
+        signature: signature || null
+      })
 
     // Log successful processing
     await logWebhookEvent(supabase, type, data, 'success')

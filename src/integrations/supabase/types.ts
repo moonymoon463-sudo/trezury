@@ -545,6 +545,108 @@ export type Database = {
           },
         ]
       }
+      moonpay_customers: {
+        Row: {
+          country_code: string | null
+          created_at: string | null
+          email: string
+          kyc_status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string | null
+          email: string
+          kyc_status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string | null
+          email?: string
+          kyc_status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      moonpay_transactions: {
+        Row: {
+          address: string | null
+          amount_crypto: number | null
+          amount_fiat: number | null
+          asset_symbol: string
+          created_at: string | null
+          currency_fiat: string | null
+          id: number
+          is_recurring: boolean | null
+          moonpay_tx_id: string | null
+          raw_webhook: Json | null
+          recurring_frequency: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          amount_crypto?: number | null
+          amount_fiat?: number | null
+          asset_symbol: string
+          created_at?: string | null
+          currency_fiat?: string | null
+          id?: never
+          is_recurring?: boolean | null
+          moonpay_tx_id?: string | null
+          raw_webhook?: Json | null
+          recurring_frequency?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          amount_crypto?: number | null
+          amount_fiat?: number | null
+          asset_symbol?: string
+          created_at?: string | null
+          currency_fiat?: string | null
+          id?: never
+          is_recurring?: boolean | null
+          moonpay_tx_id?: string | null
+          raw_webhook?: Json | null
+          recurring_frequency?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      moonpay_webhooks: {
+        Row: {
+          event_type: string
+          id: number
+          payload: Json
+          received_at: string | null
+          signature: string | null
+        }
+        Insert: {
+          event_type: string
+          id?: never
+          payload: Json
+          received_at?: string | null
+          signature?: string | null
+        }
+        Update: {
+          event_type?: string
+          id?: never
+          payload?: Json
+          received_at?: string | null
+          signature?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string

@@ -161,11 +161,11 @@ export default function Portfolio() {
             Buy Gold
           </Button>
           <Button 
-            onClick={() => navigate('/trzry-reserves')}
+            onClick={() => navigate('/auto-invest')}
             variant="outline"
             className="h-12"
           >
-            TRZRY Reserves
+            Auto-Invest
           </Button>
         </div>
       </main>
