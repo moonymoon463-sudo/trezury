@@ -205,11 +205,11 @@ const Swap = () => {
     <AppLayout
       headerProps={{ showBackButton: true, backPath: "/" }}
       showBottomNavOnAllScreens={true}
-      className="overflow-y-auto"
+      className="overflow-y-auto h-[calc(100vh-8rem)]"
     >
       {/* Wallet Status */}
       {secureWalletAddress && (
-        <div className="bg-card p-3 rounded-lg mb-4">
+        <div className="bg-card p-2 rounded-lg mb-2">
           <div className="flex items-center gap-2">
             <Wallet size={16} className="text-primary" />
             <span className="text-sm text-foreground">
@@ -220,9 +220,9 @@ const Swap = () => {
       )}
 
       {/* Swap Interface */}
-      <div className="relative flex flex-col gap-2 my-8">
+      <div className="relative flex flex-col gap-1 my-4">
         {/* From Section */}
-        <div className="bg-card p-4 rounded-xl">
+        <div className="bg-card p-3 rounded-xl">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">From</span>
             <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
@@ -263,7 +263,7 @@ const Swap = () => {
         </div>
 
         {/* To Section */}
-        <div className="bg-card p-4 rounded-xl">
+        <div className="bg-card p-3 rounded-xl">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">To</span>
             <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
@@ -293,8 +293,8 @@ const Swap = () => {
       </div>
 
       {/* Trading Details */}
-      <div className="space-y-3 mb-8">
-        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between items-center bg-card p-3 rounded-xl">
           <span className="text-foreground">Slippage Tolerance</span>
           <div className="flex items-center gap-2">
             <span className="text-foreground">0.5%</span>
@@ -302,38 +302,38 @@ const Swap = () => {
           </div>
         </div>
 
-        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+        <div className="flex justify-between items-center bg-card p-3 rounded-xl">
           <span className="text-foreground">Transaction Fees</span>
           <span className="text-foreground">Auto-paid from {fromAsset} if needed</span>
         </div>
 
-        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+        <div className="flex justify-between items-center bg-card p-3 rounded-xl">
           <span className="text-foreground">Route</span>
           <span className="text-foreground">{fromAsset} → {toAsset}</span>
         </div>
         
         {quote && (
           <>
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
               <span className="text-foreground">Exchange Rate</span>
               <span className="text-foreground">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
             </div>
             
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
               <span className="text-foreground">Platform Fee (0.8%)</span>
               <span className="text-foreground">
                 {quote.fee.toFixed(6)} {fromAsset}
               </span>
             </div>
             
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
               <span className="text-foreground">Minimum Received</span>
               <span className="text-foreground">
                 {quote.minimumReceived.toFixed(6)} {toAsset}
               </span>
             </div>
 
-            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
               <span className="text-foreground">You'll receive</span>
               <span className="text-foreground font-bold">
                 ≈ {quote.outputAmount.toFixed(6)} {toAsset}
