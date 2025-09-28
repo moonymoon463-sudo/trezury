@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CreditCard, DollarSign, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CreditCard, DollarSign, AlertTriangle, Calendar } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
+import { AutoInvestModal } from "@/components/recurring/AutoInvestModal";
 
 const BuyGold = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const BuyGold = () => {
   const [paymentMethod, setPaymentMethod] = useState("credit_card");
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showAutoInvestModal, setShowAutoInvestModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -49,6 +51,12 @@ const BuyGold = () => {
     if (paymentMethod === "usdc") {
       // Redirect to swap page for USDC purchases
       navigate("/swap");
+      return;
+    }
+
+    if (paymentMethod === "auto_invest") {
+      // Show auto-invest modal for recurring purchases
+      setShowAutoInvestModal(true);
       return;
     }
     
@@ -144,6 +152,29 @@ const BuyGold = () => {
                 className="h-5 w-5 text-primary focus:ring-primary bg-transparent border-border"
               />
             </label>
+
+            {/* Auto-Invest Option */}
+            <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
+              paymentMethod === "auto_invest" 
+                ? "bg-primary/20 border-2 border-primary" 
+                : "bg-card border border-border"
+            }`}>
+              <div className="flex items-center gap-4">
+                <Calendar className="text-muted-foreground" size={24} />
+                <div>
+                  <span className="text-foreground font-medium block">Auto-Invest</span>
+                  <span className="text-xs text-muted-foreground">Schedule recurring purchases</span>
+                </div>
+              </div>
+              <input
+                type="radio"
+                name="payment_method"
+                value="auto_invest"
+                checked={paymentMethod === "auto_invest"}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="h-5 w-5 text-primary focus:ring-primary bg-transparent border-border"
+              />
+            </label>
           </div>
 
           {/* Continue Button */}
@@ -154,12 +185,21 @@ const BuyGold = () => {
             >
               {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 
                 ? "Verify Identity & Continue" 
+                : paymentMethod === "auto_invest"
+                ? "Set up Auto-Invest"
                 : "Continue"
               }
             </Button>
           </div>
         </div>
       </main>
+
+      {/* Auto-Invest Modal */}
+      <AutoInvestModal 
+        open={showAutoInvestModal}
+        onOpenChange={setShowAutoInvestModal}
+        userCountry={profile?.country || 'US'}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation />

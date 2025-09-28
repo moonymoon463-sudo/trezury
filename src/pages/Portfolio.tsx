@@ -152,20 +152,13 @@ export default function Portfolio() {
         <HealthMonitorCard summary={portfolioSummary} />
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex justify-center">
           <Button 
             onClick={() => navigate('/buy-gold')}
             variant="default"
-            className="h-12"
+            className="h-12 w-full max-w-xs"
           >
             Buy Gold
-          </Button>
-          <Button 
-            onClick={() => navigate('/auto-invest')}
-            variant="outline"
-            className="h-12"
-          >
-            Auto-Invest
           </Button>
         </div>
       </main>
