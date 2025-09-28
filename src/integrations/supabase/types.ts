@@ -1632,6 +1632,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      check_transaction_access_rate_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       collect_gold_prices: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1639,6 +1643,10 @@ export type Database = {
       create_security_alert: {
         Args: { alert_type: string; details?: Json; severity?: string }
         Returns: undefined
+      }
+      emergency_transaction_lockdown: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       encrypt_sensitive_field: {
         Args: { input_text: string }
