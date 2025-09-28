@@ -129,6 +129,13 @@ All colors MUST be HSL.
     /* Prevent overscroll bounce/pull-to-refresh */
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
+    /* Hide scrollbars consistently */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  body::-webkit-scrollbar {
+    display: none;
   }
 
   /* Prevent browser overscroll effects */
@@ -163,6 +170,13 @@ All colors MUST be HSL.
       width: 100%;
       height: 100dvh;
       overflow: hidden;
+      /* Ensure no scrollbars on mobile */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    body::-webkit-scrollbar {
+      display: none;
     }
     
     #root {
@@ -171,6 +185,13 @@ All colors MUST be HSL.
       overflow-x: hidden;
       overscroll-behavior: none;
       -webkit-overflow-scrolling: touch;
+      /* Hide scrollbars on mobile root */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    #root::-webkit-scrollbar {
+      display: none;
     }
   }
 
