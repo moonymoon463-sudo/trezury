@@ -205,45 +205,44 @@ const Swap = () => {
     <AppLayout
       headerProps={{ showBackButton: true, backPath: "/" }}
       showBottomNavOnAllScreens={true}
-      className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden"
+      className="overflow-y-auto"
     >
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-        {/* Wallet Status */}
-        {secureWalletAddress && (
-          <div className="bg-card p-3 rounded-xl">
-            <div className="flex items-center gap-2">
-              <Wallet size={16} className="text-primary" />
-              <span className="text-sm text-foreground font-medium">
-                {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
-              </span>
-            </div>
+      {/* Wallet Status */}
+      {secureWalletAddress && (
+        <div className="bg-card p-3 rounded-lg mb-4">
+          <div className="flex items-center gap-2">
+            <Wallet size={16} className="text-primary" />
+            <span className="text-sm text-foreground">
+              Wallet: {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
+            </span>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Swap Interface */}
-        <div className="relative flex flex-col gap-2">
+      {/* Swap Interface */}
+      <div className="relative flex flex-col gap-2 my-8">
         {/* From Section */}
         <div className="bg-card p-4 rounded-xl">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-muted-foreground font-medium">From</span>
-            <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)}</span>
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-muted-foreground">From</span>
+            <span className="text-sm text-muted-foreground">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className={`w-12 h-12 ${
+            <div className="flex items-center gap-2 flex-1">
+              <div className={`w-10 h-10 ${
                 fromAsset === 'XAUT' ? 'bg-yellow-600' : 
                 fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
               } rounded-full flex items-center justify-center`}>
-                <span className="text-white text-sm font-bold">{fromAsset}</span>
+                <span className="text-white text-xs font-bold">{fromAsset}</span>
               </div>
               <div>
                 <span className="text-foreground text-lg font-bold">{fromAsset}</span>
                 <div className="text-xs text-muted-foreground">{getNetworkForAsset(fromAsset)}</div>
               </div>
-              <ChevronDown className="text-muted-foreground" size={18} />
+              <ChevronDown className="text-muted-foreground" size={20} />
             </div>
             <Input
-              className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 w-36"
+              className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
               placeholder="0.00"
               value={fromAmount}
               onChange={(e) => setFromAmount(e.target.value)}
@@ -252,12 +251,12 @@ const Swap = () => {
         </div>
 
         {/* Swap Button */}
-        <div className="flex justify-center">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={handleSwapTokens}
-            className="bg-accent rounded-full p-2 text-foreground border-4 border-card hover:bg-accent/80 w-12 h-12"
+            className="bg-accent rounded-full p-2 text-foreground border-4 border-card hover:bg-accent/80"
           >
             <ArrowUpDown size={20} />
           </Button>
@@ -265,26 +264,26 @@ const Swap = () => {
 
         {/* To Section */}
         <div className="bg-card p-4 rounded-xl">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm text-muted-foreground font-medium">To</span>
-            <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)}</span>
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-muted-foreground">To</span>
+            <span className="text-sm text-muted-foreground">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className={`w-12 h-12 ${
+            <div className="flex items-center gap-2 flex-1">
+              <div className={`w-10 h-10 ${
                 toAsset === 'XAUT' ? 'bg-yellow-600' : 
                 toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
               } rounded-full flex items-center justify-center`}>
-                <span className="text-white text-sm font-bold">{toAsset}</span>
+                <span className="text-white text-xs font-bold">{toAsset}</span>
               </div>
               <div>
                 <span className="text-foreground text-lg font-bold">{toAsset}</span>
                 <div className="text-xs text-muted-foreground">{getNetworkForAsset(toAsset)}</div>
               </div>
-              <ChevronDown className="text-muted-foreground" size={18} />
+              <ChevronDown className="text-muted-foreground" size={20} />
             </div>
             <Input
-              className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 w-36"
+              className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0"
               placeholder="0.00"
               value={quote ? quote.outputAmount.toFixed(6) : ''}
               readOnly
@@ -294,47 +293,58 @@ const Swap = () => {
       </div>
 
       {/* Trading Details */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center bg-card p-3 rounded-xl">
-          <span className="text-foreground font-medium">Slippage</span>
+      <div className="space-y-3 mb-8">
+        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+          <span className="text-foreground">Slippage Tolerance</span>
           <div className="flex items-center gap-2">
             <span className="text-foreground">0.5%</span>
-            <Edit className="text-muted-foreground" size={14} />
+            <Edit className="text-muted-foreground" size={16} />
           </div>
         </div>
 
-        <div className="flex justify-between items-center bg-card p-3 rounded-xl">
-          <span className="text-foreground font-medium">Fees</span>
-          <span className="text-foreground">Auto-paid</span>
+        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+          <span className="text-foreground">Transaction Fees</span>
+          <span className="text-foreground">Auto-paid from {fromAsset} if needed</span>
+        </div>
+
+        <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+          <span className="text-foreground">Route</span>
+          <span className="text-foreground">{fromAsset} → {toAsset}</span>
         </div>
         
         {quote && (
           <>
-            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
-              <span className="text-foreground font-medium">Rate</span>
-              <span className="text-foreground">${quote.exchangeRate.toFixed(2)}</span>
+            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+              <span className="text-foreground">Exchange Rate</span>
+              <span className="text-foreground">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
             </div>
             
-            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
-              <span className="text-foreground font-medium">Fee (0.8%)</span>
+            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+              <span className="text-foreground">Platform Fee (0.8%)</span>
               <span className="text-foreground">
                 {quote.fee.toFixed(6)} {fromAsset}
               </span>
             </div>
             
-            <div className="flex justify-between items-center bg-card p-3 rounded-xl">
-              <span className="text-foreground font-medium">You'll receive</span>
+            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+              <span className="text-foreground">Minimum Received</span>
+              <span className="text-foreground">
+                {quote.minimumReceived.toFixed(6)} {toAsset}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center bg-card p-4 rounded-xl">
+              <span className="text-foreground">You'll receive</span>
               <span className="text-foreground font-bold">
-                {quote.outputAmount.toFixed(6)} {toAsset}
+                ≈ {quote.outputAmount.toFixed(6)} {toAsset}
               </span>
             </div>
           </>
         )}
       </div>
-    </div>
 
       {/* Bottom Button */}
-      <div className="sticky bottom-0 bg-background p-4 border-t">
+      <div className="sticky bottom-0 bg-background pt-4 pb-2">
         {!secureWalletAddress ? (
           <Button 
             onClick={() => navigate("/wallet")}
@@ -349,7 +359,7 @@ const Swap = () => {
             disabled={loading || !fromAmount}
             className="w-full h-14 bg-primary text-primary-foreground font-bold text-lg rounded-xl hover:bg-primary/90 disabled:opacity-50"
           >
-            {loading ? (quote ? "Executing..." : "Getting Quote...") : quote ? "Execute Swap" : "Preview Swap"}
+            {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
           </Button>
         )}
       </div>
