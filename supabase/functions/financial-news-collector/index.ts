@@ -32,6 +32,190 @@ serve(async (req) => {
 
     const newsItems: NewsItem[] = [];
 
+    // Helper function to calculate content relevance score
+    const calculateRelevanceScore = (title: string, content: string, source: string, category: string): number => {
+      let score = 5; // base score
+      
+      const goldKeywords = ['gold', 'precious metals', 'xauusd', 'xau/usd', 'bullion', 'troy ounce'];
+      const economicKeywords = ['inflation', 'fed', 'federal reserve', 'interest rates', 'monetary policy', 'dollar index', 'dxy', 'treasury'];
+      const highImpactKeywords = ['central bank', 'economic uncertainty', 'geopolitical', 'recession', 'rate cut', 'rate hike'];
+      
+      const titleLower = title.toLowerCase();
+      const contentLower = content.toLowerCase();
+      
+      // Category-based scoring
+      if (category === 'gold') score += 6;
+      if (category === 'education') score += 4;
+      if (category === 'economic_indicators') score += 5;
+      
+      // Keyword scoring with weighted importance
+      goldKeywords.forEach(keyword => {
+        if (titleLower.includes(keyword)) score += 4;
+        if (contentLower.includes(keyword)) score += 2;
+      });
+      
+      economicKeywords.forEach(keyword => {
+        if (titleLower.includes(keyword)) score += 3;
+        if (contentLower.includes(keyword)) score += 1;
+      });
+      
+      highImpactKeywords.forEach(keyword => {
+        if (titleLower.includes(keyword)) score += 3;
+        if (contentLower.includes(keyword)) score += 2;
+      });
+      
+      // Source reliability scoring
+      const premiumSources = ['reuters', 'financial_times', 'bloomberg', 'yahoo_finance', 'federal_reserve'];
+      const reliableSources = ['marketwatch', 'cnbc', 'google_news'];
+      
+      if (premiumSources.includes(source)) score += 3;
+      else if (reliableSources.includes(source)) score += 2;
+      
+      return Math.min(score, 25); // Cap at 25
+    };
+
+    // Helper function to check if content is gold/investment relevant
+    const isRelevantContent = (title: string, content: string): boolean => {
+      const relevantKeywords = [
+        'gold', 'precious metals', 'xauusd', 'xau/usd', 'bullion',
+        'inflation', 'fed', 'federal reserve', 'interest rates', 'monetary policy',
+        'dollar', 'dxy', 'treasury', 'central bank', 'commodity', 'commodities',
+        'economic uncertainty', 'recession', 'market volatility', 'safe haven',
+        'investment', 'portfolio', 'hedge', 'diversification'
+      ];
+      
+      const textToCheck = (title + ' ' + content).toLowerCase();
+      return relevantKeywords.some(keyword => textToCheck.includes(keyword));
+    };
+
+    // Helper function to parse RSS content
+    const parseRSSItem = (item: string, source: string, category: string): NewsItem | null => {
+      const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/);
+      const linkMatch = item.match(/<link>(.*?)<\/link>/);
+      const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/) || item.match(/<description>(.*?)<\/description>/);
+      const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+      
+      if (!titleMatch || !linkMatch) return null;
+      
+      const title = titleMatch[1];
+      const content = descMatch ? descMatch[1].replace(/<[^>]*>/g, '') : title;
+      
+      if (!isRelevantContent(title, content)) return null;
+      
+      return {
+        title,
+        content,
+        summary: content.substring(0, 200) + (content.length > 200 ? '...' : ''),
+        url: linkMatch[1],
+        publishedAt: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
+        source,
+        category,
+        tags: [category, source.replace('_', ' '), 'financial news']
+      };
+    };
+
+    // Fetch from Google News RSS (Free)
+    try {
+      console.log('🔍 Fetching gold news from Google News RSS...');
+      const googleNewsResponse = await fetch(
+        'https://news.google.com/rss/search?q=gold+price+OR+precious+metals+OR+inflation+OR+federal+reserve&hl=en-US&gl=US&ceid=US:en'
+      );
+      
+      if (googleNewsResponse.ok) {
+        const rssText = await googleNewsResponse.text();
+        const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        
+        let addedCount = 0;
+        itemMatches.slice(0, 8).forEach((item: string) => {
+          const parsedItem = parseRSSItem(item, 'google_news', 'general');
+          if (parsedItem) {
+            parsedItem.tags.push('google news', 'breaking');
+            newsItems.push(parsedItem);
+            addedCount++;
+          }
+        });
+        console.log(`✅ Google News: Added ${addedCount}/${itemMatches.length} relevant articles`);
+      }
+    } catch (error) {
+      console.error('❌ Google News error:', error);
+    }
+
+    // Fetch from Bloomberg RSS (Free)
+    try {
+      console.log('📈 Fetching Bloomberg markets news...');
+      const bloombergResponse = await fetch(
+        'https://feeds.bloomberg.com/markets/news.rss'
+      );
+      
+      if (bloombergResponse.ok) {
+        const rssText = await bloombergResponse.text();
+        const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        
+        let addedCount = 0;
+        itemMatches.slice(0, 6).forEach((item: string) => {
+          const parsedItem = parseRSSItem(item, 'bloomberg', 'markets');
+          if (parsedItem) {
+            parsedItem.tags.push('bloomberg', 'markets', 'premium');
+            newsItems.push(parsedItem);
+            addedCount++;
+          }
+        });
+        console.log(`✅ Bloomberg: Added ${addedCount}/${itemMatches.length} relevant articles`);
+      }
+    } catch (error) {
+      console.error('❌ Bloomberg error:', error);
+    }
+
+    // Fetch from CNBC RSS (Free)
+    try {
+      console.log('📺 Fetching CNBC markets news...');
+      const cnbcResponse = await fetch(
+        'https://www.cnbc.com/id/100727362/device/rss/rss.html'
+      );
+      
+      if (cnbcResponse.ok) {
+        const rssText = await cnbcResponse.text();
+        const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        
+        let addedCount = 0;
+        itemMatches.slice(0, 6).forEach((item: string) => {
+          const parsedItem = parseRSSItem(item, 'cnbc', 'markets');
+          if (parsedItem) {
+            parsedItem.tags.push('cnbc', 'television', 'analysis');
+            newsItems.push(parsedItem);
+            addedCount++;
+          }
+        });
+        console.log(`✅ CNBC: Added ${addedCount}/${itemMatches.length} relevant articles`);
+      }
+    } catch (error) {
+      console.error('❌ CNBC error:', error);
+    }
+
+    // Fetch from Kitco (Gold-focused RSS)
+    try {
+      console.log('🥇 Fetching specialized gold news from Kitco...');
+      const kitcoResponse = await fetch(
+        'https://www.kitco.com/rss/KitcoNews.xml'
+      );
+      
+      if (kitcoResponse.ok) {
+        const rssText = await kitcoResponse.text();
+        const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        
+        itemMatches.slice(0, 5).forEach((item: string) => {
+          const parsedItem = parseRSSItem(item, 'kitco', 'gold');
+          if (parsedItem) {
+            parsedItem.tags.push('kitco', 'gold specialist', 'precious metals');
+            newsItems.push(parsedItem);
+          }
+        });
+        console.log(`✅ Kitco: Added ${itemMatches.length} gold specialist articles`);
+      }
+    } catch (error) {
+      console.error('❌ Kitco error:', error);
+    }
+
     // Fetch from Yahoo Finance News (Free API)
     try {
       console.log('📊 Fetching gold news from Yahoo Finance...');
@@ -74,40 +258,18 @@ serve(async (req) => {
       if (marketWatchResponse.ok) {
         const rssText = await marketWatchResponse.text();
         
-        // Simple RSS parsing for gold-related content
-        const goldKeywords = ['gold', 'precious metals', 'XAUUSD', 'inflation', 'fed', 'interest rates', 'dollar'];
         const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
         
+        let addedCount = 0;
         itemMatches.slice(0, 5).forEach((item: string) => {
-          const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-          const linkMatch = item.match(/<link>(.*?)<\/link>/);
-          const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
-          const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-          
-          if (titleMatch && linkMatch) {
-            const title = titleMatch[1];
-            const content = descMatch ? descMatch[1] : title;
-            
-            // Check if content is gold-related
-            const isGoldRelated = goldKeywords.some(keyword => 
-              title.toLowerCase().includes(keyword) || content.toLowerCase().includes(keyword)
-            );
-            
-            if (isGoldRelated) {
-              newsItems.push({
-                title,
-                content: content.replace(/<[^>]*>/g, ''), // Strip HTML
-                summary: content.replace(/<[^>]*>/g, '').substring(0, 200) + '...',
-                url: linkMatch[1],
-                publishedAt: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
-                source: 'marketwatch',
-                category: 'gold',
-                tags: ['gold', 'market news', 'financial markets']
-              });
-            }
+          const parsedItem = parseRSSItem(item, 'marketwatch', 'markets');
+          if (parsedItem) {
+            parsedItem.tags.push('marketwatch', 'top stories');
+            newsItems.push(parsedItem);
+            addedCount++;
           }
         });
-        console.log(`✅ MarketWatch: Found ${itemMatches.length} articles`);
+        console.log(`✅ MarketWatch: Added ${addedCount}/${itemMatches.length} relevant articles`);
       }
     } catch (error) {
       console.error('❌ MarketWatch error:', error);
@@ -179,38 +341,18 @@ serve(async (req) => {
       
       if (ftResponse.ok) {
         const rssText = await ftResponse.text();
-        const goldKeywords = ['gold', 'precious metals', 'inflation', 'central bank', 'monetary policy'];
         const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
         
-        itemMatches.slice(0, 3).forEach((item: string) => {
-          const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-          const linkMatch = item.match(/<link>(.*?)<\/link>/);
-          const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
-          const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-          
-          if (titleMatch && linkMatch) {
-            const title = titleMatch[1];
-            const content = descMatch ? descMatch[1] : title;
-            
-            const isGoldRelated = goldKeywords.some(keyword => 
-              title.toLowerCase().includes(keyword) || content.toLowerCase().includes(keyword)
-            );
-            
-            if (isGoldRelated) {
-              newsItems.push({
-                title,
-                content: content.replace(/<[^>]*>/g, ''),
-                summary: content.replace(/<[^>]*>/g, '').substring(0, 200) + '...',
-                url: linkMatch[1],
-                publishedAt: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
-                source: 'financial_times',
-                category: 'commodities',
-                tags: ['commodities', 'gold', 'financial times', 'market analysis']
-              });
-            }
+        let addedCount = 0;
+        itemMatches.slice(0, 4).forEach((item: string) => {
+          const parsedItem = parseRSSItem(item, 'financial_times', 'commodities');
+          if (parsedItem) {
+            parsedItem.tags.push('financial times', 'premium', 'commodities');
+            newsItems.push(parsedItem);
+            addedCount++;
           }
         });
-        console.log(`✅ Financial Times: Processed ${itemMatches.length} commodities articles`);
+        console.log(`✅ Financial Times: Added ${addedCount}/${itemMatches.length} relevant commodities articles`);
       }
     } catch (error) {
       console.error('❌ Financial Times error:', error);
@@ -225,38 +367,18 @@ serve(async (req) => {
       
       if (reutersResponse.ok) {
         const rssText = await reutersResponse.text();
-        const goldKeywords = ['gold', 'precious metals', 'commodity', 'inflation', 'dollar', 'federal reserve'];
         const itemMatches = rssText.match(/<item>[\s\S]*?<\/item>/g) || [];
         
+        let addedCount = 0;
         itemMatches.slice(0, 5).forEach((item: string) => {
-          const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-          const linkMatch = item.match(/<link>(.*?)<\/link>/);
-          const descMatch = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
-          const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-          
-          if (titleMatch && linkMatch) {
-            const title = titleMatch[1];
-            const content = descMatch ? descMatch[1] : title;
-            
-            const isGoldRelated = goldKeywords.some(keyword => 
-              title.toLowerCase().includes(keyword) || content.toLowerCase().includes(keyword)
-            );
-            
-            if (isGoldRelated) {
-              newsItems.push({
-                title,
-                content: content.replace(/<[^>]*>/g, ''),
-                summary: content.replace(/<[^>]*>/g, '').substring(0, 200) + '...',
-                url: linkMatch[1],
-                publishedAt: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
-                source: 'reuters',
-                category: 'business',
-                tags: ['business', 'commodities', 'gold', 'reuters']
-              });
-            }
+          const parsedItem = parseRSSItem(item, 'reuters', 'business');
+          if (parsedItem) {
+            parsedItem.tags.push('reuters', 'global news', 'business');
+            newsItems.push(parsedItem);
+            addedCount++;
           }
         });
-        console.log(`✅ Reuters: Processed ${itemMatches.length} business articles`);
+        console.log(`✅ Reuters: Added ${addedCount}/${itemMatches.length} relevant business articles`);
       }
     } catch (error) {
       console.error('❌ Reuters error:', error);
@@ -329,56 +451,17 @@ serve(async (req) => {
       const { data, error } = await supabase
         .from('financial_news')
         .upsert(
-          newsItems.map(item => {
-            // Calculate relevance score based on gold-related keywords and source
-            let relevanceScore = 5; // base score
-            
-            const goldKeywords = ['gold', 'precious metals', 'xauusd', 'inflation', 'fed', 'interest rates', 'dollar index', 'central bank'];
-            const highImpactKeywords = ['federal reserve', 'monetary policy', 'economic uncertainty', 'geopolitical'];
-            
-            const titleLower = item.title.toLowerCase();
-            const contentLower = item.content.toLowerCase();
-            
-            // Boost score for gold-specific content
-            if (item.category === 'gold') relevanceScore += 5;
-            
-            // Boost for gold-related keywords
-            goldKeywords.forEach(keyword => {
-              if (titleLower.includes(keyword) || contentLower.includes(keyword)) {
-                relevanceScore += 2;
-              }
-            });
-            
-            // Extra boost for high-impact keywords
-            highImpactKeywords.forEach(keyword => {
-              if (titleLower.includes(keyword) || contentLower.includes(keyword)) {
-                relevanceScore += 3;
-              }
-            });
-            
-            // Source-based scoring
-            const premiumSources = ['reuters', 'financial_times', 'yahoo_finance', 'federal_reserve'];
-            if (premiumSources.includes(item.source)) {
-              relevanceScore += 2;
-            }
-            
-            // Educational content gets high relevance
-            if (item.category === 'education') {
-              relevanceScore += 4;
-            }
-            
-            return {
-              title: item.title,
-              content: item.content,
-              summary: item.summary,
-              url: item.url,
-              published_at: item.publishedAt,
-              source: item.source,
-              category: item.category,
-              tags: item.tags,
-              relevance_score: Math.min(relevanceScore, 20) // Cap at 20
-            };
-          }),
+          newsItems.map(item => ({
+            title: item.title,
+            content: item.content,
+            summary: item.summary,
+            url: item.url,
+            published_at: item.publishedAt,
+            source: item.source,
+            category: item.category,
+            tags: item.tags,
+            relevance_score: calculateRelevanceScore(item.title, item.content, item.source, item.category)
+          })),
           { onConflict: 'url' }
         );
 
