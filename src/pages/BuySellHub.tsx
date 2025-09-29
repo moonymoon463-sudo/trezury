@@ -10,7 +10,7 @@ const BuySellHub = () => {
 
   return (
     <AppLayout headerProps={{ showBackButton: true, backPath: "/" }} showBottomNavOnAllScreens={true}>
-      <div className="max-w-md mx-auto space-y-3 flex flex-col h-[calc(100vh-var(--header-height,3rem)-var(--bottom-nav-height,56px)-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] md:space-y-3 md:h-[calc(100vh-8rem)] md:overflow-y-auto">
+      <div className="max-w-lg mx-auto space-y-3 flex flex-col h-[calc(100vh-var(--header-height,3rem)-var(--bottom-nav-height,56px)-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] md:max-w-2xl md:space-y-3 md:h-[calc(100vh-8rem)] md:overflow-y-auto">
         {/* Gold Price Section */}
         <div className="bg-card rounded-xl p-3 flex-shrink-0 md:p-3">
           <div className="flex justify-between items-center mb-2 md:mb-2">
@@ -104,7 +104,7 @@ const BuySellHub = () => {
         {/* Quick Actions */}
         <div className="flex justify-center flex-shrink-0">
           <Button 
-            className="bg-primary text-primary-foreground font-bold h-12 md:h-12 rounded-xl flex items-center justify-center gap-2 md:gap-2 hover:bg-primary/90 w-full max-w-xs text-base md:text-base"
+            className="bg-primary text-primary-foreground font-bold h-12 md:h-12 rounded-xl flex items-center justify-center gap-2 md:gap-2 hover:bg-primary/90 w-full max-w-sm text-base md:text-base md:max-w-md"
             onClick={() => navigate("/buy-gold")}
           >
             <TrendingUp size={16} className="md:w-4 md:h-4" />

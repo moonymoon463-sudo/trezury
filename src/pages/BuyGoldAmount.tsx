@@ -159,7 +159,7 @@ const BuyGoldAmount = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 pb-4">
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="max-w-lg mx-auto space-y-6 md:max-w-2xl">
           {/* USD Balance */}
           <div className="text-center">
             <p className="text-sm text-gray-400">USD Balance</p>

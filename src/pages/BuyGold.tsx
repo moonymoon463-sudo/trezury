@@ -85,7 +85,7 @@ const BuyGold = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 pb-4">
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="max-w-lg mx-auto space-y-6 md:max-w-2xl">
           <h2 className="text-2xl font-bold text-foreground mb-6">Payment Method</h2>
           
           <div className="space-y-4">

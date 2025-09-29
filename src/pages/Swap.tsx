@@ -207,7 +207,7 @@ const Swap = () => {
       showBottomNavOnAllScreens={true}
       className="flex flex-col h-full overflow-hidden"
     >
-      <div className="flex-1 flex flex-col px-4 py-3 space-y-3 md:py-2 md:space-y-2">
+      <div className="flex-1 flex flex-col px-6 py-3 space-y-3 md:px-4 md:py-2 md:space-y-2 max-w-lg mx-auto md:max-w-2xl w-full">
         {/* Wallet Status */}
         {secureWalletAddress && (
           <div className="bg-card p-3 rounded-lg md:p-2">

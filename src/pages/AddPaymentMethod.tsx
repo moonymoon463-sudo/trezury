@@ -221,7 +221,7 @@ const AddPaymentMethod = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 pb-4 overflow-y-auto">
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="max-w-lg mx-auto space-y-6 md:max-w-2xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="card" className="flex items-center gap-2">

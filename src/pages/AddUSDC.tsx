@@ -132,7 +132,7 @@ const AddUSDC = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 space-y-6 overflow-y-auto">
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="max-w-lg mx-auto space-y-6 md:max-w-2xl">
           {/* Amount Input */}
           <div className="bg-card rounded-xl p-4">
             <h3 className="text-foreground text-lg font-bold mb-4">Enter Amount</h3>

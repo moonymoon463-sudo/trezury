@@ -208,7 +208,7 @@ const KYCVerification = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-md mx-auto">
+      <div className="max-w-lg mx-auto md:max-w-2xl">
         <div className="flex items-center p-4 border-b border-border">
           <Button 
             variant="ghost" 

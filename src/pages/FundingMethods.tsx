@@ -114,7 +114,7 @@ export default function FundingMethods() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#1C1C1E] p-4">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-lg md:max-w-2xl">
           <div className="flex items-center gap-4 mb-6">
             <Button 
               variant="ghost" 
@@ -138,7 +138,7 @@ export default function FundingMethods() {
 
   return (
     <div className="min-h-screen bg-[#1C1C1E] p-4">
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto max-w-lg md:max-w-2xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button 

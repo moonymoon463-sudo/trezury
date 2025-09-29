@@ -95,7 +95,7 @@ const Auth = () => {
             Welcome back to Aurum
           </p>
           
-          <form onSubmit={handleSignIn} className="w-full max-w-sm space-y-4">
+          <form onSubmit={handleSignIn} className="w-full max-w-md space-y-4 md:max-w-lg">
             <div className="space-y-2">
               <Label htmlFor="signin-email" className="text-white">Email</Label>
               <Input
@@ -247,7 +247,7 @@ const Auth = () => {
           </p>
         </div>
         
-        <div className="w-full max-w-sm space-y-4">
+        <div className="w-full max-w-md space-y-4 md:max-w-lg">
           <Button 
             variant="aurum"
             className="w-full h-14 rounded-xl text-base"
