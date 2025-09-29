@@ -223,7 +223,7 @@ const Swap = () => {
         {/* Swap Interface */}
         <div className="relative flex flex-col gap-2 md:gap-1">
           {/* From Section */}
-          <div className="bg-card p-6 rounded-xl md:p-4">
+          <div className="bg-card px-8 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">From</span>
               <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
@@ -264,7 +264,7 @@ const Swap = () => {
           </div>
 
           {/* To Section */}
-          <div className="bg-card p-6 rounded-xl md:p-4">
+          <div className="bg-card px-8 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">To</span>
               <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
@@ -295,7 +295,7 @@ const Swap = () => {
 
         {/* Trading Details */}
         <div className="space-y-2 flex-1 overflow-y-auto md:space-y-1.5">
-          <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+          <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
             <span className="text-base text-foreground md:text-sm">Slippage Tolerance</span>
             <div className="flex items-center gap-2 md:gap-1">
               <span className="text-base text-foreground md:text-sm">0.5%</span>
@@ -303,38 +303,38 @@ const Swap = () => {
             </div>
           </div>
 
-          <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+          <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
             <span className="text-base text-foreground md:text-sm">Transaction Fees</span>
             <span className="text-base text-foreground md:text-sm">Auto-paid from {fromAsset}</span>
           </div>
 
-          <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+          <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
             <span className="text-base text-foreground md:text-sm">Route</span>
             <span className="text-base text-foreground md:text-sm">{fromAsset} → {toAsset}</span>
           </div>
           
           {quote && (
             <>
-              <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+              <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Exchange Rate</span>
                 <span className="text-base text-foreground md:text-sm">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
               </div>
               
-              <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+              <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Platform Fee (0.8%)</span>
                 <span className="text-base text-foreground md:text-sm">
                   {quote.fee.toFixed(6)} {fromAsset}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+              <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Minimum Received</span>
                 <span className="text-base text-foreground md:text-sm">
                   {quote.minimumReceived.toFixed(6)} {toAsset}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center bg-card p-5 rounded-lg md:p-3 min-h-[64px] md:min-h-[auto]">
+              <div className="flex justify-between items-center bg-card px-6 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">You'll receive</span>
                 <span className="text-base text-foreground font-bold md:text-sm">
                   ≈ {quote.outputAmount.toFixed(6)} {toAsset}
