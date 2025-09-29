@@ -2078,6 +2078,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      trigger_financial_news_collection: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       trigger_gold_price_collection: {
         Args: Record<PropertyKey, never>
         Returns: Json

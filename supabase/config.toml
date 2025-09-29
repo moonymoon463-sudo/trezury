@@ -100,6 +100,9 @@ verify_jwt = true
 [functions.ai]
 verify_jwt = true
 
+[functions.trigger-news-collection]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323

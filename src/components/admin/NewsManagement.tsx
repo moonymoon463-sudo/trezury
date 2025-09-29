@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, RefreshCw, NewspaperIcon, Calendar, ExternalLink } from 'lucide-react';
 import { useEnhancedAI } from '@/hooks/useEnhancedAI';
 import { formatDistanceToNow } from 'date-fns';
+import { NewsSystemTest } from './NewsSystemTest';
 
 export const NewsManagement: React.FC = () => {
   const { getRecentNews, collectFinancialNews, loading } = useEnhancedAI();
@@ -29,7 +30,11 @@ export const NewsManagement: React.FC = () => {
   }, []);
 
   return (
-    <Card>
+    <div className="space-y-6">
+      {/* News System Test */}
+      <NewsSystemTest />
+      
+      <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -118,5 +123,6 @@ export const NewsManagement: React.FC = () => {
         </ScrollArea>
       </CardContent>
     </Card>
+    </div>
   );
 };
