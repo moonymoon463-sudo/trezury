@@ -19,6 +19,7 @@ import { AIChatInterface } from "@/components/portfolio/AIChatInterface";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
+import { TestDataTrigger } from "@/components/admin/TestDataTrigger";
 import { useState } from "react";
 
 export default function Portfolio() {
@@ -119,6 +120,9 @@ export default function Portfolio() {
             </AlertDescription>
           </Alert>
         )}
+
+        {/* Test Data Controls */}
+        <TestDataTrigger />
 
         {/* AI Chat Interface - Top Priority */}
         <AIChatInterface
