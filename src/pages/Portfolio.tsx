@@ -121,13 +121,6 @@ export default function Portfolio() {
         {/* Asset Allocation */}
         <AssetAllocationChart assets={portfolioAssets} />
 
-        {/* AI Insights Panel - Independent loading */}
-        <AIInsightsPanel 
-          insights={insights}
-          loading={aiLoading}
-          onRefresh={refreshAnalysis}
-        />
-
         {/* AI Chat Interface */}
         <AIChatInterface
           portfolioData={{
@@ -141,6 +134,13 @@ export default function Portfolio() {
           }}
           isCollapsed={isChatCollapsed}
           onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
+        />
+
+        {/* AI Insights Panel - Independent loading */}
+        <AIInsightsPanel 
+          insights={insights}
+          loading={aiLoading}
+          onRefresh={refreshAnalysis}
         />
 
         {/* Market Forecasts & Risk Analysis */}
