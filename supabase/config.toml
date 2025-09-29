@@ -12,9 +12,6 @@ verify_jwt = true
 [functions.populate-test-data]
 verify_jwt = true
 
-[functions.lending-engine]
-verify_jwt = false
-
 [api]
 enabled = true
 port = 54321
@@ -52,12 +49,6 @@ verify_jwt = true
 [functions.moonpay-webhook]
 verify_jwt = false
 
-[functions.lending-accrual]
-verify_jwt = false
-
-[functions.lending-rates]
-verify_jwt = false
-
 [functions.blockchain-operations]
 verify_jwt = true
 
@@ -78,18 +69,6 @@ verify_jwt = true
 
 [functions.moonpay-status]
 verify_jwt = true
-
-[functions.real-time-rates]
-verify_jwt = false
-
-[functions.compound-interest-accrual]
-verify_jwt = false
-
-[functions.health-factor-monitor]
-verify_jwt = false
-
-[functions.scheduled-rate-updates]
-verify_jwt = false
 
 [functions.financial-news-collector]
 verify_jwt = true

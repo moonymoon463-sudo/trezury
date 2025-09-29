@@ -21,10 +21,58 @@ serve(async (req) => {
   }
 
   try {
+    // 🔒 SECURITY: Validate cron secret to prevent unauthorized invocations
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const providedSecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
+    
+    if (!cronSecret || providedSecret !== cronSecret) {
+      console.error('🚫 Unauthorized invocation attempt - invalid cron secret');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Unauthorized - invalid cron secret'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 🛡️ RATE LIMITING: Check invocation frequency (max 5 per hour)
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: recentInvocations, error: rateLimitError } = await supabase
+      .from('api_rate_limits')
+      .select('request_count')
+      .eq('identifier', `gold-collector:${clientIp}`)
+      .eq('endpoint', 'gold-price-collector')
+      .gte('window_start', oneHourAgo)
+      .single();
+
+    if (!rateLimitError && recentInvocations && recentInvocations.request_count >= 5) {
+      console.warn(`⚠️ Rate limit exceeded for IP: ${clientIp}`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Rate limit exceeded - maximum 5 invocations per hour'
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Log invocation for rate limiting
+    await supabase.from('api_rate_limits').upsert({
+      identifier: `gold-collector:${clientIp}`,
+      endpoint: 'gold-price-collector',
+      window_start: new Date().toISOString(),
+      request_count: (recentInvocations?.request_count || 0) + 1
+    });
 
     console.log('🔍 Starting gold price collection...');
     
