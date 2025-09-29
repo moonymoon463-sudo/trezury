@@ -38,107 +38,57 @@ interface AIChatInterfaceProps {
 
 const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
   const portfolioQuestions = [
-    { icon: "📊", text: "Analyze my portfolio performance", color: "text-emerald-600" },
-    { icon: "💡", text: "What investment opportunities do you see?", color: "text-blue-600" },
-    { icon: "⚠️", text: "Are there any risks I should know about?", color: "text-amber-600" },
-    { icon: "📈", text: "How does gold fit in my overall strategy?", color: "text-purple-600" }
+    "📊 Analyze my portfolio performance",
+    "💡 What investment opportunities do you see?",
+    "⚠️ Are there any risks I should know about?",
+    "📈 How does gold fit in my overall strategy?"
   ];
 
   const marketQuestions = [
-    { icon: "🌍", text: "What's driving gold prices today?", color: "text-green-600" },
-    { icon: "📉", text: "Is this a good time to buy?", color: "text-red-600" },
-    { icon: "🔮", text: "What's your gold price forecast?", color: "text-indigo-600" },
-    { icon: "💰", text: "How do interest rates affect gold?", color: "text-yellow-600" }
+    "🌍 What's driving gold prices today?",
+    "📉 Is this a good time to buy?",
+    "🔮 What's your gold price forecast?",
+    "💰 How do interest rates affect gold?"
   ];
 
   const educationQuestions = [
-    { icon: "🎓", text: "Teach me about dollar-cost averaging", color: "text-teal-600" },
-    { icon: "🏛️", text: "How do central bank policies affect gold?", color: "text-slate-600" },
-    { icon: "⚖️", text: "What are the risks of gold investing?", color: "text-orange-600" },
-    { icon: "🌟", text: "Why should I consider digital gold?", color: "text-cyan-600" }
+    "🎓 Teach me about dollar-cost averaging",
+    "🏛️ How do central bank policies affect gold?",
+    "⚖️ What are the risks of gold investing?",
+    "🌟 Why should I consider digital gold?"
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Portfolio Questions */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-          <h4 className="text-sm font-medium text-foreground">Portfolio Insights</h4>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {portfolioQuestions.map((question, index) => (
+    <div className="space-y-2">
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground/70 mb-1.5">Portfolio</h4>
+        <div className="flex gap-1">
+          {portfolioQuestions.slice(0, 2).map((question, index) => (
             <Button
               key={index}
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-auto p-3 text-left justify-start border border-border/40 hover:border-emerald-200 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition-all duration-200 group"
-              onClick={() => onSend(question.text)}
+              className="text-left text-xs h-7 px-2 font-normal border-border/50 hover:bg-muted/60 flex-1"
+              onClick={() => onSend(question.replace(/[📊💡⚠️📈]/g, '').trim())}
             >
-              <div className="flex flex-col items-start gap-1.5 w-full">
-                <span className={`text-lg ${question.color} group-hover:scale-110 transition-transform duration-200`}>
-                  {question.icon}
-                </span>
-                <span className="text-xs font-medium leading-tight text-foreground/90 text-left">
-                  {question.text}
-                </span>
-              </div>
+              {question.replace(/[📊💡⚠️📈]/g, '').trim().slice(0, 20)}...
             </Button>
           ))}
         </div>
       </div>
 
-      {/* Market Questions */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-          <h4 className="text-sm font-medium text-foreground">Market Analysis</h4>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {marketQuestions.map((question, index) => (
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground/70 mb-1.5">Market</h4>
+        <div className="flex gap-1">
+          {marketQuestions.slice(0, 2).map((question, index) => (
             <Button
               key={index}
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="h-auto p-3 text-left justify-start border border-border/40 hover:border-blue-200 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all duration-200 group"
-              onClick={() => onSend(question.text)}
+              className="text-left text-xs h-7 px-2 font-normal border-primary/30 hover:bg-primary/10 flex-1"
+              onClick={() => onSend(question.replace(/[🌍📉🔮💰]/g, '').trim())}
             >
-              <div className="flex flex-col items-start gap-1.5 w-full">
-                <span className={`text-lg ${question.color} group-hover:scale-110 transition-transform duration-200`}>
-                  {question.icon}
-                </span>
-                <span className="text-xs font-medium leading-tight text-foreground/90 text-left">
-                  {question.text}
-                </span>
-              </div>
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Education Questions */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-          <h4 className="text-sm font-medium text-foreground">Learning Center</h4>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {educationQuestions.map((question, index) => (
-            <Button
-              key={index}
-              variant="ghost"
-              size="sm"
-              className="h-auto p-3 text-left justify-start border border-border/40 hover:border-purple-200 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-all duration-200 group"
-              onClick={() => onSend(question.text)}
-            >
-              <div className="flex flex-col items-start gap-1.5 w-full">
-                <span className={`text-lg ${question.color} group-hover:scale-110 transition-transform duration-200`}>
-                  {question.icon}
-                </span>
-                <span className="text-xs font-medium leading-tight text-foreground/90 text-left">
-                  {question.text}
-                </span>
-              </div>
+              {question.replace(/[🌍📉🔮💰]/g, '').trim().slice(0, 20)}...
             </Button>
           ))}
         </div>
