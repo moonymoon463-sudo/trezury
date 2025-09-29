@@ -1013,6 +1013,33 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_metrics: {
+        Row: {
+          id: string
+          metadata: Json | null
+          metric_name: string
+          metric_unit: string | null
+          metric_value: number
+          recorded_at: string | null
+        }
+        Insert: {
+          id?: string
+          metadata?: Json | null
+          metric_name: string
+          metric_unit?: string | null
+          metric_value: number
+          recorded_at?: string | null
+        }
+        Update: {
+          id?: string
+          metadata?: Json | null
+          metric_name?: string
+          metric_unit?: string | null
+          metric_value?: number
+          recorded_at?: string | null
+        }
+        Relationships: []
+      }
       pii_access_control: {
         Row: {
           access_level: string
@@ -1451,6 +1478,36 @@ export type Database = {
           output_asset?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      system_capacity: {
+        Row: {
+          active_connections: number | null
+          concurrent_users: number | null
+          cpu_usage_percent: number | null
+          id: string
+          memory_usage_percent: number | null
+          recorded_at: string | null
+          response_time_ms: number | null
+        }
+        Insert: {
+          active_connections?: number | null
+          concurrent_users?: number | null
+          cpu_usage_percent?: number | null
+          id?: string
+          memory_usage_percent?: number | null
+          recorded_at?: string | null
+          response_time_ms?: number | null
+        }
+        Update: {
+          active_connections?: number | null
+          concurrent_users?: number | null
+          cpu_usage_percent?: number | null
+          id?: string
+          memory_usage_percent?: number | null
+          recorded_at?: string | null
+          response_time_ms?: number | null
         }
         Relationships: []
       }
@@ -2061,6 +2118,15 @@ export type Database = {
           p_ip_address?: unknown
           p_success?: boolean
           p_user_agent?: string
+        }
+        Returns: undefined
+      }
+      record_performance_metric: {
+        Args: {
+          p_metadata?: Json
+          p_metric_name: string
+          p_metric_unit?: string
+          p_metric_value: number
         }
         Returns: undefined
       }
