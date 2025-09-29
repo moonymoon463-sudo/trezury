@@ -129,7 +129,11 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   } = useAIChat();
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'end',
+      inline: 'nearest'
+    });
   };
 
   useEffect(() => {
