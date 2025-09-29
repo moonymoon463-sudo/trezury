@@ -6,15 +6,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface AIInsight {
   id: string;
-  type: 'recommendation' | 'warning' | 'opportunity' | 'forecast';
+  type: 'allocation' | 'opportunity' | 'performance' | 'warning';
   title: string;
   description: string;
   confidence: number;
   timeframe: string;
-  actionable?: {
-    action: string;
-    impact: string;
-  };
+  actionable: boolean;
 }
 
 export interface MarketForecast {
@@ -22,7 +19,7 @@ export interface MarketForecast {
   currentPrice: number;
   predictedPrice: number;
   confidence: number;
-  timeframe: '24h' | '7d' | '30d';
+  timeframe: string;
   reasoning: string;
 }
 
@@ -238,33 +235,27 @@ export function useOptimizedPortfolioAI() {
 
       // Concentration risk
       if (goldAllocation > 70) {
-        insights.push({
-          id: 'concentration-gold',
-          type: 'warning',
-          title: 'High Gold Concentration',
-          description: `${goldAllocation.toFixed(1)}% in gold may increase portfolio volatility.`,
-          confidence: 85,
-          timeframe: 'immediate',
-          actionable: {
-            action: 'Consider rebalancing to 50-60% gold',
-            impact: 'Reduce risk by 15-20%'
-          }
-        });
+      insights.push({
+        id: 'concentration-gold',
+        type: 'warning',
+        title: 'High Gold Concentration',
+        description: `${goldAllocation.toFixed(1)}% in gold may increase portfolio volatility. Consider rebalancing to 50-60% gold to reduce risk by 15-20%.`,
+        confidence: 85,
+        timeframe: 'immediate',
+        actionable: true
+      });
       }
 
       if (usdcAllocation > 80) {
-        insights.push({
-          id: 'opportunity-gold',
-          type: 'opportunity',
-          title: 'Gold Investment Opportunity',
-          description: `Portfolio is ${usdcAllocation.toFixed(1)}% cash. Consider gold allocation.`,
-          confidence: 75,
-          timeframe: '30 days',
-          actionable: {
-            action: 'Allocate 30-40% to gold',
-            impact: 'Potential improved returns'
-          }
-        });
+      insights.push({
+        id: 'opportunity-gold',
+        type: 'opportunity',
+        title: 'Gold Investment Opportunity',
+        description: `Portfolio is ${usdcAllocation.toFixed(1)}% cash. Consider allocating 30-40% to gold for potential improved returns.`,
+        confidence: 75,
+        timeframe: '30 days',
+        actionable: true
+      });
       }
     }
 

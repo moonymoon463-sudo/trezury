@@ -1,105 +1,72 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle,
-  TrendingUp,
-  BarChart3,
-  Target,
-  Zap
-} from "lucide-react";
-import { RiskAssessment } from "@/hooks/usePortfolioAI";
+import { Shield, AlertTriangle, TrendingUp, Target } from "lucide-react";
+
+interface RiskAssessment {
+  overall: 'low' | 'medium' | 'high';
+  concentration: number;
+  volatility: number;
+  liquidation: number;
+  marketExposure: number;
+  recommendations: string[];
+}
 
 interface RiskAnalysisProps {
   riskAssessment: RiskAssessment | null;
-  loading: boolean;
+  loading?: boolean;
 }
 
 export function RiskAnalysis({ riskAssessment, loading }: RiskAnalysisProps) {
-  const getRiskColor = (level: 'low' | 'medium' | 'high') => {
-    switch (level) {
-      case 'low': return 'text-status-success';
-      case 'medium': return 'text-warning';
-      case 'high': return 'text-status-error';
-      default: return 'text-muted-foreground';
+  const getRiskColor = (risk: 'low' | 'medium' | 'high') => {
+    switch (risk) {
+      case 'low': return "bg-success text-success-foreground";
+      case 'medium': return "bg-warning text-warning-foreground";
+      case 'high': return "bg-destructive text-destructive-foreground";
     }
   };
 
-  const getRiskIcon = (level: 'low' | 'medium' | 'high') => {
-    switch (level) {
-      case 'low': return CheckCircle;
-      case 'medium': return AlertTriangle;
-      case 'high': return AlertTriangle;
-      default: return Shield;
+  const getRiskIcon = (risk: 'low' | 'medium' | 'high') => {
+    switch (risk) {
+      case 'low': return <Shield className="h-4 w-4" />;
+      case 'medium': return <TrendingUp className="h-4 w-4" />;
+      case 'high': return <AlertTriangle className="h-4 w-4" />;
     }
   };
 
-  const getRiskBadgeVariant = (level: 'low' | 'medium' | 'high') => {
-    switch (level) {
-      case 'low': return 'default';
-      case 'medium': return 'secondary';
-      case 'high': return 'destructive';
-      default: return 'outline';
-    }
-  };
-
-  const getMetricIcon = (metric: string) => {
-    switch (metric) {
-      case 'concentration': return Target;
-      case 'volatility': return BarChart3;
-      case 'liquidation': return AlertTriangle;
-      case 'marketExposure': return TrendingUp;
-      default: return Zap;
-    }
-  };
-
-  const formatMetricName = (metric: string) => {
-    switch (metric) {
-      case 'concentration': return 'Concentration Risk';
-      case 'volatility': return 'Portfolio Volatility';
-      case 'liquidation': return 'Liquidation Risk';
-      case 'marketExposure': return 'Market Exposure';
-      default: return metric;
-    }
-  };
-
-  const getMetricRiskLevel = (metric: string, value: number): 'low' | 'medium' | 'high' => {
-    switch (metric) {
-      case 'concentration':
-        return value > 70 ? 'high' : value > 50 ? 'medium' : 'low';
-      case 'volatility':
-        return value > 25 ? 'high' : value > 15 ? 'medium' : 'low';
-      case 'liquidation':
-        return value > 20 ? 'high' : value > 5 ? 'medium' : 'low';
-      case 'marketExposure':
-        return value > 80 ? 'high' : value > 60 ? 'medium' : 'low';
-      default:
-        return 'low';
+  const getRiskDescription = (risk: 'low' | 'medium' | 'high') => {
+    switch (risk) {
+      case 'low': return "Conservative risk profile with stable exposure";
+      case 'medium': return "Moderate risk profile requiring monitoring";
+      case 'high': return "Elevated risk requiring immediate attention";
     }
   };
 
   if (loading) {
     return (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Shield className="h-4 w-4 text-primary" />
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
             Risk Analysis
           </CardTitle>
+          <CardDescription>
+            Portfolio risk assessment and recommendations
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="animate-pulse">
-              <div className="h-4 bg-surface-elevated rounded mb-2" />
-              <div className="h-2 bg-surface-elevated rounded mb-3" />
-              <div className="space-y-2">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-3 bg-surface-elevated rounded" />
-                ))}
-              </div>
+              <div className="h-10 bg-muted rounded-full w-32 mx-auto"></div>
+              <div className="h-4 bg-muted rounded w-3/4 mx-auto mt-2"></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="animate-pulse space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-6 bg-muted rounded w-1/2"></div>
+                </div>
+              ))}
             </div>
           </div>
         </CardContent>
@@ -110,108 +77,135 @@ export function RiskAnalysis({ riskAssessment, loading }: RiskAnalysisProps) {
   if (!riskAssessment) {
     return (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Shield className="h-4 w-4 text-primary" />
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
             Risk Analysis
           </CardTitle>
+          <CardDescription>
+            Portfolio risk assessment and recommendations
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6 text-muted-foreground">
-            <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No risk data available</p>
-          </div>
+          <p className="text-muted-foreground">No risk data available</p>
         </CardContent>
       </Card>
     );
   }
 
-  const RiskIcon = getRiskIcon(riskAssessment.overall);
-  const riskMetrics = [
-    { key: 'concentration', value: riskAssessment.concentration },
-    { key: 'volatility', value: riskAssessment.volatility },
-    { key: 'liquidation', value: riskAssessment.liquidation },
-    { key: 'marketExposure', value: riskAssessment.marketExposure }
-  ];
-
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Shield className="h-4 w-4 text-primary" />
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5" />
           Risk Analysis
         </CardTitle>
+        <CardDescription>
+          Comprehensive portfolio risk assessment and strategic recommendations
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {/* Overall Risk Score */}
-        <div className="text-center p-4 bg-surface-elevated rounded-lg">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <RiskIcon className={`h-5 w-5 ${getRiskColor(riskAssessment.overall)}`} />
-            <span className="text-lg font-bold">Overall Risk</span>
-          </div>
-          <Badge 
-            variant={getRiskBadgeVariant(riskAssessment.overall)}
-            className="text-sm"
-          >
-            {riskAssessment.overall.toUpperCase()}
+        <div className="text-center">
+          <Badge className={`${getRiskColor(riskAssessment.overall)} text-lg px-4 py-2`}>
+            {getRiskIcon(riskAssessment.overall)}
+            <span className="ml-2 capitalize">{riskAssessment.overall} Risk</span>
           </Badge>
+          <p className="text-sm text-muted-foreground mt-2">
+            {getRiskDescription(riskAssessment.overall)}
+          </p>
         </div>
 
-        {/* Risk Metrics */}
-        <div className="space-y-3">
-          <h4 className="font-medium text-sm">Risk Breakdown</h4>
-          {riskMetrics.map((metric) => {
-            const Icon = getMetricIcon(metric.key);
-            const riskLevel = getMetricRiskLevel(metric.key, metric.value);
-            
-            return (
-              <div key={metric.key} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{formatMetricName(metric.key)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">
-                      {metric.value.toFixed(1)}%
-                    </span>
-                    <Badge 
-                      variant={getRiskBadgeVariant(riskLevel)}
-                      className="text-xs"
-                    >
-                      {riskLevel}
-                    </Badge>
-                  </div>
-                </div>
-                <Progress 
-                  value={metric.value} 
-                  className={`h-2 ${
-                    riskLevel === 'high' ? '[&>div]:bg-status-error' :
-                    riskLevel === 'medium' ? '[&>div]:bg-warning' :
-                    '[&>div]:bg-status-success'
-                  }`}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Recommendations */}
-        {riskAssessment.recommendations.length > 0 && (
+        {/* Risk Breakdown */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">AI Recommendations</h4>
-            <div className="space-y-2">
-              {riskAssessment.recommendations.map((recommendation, index) => (
-                <Alert key={index} className="py-2">
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription className="text-sm">
-                    {recommendation}
-                  </AlertDescription>
-                </Alert>
-              ))}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Concentration</span>
+              <span className="text-sm font-semibold">
+                {riskAssessment.concentration.toFixed(1)}%
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Risk from asset concentration
             </div>
           </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Volatility</span>
+              <span className="text-sm font-semibold">
+                {riskAssessment.volatility.toFixed(1)}%
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Expected price variation
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Market Exposure</span>
+              <span className="text-sm font-semibold">
+                {riskAssessment.marketExposure.toFixed(1)}%
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Exposure to market movements
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Liquidity</span>
+              <span className="text-sm font-semibold">
+                {(100 - riskAssessment.liquidation).toFixed(1)}%
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Ease of converting to cash
+            </div>
+          </div>
+        </div>
+
+        {/* High Risk Alert */}
+        {riskAssessment.overall === 'high' && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Your portfolio shows elevated risk levels. Consider reviewing the recommendations below 
+              and implementing risk management strategies.
+            </AlertDescription>
+          </Alert>
         )}
+
+        {/* Recommendations */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            <span className="font-medium">Strategic Recommendations</span>
+          </div>
+          
+          <div className="space-y-2">
+            {riskAssessment.recommendations.map((recommendation, index) => (
+              <div key={index} className="flex items-start gap-2 text-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                <span className="text-muted-foreground leading-relaxed">{recommendation}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Risk Management Tips */}
+        <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+          <h4 className="font-medium text-sm">Risk Management Best Practices</h4>
+          <ul className="text-xs text-muted-foreground space-y-1">
+            <li>• Regularly review and rebalance your portfolio</li>
+            <li>• Set clear stop-loss levels and stick to them</li>
+            <li>• Diversify across different asset classes when possible</li>
+            <li>• Keep 10-20% in cash for opportunities and emergencies</li>
+            <li>• Stay informed about market conditions and economic factors</li>
+          </ul>
+        </div>
       </CardContent>
     </Card>
   );

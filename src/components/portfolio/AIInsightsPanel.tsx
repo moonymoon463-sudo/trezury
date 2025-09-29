@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Sparkles
 } from "lucide-react";
-import { AIInsight } from "@/hooks/usePortfolioAI";
+import { AIInsight } from "@/hooks/useOptimizedPortfolioAI";
 
 interface AIInsightsPanelProps {
   insights: AIInsight[];
@@ -23,20 +23,20 @@ interface AIInsightsPanelProps {
 export function AIInsightsPanel({ insights, loading, onRefresh }: AIInsightsPanelProps) {
   const getInsightIcon = (type: AIInsight['type']) => {
     switch (type) {
-      case 'recommendation': return Lightbulb;
+      case 'allocation': return TrendingUp;
       case 'warning': return AlertTriangle;
       case 'opportunity': return Target;
-      case 'forecast': return TrendingUp;
+      case 'performance': return Lightbulb;
       default: return Brain;
     }
   };
 
   const getInsightColor = (type: AIInsight['type']) => {
     switch (type) {
-      case 'recommendation': return 'text-info border-info/20 bg-info/10';
+      case 'allocation': return 'text-info border-info/20 bg-info/10';
       case 'warning': return 'text-warning border-warning/20 bg-warning/10';
       case 'opportunity': return 'text-primary border-primary/20 bg-primary/10';
-      case 'forecast': return 'text-accent border-accent/20 bg-accent/10';
+      case 'performance': return 'text-accent border-accent/20 bg-accent/10';
       default: return 'text-muted-foreground border-border bg-surface-elevated';
     }
   };
@@ -119,12 +119,8 @@ export function AIInsightsPanel({ insights, loading, onRefresh }: AIInsightsPane
                           <div className="bg-background/50 rounded-md p-2 mt-2">
                             <div className="flex items-center gap-1 mb-1">
                               <ArrowUpRight className="h-3 w-3" />
-                              <span className="text-xs font-medium">Action</span>
+                              <span className="text-xs font-medium">Actionable</span>
                             </div>
-                            <p className="text-xs mb-1">{insight.actionable.action}</p>
-                            <p className="text-xs opacity-75">
-                              <strong>Impact:</strong> {insight.actionable.impact}
-                            </p>
                           </div>
                         )}
                       </div>
