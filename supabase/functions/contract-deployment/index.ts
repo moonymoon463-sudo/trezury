@@ -69,15 +69,54 @@ serve(async (req) => {
   }
 
   try {
-    const requestBody = await req.json();
-    const { operation } = requestBody;
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log(`🔧 Contract deployment operation: ${operation}`);
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check admin role
+    const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: user.id });
+    
+    if (!isAdmin) {
+      console.warn(`Unauthorized access attempt to contract-deployment by user: ${user.id}`);
+      await supabase.rpc('log_security_event', {
+        event_type: 'unauthorized_admin_function_access',
+        event_data: {
+          function: 'contract-deployment',
+          user_id: user.id,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Admin privileges required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const requestBody = await req.json();
+    const { operation } = requestBody;
+
+    console.log(`🔧 Contract deployment operation: ${operation} (by admin: ${user.id})`);
 
     switch (operation) {
       case 'deploy':

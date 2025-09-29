@@ -7,10 +7,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.contract-deployment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.populate-test-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.lending-engine]
 verify_jwt = false
@@ -65,9 +65,6 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.fee-collection-api]
-verify_jwt = false
-
-[functions.security-monitor]
 verify_jwt = false
 
 [functions.moonpay-diagnostics]

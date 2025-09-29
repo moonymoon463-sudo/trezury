@@ -71,7 +71,46 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Starting test data population...');
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check admin role
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: user.id });
+    
+    if (!isAdmin) {
+      console.warn(`Unauthorized access attempt to populate-test-data by user: ${user.id}`);
+      await supabaseAdmin.rpc('log_security_event', {
+        event_type: 'unauthorized_admin_function_access',
+        event_data: {
+          function: 'populate-test-data',
+          user_id: user.id,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Admin privileges required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Starting test data population (by admin: ${user.id})...`);
 
     // Get authenticated users to assign positions to
     const { data: profiles } = await supabaseAdmin
