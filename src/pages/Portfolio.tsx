@@ -11,6 +11,8 @@ import { PositionsCard } from "@/components/portfolio/PositionsCard";
 import { AIInsightsPanel } from "@/components/portfolio/AIInsightsPanel";
 import { MarketForecast } from "@/components/portfolio/MarketForecast";
 import { RiskAnalysis } from "@/components/portfolio/RiskAnalysis";
+import { AdvancedAnalytics } from "@/components/portfolio/AdvancedAnalytics";
+import { RealTimeAlerts } from "@/components/portfolio/RealTimeAlerts";
 import { PerformanceAnalytics } from "@/components/portfolio/PerformanceAnalytics";
 import { MobileLoadingSkeleton } from "@/components/portfolio/MobileLoadingSkeleton";
 import { AIChatInterface } from "@/components/portfolio/AIChatInterface";
@@ -174,7 +176,21 @@ export default function Portfolio() {
               riskAssessment={riskAssessment}
               loading={aiLoading}
             />
+
+            {/* Real-Time Alerts */}
+            <RealTimeAlerts />
           </div>
+        </div>
+
+        {/* Advanced Analytics Section */}
+        <div className="mt-8">
+          <AdvancedAnalytics 
+            portfolioData={{
+              totalValue,
+              assets: portfolioAssets,
+              summary: portfolioSummary
+            }}
+          />
         </div>
 
         {/* Quick Actions */}
