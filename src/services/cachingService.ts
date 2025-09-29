@@ -19,8 +19,10 @@ interface CacheStats {
 class CachingService {
   private cache = new Map<string, CacheItem>();
   private stats: CacheStats = { hits: 0, misses: 0, evictions: 0, size: 0 };
-  private maxSize = 1000; // Maximum number of cached items
+  private maxSize = 500; // Reduced for memory efficiency (10k+ users)
+  private maxMemoryMB = 50; // Maximum 50MB for cache
   private cleanupInterval: number | null = null;
+  private readonly ITEM_OVERHEAD_BYTES = 200; // Estimated overhead per item
 
   constructor() {
     this.startCleanupTimer();
@@ -103,13 +105,38 @@ class CachingService {
   }
 
   /**
-   * Get cache statistics
+   * Estimate memory usage of cache item
    */
-  getStats(): CacheStats & { hitRate: number } {
+  private estimateItemSize(data: any): number {
+    try {
+      const json = JSON.stringify(data);
+      return json.length * 2 + this.ITEM_OVERHEAD_BYTES; // UTF-16 = 2 bytes per char
+    } catch {
+      return this.ITEM_OVERHEAD_BYTES;
+    }
+  }
+
+  /**
+   * Get current memory usage in MB
+   */
+  private getMemoryUsageMB(): number {
+    let totalBytes = 0;
+    for (const item of this.cache.values()) {
+      totalBytes += this.estimateItemSize(item.data);
+    }
+    return totalBytes / (1024 * 1024);
+  }
+
+  /**
+   * Get cache statistics including memory usage
+   */
+  getStats(): CacheStats & { hitRate: number; memoryUsageMB: number; memoryLimitMB: number } {
     const total = this.stats.hits + this.stats.misses;
     return {
       ...this.stats,
-      hitRate: total > 0 ? this.stats.hits / total : 0
+      hitRate: total > 0 ? this.stats.hits / total : 0,
+      memoryUsageMB: this.getMemoryUsageMB(),
+      memoryLimitMB: this.maxMemoryMB
     };
   }
 
@@ -163,20 +190,35 @@ class CachingService {
     }, 10000); // 10 seconds TTL for system metrics
   }
 
+  /**
+   * Memory-aware LRU eviction for 10k+ users
+   */
   private evictOldest(): void {
-    let oldestKey = '';
-    let oldestTime = Date.now();
-    
-    for (const [key, item] of this.cache.entries()) {
-      if (item.timestamp < oldestTime) {
-        oldestTime = item.timestamp;
-        oldestKey = key;
-      }
-    }
-    
-    if (oldestKey) {
-      this.cache.delete(oldestKey);
+    const memoryUsage = this.getMemoryUsageMB();
+    const needsMemoryEviction = memoryUsage > this.maxMemoryMB;
+    const needsSizeEviction = this.cache.size >= this.maxSize;
+
+    if (!needsMemoryEviction && !needsSizeEviction) return;
+
+    // Target: 90% of max size, 80% of max memory
+    const targetSize = Math.floor(this.maxSize * 0.9);
+    const targetMemory = this.maxMemoryMB * 0.8;
+
+    // Sort by age (oldest first)
+    const itemsByAge = Array.from(this.cache.entries())
+      .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+    let evicted = 0;
+    for (const [key] of itemsByAge) {
+      if (this.cache.size <= targetSize && this.getMemoryUsageMB() <= targetMemory) break;
+      
+      this.cache.delete(key);
       this.stats.evictions++;
+      evicted++;
+    }
+
+    if (evicted > 0) {
+      console.log(`[Cache] Evicted ${evicted} items. Memory: ${this.getMemoryUsageMB().toFixed(2)}MB, Size: ${this.cache.size}`);
     }
   }
 

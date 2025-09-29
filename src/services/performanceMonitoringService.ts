@@ -33,7 +33,14 @@ interface PerformanceAlert {
 class PerformanceMonitoringService {
   private metrics: PerformanceMetric[] = [];
   private alerts: PerformanceAlert[] = [];
-  private maxMetrics = 1000; // Keep last 1000 metrics in memory
+  
+  // Scaling limits for 10k+ users
+  private readonly MAX_METRICS = 10000; // Circular buffer
+  private readonly MAX_ALERTS = 1000;
+  private readonly CLEANUP_INTERVAL_MS = 60000; // 1 minute
+  private readonly METRIC_RETENTION_MS = 3600000; // 1 hour
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  
   private thresholds = {
     response_time_ms: { warning: 500, critical: 1000 },
     active_users: { warning: 5000, critical: 8000 },
@@ -44,10 +51,11 @@ class PerformanceMonitoringService {
 
   constructor() {
     this.startPerformanceTracking();
+    this.startCleanupTimer();
   }
 
   /**
-   * Record a performance metric
+   * Record a performance metric with circular buffer
    */
   async recordMetric(
     name: string,
@@ -63,19 +71,21 @@ class PerformanceMonitoringService {
       metadata
     };
 
-    // Add to in-memory storage
-    this.metrics.push(metric);
-    if (this.metrics.length > this.maxMetrics) {
-      this.metrics.shift(); // Remove oldest
+    // Circular buffer - remove oldest when at limit
+    if (this.metrics.length >= this.MAX_METRICS) {
+      this.metrics.shift();
     }
+    this.metrics.push(metric);
 
     // Check for alerts
     this.checkThresholds(metric);
 
-    // Persist to database (async, don't block)
-    this.persistMetric(metric).catch(error => 
-      console.error('Failed to persist metric:', error)
-    );
+    // Persist critical metrics only
+    if (name.includes('error') || name.includes('critical')) {
+      this.persistMetric(metric).catch(error => 
+        console.error('Failed to persist metric:', error)
+      );
+    }
   }
 
   /**
@@ -277,6 +287,14 @@ class PerformanceMonitoringService {
         this.recordMetric('system_response_time', health.avg_response_time_ms, 'milliseconds');
       }
     }, 30000); // Every 30 seconds
+
+    // Monitor browser memory
+    if (typeof window !== 'undefined' && (window.performance as any).memory) {
+      setInterval(() => {
+        const memory = (window.performance as any).memory;
+        this.recordMetric('heap_size_mb', memory.usedJSHeapSize / (1024 * 1024), 'MB');
+      }, 30000);
+    }
   }
 
   /**
@@ -298,13 +316,44 @@ class PerformanceMonitoringService {
   }
 
   /**
-   * Clear old metrics and alerts
+   * Start cleanup timer
+   */
+  private startCleanupTimer(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, this.CLEANUP_INTERVAL_MS);
+  }
+
+  /**
+   * Clear old metrics with hard limits
    */
   cleanup(): void {
-    const cutoff = Date.now() - (24 * 60 * 60 * 1000); // 24 hours
+    const cutoff = Date.now() - this.METRIC_RETENTION_MS;
     
     this.metrics = this.metrics.filter(m => m.timestamp > cutoff);
     this.alerts = this.alerts.filter(a => a.timestamp > cutoff);
+
+    // Enforce hard limits
+    if (this.metrics.length > this.MAX_METRICS) {
+      this.metrics = this.metrics.slice(-this.MAX_METRICS);
+    }
+    if (this.alerts.length > this.MAX_ALERTS) {
+      this.alerts = this.alerts.slice(-this.MAX_ALERTS);
+    }
+
+    console.log(`[Performance] Cleanup: ${this.metrics.length} metrics, ${this.alerts.length} alerts`);
+  }
+
+  /**
+   * Destroy and cleanup
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.metrics = [];
+    this.alerts = [];
   }
 }
 

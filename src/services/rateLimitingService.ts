@@ -30,6 +30,16 @@ class RateLimitingService {
     premium: { maxRequests: 500, windowMs: 60000, tier: 'premium' }, // 500/min
     admin: { maxRequests: 1000, windowMs: 60000, tier: 'admin' }, // 1000/min
   };
+  
+  // Scaling limits for 10k+ users
+  private readonly MAX_BUCKETS = 50000; // Support up to 50k active buckets
+  private readonly CLEANUP_INTERVAL_MS = 300000; // Cleanup every 5 minutes
+  private readonly BUCKET_EXPIRY_MS = 3600000; // Expire buckets after 1 hour of inactivity
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    this.startCleanupTimer();
+  }
 
   /**
    * Check if request is allowed under rate limit
@@ -179,17 +189,24 @@ class RateLimitingService {
   }
 
   /**
-   * Get rate limiting statistics
+   * Get rate limiting statistics with health metrics
    */
   getStats() {
+    const memoryEstimateMB = (this.buckets.size * 200) / (1024 * 1024); // ~200 bytes per bucket
+    const capacityUsage = (this.buckets.size / this.MAX_BUCKETS) * 100;
+    
     const stats = {
       totalBuckets: this.buckets.size,
+      maxBuckets: this.MAX_BUCKETS,
+      capacityUsage: `${capacityUsage.toFixed(1)}%`,
+      estimatedMemoryMB: memoryEstimateMB.toFixed(2),
       configuredTiers: Object.keys(this.configs).length,
-      bucketsPerTier: {} as Record<string, number>
+      bucketsPerTier: {} as Record<string, number>,
+      health: capacityUsage > 80 ? 'warning' : capacityUsage > 95 ? 'critical' : 'healthy'
     };
 
     for (const key of this.buckets.keys()) {
-      const tier = key.split(':')[2] || 'unknown';
+      const tier = key.split(':')[1] || 'unknown';
       stats.bucketsPerTier[tier] = (stats.bucketsPerTier[tier] || 0) + 1;
     }
 
@@ -197,16 +214,55 @@ class RateLimitingService {
   }
 
   /**
-   * Cleanup expired buckets
+   * Cleanup expired buckets with memory limits
    */
   cleanup(): void {
     const now = Date.now();
-    const expireTime = 60 * 60 * 1000; // 1 hour
 
+    // Remove expired buckets
+    const keysToDelete: string[] = [];
     for (const [key, bucket] of this.buckets.entries()) {
-      if (now - bucket.lastRefill > expireTime) {
-        this.buckets.delete(key);
+      if (now - bucket.lastRefill > this.BUCKET_EXPIRY_MS) {
+        keysToDelete.push(key);
       }
+    }
+    
+    keysToDelete.forEach(key => this.buckets.delete(key));
+
+    // Enforce hard limit - remove oldest buckets if over limit
+    if (this.buckets.size > this.MAX_BUCKETS) {
+      const sortedBuckets = Array.from(this.buckets.entries())
+        .sort(([, a], [, b]) => a.lastRefill - b.lastRefill);
+      
+      const toRemove = this.buckets.size - Math.floor(this.MAX_BUCKETS * 0.9);
+      for (let i = 0; i < toRemove; i++) {
+        this.buckets.delete(sortedBuckets[i][0]);
+      }
+      
+      console.log(`[RateLimit] Enforced bucket limit. Removed ${toRemove} oldest buckets.`);
+    }
+
+    if (keysToDelete.length > 0) {
+      console.log(`[RateLimit] Cleaned up ${keysToDelete.length} expired buckets. Active: ${this.buckets.size}`);
+    }
+  }
+
+  /**
+   * Start automatic cleanup timer
+   */
+  private startCleanupTimer(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, this.CLEANUP_INTERVAL_MS);
+  }
+
+  /**
+   * Stop cleanup timer (for testing/shutdown)
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
   }
 }
