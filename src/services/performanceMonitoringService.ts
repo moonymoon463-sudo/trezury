@@ -127,7 +127,7 @@ class PerformanceMonitoringService {
       const { data, error } = await supabase.rpc('get_system_health_metrics');
       
       if (error) throw error;
-      return data;
+      return data as unknown as SystemHealthData;
     } catch (error) {
       console.error('Failed to get system health:', error);
       return null;

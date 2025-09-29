@@ -17,15 +17,15 @@ export const useScalingOptimizations = () => {
     performanceMonitoringService.measure(label, `${label}-start`, endMark);
   }, []);
 
-  const fetchWithOptimizations = useCallback(async <T>(
+  const fetchWithOptimizations = useCallback(async (
     cacheKey: string,
-    fetcher: () => Promise<T>,
+    fetcher: () => Promise<any>,
     options: {
       ttl?: number;
       rateLimitEndpoint?: string;
       rateLimitCost?: number;
     } = {}
-  ): Promise<T> => {
+  ): Promise<any> => {
     const { ttl = 300000, rateLimitEndpoint, rateLimitCost = 1 } = options;
 
     if (user && rateLimitEndpoint) {
