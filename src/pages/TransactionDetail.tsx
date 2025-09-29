@@ -124,7 +124,7 @@ const TransactionDetail = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-8">
+      <main className="flex-1 px-4 pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] pb-[calc(env(safe-area-inset-bottom)+1rem)]">
         {/* Status Section */}
         <div className="mb-8 text-center">
           <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${

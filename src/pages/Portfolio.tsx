@@ -97,7 +97,7 @@ export default function Portfolio() {
       />
 
       {/* Main Content */}
-      <main className="pt-14 sm:pt-16 lg:pt-18 px-2 md:px-6 pb-12 md:pb-16 space-y-3 md:space-y-4">
+      <main className="pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] px-2 md:px-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] space-y-3 md:space-y-4">
         {/* Offline/Error Alert */}
         {isOffline && (
           <Alert variant="destructive">

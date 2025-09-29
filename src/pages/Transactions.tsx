@@ -121,7 +121,7 @@ const Transactions = () => {
     <div className="relative flex min-h-[100dvh] w-full flex-col bg-background">
       <StandardHeader />
       
-      <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-2 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))] space-y-4">
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] space-y-4">
         {/* Filter buttons */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {['all', 'buy', 'sell', 'swap', 'send', 'receive', 'deposit', 'withdrawal'].map((filter) => (
