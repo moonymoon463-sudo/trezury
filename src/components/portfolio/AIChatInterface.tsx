@@ -37,61 +37,35 @@ interface AIChatInterfaceProps {
 }
 
 const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
-  const portfolioQuestions = [
-    "📊 Analyze my portfolio performance",
-    "💡 What investment opportunities do you see?",
-    "⚠️ Are there any risks I should know about?",
-    "📈 How does gold fit in my overall strategy?"
+  const quickQuestions = [
+    "Analyze my portfolio",
+    "Market insights",
+    "Investment risks",
+    "Gold strategy"
   ];
 
-  const marketQuestions = [
-    "🌍 What's driving gold prices today?",
-    "📉 Is this a good time to buy?",
-    "🔮 What's your gold price forecast?",
-    "💰 How do interest rates affect gold?"
-  ];
-
-  const educationQuestions = [
-    "🎓 Teach me about dollar-cost averaging",
-    "🏛️ How do central bank policies affect gold?",
-    "⚖️ What are the risks of gold investing?",
-    "🌟 Why should I consider digital gold?"
+  const fullQuestions = [
+    "Analyze my portfolio performance",
+    "What's driving gold prices today?",
+    "Are there any risks I should know about?",
+    "How does gold fit in my overall strategy?"
   ];
 
   return (
-    <div className="space-y-2">
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground/70 mb-1.5">Portfolio</h4>
-        <div className="flex gap-1">
-          {portfolioQuestions.slice(0, 2).map((question, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              size="sm"
-              className="text-left text-xs h-7 px-2 font-normal border-border/50 hover:bg-muted/60 flex-1"
-              onClick={() => onSend(question.replace(/[📊💡⚠️📈]/g, '').trim())}
-            >
-              {question.replace(/[📊💡⚠️📈]/g, '').trim().slice(0, 20)}...
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground/70 mb-1.5">Market</h4>
-        <div className="flex gap-1">
-          {marketQuestions.slice(0, 2).map((question, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              size="sm"
-              className="text-left text-xs h-7 px-2 font-normal border-primary/30 hover:bg-primary/10 flex-1"
-              onClick={() => onSend(question.replace(/[🌍📉🔮💰]/g, '').trim())}
-            >
-              {question.replace(/[🌍📉🔮💰]/g, '').trim().slice(0, 20)}...
-            </Button>
-          ))}
-        </div>
+    <div className="space-y-1.5">
+      <h4 className="text-xs font-medium text-muted-foreground mb-1">Quick questions</h4>
+      <div className="grid grid-cols-2 gap-1.5">
+        {quickQuestions.map((question, index) => (
+          <Button
+            key={index}
+            variant="outline"
+            size="sm"
+            className="text-left text-xs h-8 px-2.5 font-normal border-border/40 hover:bg-muted/50 justify-start truncate"
+            onClick={() => onSend(fullQuestions[index])}
+          >
+            {question}
+          </Button>
+        ))}
       </div>
     </div>
   );
