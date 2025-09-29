@@ -118,58 +118,67 @@ export default function Portfolio() {
           </Alert>
         )}
 
-        {/* AI Chat Interface */}
-        <AIChatInterface
-          portfolioData={{
-            totalValue,
-            assets: portfolioAssets,
-            summary: portfolioSummary,
-            performance: {
-              period: '24h',
-              return: 0
-            }
-          }}
-          isCollapsed={isChatCollapsed}
-          onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
-        />
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Left Column - Primary content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Asset Allocation */}
+            <AssetAllocationChart assets={portfolioAssets} />
 
-        {/* Asset Allocation */}
-        <AssetAllocationChart assets={portfolioAssets} />
+            {/* AI Insights Panel */}
+            <AIInsightsPanel 
+              insights={insights}
+              loading={aiLoading}
+              onRefresh={refreshAnalysis}
+            />
 
-        {/* AI Insights Panel - Independent loading */}
-        <AIInsightsPanel 
-          insights={insights}
-          loading={aiLoading}
-          onRefresh={refreshAnalysis}
-        />
+            {/* Performance Analytics */}
+            <PerformanceAnalytics 
+              summary={portfolioSummary}
+              performance={{
+                period: '24h',
+                return: 0
+              }}
+              loading={loading}
+            />
 
-        {/* Market Forecasts & Risk Analysis */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <MarketForecast 
-            forecasts={forecasts}
-            loading={aiLoading}
-          />
-          <RiskAnalysis 
-            riskAssessment={riskAssessment}
-            loading={aiLoading}
-          />
+            {/* Health Monitor */}
+            <HealthMonitorCard summary={portfolioSummary} />
+          </div>
+
+          {/* Right Column - AI Chat & Analysis */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* AI Chat Interface - Compact */}
+            <AIChatInterface
+              portfolioData={{
+                totalValue,
+                assets: portfolioAssets,
+                summary: portfolioSummary,
+                performance: {
+                  period: '24h',
+                  return: 0
+                }
+              }}
+              isCollapsed={isChatCollapsed}
+              onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
+            />
+
+            {/* Market Forecasts */}
+            <MarketForecast 
+              forecasts={forecasts}
+              loading={aiLoading}
+            />
+
+            {/* Risk Analysis */}
+            <RiskAnalysis 
+              riskAssessment={riskAssessment}
+              loading={aiLoading}
+            />
+          </div>
         </div>
 
-        {/* Performance Analytics */}
-        <PerformanceAnalytics 
-          summary={portfolioSummary}
-          performance={{
-            period: '24h',
-            return: 0
-          }}
-          loading={loading}
-        />
-
-        {/* Health Monitor */}
-        <HealthMonitorCard summary={portfolioSummary} />
-
         {/* Quick Actions */}
-        <div className="flex justify-center">
+        <div className="flex justify-center mt-6">
           <Button 
             onClick={() => navigate('/buy-gold')}
             variant="default"

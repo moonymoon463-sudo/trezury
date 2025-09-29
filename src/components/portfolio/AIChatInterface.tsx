@@ -59,11 +59,11 @@ const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
-        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Portfolio Analysis</h4>
-        <div className="grid grid-cols-1 gap-1.5">
-          {portfolioQuestions.map((question, index) => (
+        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Portfolio</h4>
+        <div className="grid grid-cols-1 gap-1">
+          {portfolioQuestions.slice(0, 2).map((question, index) => (
             <Button
               key={index}
               variant="outline"
@@ -78,32 +78,15 @@ const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
       </div>
 
       <div>
-        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Market Insights</h4>
-        <div className="grid grid-cols-1 gap-1.5">
-          {marketQuestions.map((question, index) => (
+        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Market</h4>
+        <div className="grid grid-cols-1 gap-1">
+          {marketQuestions.slice(0, 2).map((question, index) => (
             <Button
               key={index}
               variant="outline"
               size="sm"
               className="text-left text-xs h-auto p-2 font-normal border-primary/30 hover:bg-primary/10 justify-start"
               onClick={() => onSend(question.replace(/[🌍📉🔮💰]/g, '').trim())}
-            >
-              {question}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Learn & Grow</h4>
-        <div className="grid grid-cols-1 gap-1.5">
-          {educationQuestions.map((question, index) => (
-            <Button
-              key={index}
-              variant="outline"
-              size="sm"
-              className="text-left text-xs h-auto p-2 font-normal border-accent/30 hover:bg-accent/20 justify-start"
-              onClick={() => onSend(question.replace(/[🎓🏛️⚖️🌟]/g, '').trim())}
             >
               {question}
             </Button>
@@ -203,33 +186,47 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   if (isCollapsed) {
     return (
       <Card className="shadow-sm border-border/50">
-        <CardContent className="p-3">
+        <CardContent className="p-4">
           <Button
             onClick={onToggle}
-            className="w-full h-9 text-sm font-normal"
+            className="w-full h-10 text-sm font-normal"
             variant="outline"
           >
             <MessageSquare size={16} className="mr-2" />
-            Chat with Trezury Advisor AI Assistant
+            Chat with AI Assistant
           </Button>
+          <p className="text-xs text-muted-foreground mt-2 text-center">
+            Get portfolio insights & investment guidance
+          </p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="h-[420px] flex flex-col shadow-sm border-border/50">
+    <Card className="h-[500px] flex flex-col shadow-sm border-border/50">{onToggle && (
+        <Button
+          onClick={onToggle}
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 h-6 w-6 p-0 z-10"
+        >
+          ×
+        </Button>
+      )}
       <CardHeader className="pb-3 px-4 py-3 border-b border-border/30">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2 font-medium">
-            <Bot size={18} className="text-primary" />
-            Trezury Advisor AI Assistant
+          <CardTitle className="text-sm flex items-center gap-2 font-medium">
+            <Bot size={16} className="text-primary" />
+            AI Assistant
           </CardTitle>
-          {portfolioData && (
-            <Badge variant="secondary" className="text-xs px-2 py-1">
-              Portfolio Mode
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {portfolioData && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                Portfolio Mode
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       
@@ -237,11 +234,11 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         {/* Messages Area */}
         <ScrollArea className="flex-1 px-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-8">
-              <Bot size={40} className="mb-3 opacity-40" />
-              <h3 className="text-base font-medium mb-2">Welcome to Trezury Advisor AI Assistant</h3>
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
+              <Bot size={32} className="mb-2 opacity-40" />
+              <h3 className="text-sm font-medium mb-1">AI Assistant</h3>
               <p className="text-xs max-w-xs leading-relaxed">
-                I'm here to help you with gold investments, portfolio management, and app guidance.
+                Ask about investments, portfolio analysis, or market insights.
               </p>
             </div>
           ) : (
