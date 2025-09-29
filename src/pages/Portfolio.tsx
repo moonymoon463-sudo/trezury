@@ -13,6 +13,7 @@ import { MarketForecast } from "@/components/portfolio/MarketForecast";
 import { RiskAnalysis } from "@/components/portfolio/RiskAnalysis";
 import { PerformanceAnalytics } from "@/components/portfolio/PerformanceAnalytics";
 import { MobileLoadingSkeleton } from "@/components/portfolio/MobileLoadingSkeleton";
+import { AIChatInterface } from "@/components/portfolio/AIChatInterface";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
@@ -21,6 +22,7 @@ import { useState } from "react";
 export default function Portfolio() {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(true);
   
   // Use mobile-optimized portfolio hook
   const {
@@ -124,6 +126,21 @@ export default function Portfolio() {
           insights={insights}
           loading={aiLoading}
           onRefresh={refreshAnalysis}
+        />
+
+        {/* AI Chat Interface */}
+        <AIChatInterface
+          portfolioData={{
+            totalValue,
+            assets: portfolioAssets,
+            summary: portfolioSummary,
+            performance: {
+              period: '24h',
+              return: 0
+            }
+          }}
+          isCollapsed={isChatCollapsed}
+          onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
         />
 
         {/* Market Forecasts & Risk Analysis */}

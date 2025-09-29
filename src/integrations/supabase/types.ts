@@ -142,6 +142,71 @@ export type Database = {
           },
         ]
       }
+      chat_conversations: {
+        Row: {
+          context_type: string | null
+          created_at: string
+          id: string
+          portfolio_snapshot: Json | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context_type?: string | null
+          created_at?: string
+          id?: string
+          portfolio_snapshot?: Json | null
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context_type?: string | null
+          created_at?: string
+          id?: string
+          portfolio_snapshot?: Json | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compliance_reports: {
         Row: {
           compliance_checks: Json | null
