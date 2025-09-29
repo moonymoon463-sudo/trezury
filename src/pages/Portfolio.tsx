@@ -118,6 +118,21 @@ export default function Portfolio() {
           </Alert>
         )}
 
+        {/* AI Chat Interface - Top Priority */}
+        <AIChatInterface
+          portfolioData={{
+            totalValue,
+            assets: portfolioAssets,
+            summary: portfolioSummary,
+            performance: {
+              period: '24h',
+              return: 0
+            }
+          }}
+          isCollapsed={isChatCollapsed}
+          onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
+        />
+
         {/* Main Content Grid */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Primary content */}
@@ -146,23 +161,8 @@ export default function Portfolio() {
             <HealthMonitorCard summary={portfolioSummary} />
           </div>
 
-          {/* Right Column - AI Chat & Analysis */}
+          {/* Right Column - Analysis Tools */}
           <div className="lg:col-span-1 space-y-6">
-            {/* AI Chat Interface - Compact */}
-            <AIChatInterface
-              portfolioData={{
-                totalValue,
-                assets: portfolioAssets,
-                summary: portfolioSummary,
-                performance: {
-                  period: '24h',
-                  return: 0
-                }
-              }}
-              isCollapsed={isChatCollapsed}
-              onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
-            />
-
             {/* Market Forecasts */}
             <MarketForecast 
               forecasts={forecasts}

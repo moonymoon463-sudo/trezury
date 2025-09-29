@@ -59,36 +59,36 @@ const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div>
-        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Portfolio</h4>
-        <div className="grid grid-cols-1 gap-1">
+        <h4 className="text-xs font-medium text-muted-foreground/70 mb-1.5">Portfolio</h4>
+        <div className="flex gap-1">
           {portfolioQuestions.slice(0, 2).map((question, index) => (
             <Button
               key={index}
               variant="outline"
               size="sm"
-              className="text-left text-xs h-auto p-2 font-normal border-border/50 hover:bg-muted/60 justify-start"
+              className="text-left text-xs h-7 px-2 font-normal border-border/50 hover:bg-muted/60 flex-1"
               onClick={() => onSend(question.replace(/[📊💡⚠️📈]/g, '').trim())}
             >
-              {question}
+              {question.replace(/[📊💡⚠️📈]/g, '').trim().slice(0, 20)}...
             </Button>
           ))}
         </div>
       </div>
 
       <div>
-        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Market</h4>
-        <div className="grid grid-cols-1 gap-1">
+        <h4 className="text-xs font-medium text-muted-foreground/70 mb-1.5">Market</h4>
+        <div className="flex gap-1">
           {marketQuestions.slice(0, 2).map((question, index) => (
             <Button
               key={index}
               variant="outline"
               size="sm"
-              className="text-left text-xs h-auto p-2 font-normal border-primary/30 hover:bg-primary/10 justify-start"
+              className="text-left text-xs h-7 px-2 font-normal border-primary/30 hover:bg-primary/10 flex-1"
               onClick={() => onSend(question.replace(/[🌍📉🔮💰]/g, '').trim())}
             >
-              {question}
+              {question.replace(/[🌍📉🔮💰]/g, '').trim().slice(0, 20)}...
             </Button>
           ))}
         </div>
@@ -193,7 +193,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
             variant="outline"
           >
             <MessageSquare size={16} className="mr-2" />
-            Chat with AI Assistant
+            Chat with Trezury Advisor AI Assistant
           </Button>
           <p className="text-xs text-muted-foreground mt-2 text-center">
             Get portfolio insights & investment guidance
@@ -218,7 +218,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2 font-medium">
             <Bot size={16} className="text-primary" />
-            AI Assistant
+            Trezury Advisor AI Assistant
           </CardTitle>
           <div className="flex items-center gap-2">
             {portfolioData && (
@@ -236,7 +236,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
               <Bot size={32} className="mb-2 opacity-40" />
-              <h3 className="text-sm font-medium mb-1">AI Assistant</h3>
+              <h3 className="text-sm font-medium mb-1">Trezury Advisor AI Assistant</h3>
               <p className="text-xs max-w-xs leading-relaxed">
                 Ask about investments, portfolio analysis, or market insights.
               </p>
