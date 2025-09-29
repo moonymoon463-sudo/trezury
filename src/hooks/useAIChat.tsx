@@ -107,7 +107,7 @@ export const useAIChat = () => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`, {
+      const response = await fetch(`https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
