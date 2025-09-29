@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkRateLimit, createRateLimitResponse, getRateLimitHeaders } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,14 +14,28 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
     const { amount, currency, walletAddress, userId, returnUrl } = await req.json()
 
     console.log('MoonPay buy request:', { amount, currency, walletAddress, userId })
+    
+    // Rate limiting: 50 requests per minute per user
+    const rateLimitResult = await checkRateLimit(
+      supabaseUrl,
+      supabaseKey,
+      userId,
+      'moonpay-buy',
+      50, // max requests
+      60000 // 1 minute window
+    );
+
+    if (!rateLimitResult.allowed) {
+      console.log(`Rate limit exceeded for user: ${userId}`);
+      return createRateLimitResponse(rateLimitResult, corsHeaders);
+    }
     
     // Get user's wallet address if not provided
     let finalWalletAddress = walletAddress
@@ -121,7 +136,11 @@ serve(async (req) => {
         transactionId: moonpayData.id,
         redirectUrl: moonpayData.redirectUrl,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { 
+        ...corsHeaders, 
+        ...getRateLimitHeaders(rateLimitResult),
+        'Content-Type': 'application/json' 
+      } }
     )
 
   } catch (error) {

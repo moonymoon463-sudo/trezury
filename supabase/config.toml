@@ -71,10 +71,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.moonpay-diagnostics]
-verify_jwt = false
+verify_jwt = true
 
 [functions.security-health-check]
-verify_jwt = false
+verify_jwt = true
+
+[functions.security-monitor]
+verify_jwt = true
 
 [functions.moonpay-status]
 verify_jwt = true

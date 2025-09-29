@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { checkRateLimit, getClientIp, createRateLimitResponse, getRateLimitHeaders } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,25 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limiting: 100 requests per minute per IP
+    const clientIp = getClientIp(req);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    const rateLimitResult = await checkRateLimit(
+      supabaseUrl,
+      supabaseKey,
+      clientIp,
+      'gold-price-api',
+      100, // max requests
+      60000 // 1 minute window
+    );
+
+    if (!rateLimitResult.allowed) {
+      console.log(`Rate limit exceeded for IP: ${clientIp}`);
+      return createRateLimitResponse(rateLimitResult, corsHeaders);
+    }
+
     const alphaVantageApiKey = Deno.env.get('ALPHA_VANTAGE_API_KEY');
     
     if (!alphaVantageApiKey) {
@@ -75,7 +95,11 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { 
+        ...corsHeaders, 
+        ...getRateLimitHeaders(rateLimitResult),
+        'Content-Type': 'application/json' 
+      } }
     );
 
   } catch (error) {

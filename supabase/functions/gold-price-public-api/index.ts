@@ -1,13 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { checkRateLimit, getClientIp, createRateLimitResponse, getRateLimitHeaders } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Simple rate limiting store (in production, use Redis or similar)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,31 +13,23 @@ serve(async (req) => {
   }
 
   try {
-    // Basic rate limiting (100 requests per hour per IP)
-    const clientIP = req.headers.get('x-forwarded-for') || 'unknown';
-    const now = Date.now();
-    const hourWindow = 60 * 60 * 1000; // 1 hour
+    // Rate limiting: 100 requests per minute per IP
+    const clientIp = getClientIp(req);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     
-    const clientLimit = rateLimitStore.get(clientIP);
-    if (clientLimit) {
-      if (now < clientLimit.resetTime) {
-        if (clientLimit.count >= 100) {
-          return new Response(JSON.stringify({
-            error: 'Rate limit exceeded. Try again later.',
-            limit: 100,
-            window: '1 hour'
-          }), {
-            status: 429,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-        clientLimit.count++;
-      } else {
-        // Reset window
-        rateLimitStore.set(clientIP, { count: 1, resetTime: now + hourWindow });
-      }
-    } else {
-      rateLimitStore.set(clientIP, { count: 1, resetTime: now + hourWindow });
+    const rateLimitResult = await checkRateLimit(
+      supabaseUrl,
+      supabaseKey,
+      clientIp,
+      'gold-price-public-api',
+      100, // max requests
+      60000 // 1 minute window
+    );
+
+    if (!rateLimitResult.allowed) {
+      console.log(`Rate limit exceeded for IP: ${clientIp}`);
+      return createRateLimitResponse(rateLimitResult, corsHeaders);
     }
 
     const supabase = createClient(
@@ -54,21 +44,21 @@ serve(async (req) => {
 
     switch (path) {
       case 'latest':
-        return await handleLatest(supabase);
+        return await handleLatest(supabase, rateLimitResult);
       
       case 'history':
         const days = parseInt(url.searchParams.get('days') || '30');
-        return await handleHistory(supabase, days);
+        return await handleHistory(supabase, days, rateLimitResult);
       
       case 'average':
         const period = url.searchParams.get('period') || '24h';
-        return await handleAverage(supabase, period);
+        return await handleAverage(supabase, period, rateLimitResult);
       
       case 'sources':
-        return await handleSources(supabase);
+        return await handleSources(supabase, rateLimitResult);
       
       default:
-        return await handleDocs();
+        return await handleDocs(rateLimitResult);
     }
 
   } catch (error) {
@@ -83,7 +73,7 @@ serve(async (req) => {
   }
 });
 
-async function handleLatest(supabase: any) {
+async function handleLatest(supabase: any, rateLimitResult: any) {
   try {
     const { data, error } = await supabase
       .from('gold_prices')
@@ -117,7 +107,11 @@ async function handleLatest(supabase: any) {
       },
       timestamp: new Date().toISOString()
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { 
+        ...corsHeaders, 
+        ...getRateLimitHeaders(rateLimitResult),
+        'Content-Type': 'application/json' 
+      }
     });
 
   } catch (error) {
@@ -125,7 +119,7 @@ async function handleLatest(supabase: any) {
   }
 }
 
-async function handleHistory(supabase: any, days: number) {
+async function handleHistory(supabase: any, days: number, rateLimitResult: any) {
   try {
     // Validate days parameter
     if (days < 1 || days > 365) {
@@ -160,7 +154,11 @@ async function handleHistory(supabase: any, days: number) {
       },
       count: data?.length || 0
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { 
+        ...corsHeaders, 
+        ...getRateLimitHeaders(rateLimitResult),
+        'Content-Type': 'application/json' 
+      }
     });
 
   } catch (error) {
@@ -168,7 +166,7 @@ async function handleHistory(supabase: any, days: number) {
   }
 }
 
-async function handleAverage(supabase: any, period: string) {
+async function handleAverage(supabase: any, period: string, rateLimitResult: any) {
   try {
     let hours: number;
     
@@ -227,7 +225,11 @@ async function handleAverage(supabase: any, period: string) {
         sample_count: data.length
       }
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { 
+        ...corsHeaders, 
+        ...getRateLimitHeaders(rateLimitResult),
+        'Content-Type': 'application/json' 
+      }
     });
 
   } catch (error) {
@@ -235,7 +237,7 @@ async function handleAverage(supabase: any, period: string) {
   }
 }
 
-async function handleSources(supabase: any) {
+async function handleSources(supabase: any, rateLimitResult: any) {
   try {
     const { data, error } = await supabase
       .from('gold_prices')
@@ -264,7 +266,11 @@ async function handleSources(supabase: any) {
       success: true,
       sources: Object.values(sourceStats)
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { 
+        ...corsHeaders, 
+        ...getRateLimitHeaders(rateLimitResult),
+        'Content-Type': 'application/json' 
+      }
     });
 
   } catch (error) {
@@ -272,7 +278,7 @@ async function handleSources(supabase: any) {
   }
 }
 
-async function handleDocs() {
+async function handleDocs(rateLimitResult: any) {
   const docs = {
     title: "Gold Price API",
     description: "Real-time and historical gold price data",
@@ -313,6 +319,10 @@ async function handleDocs() {
   };
 
   return new Response(JSON.stringify(docs, null, 2), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    headers: { 
+      ...corsHeaders, 
+      ...getRateLimitHeaders(rateLimitResult),
+      'Content-Type': 'application/json' 
+    }
   });
 }

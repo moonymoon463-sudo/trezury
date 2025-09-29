@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, createRateLimitResponse, getRateLimitHeaders } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +39,21 @@ serve(async (req) => {
     
     if (authError || !user) {
       throw new Error('Authentication failed');
+    }
+    
+    // Rate limiting: 20 requests per minute per user
+    const rateLimitResult = await checkRateLimit(
+      supabaseUrl,
+      supabaseKey,
+      user.id,
+      'ai-chat',
+      20, // max requests
+      60000 // 1 minute window
+    );
+
+    if (!rateLimitResult.allowed) {
+      console.log(`Rate limit exceeded for user: ${user.id}`);
+      return createRateLimitResponse(rateLimitResult, corsHeaders);
     }
 
     // Get or create conversation
