@@ -61,7 +61,7 @@ const Index = () => {
       showBottomNavOnAllScreens={true}
       className="flex flex-col flex-1 min-h-0"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto px-1 sm:px-2 md:px-4 space-y-2 sm:space-y-3">
         {/* Gold Price Section */}
         <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
           <div className="flex justify-between items-center mb-2">

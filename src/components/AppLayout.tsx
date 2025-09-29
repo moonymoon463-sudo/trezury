@@ -39,7 +39,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
       {/* Main Content Container */}
       <main className={`flex-1 overflow-auto ${className}`}>
-        <div className="container mx-auto max-w-none w-full md:max-w-4xl lg:max-w-5xl">
+        <div className="mx-auto max-w-none w-full md:max-w-4xl lg:max-w-5xl">
           <div className={`
             px-0 sm:px-0 md:px-6 lg:px-8
             ${showBottomNav ? 'pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom)+0.5rem)]' : 'pb-4'}

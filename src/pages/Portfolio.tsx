@@ -101,7 +101,7 @@ export default function Portfolio() {
       />
 
       {/* Main Content */}
-      <main className="pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] px-2 md:px-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] space-y-3 md:space-y-4">
+      <main className="pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] px-1 sm:px-2 md:px-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] space-y-2 sm:space-y-3 md:space-y-4">
         {/* Offline/Error Alert */}
         {isOffline && (
           <Alert variant="destructive">
@@ -136,9 +136,9 @@ export default function Portfolio() {
         />
 
         {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-2 sm:gap-4 lg:gap-6 lg:grid-cols-3">
           {/* Left Column - Primary content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-2 sm:space-y-4 lg:space-y-6">
             {/* Asset Allocation */}
             <AssetAllocationChart assets={portfolioAssets} />
 
@@ -164,7 +164,7 @@ export default function Portfolio() {
           </div>
 
           {/* Right Column - Analysis Tools */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-2 sm:space-y-4 lg:space-y-6">
             {/* Market Forecasts */}
             <MarketForecast 
               forecasts={forecasts}
