@@ -61,9 +61,9 @@ const Index = () => {
       showBottomNavOnAllScreens={true}
       className="flex flex-col flex-1 min-h-0"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 space-y-3">
         {/* Gold Price Section */}
-        <div className="bg-surface-elevated rounded-xl p-2 flex-shrink-0">
+        <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-foreground text-base font-bold">Gold Price</h3>
             {priceLoading ? (
@@ -142,8 +142,8 @@ const Index = () => {
         </div>
 
         {/* Your Assets - Wallet Options */}
-        <div className="bg-surface-elevated rounded-xl p-2 flex-shrink-0">
-          <h3 className="text-foreground text-base font-bold mb-2">Your Assets</h3>
+        <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
+          <h3 className="text-foreground text-base font-bold mb-3">Your Assets</h3>
           <div className="space-y-2">
             {tokens.map((token, index) => (
               <div key={index} className="flex items-center justify-between">
@@ -166,7 +166,7 @@ const Index = () => {
         </div>
 
         {/* Gold Price Chart */}
-        <div className="h-48 flex-shrink-0">
+        <div className="flex-1 min-h-0">
           <GoldPriceChart />
         </div>
       </div>
