@@ -32,6 +32,102 @@ serve(async (req) => {
 
     const newsItems: NewsItem[] = [];
 
+    // NewsAPI.org integration for premium sources
+    async function fetchFromNewsAPI(): Promise<NewsItem[]> {
+      const items: NewsItem[] = [];
+      const apiKey = Deno.env.get('NEWS_API_KEY');
+      
+      if (!apiKey) {
+        console.warn('NEWS_API_KEY not configured, skipping NewsAPI sources');
+        return [];
+      }
+
+      try {
+        // Multiple NewsAPI queries for comprehensive coverage
+        const queries = [
+          // Business news from top sources
+          {
+            url: `https://newsapi.org/v2/top-headlines?category=business&sources=financial-times,wall-street-journal,reuters,bloomberg&apiKey=${apiKey}`,
+            category: 'business'
+          },
+          // Gold and precious metals specific
+          {
+            url: `https://newsapi.org/v2/everything?q=(gold OR "precious metals" OR "gold price")&sources=reuters,bloomberg,financial-times&sortBy=publishedAt&from=${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]}&apiKey=${apiKey}`,
+            category: 'precious_metals'
+          },
+          // Economic indicators and Fed news
+          {
+            url: `https://newsapi.org/v2/everything?q=("federal reserve" OR "interest rates" OR inflation OR economy)&sources=reuters,bloomberg,financial-times&sortBy=publishedAt&from=${new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]}&apiKey=${apiKey}`,
+            category: 'economics'
+          }
+        ];
+
+        for (const query of queries) {
+          try {
+            console.log(`📰 Fetching NewsAPI ${query.category}...`);
+            const response = await fetch(query.url, {
+              headers: {
+                'User-Agent': 'Financial News Collector'
+              }
+            });
+
+            if (!response.ok) {
+              console.error(`NewsAPI error for ${query.category}:`, response.status, response.statusText);
+              continue;
+            }
+
+            const data = await response.json();
+            
+            if (data.status === 'ok' && data.articles) {
+              let addedCount = 0;
+              for (const article of data.articles.slice(0, 5)) {
+                if (!article.title || !article.description || !article.publishedAt) continue;
+                
+                // Skip articles without meaningful content
+                if (article.title.includes('[Removed]') || article.description.includes('[Removed]')) continue;
+                
+                const publishedAt = new Date(article.publishedAt);
+                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                
+                // Only include recent articles (last 24 hours)
+                if (publishedAt < oneDayAgo) continue;
+
+                // Check if content is relevant
+                const titleContent = article.title + ' ' + (article.description || '');
+                if (!isRelevantContent(article.title, article.description || '')) continue;
+
+                items.push({
+                  title: article.title,
+                  content: article.description || article.content || '',
+                  summary: article.description?.substring(0, 200) + '...' || '',
+                  url: article.url,
+                  publishedAt: publishedAt.toISOString(),
+                  source: `NewsAPI - ${article.source?.name || 'Unknown'}`,
+                  category: query.category,
+                  tags: [query.category, 'newsapi', 'premium', article.source?.name?.toLowerCase() || 'unknown']
+                });
+                addedCount++;
+              }
+              console.log(`✅ NewsAPI ${query.category}: Added ${addedCount}/${data.articles.length} relevant articles`);
+            }
+            
+            // Rate limiting: wait between requests to avoid hitting API limits
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+          } catch (error) {
+            console.error(`Error fetching from NewsAPI ${query.category}:`, error);
+          }
+        }
+
+        console.log(`📰 NewsAPI Total: Collected ${items.length} articles from premium sources`);
+        return items;
+        
+      } catch (error) {
+        console.error('Error in NewsAPI collector:', error);
+        return [];
+      }
+    }
+
     // Helper function to calculate content relevance score
     const calculateRelevanceScore = (title: string, content: string, source: string, category: string): number => {
       let score = 5; // base score
@@ -113,6 +209,14 @@ serve(async (req) => {
         tags: [category, source.replace('_', ' '), 'financial news']
       };
     };
+
+    // Fetch news from NewsAPI first (premium sources)
+    try {
+      const newsAPIItems = await fetchFromNewsAPI();
+      newsItems.push(...newsAPIItems);
+    } catch (error) {
+      console.error('NewsAPI integration error:', error);
+    }
 
     // Fetch from Google News RSS (Free)
     try {
