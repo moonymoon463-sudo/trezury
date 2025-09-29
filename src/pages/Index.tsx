@@ -59,11 +59,11 @@ const Index = () => {
         showSettingsButton: true
       }}
       showBottomNavOnAllScreens={true}
-      className="overflow-y-auto"
+      className="flex flex-col flex-1 min-h-0"
     >
-      <div className="space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
         {/* Gold Price Section */}
-        <div className="bg-surface-elevated rounded-xl p-3">
+        <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-foreground text-base font-bold">Gold Price</h3>
             {priceLoading ? (
@@ -96,7 +96,7 @@ const Index = () => {
         </div>
 
         {/* Action Buttons - 2x3 Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 flex-shrink-0">
           <Button 
             className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
             onClick={() => navigate("/buy-sell-hub")}
@@ -142,7 +142,7 @@ const Index = () => {
         </div>
 
         {/* Your Assets - Wallet Options */}
-        <div className="bg-surface-elevated rounded-xl p-3">
+        <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
           <h3 className="text-foreground text-base font-bold mb-3">Your Assets</h3>
           <div className="space-y-2">
             {tokens.map((token, index) => (
@@ -166,7 +166,9 @@ const Index = () => {
         </div>
 
         {/* Gold Price Chart */}
-        <GoldPriceChart />
+        <div className="flex-1 min-h-0">
+          <GoldPriceChart />
+        </div>
       </div>
     </AppLayout>
   );
