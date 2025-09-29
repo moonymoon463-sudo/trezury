@@ -23,13 +23,13 @@ const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 mb-4">
+    <div className="flex flex-wrap gap-2 mb-3">
       {quickQuestions.map((question, index) => (
         <Button
           key={index}
           variant="outline"
           size="sm"
-          className="text-xs h-8 px-3"
+          className="text-xs h-7 px-2 font-normal border-border/50 hover:bg-muted/50"
           onClick={() => onSend(question)}
         >
           {question}
@@ -44,27 +44,27 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
   
   return (
     <div className={cn(
-      "flex gap-3 mb-4",
+      "flex gap-2 mb-3",
       isUser ? "flex-row-reverse" : "flex-row"
     )}>
       <div className={cn(
-        "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+        "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs",
+        isUser ? "bg-primary text-primary-foreground" : "bg-muted border border-border/30"
       )}>
-        {isUser ? <User size={16} /> : <Bot size={16} />}
+        {isUser ? <User size={14} /> : <Bot size={14} />}
       </div>
       
       <div className={cn(
-        "flex-1 max-w-[80%] px-4 py-3 rounded-lg",
+        "flex-1 max-w-[85%] px-3 py-2 rounded-lg text-sm",
         isUser 
           ? "bg-primary text-primary-foreground ml-auto" 
-          : "bg-muted"
+          : "bg-muted/50 border border-border/20"
       )}>
-        <div className="text-sm whitespace-pre-wrap break-words">
+        <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
           {message.content}
         </div>
         <div className={cn(
-          "text-xs mt-2 opacity-70",
+          "text-xs mt-1.5 opacity-60",
           isUser ? "text-right" : "text-left"
         )}>
           {message.timestamp.toLocaleTimeString([], { 
@@ -126,11 +126,11 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 
   if (isCollapsed) {
     return (
-      <Card className="h-16">
-        <CardContent className="p-4">
+      <Card className="shadow-sm border-border/50">
+        <CardContent className="p-3">
           <Button
             onClick={onToggle}
-            className="w-full h-8 text-sm"
+            className="w-full h-9 text-sm font-normal"
             variant="outline"
           >
             <MessageSquare size={16} className="mr-2" />
@@ -142,40 +142,40 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader className="pb-4">
+    <Card className="h-[420px] flex flex-col shadow-sm border-border/50">
+      <CardHeader className="pb-3 px-4 py-3 border-b border-border/30">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Bot size={20} className="text-primary" />
+          <CardTitle className="text-base flex items-center gap-2 font-medium">
+            <Bot size={18} className="text-primary" />
             Trezury Advisor AI Assistant
           </CardTitle>
           {portfolioData && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs px-2 py-1">
               Portfolio Mode
             </Badge>
           )}
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col p-0">
+      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
         {/* Messages Area */}
         <ScrollArea className="flex-1 px-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <Bot size={48} className="mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">Welcome to Trezury Advisor AI Assistant</h3>
-              <p className="text-sm max-w-xs">
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-8">
+              <Bot size={40} className="mb-3 opacity-40" />
+              <h3 className="text-base font-medium mb-2">Welcome to Trezury Advisor AI Assistant</h3>
+              <p className="text-xs max-w-xs leading-relaxed">
                 I'm here to help you with gold investments, portfolio management, and app guidance.
               </p>
             </div>
           ) : (
-            <div className="py-4">
+            <div className="py-3">
               {messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />
               ))}
               {isStreaming && (
-                <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
-                  <Loader2 size={16} className="animate-spin" />
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
+                  <Loader2 size={14} className="animate-spin" />
                   Trezury Advisor AI Assistant is thinking...
                 </div>
               )}
@@ -186,13 +186,13 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 
         {/* Quick Actions */}
         {showQuickActions && messages.length === 0 && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-3">
             <QuickActions onSend={handleSend} />
           </div>
         )}
 
         {/* Input Area */}
-        <div className="border-t p-4">
+        <div className="border-t border-border/30 p-3 bg-muted/20">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -201,31 +201,31 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               onKeyPress={handleKeyPress}
               placeholder={isStreaming ? "Trezury Advisor AI Assistant is responding..." : "Ask about gold investments, portfolio advice..."}
               disabled={isStreaming}
-              className="flex-1"
+              className="flex-1 text-sm h-9 bg-background border-border/50"
             />
             
             {isStreaming ? (
               <Button
                 onClick={stopStreaming}
                 variant="outline"
-                size="icon"
-                className="flex-shrink-0"
+                size="sm"
+                className="flex-shrink-0 h-9 w-9 p-0"
               >
-                <StopCircle size={18} />
+                <StopCircle size={16} />
               </Button>
             ) : (
               <Button
                 onClick={() => handleSend()}
                 disabled={!input.trim() || isLoading}
-                size="icon"
-                className="flex-shrink-0"
+                size="sm"
+                className="flex-shrink-0 h-9 w-9 p-0"
               >
-                <Send size={18} />
+                <Send size={16} />
               </Button>
             )}
           </div>
           
-          <div className="text-xs text-muted-foreground mt-2">
+          <div className="text-xs text-muted-foreground mt-2 px-1">
             Press Enter to send • Shift+Enter for new line
           </div>
         </div>
