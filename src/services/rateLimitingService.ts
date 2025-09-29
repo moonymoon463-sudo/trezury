@@ -1,0 +1,214 @@
+/**
+ * Rate limiting service for 10k+ users
+ * Implements token bucket algorithm with different tiers
+ */
+
+interface RateLimitConfig {
+  maxRequests: number;
+  windowMs: number;
+  tier: 'basic' | 'premium' | 'admin';
+}
+
+interface TokenBucket {
+  tokens: number;
+  lastRefill: number;
+  maxTokens: number;
+  refillRate: number; // tokens per second
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+  tier: string;
+}
+
+class RateLimitingService {
+  private buckets = new Map<string, TokenBucket>();
+  private configs: Record<string, RateLimitConfig> = {
+    basic: { maxRequests: 100, windowMs: 60000, tier: 'basic' }, // 100/min
+    premium: { maxRequests: 500, windowMs: 60000, tier: 'premium' }, // 500/min
+    admin: { maxRequests: 1000, windowMs: 60000, tier: 'admin' }, // 1000/min
+  };
+
+  /**
+   * Check if request is allowed under rate limit
+   */
+  checkLimit(
+    identifier: string, 
+    tier: 'basic' | 'premium' | 'admin' = 'basic',
+    cost: number = 1
+  ): RateLimitResult {
+    const config = this.configs[tier];
+    const bucketKey = `${identifier}:${tier}`;
+    
+    let bucket = this.buckets.get(bucketKey);
+    if (!bucket) {
+      bucket = {
+        tokens: config.maxRequests,
+        lastRefill: Date.now(),
+        maxTokens: config.maxRequests,
+        refillRate: config.maxRequests / (config.windowMs / 1000) // tokens per second
+      };
+      this.buckets.set(bucketKey, bucket);
+    }
+
+    // Refill tokens based on time elapsed
+    const now = Date.now();
+    const timePassed = (now - bucket.lastRefill) / 1000; // seconds
+    const tokensToAdd = Math.floor(timePassed * bucket.refillRate);
+    
+    bucket.tokens = Math.min(bucket.maxTokens, bucket.tokens + tokensToAdd);
+    bucket.lastRefill = now;
+
+    // Check if request can be allowed
+    const allowed = bucket.tokens >= cost;
+    if (allowed) {
+      bucket.tokens -= cost;
+    }
+
+    // Calculate reset time
+    const tokensNeeded = cost - bucket.tokens;
+    const resetTime = tokensNeeded > 0 
+      ? now + (tokensNeeded / bucket.refillRate * 1000)
+      : now;
+
+    return {
+      allowed,
+      remaining: Math.max(0, bucket.tokens),
+      resetTime,
+      tier
+    };
+  }
+
+  /**
+   * Get user tier based on KYC status and premium features
+   */
+  async getUserTier(userId: string): Promise<'basic' | 'premium' | 'admin'> {
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      // Check if admin
+      const { data: isAdminData } = await supabase.rpc('is_admin', { _user_id: userId });
+      if (isAdminData) return 'admin';
+
+      // Check profile for premium features
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('kyc_status, metadata')
+        .eq('id', userId)
+        .single();
+
+      // Premium tier for verified KYC users
+      if (profile?.kyc_status === 'verified') {
+        return 'premium';
+      }
+
+      return 'basic';
+    } catch (error) {
+      console.error('Error getting user tier:', error);
+      return 'basic';
+    }
+  }
+
+  /**
+   * Rate limit API requests based on endpoint
+   */
+  async checkApiLimit(
+    userId: string, 
+    endpoint: string,
+    cost: number = 1
+  ): Promise<RateLimitResult> {
+    const tier = await this.getUserTier(userId);
+    const identifier = `${userId}:${endpoint}`;
+    
+    return this.checkLimit(identifier, tier, cost);
+  }
+
+  /**
+   * Rate limit transaction operations (higher cost)
+   */
+  async checkTransactionLimit(userId: string): Promise<RateLimitResult> {
+    const tier = await this.getUserTier(userId);
+    const identifier = `${userId}:transactions`;
+    
+    // Transactions cost more tokens
+    const cost = tier === 'basic' ? 5 : tier === 'premium' ? 3 : 1;
+    return this.checkLimit(identifier, tier, cost);
+  }
+
+  /**
+   * Rate limit gold price requests
+   */
+  checkGoldPriceLimit(identifier: string): RateLimitResult {
+    // More lenient for public gold price data
+    return this.checkLimit(`goldprice:${identifier}`, 'premium');
+  }
+
+  /**
+   * Get rate limit status for user
+   */
+  async getRateLimitStatus(userId: string): Promise<{
+    tier: string;
+    limits: Record<string, RateLimitResult>;
+  }> {
+    const tier = await this.getUserTier(userId);
+    
+    const limits = {
+      api: this.checkLimit(`${userId}:api`, tier, 0), // Check without consuming
+      transactions: this.checkLimit(`${userId}:transactions`, tier, 0),
+      quotes: this.checkLimit(`${userId}:quotes`, tier, 0),
+    };
+
+    return { tier, limits };
+  }
+
+  /**
+   * Clear rate limits for user (admin function)
+   */
+  clearUserLimits(userId: string): void {
+    const keysToDelete: string[] = [];
+    
+    for (const key of this.buckets.keys()) {
+      if (key.startsWith(`${userId}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => this.buckets.delete(key));
+  }
+
+  /**
+   * Get rate limiting statistics
+   */
+  getStats() {
+    const stats = {
+      totalBuckets: this.buckets.size,
+      configuredTiers: Object.keys(this.configs).length,
+      bucketsPerTier: {} as Record<string, number>
+    };
+
+    for (const key of this.buckets.keys()) {
+      const tier = key.split(':')[2] || 'unknown';
+      stats.bucketsPerTier[tier] = (stats.bucketsPerTier[tier] || 0) + 1;
+    }
+
+    return stats;
+  }
+
+  /**
+   * Cleanup expired buckets
+   */
+  cleanup(): void {
+    const now = Date.now();
+    const expireTime = 60 * 60 * 1000; // 1 hour
+
+    for (const [key, bucket] of this.buckets.entries()) {
+      if (now - bucket.lastRefill > expireTime) {
+        this.buckets.delete(key);
+      }
+    }
+  }
+}
+
+export const rateLimitingService = new RateLimitingService();

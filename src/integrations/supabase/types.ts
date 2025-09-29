@@ -2028,6 +2028,10 @@ export type Database = {
           zip_code: string
         }[]
       }
+      get_system_health_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
