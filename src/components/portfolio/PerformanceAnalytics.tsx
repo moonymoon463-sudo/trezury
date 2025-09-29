@@ -79,10 +79,10 @@ export function PerformanceAnalytics({ summary, performance, loading }: Performa
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            Performance Analytics
-          </CardTitle>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          Performance Analytics
+        </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -101,7 +101,7 @@ export function PerformanceAnalytics({ summary, performance, loading }: Performa
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <TrendingUp className="h-4 w-4 text-primary" />
           Performance Analytics
         </CardTitle>

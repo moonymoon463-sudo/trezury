@@ -118,9 +118,6 @@ export default function Portfolio() {
           </Alert>
         )}
 
-        {/* Asset Allocation */}
-        <AssetAllocationChart assets={portfolioAssets} />
-
         {/* AI Chat Interface */}
         <AIChatInterface
           portfolioData={{
@@ -135,6 +132,9 @@ export default function Portfolio() {
           isCollapsed={isChatCollapsed}
           onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
         />
+
+        {/* Asset Allocation */}
+        <AssetAllocationChart assets={portfolioAssets} />
 
         {/* AI Insights Panel - Independent loading */}
         <AIInsightsPanel 
