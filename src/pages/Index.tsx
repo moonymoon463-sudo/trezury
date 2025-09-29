@@ -7,6 +7,7 @@ import { useWalletBalance } from "@/hooks/useWalletBalance";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AppLayout from "@/components/AppLayout";
 import { useState } from "react";
+import { AutoNewsPopulate } from "@/components/admin/AutoNewsPopulate";
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -61,6 +62,7 @@ const Index = () => {
       showBottomNavOnAllScreens={true}
       className="flex flex-col flex-1 min-h-0"
     >
+      <AutoNewsPopulate />
       <div className="flex-1 min-h-0 overflow-y-auto px-1 sm:px-2 md:px-4 space-y-2 sm:space-y-3">
         {/* Gold Price Section */}
         <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
