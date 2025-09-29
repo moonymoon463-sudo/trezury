@@ -92,7 +92,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.financial-news-collector]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-chat]
 verify_jwt = true
@@ -101,7 +101,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.trigger-news-collection]
-verify_jwt = false
+verify_jwt = true
 
 [studio]
 enabled = true
