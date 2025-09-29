@@ -82,29 +82,81 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    // Build context-aware system prompt
+    // Get recent financial news
+    const { data: recentNews } = await supabase
+      .from('financial_news')
+      .select('title, summary, category, published_at')
+      .order('published_at', { ascending: false })
+      .limit(5);
+
+    // Get FAQ data for context
+    const { data: faqData } = await supabase
+      .from('faq_items')
+      .select(`
+        question, 
+        answer, 
+        keywords,
+        faq_categories!inner(name)
+      `)
+      .eq('is_active', true)
+      .order('display_order')
+      .limit(20);
+
+    // Get educational content
+    const { data: educationalContent } = await supabase
+      .from('educational_content')
+      .select('title, content, category, difficulty_level, tags')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Get historical gold prices (last 7 days)
+    const { data: historicalPrices } = await supabase
+      .from('gold_prices')
+      .select('usd_per_oz, timestamp')
+      .order('timestamp', { ascending: false })
+      .limit(7);
+
+    // Build enhanced context-aware system prompt
     let systemPrompt = `You are Trezury Advisor AI Assistant, an expert financial assistant specializing in gold investments, stablecoins (especially USDC), and digital asset management. You help users with their Trezury gold investment app.
 
-Key capabilities:
-- Provide real-time gold market analysis and investment advice
-- Explain stablecoin (USDC) benefits and use cases
-- Guide users through app features and functionalities
-- Offer portfolio optimization strategies
-- Answer questions about gold-backed tokens (XAUT) and treasury tokens (TRZRY)
+CORE CAPABILITIES:
+- Real-time gold market analysis and investment advice
+- Financial news analysis and market insights
+- FAQ assistance for common questions
+- Educational content and personalized learning
+- Portfolio optimization strategies
+- App feature guidance and troubleshooting
 
-Current market data:
+CURRENT MARKET DATA:
 - Gold price: $${goldPrice?.usd_per_oz || 'N/A'} per oz (${goldPrice?.usd_per_gram || 'N/A'} per gram)
 - 24h change: ${goldPrice?.change_percent_24h || 'N/A'}%
+${historicalPrices && historicalPrices.length > 1 ? `- 7-day trend: $${historicalPrices[6]?.usd_per_oz || 'N/A'} → $${historicalPrices[0]?.usd_per_oz || 'N/A'}` : ''}
 
-App features you can help with:
+RECENT FINANCIAL NEWS:
+${recentNews?.map(news => `- ${news.title} (${news.category})`).join('\n') || 'No recent news available'}
+
+FAQ KNOWLEDGE BASE:
+${faqData?.map(faq => `Q: ${faq.question}\nA: ${faq.answer}\nCategory: ${(faq.faq_categories as any)?.name || 'General'}\nKeywords: ${faq.keywords?.join(', ')}`).join('\n\n') || 'FAQ data loading...'}
+
+EDUCATIONAL CONTENT AVAILABLE:
+${educationalContent?.map(content => `- ${content.title} (${content.difficulty_level}) - ${content.category}`).join('\n') || 'Educational content loading...'}
+
+RESPONSE GUIDELINES:
+- Answer FAQ-type questions directly using the knowledge base
+- Provide market context using current news and price data
+- Suggest relevant educational content when appropriate
+- Offer personalized recommendations based on portfolio data
+- Keep responses helpful, accurate, and actionable
+- If you don't know something, acknowledge it and suggest alternatives
+
+APP FEATURES YOU CAN HELP WITH:
 - Buying and selling gold (XAUT tokens)
 - Managing USDC stablecoin holdings
 - Portfolio analysis and risk assessment
 - Transaction history and tracking
 - KYC verification process
 - Wallet management and security
-
-Always provide accurate, helpful, and actionable advice. Keep responses concise but informative.`;
+- Educational content and learning paths`;
 
     if (contextType === 'portfolio' && portfolioData) {
       systemPrompt += `\n\nCurrent user portfolio context:

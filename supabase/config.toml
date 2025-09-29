@@ -91,6 +91,9 @@ verify_jwt = false
 [functions.scheduled-rate-updates]
 verify_jwt = false
 
+[functions.financial-news-collector]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323

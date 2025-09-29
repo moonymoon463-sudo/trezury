@@ -401,6 +401,122 @@ export type Database = {
         }
         Relationships: []
       }
+      educational_content: {
+        Row: {
+          category: string
+          content: string
+          content_type: string
+          created_at: string
+          difficulty_level: string
+          id: string
+          is_featured: boolean | null
+          prerequisites: string[] | null
+          reading_time_minutes: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          content: string
+          content_type?: string
+          created_at?: string
+          difficulty_level?: string
+          id?: string
+          is_featured?: boolean | null
+          prerequisites?: string[] | null
+          reading_time_minutes?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          content_type?: string
+          created_at?: string
+          difficulty_level?: string
+          id?: string
+          is_featured?: boolean | null
+          prerequisites?: string[] | null
+          reading_time_minutes?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      faq_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      faq_items: {
+        Row: {
+          answer: string
+          category_id: string
+          created_at: string
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          keywords: string[] | null
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          category_id: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          keywords?: string[] | null
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          category_id?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          keywords?: string[] | null
+          question?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faq_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "faq_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_collection_requests: {
         Row: {
           amount: number
@@ -449,6 +565,51 @@ export type Database = {
           transaction_id?: string
           user_id?: string
           webhook_data?: Json | null
+        }
+        Relationships: []
+      }
+      financial_news: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          published_at: string
+          relevance_score: number | null
+          source: string
+          summary: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          published_at: string
+          relevance_score?: number | null
+          source: string
+          summary?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          published_at?: string
+          relevance_score?: number | null
+          source?: string
+          summary?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          url?: string | null
         }
         Relationships: []
       }
@@ -1504,6 +1665,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_preferences: {
+        Row: {
+          ai_personalization_data: Json | null
+          created_at: string
+          id: string
+          investment_goals: string[] | null
+          notification_preferences: Json | null
+          preferred_content_types: string[] | null
+          risk_tolerance: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_personalization_data?: Json | null
+          created_at?: string
+          id?: string
+          investment_goals?: string[] | null
+          notification_preferences?: Json | null
+          preferred_content_types?: string[] | null
+          risk_tolerance?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_personalization_data?: Json | null
+          created_at?: string
+          id?: string
+          investment_goals?: string[] | null
+          notification_preferences?: Json | null
+          preferred_content_types?: string[] | null
+          risk_tolerance?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

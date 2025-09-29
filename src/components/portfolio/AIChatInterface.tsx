@@ -6,7 +6,29 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useAIChat, ChatMessage } from '@/hooks/useAIChat';
+import { useEnhancedAI } from '@/hooks/useEnhancedAI';
 import { cn } from '@/lib/utils';
+
+// Helper function to format message content with better structure
+const formatMessageContent = (content: string) => {
+  // Split content into sections and format for better readability
+  const lines = content.split('\n');
+  const formatted = lines.map((line, index) => {
+    // Convert markdown-style formatting to styled spans
+    if (line.startsWith('**') && line.endsWith('**')) {
+      return <div key={index} className="font-semibold mt-2 mb-1">{line.slice(2, -2)}</div>;
+    }
+    if (line.startsWith('- ')) {
+      return <div key={index} className="ml-3 mb-1">• {line.slice(2)}</div>;
+    }
+    if (line.trim() === '') {
+      return <br key={index} />;
+    }
+    return <div key={index} className="mb-1">{line}</div>;
+  });
+  
+  return <div>{formatted}</div>;
+};
 
 interface AIChatInterfaceProps {
   portfolioData?: any;
@@ -17,9 +39,11 @@ interface AIChatInterfaceProps {
 const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
   const quickQuestions = [
     "What's the current gold market outlook?",
-    "How should I optimize my portfolio?",
-    "Explain USDC vs gold allocation",
-    "What are the benefits of XAUT tokens?"
+    "Show me recent financial news",
+    "How do I get started with Trezury?",
+    "Explain XAUT tokens and gold investing",
+    "What are the app's security features?",
+    "Help me optimize my portfolio allocation"
   ];
 
   return (
@@ -61,7 +85,7 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
           : "bg-muted/50 border border-border/20"
       )}>
         <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-          {message.content}
+          {formatMessageContent(message.content)}
         </div>
         <div className={cn(
           "text-xs mt-1.5 opacity-60",
