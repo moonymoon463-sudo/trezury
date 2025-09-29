@@ -78,7 +78,7 @@ const BottomNavigation = () => {
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 leading-none min-w-0 flex-1 py-0.5 sm:py-1 px-1 min-h-[32px]"
+              className="flex flex-col items-center justify-center gap-0.5 sm:gap-1 leading-none min-w-0 flex-1 py-1 px-1 min-h-[32px]"
             >
               <Icon 
                 className={`w-6 h-6 sm:w-6 sm:h-6 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} 
