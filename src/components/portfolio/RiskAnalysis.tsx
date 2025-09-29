@@ -85,7 +85,7 @@ export function RiskAnalysis({ riskAssessment, loading }: RiskAnalysisProps) {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Shield className="h-4 w-4 text-primary" />
             Risk Analysis
           </CardTitle>
@@ -111,7 +111,7 @@ export function RiskAnalysis({ riskAssessment, loading }: RiskAnalysisProps) {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Shield className="h-4 w-4 text-primary" />
             Risk Analysis
           </CardTitle>
@@ -137,7 +137,7 @@ export function RiskAnalysis({ riskAssessment, loading }: RiskAnalysisProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <Shield className="h-4 w-4 text-primary" />
           Risk Analysis
         </CardTitle>

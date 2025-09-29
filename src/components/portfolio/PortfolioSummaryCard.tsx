@@ -150,7 +150,7 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Wallet className="h-4 w-4 text-primary" />
             Portfolio Overview
           </CardTitle>
@@ -175,7 +175,7 @@ export function PortfolioSummaryCard({ summary, performance, assets, compact = f
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <Activity className="h-4 w-4 text-primary" />
           Overview
         </CardTitle>

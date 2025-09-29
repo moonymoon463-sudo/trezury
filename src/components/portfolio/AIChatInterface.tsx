@@ -134,7 +134,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
             variant="outline"
           >
             <MessageSquare size={16} className="mr-2" />
-            Chat with Trezury Advisor
+            Chat with Trezury Advisor AI Assistant
           </Button>
         </CardContent>
       </Card>
@@ -147,7 +147,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Bot size={20} className="text-primary" />
-            Trezury Advisor
+            Trezury Advisor AI Assistant
           </CardTitle>
           {portfolioData && (
             <Badge variant="secondary" className="text-xs">
@@ -163,7 +163,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
               <Bot size={48} className="mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">Welcome to Trezury Advisor</h3>
+              <h3 className="text-lg font-medium mb-2">Welcome to Trezury Advisor AI Assistant</h3>
               <p className="text-sm max-w-xs">
                 I'm here to help you with gold investments, portfolio management, and app guidance.
               </p>
@@ -176,7 +176,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               {isStreaming && (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
                   <Loader2 size={16} className="animate-spin" />
-                  Trezury Advisor is thinking...
+                  Trezury Advisor AI Assistant is thinking...
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -199,7 +199,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={isStreaming ? "Trezury Advisor is responding..." : "Ask about gold investments, portfolio advice..."}
+              placeholder={isStreaming ? "Trezury Advisor AI Assistant is responding..." : "Ask about gold investments, portfolio advice..."}
               disabled={isStreaming}
               className="flex-1"
             />

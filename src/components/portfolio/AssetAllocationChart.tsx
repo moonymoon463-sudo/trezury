@@ -63,7 +63,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
     return (
       <Card className="overflow-hidden">
         <CardHeader className="pb-2 p-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+          <CardTitle className="flex items-center gap-2 text-lg font-medium">
             <PieChartIcon className="h-3.5 w-3.5 text-primary" />
             Asset Allocation
           </CardTitle>
@@ -80,7 +80,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2 p-4">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+        <CardTitle className="flex items-center gap-2 text-lg font-medium">
           <PieChartIcon className="h-3.5 w-3.5 text-primary" />
           Asset Allocation
         </CardTitle>

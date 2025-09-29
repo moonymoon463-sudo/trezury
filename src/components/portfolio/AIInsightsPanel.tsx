@@ -51,7 +51,7 @@ export function AIInsightsPanel({ insights, loading, onRefresh }: AIInsightsPane
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Brain className="h-4 w-4 text-primary" />
             AI Portfolio Insights
             <Sparkles className="h-3 w-3 text-primary animate-pulse" />

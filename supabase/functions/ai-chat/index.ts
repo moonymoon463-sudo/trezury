@@ -83,7 +83,7 @@ serve(async (req) => {
       .single();
 
     // Build context-aware system prompt
-    let systemPrompt = `You are Trezury Advisor, an expert financial assistant specializing in gold investments, stablecoins (especially USDC), and digital asset management. You help users with their Trezury gold investment app.
+    let systemPrompt = `You are Trezury Advisor AI Assistant, an expert financial assistant specializing in gold investments, stablecoins (especially USDC), and digital asset management. You help users with their Trezury gold investment app.
 
 Key capabilities:
 - Provide real-time gold market analysis and investment advice

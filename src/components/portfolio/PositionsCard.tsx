@@ -84,7 +84,7 @@ export function PositionsCard({ assetsByType }: PositionsCardProps) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Positions</CardTitle>
+        <CardTitle className="text-lg">Positions</CardTitle>
       </CardHeader>
       <CardContent className="p-3">
         <Tabs defaultValue="wallet" className="w-full">
