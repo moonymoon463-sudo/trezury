@@ -20,6 +20,8 @@ import {
 import { useAdmin, AdminStats } from '@/hooks/useAdmin';
 import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
+import { AISystemTest } from '@/components/testing/AISystemTest';
+import { NewsCollectionTrigger } from '@/components/admin/NewsCollectionTrigger';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -299,7 +301,13 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Activity Placeholder */}
+        {/* AI Enhancement Testing */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AISystemTest />
+          <NewsCollectionTrigger />
+        </div>
+
+        {/* System Status */}
         <Card>
           <CardHeader>
             <CardTitle>System Status</CardTitle>
@@ -309,6 +317,14 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm">Platform Status</span>
                 <Badge variant="default" className="bg-green-500">Operational</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">AI Assistant</span>
+                <Badge variant="default" className="bg-green-500">Enhanced</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Knowledge Base</span>
+                <Badge variant="default" className="bg-green-500">22 FAQs + 6 Articles</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">KYC Service</span>

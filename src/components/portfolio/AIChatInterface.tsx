@@ -9,25 +9,25 @@ import { useAIChat, ChatMessage } from '@/hooks/useAIChat';
 import { useEnhancedAI } from '@/hooks/useEnhancedAI';
 import { cn } from '@/lib/utils';
 
-// Helper function to format message content with better structure
+// Helper function to format message content with enhanced readability
 const formatMessageContent = (content: string) => {
-  // Split content into sections and format for better readability
-  const lines = content.split('\n');
-  const formatted = lines.map((line, index) => {
-    // Convert markdown-style formatting to styled spans
-    if (line.startsWith('**') && line.endsWith('**')) {
-      return <div key={index} className="font-semibold mt-2 mb-1">{line.slice(2, -2)}</div>;
-    }
-    if (line.startsWith('- ')) {
-      return <div key={index} className="ml-3 mb-1">• {line.slice(2)}</div>;
-    }
-    if (line.trim() === '') {
-      return <br key={index} />;
-    }
-    return <div key={index} className="mb-1">{line}</div>;
-  });
+  // Enhanced formatting for better readability
+  let formatted = content
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-muted-foreground">$1</em>')
+    .replace(/^• (.*)$/gm, '<div class="flex items-start gap-2 my-1"><span class="text-primary mt-1">•</span><span>$1</span></div>')
+    .replace(/^- (.*)$/gm, '<div class="flex items-start gap-2 my-1"><span class="text-primary mt-1">•</span><span>$1</span></div>')
+    .replace(/^\d+\. (.*)$/gm, '<div class="flex items-start gap-2 my-1"><span class="text-primary font-medium">$&</span></div>')
+    .replace(/\n\n/g, '<div class="my-3"></div>')
+    .replace(/\n/g, '<br />');
+
+  // Format currency values
+  formatted = formatted.replace(/\$[\d,]+\.?\d*/g, '<span class="font-medium text-green-600 dark:text-green-400">$&</span>');
   
-  return <div>{formatted}</div>;
+  // Format percentages
+  formatted = formatted.replace(/\d+\.?\d*%/g, '<span class="font-medium text-blue-600 dark:text-blue-400">$&</span>');
+
+  return formatted;
 };
 
 interface AIChatInterfaceProps {
@@ -37,28 +37,79 @@ interface AIChatInterfaceProps {
 }
 
 const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
-  const quickQuestions = [
-    "What's the current gold market outlook?",
-    "Show me recent financial news",
-    "How do I get started with Trezury?",
-    "Explain XAUT tokens and gold investing",
-    "What are the app's security features?",
-    "Help me optimize my portfolio allocation"
+  const portfolioQuestions = [
+    "📊 Analyze my portfolio performance",
+    "💡 What investment opportunities do you see?",
+    "⚠️ Are there any risks I should know about?",
+    "📈 How does gold fit in my overall strategy?"
+  ];
+
+  const marketQuestions = [
+    "🌍 What's driving gold prices today?",
+    "📉 Is this a good time to buy?",
+    "🔮 What's your gold price forecast?",
+    "💰 How do interest rates affect gold?"
+  ];
+
+  const educationQuestions = [
+    "🎓 Teach me about dollar-cost averaging",
+    "🏛️ How do central bank policies affect gold?",
+    "⚖️ What are the risks of gold investing?",
+    "🌟 Why should I consider digital gold?"
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 mb-3">
-      {quickQuestions.map((question, index) => (
-        <Button
-          key={index}
-          variant="outline"
-          size="sm"
-          className="text-xs h-7 px-2 font-normal border-border/50 hover:bg-muted/50"
-          onClick={() => onSend(question)}
-        >
-          {question}
-        </Button>
-      ))}
+    <div className="space-y-4">
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Portfolio Analysis</h4>
+        <div className="grid grid-cols-1 gap-1.5">
+          {portfolioQuestions.map((question, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              className="text-left text-xs h-auto p-2 font-normal border-border/50 hover:bg-muted/60 justify-start"
+              onClick={() => onSend(question.replace(/[📊💡⚠️📈]/g, '').trim())}
+            >
+              {question}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Market Insights</h4>
+        <div className="grid grid-cols-1 gap-1.5">
+          {marketQuestions.map((question, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              className="text-left text-xs h-auto p-2 font-normal border-primary/30 hover:bg-primary/10 justify-start"
+              onClick={() => onSend(question.replace(/[🌍📉🔮💰]/g, '').trim())}
+            >
+              {question}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground/80 mb-2">Learn & Grow</h4>
+        <div className="grid grid-cols-1 gap-1.5">
+          {educationQuestions.map((question, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              className="text-left text-xs h-auto p-2 font-normal border-accent/30 hover:bg-accent/20 justify-start"
+              onClick={() => onSend(question.replace(/[🎓🏛️⚖️🌟]/g, '').trim())}
+            >
+              {question}
+            </Button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -84,9 +135,10 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
           ? "bg-primary text-primary-foreground ml-auto" 
           : "bg-muted/50 border border-border/20"
       )}>
-        <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-          {formatMessageContent(message.content)}
-        </div>
+        <div 
+          className="text-sm leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: formatMessageContent(message.content) }}
+        />
         <div className={cn(
           "text-xs mt-1.5 opacity-60",
           isUser ? "text-right" : "text-left"
