@@ -7,6 +7,8 @@ interface CacheItem {
   data: any;
   timestamp: number;
   ttl: number;
+  expiresAt: number;
+  size: number;
 }
 
 interface CacheStats {
@@ -14,47 +16,103 @@ interface CacheStats {
   misses: number;
   evictions: number;
   size: number;
+  memoryUsage: number;
 }
 
 class CachingService {
   private cache = new Map<string, CacheItem>();
-  private stats: CacheStats = { hits: 0, misses: 0, evictions: 0, size: 0 };
+  private stats: CacheStats = { hits: 0, misses: 0, evictions: 0, size: 0, memoryUsage: 0 };
   private maxSize = 500; // Reduced for memory efficiency (10k+ users)
   private maxMemoryMB = 50; // Maximum 50MB for cache
   private cleanupInterval: number | null = null;
   private readonly ITEM_OVERHEAD_BYTES = 200; // Estimated overhead per item
+  private inflightRequests: Map<string, Promise<any>> = new Map();
+  private readonly PERSISTENT_KEYS = ['gold-prices-latest', 'user-portfolio'];
 
   constructor() {
+    this.loadFromLocalStorage();
     this.startCleanupTimer();
   }
 
   /**
-   * Get cached data or execute fetcher function
+   * Get cached data or execute fetcher function with request deduplication
    */
   async get<T>(
     key: string, 
     fetcher: () => Promise<T>, 
     ttlMs: number = 300000 // 5 minutes default
   ): Promise<T> {
+    // Check in-flight request first
+    if (this.inflightRequests.has(key)) {
+      console.log(`[Cache] Awaiting in-flight request: ${key}`);
+      return this.inflightRequests.get(key) as Promise<T>;
+    }
+
     const cached = this.cache.get(key);
     
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+    if (cached && Date.now() < cached.expiresAt) {
       this.stats.hits++;
+      console.log(`[Cache] HIT: ${key}`);
+      
+      // Background refresh if nearing expiration (last 20% of TTL)
+      const timeToExpire = cached.expiresAt - Date.now();
+      if (timeToExpire < ttlMs * 0.2) {
+        console.log(`[Cache] Background refresh for ${key}`);
+        this.backgroundRefresh(key, fetcher, ttlMs);
+      }
+      
       return cached.data;
     }
 
     // Cache miss - fetch new data
     this.stats.misses++;
-    const data = await fetcher();
+    console.log(`[Cache] MISS: ${key}, fetching...`);
     
-    this.set(key, data, ttlMs);
-    return data;
+    // Create and store the in-flight promise
+    const fetchPromise = (async () => {
+      try {
+        const data = await fetcher();
+        this.set(key, data, ttlMs);
+        return data;
+      } catch (error) {
+        console.error(`[Cache] Error fetching ${key}:`, error);
+        
+        // Return stale data if available as fallback
+        if (cached) {
+          console.log(`[Cache] Returning stale data for ${key}`);
+          return cached.data as T;
+        }
+        
+        throw error;
+      } finally {
+        this.inflightRequests.delete(key);
+      }
+    })();
+    
+    this.inflightRequests.set(key, fetchPromise);
+    return fetchPromise;
   }
 
   /**
-   * Set cache item with TTL
+   * Background refresh cache before expiration
+   */
+  private async backgroundRefresh<T>(key: string, fetcher: () => Promise<T>, ttlMs: number): Promise<void> {
+    try {
+      const data = await fetcher();
+      this.set(key, data, ttlMs);
+      console.log(`[Cache] Background refresh complete: ${key}`);
+    } catch (error) {
+      console.warn(`[Cache] Background refresh failed for ${key}:`, error);
+    }
+  }
+
+  /**
+   * Set cache item with TTL and localStorage persistence
    */
   set<T>(key: string, data: T, ttlMs: number = 300000): void {
+    const expiresAt = Date.now() + ttlMs;
+    const estimatedSize = this.estimateItemSize(data);
+    
     // Evict oldest items if cache is full
     if (this.cache.size >= this.maxSize) {
       this.evictOldest();
@@ -63,10 +121,54 @@ class CachingService {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl: ttlMs
+      ttl: ttlMs,
+      expiresAt,
+      size: estimatedSize
     });
     
     this.stats.size = this.cache.size;
+    this.stats.memoryUsage += estimatedSize;
+    
+    // Persist to localStorage for selected keys
+    if (this.PERSISTENT_KEYS.some(persistKey => key.includes(persistKey))) {
+      this.saveToLocalStorage(key, data, expiresAt);
+    }
+    
+    console.log(`[Cache] SET: ${key}, TTL: ${ttlMs}ms, Size: ${estimatedSize} bytes`);
+  }
+
+  /**
+   * Save cache item to localStorage
+   */
+  private saveToLocalStorage(key: string, data: any, expiresAt: number): void {
+    try {
+      localStorage.setItem(`cache_${key}`, JSON.stringify({ data, expiresAt }));
+    } catch (error) {
+      console.warn(`[Cache] localStorage save failed for ${key}:`, error);
+    }
+  }
+
+  /**
+   * Load persistent cache from localStorage on startup
+   */
+  private loadFromLocalStorage(): void {
+    this.PERSISTENT_KEYS.forEach(baseKey => {
+      try {
+        const stored = localStorage.getItem(`cache_${baseKey}`);
+        if (stored) {
+          const { data, expiresAt } = JSON.parse(stored);
+          if (Date.now() < expiresAt) {
+            const ttl = expiresAt - Date.now();
+            this.set(baseKey, data, ttl);
+            console.log(`[Cache] Restored from localStorage: ${baseKey}`);
+          } else {
+            localStorage.removeItem(`cache_${baseKey}`);
+          }
+        }
+      } catch (error) {
+        console.warn(`[Cache] localStorage load failed for ${baseKey}:`, error);
+      }
+    });
   }
 
   /**
@@ -152,7 +254,7 @@ class CachingService {
         .order('timestamp', { ascending: false })
         .limit(1);
       return data?.[0] || null;
-    }, 60000); // 1 minute TTL for gold prices
+    }, 120000); // 2 minutes TTL for gold prices
   }
 
   /**

@@ -73,7 +73,7 @@ export const useScalingOptimizations = () => {
         return response.json();
       },
       {
-        ttl: 60000,
+        ttl: 120000, // Increased to 2 minutes
         rateLimitEndpoint: 'gold-prices',
         rateLimitCost: 1
       }

@@ -29,64 +29,82 @@ class GoldPriceService {
   private lastNotifiedPrice: number = 0;
   private readonly PRICE_CHANGE_THRESHOLD = 0.001; // 0.1% threshold
   private isUpdating = false; // Prevent duplicate intervals
+  private inflightFetch: Promise<GoldPrice> | null = null;
+  private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+  private lastFetchTime = 0;
 
   async getCurrentPrice(): Promise<GoldPrice> {
-    // Always rely on DB-backed data; if stale/missing, invoke collector
-    // No synthetic fallbacks
-    const fetchFromDb = async () => {
-      const { data: dbPrice } = await supabase
+    // Return cached price if still fresh
+    if (this.currentPrice && Date.now() - this.lastFetchTime < this.CACHE_TTL) {
+      console.log('💰 Returning cached gold price');
+      return this.currentPrice;
+    }
+
+    // Deduplicate concurrent requests
+    if (this.inflightFetch) {
+      console.log('💰 Awaiting in-flight gold price request');
+      return this.inflightFetch;
+    }
+
+    // Create new fetch promise
+    this.inflightFetch = this.fetchPrice();
+    
+    try {
+      const price = await this.inflightFetch;
+      return price;
+    } finally {
+      this.inflightFetch = null;
+    }
+  }
+
+  private async fetchPrice(): Promise<GoldPrice> {
+    console.log('💰 Fetching fresh gold price from DB');
+    
+    try {
+      const { data: dbPrice, error } = await supabase
         .from('gold_prices')
         .select('*')
         .order('timestamp', { ascending: false })
         .limit(1)
         .maybeSingle();
-      return dbPrice;
-    };
 
-    // Try current DB price
-    let dbPrice = await fetchFromDb();
+      if (error) throw error;
 
-    const isFresh = (ts: string | null | undefined) => {
-      if (!ts) return false;
-      const ageMs = Date.now() - new Date(ts).getTime();
-      return ageMs < 7 * 60 * 1000; // 7 minutes
-    };
+      if (dbPrice) {
+        const goldPrice: GoldPrice = {
+          usd_per_oz: Number(dbPrice.usd_per_oz),
+          usd_per_gram: Number(dbPrice.usd_per_gram),
+          change_24h: Number(dbPrice.change_24h || 0),
+          change_percent_24h: Number(dbPrice.change_percent_24h || 0),
+          last_updated: new Date(dbPrice.timestamp).getTime(),
+        };
+        
+        this.currentPrice = goldPrice;
+        this.lastFetchTime = Date.now();
+        this.notifySubscribers(goldPrice);
+        
+        console.log('✅ Gold price updated:', goldPrice.usd_per_oz);
+        return goldPrice;
+      }
 
-    if (dbPrice && isFresh(dbPrice.timestamp)) {
-      const goldPrice: GoldPrice = {
-        usd_per_oz: Number(dbPrice.usd_per_oz),
-        usd_per_gram: Number(dbPrice.usd_per_gram),
-        change_24h: Number(dbPrice.change_24h || 0),
-        change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-        last_updated: new Date(dbPrice.timestamp).getTime(),
-      };
-      this.currentPrice = goldPrice;
-      this.notifySubscribers(goldPrice);
-      return goldPrice;
+      // If no DB data and we have a stale cache, return it
+      if (this.currentPrice) {
+        console.warn('⚠️ No fresh gold price, returning stale cache');
+        return this.currentPrice;
+      }
+
+      throw new Error('No gold price data available');
+    } catch (error) {
+      console.error('❌ Error fetching gold price:', error);
+      
+      // Return stale cache on error if available
+      if (this.currentPrice) {
+        console.warn('⚠️ Fetch error, returning stale cache');
+        return this.currentPrice;
+      }
+      
+      throw error;
     }
-
-    // Refresh via collector and re-read
-    try {
-      await supabase.functions.invoke('gold-price-collector', { body: { reason: 'refresh' } });
-    } catch (e) {
-      console.warn('Collector invocation failed:', e);
-    }
-
-    dbPrice = await fetchFromDb();
-    if (dbPrice) {
-      const goldPrice: GoldPrice = {
-        usd_per_oz: Number(dbPrice.usd_per_oz),
-        usd_per_gram: Number(dbPrice.usd_per_gram),
-        change_24h: Number(dbPrice.change_24h || 0),
-        change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-        last_updated: new Date(dbPrice.timestamp).getTime(),
-      };
-      this.currentPrice = goldPrice;
-      this.notifySubscribers(goldPrice);
-      return goldPrice;
-    }
-
-    throw new Error('No current gold price available');
   }
 
   // Removed mock price generation to ensure real data only
@@ -129,8 +147,10 @@ class GoldPriceService {
     // Get initial price
     this.getCurrentPrice();
 
-    // Set up periodic updates (default 5 minutes for stability)
+    // Set up periodic updates (default 5 minutes, respects cache)
     this.updateInterval = window.setInterval(() => {
+      // Force cache invalidation for periodic updates
+      this.lastFetchTime = 0;
       this.getCurrentPrice();
     }, intervalMs);
   }
