@@ -59,11 +59,11 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
           </div>
 
           {/* Center Section - Logo or Title */}
-          <div className="flex-1 flex justify-center max-w-full overflow-hidden">
+          <div className="flex-1 flex justify-center items-center max-w-full overflow-hidden">
             {title ? (
               <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-foreground truncate px-2">{title}</h1>
             ) : (
-              <div className="w-auto max-w-full">
+              <div className="w-auto max-w-full -translate-y-0.5">
                 <AurumLogo compact />
               </div>
             )}
