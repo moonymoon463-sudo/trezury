@@ -11,6 +11,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SessionHealthMonitor } from "@/components/SessionHealthMonitor";
+import { SupabaseHealthIndicator } from "@/components/SupabaseHealthIndicator";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -149,6 +150,7 @@ const App = () => (
             <InstallPrompt />
             <UpdatePrompt />
             <OfflineIndicator />
+            <SupabaseHealthIndicator />
           </BrowserRouter>
         </TooltipProvider>
       </PWAProvider>

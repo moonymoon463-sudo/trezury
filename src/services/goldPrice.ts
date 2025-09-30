@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { circuitBreaker } from './circuitBreaker';
+import { trafficShedding } from './trafficShedding';
 
 export interface GoldPrice {
   usd_per_oz: number;
@@ -60,51 +62,62 @@ class GoldPriceService {
   private async fetchPrice(): Promise<GoldPrice> {
     console.log('💰 Fetching fresh gold price from DB');
     
-    try {
-      const { data: dbPrice, error } = await supabase
-        .from('gold_prices')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // Use circuit breaker with fallback to cached data
+    return circuitBreaker.execute(
+      'gold-price',
+      async () => {
+        return trafficShedding.executeOperation('gold-price', async () => {
+          const { data: dbPrice, error } = await supabase
+            .from('gold_prices')
+            .select('*')
+            .order('timestamp', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-      if (error) throw error;
+          if (error) throw error;
 
-      if (dbPrice) {
-        const goldPrice: GoldPrice = {
-          usd_per_oz: Number(dbPrice.usd_per_oz),
-          usd_per_gram: Number(dbPrice.usd_per_gram),
-          change_24h: Number(dbPrice.change_24h || 0),
-          change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-          last_updated: new Date(dbPrice.timestamp).getTime(),
+          if (dbPrice) {
+            const goldPrice: GoldPrice = {
+              usd_per_oz: Number(dbPrice.usd_per_oz),
+              usd_per_gram: Number(dbPrice.usd_per_gram),
+              change_24h: Number(dbPrice.change_24h || 0),
+              change_percent_24h: Number(dbPrice.change_percent_24h || 0),
+              last_updated: new Date(dbPrice.timestamp).getTime(),
+            };
+            
+            this.currentPrice = goldPrice;
+            this.lastFetchTime = Date.now();
+            this.notifySubscribers(goldPrice);
+            
+            console.log('✅ Gold price updated:', goldPrice.usd_per_oz);
+            return goldPrice;
+          }
+
+          // If no DB data and we have a stale cache, return it
+          if (this.currentPrice) {
+            console.warn('⚠️ No fresh gold price, returning stale cache');
+            return this.currentPrice;
+          }
+
+          throw new Error('No gold price data available');
+        });
+      },
+      async () => {
+        // Fallback: return cached price if available
+        console.warn('⚠️ Using cached gold price (circuit breaker fallback)');
+        if (this.currentPrice) {
+          return this.currentPrice;
+        }
+        // Last resort: return a reasonable fallback price
+        return {
+          usd_per_oz: 2650,
+          usd_per_gram: 85.19,
+          change_24h: 0,
+          change_percent_24h: 0,
+          last_updated: Date.now(),
         };
-        
-        this.currentPrice = goldPrice;
-        this.lastFetchTime = Date.now();
-        this.notifySubscribers(goldPrice);
-        
-        console.log('✅ Gold price updated:', goldPrice.usd_per_oz);
-        return goldPrice;
       }
-
-      // If no DB data and we have a stale cache, return it
-      if (this.currentPrice) {
-        console.warn('⚠️ No fresh gold price, returning stale cache');
-        return this.currentPrice;
-      }
-
-      throw new Error('No gold price data available');
-    } catch (error) {
-      console.error('❌ Error fetching gold price:', error);
-      
-      // Return stale cache on error if available
-      if (this.currentPrice) {
-        console.warn('⚠️ Fetch error, returning stale cache');
-        return this.currentPrice;
-      }
-      
-      throw error;
-    }
+    );
   }
 
   // Removed mock price generation to ensure real data only

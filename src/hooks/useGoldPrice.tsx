@@ -1,17 +1,25 @@
 import { useState, useEffect } from 'react';
 import { goldPriceService, GoldPrice } from '@/services/goldPrice';
+import { useSupabaseHealth } from './useSupabaseHealth';
 
 export const useGoldPrice = () => {
   const [price, setPrice] = useState<GoldPrice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isDegraded, isUnhealthy } = useSupabaseHealth();
 
   useEffect(() => {
     let mounted = true;
 
     const loadInitialPrice = async () => {
       try {
-        setLoading(true);
+        // Progressive loading: show cached data first if available
+        const cachedPrice = goldPriceService['currentPrice'];
+        if (cachedPrice && mounted) {
+          setPrice(cachedPrice);
+          setLoading(false);
+        }
+
         setError(null);
         const currentPrice = await goldPriceService.getCurrentPrice();
         if (mounted) {
@@ -19,7 +27,13 @@ export const useGoldPrice = () => {
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load gold price');
+          const errorMessage = err instanceof Error ? err.message : 'Failed to load gold price';
+          // Only show error if we don't have cached data
+          if (!price) {
+            setError(errorMessage);
+          } else {
+            console.warn('Using cached gold price due to error:', errorMessage);
+          }
         }
       } finally {
         if (mounted) {
@@ -37,8 +51,9 @@ export const useGoldPrice = () => {
       }
     });
 
-    // Start real-time updates (every 5 minutes for stability)
-    goldPriceService.startRealTimeUpdates(300000);
+    // Adjust update frequency based on backend health
+    const updateInterval = isUnhealthy ? 600000 : isDegraded ? 420000 : 300000;
+    goldPriceService.startRealTimeUpdates(updateInterval);
 
     // Load initial price
     loadInitialPrice();
@@ -48,7 +63,7 @@ export const useGoldPrice = () => {
       unsubscribe();
       goldPriceService.stopRealTimeUpdates();
     };
-  }, []);
+  }, [isDegraded, isUnhealthy]);
 
   const refreshPrice = async () => {
     try {
