@@ -2015,6 +2015,10 @@ export type Database = {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
       }
+      get_cron_secret: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_encrypted_profile_field: {
         Args: { field_name: string; target_user_id?: string }
         Returns: string

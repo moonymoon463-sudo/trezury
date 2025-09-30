@@ -21,8 +21,26 @@ serve(async (req) => {
   }
 
   try {
+    // Create Supabase admin client first
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // 🔒 SECURITY: Validate cron secret to prevent unauthorized invocations
-    const cronSecret = Deno.env.get('CRON_SECRET');
+    let cronSecret = Deno.env.get('CRON_SECRET');
+    
+    // Fallback to database config table if not in environment
+    if (!cronSecret) {
+      const { data: configData } = await supabase
+        .from('config')
+        .select('value')
+        .eq('key', 'cron_secret')
+        .single();
+      
+      cronSecret = configData?.value;
+    }
+    
     const providedSecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
     
     if (!cronSecret || providedSecret !== cronSecret) {
@@ -40,11 +58,6 @@ serve(async (req) => {
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
                      req.headers.get('x-real-ip') || 
                      'unknown';
-    
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { data: recentInvocations, error: rateLimitError } = await supabase
