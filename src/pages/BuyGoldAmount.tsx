@@ -6,7 +6,9 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useBuyQuote } from "@/hooks/useBuyQuote";
 import { useMoonPayBuy } from "@/hooks/useMoonPayBuy";
+import { useTransactionLimits } from "@/hooks/useTransactionLimits";
 import { quoteEngineService } from "@/services/quoteEngine";
+import { buyGoldSchema } from "@/lib/validation/transactionSchemas";
 import { toast } from "sonner";
 
 const BuyGoldAmount = () => {
@@ -18,6 +20,7 @@ const BuyGoldAmount = () => {
   const { price: goldPrice } = useGoldPrice();
   const { quote, loading: quoteLoading, generateQuote } = useBuyQuote();
   const { initiateBuy, loading: moonPayLoading } = useMoonPayBuy();
+  const { checkTransactionVelocity, checking: limitsChecking } = useTransactionLimits();
   
   // Get payment method from location state (passed from BuyGold page)
   const paymentMethod = location.state?.paymentMethod || 'usdc';
@@ -79,27 +82,29 @@ const BuyGoldAmount = () => {
 
   const handleContinue = async () => {
     const numericAmount = parseFloat(amount);
-    if (!numericAmount || numericAmount <= 0) {
-      toast.error('Please enter a valid amount');
+    const usdAmount = currency === 'USD' ? numericAmount : parseFloat(calculateUsdAmount(amount));
+
+    // Validate input with Zod schema
+    const validation = buyGoldSchema.safeParse({
+      amountUSD: usdAmount,
+      paymentMethod: paymentMethod === 'credit_card' ? 'card' : 'wallet',
+    });
+
+    if (!validation.success) {
+      const error = validation.error.errors[0];
+      toast.error(error.message);
       return;
+    }
+
+    // Check transaction limits
+    const velocityCheck = await checkTransactionVelocity(usdAmount);
+    if (!velocityCheck.allowed) {
+      return; // Error toast already shown by the hook
     }
 
     // Handle card payment with MoonPay
     if (paymentMethod === 'credit_card') {
       try {
-        const usdAmount = currency === 'USD' ? numericAmount : parseFloat(calculateUsdAmount(amount));
-        
-        // Additional validation for card payments
-        if (usdAmount < 10) {
-          toast.error('Minimum purchase amount is $10 for card payments');
-          return;
-        }
-
-        if (usdAmount > 10000) {
-          toast.error('Maximum purchase amount is $10,000. Please contact support for larger amounts.');
-          return;
-        }
-
         const result = await initiateBuy({
           amount: usdAmount,
           currency: 'USD'

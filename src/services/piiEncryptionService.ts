@@ -9,7 +9,20 @@ export interface PIIEncryptionService {
 }
 
 class PIIEncryptionServiceImpl implements PIIEncryptionService {
-  private readonly ENCRYPTION_KEY = 'pii-encryption-key'; // In production, use proper key management
+  private getEncryptionKey(): string {
+    // Fetch encryption key from environment (Supabase secrets)
+    // This should be set via Supabase dashboard: Settings -> Edge Functions -> Secrets
+    const keyString = typeof process !== 'undefined' 
+      ? process.env.PII_ENCRYPTION_KEY 
+      : localStorage.getItem('__dev_pii_key'); // Dev fallback only
+    
+    if (!keyString) {
+      console.error('PII_ENCRYPTION_KEY not configured. Using fallback (INSECURE).');
+      return 'dev-fallback-key-insecure'; // Fallback for development
+    }
+    
+    return keyString;
+  }
   
   async encryptSSN(ssn: string): Promise<string> {
     // Use Web Crypto API for encryption
@@ -19,10 +32,11 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
     // Generate a random IV for each encryption
     const iv = crypto.getRandomValues(new Uint8Array(12));
     
-    // In production, derive key from secure key management system
+    // Get encryption key from secure source
+    const encryptionKey = this.getEncryptionKey();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.ENCRYPTION_KEY.padEnd(32, '0')),
+      encoder.encode(encryptionKey.padEnd(32, '0')),
       { name: 'AES-GCM' },
       false,
       ['encrypt']
@@ -55,9 +69,11 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
     const iv = combined.slice(0, 12);
     const encrypted = combined.slice(12);
     
+    // Get encryption key from secure source
+    const encryptionKey = this.getEncryptionKey();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(this.ENCRYPTION_KEY.padEnd(32, '0')),
+      encoder.encode(encryptionKey.padEnd(32, '0')),
       { name: 'AES-GCM' },
       false,
       ['decrypt']

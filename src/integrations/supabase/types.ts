@@ -1819,6 +1819,56 @@ export type Database = {
         }
         Relationships: []
       }
+      user_transaction_limits: {
+        Row: {
+          confirmation_threshold: number
+          created_at: string
+          daily_transaction_max: number
+          id: string
+          max_transactions_per_day: number
+          max_transactions_per_hour: number
+          monthly_transaction_max: number
+          single_transaction_max: number
+          tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confirmation_threshold?: number
+          created_at?: string
+          daily_transaction_max?: number
+          id?: string
+          max_transactions_per_day?: number
+          max_transactions_per_hour?: number
+          monthly_transaction_max?: number
+          single_transaction_max?: number
+          tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          confirmation_threshold?: number
+          created_at?: string
+          daily_transaction_max?: number
+          id?: string
+          max_transactions_per_day?: number
+          max_transactions_per_hour?: number
+          monthly_transaction_max?: number
+          single_transaction_max?: number
+          tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_transaction_limits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           address: string
@@ -1990,6 +2040,10 @@ export type Database = {
       check_transaction_access_rate_limit: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      check_transaction_velocity: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: Json
       }
       cleanup_old_rate_limits: {
         Args: Record<PropertyKey, never>

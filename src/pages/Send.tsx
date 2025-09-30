@@ -10,8 +10,10 @@ import StandardHeader from "@/components/StandardHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
+import { useTransactionLimits } from "@/hooks/useTransactionLimits";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { sendTransactionSchema } from "@/lib/validation/transactionSchemas";
 import { cn } from "@/lib/utils";
 
 const Send = () => {
@@ -19,6 +21,7 @@ const Send = () => {
   const { toast } = useToast();
   const { getBalance, refreshBalances } = useWalletBalance();
   const { signTransaction, getWalletAddress } = useSecureWallet();
+  const { checkTransactionVelocity, checking: limitsChecking } = useTransactionLimits();
   
   const [asset, setAsset] = useState<string>("");
   const [recipientAddress, setRecipientAddress] = useState("");
@@ -47,21 +50,31 @@ const Send = () => {
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
     
+    // Validate with Zod schema
+    const validation = sendTransactionSchema.safeParse({
+      amount: parseFloat(amount) || 0,
+      currency: asset as 'USDC' | 'XAUT' | 'TRZRY',
+      recipientAddress: recipientAddress,
+      asset: asset as 'USDC' | 'XAUT' | 'TRZRY',
+    });
+
+    if (!validation.success) {
+      validation.error.errors.forEach((error) => {
+        const field = error.path[0] as string;
+        newErrors[field === 'recipientAddress' ? 'recipient' : field] = error.message;
+      });
+    }
+    
+    // Additional checks
     if (!asset) {
       newErrors.asset = "Please select an asset to send";
     }
     
-    if (!recipientAddress) {
-      newErrors.recipient = "Recipient address is required";
-    } else if (!/^0x[a-fA-F0-9]{40}$/.test(recipientAddress)) {
-      newErrors.recipient = "Invalid Ethereum address format";
-    } else if (recipientAddress.toLowerCase() === senderAddress.toLowerCase()) {
+    if (recipientAddress.toLowerCase() === senderAddress.toLowerCase()) {
       newErrors.recipient = "Cannot send to your own address";
     }
     
-    if (!amount || parseFloat(amount) <= 0) {
-      newErrors.amount = "Please enter a valid amount";
-    } else {
+    if (amount && parseFloat(amount) > 0) {
       const balance = getBalance(asset);
       const sendAmount = parseFloat(amount);
       const totalNeeded = sendAmount + estimatedFee;
@@ -106,6 +119,13 @@ const Send = () => {
 
   const handleSend = async () => {
     if (!validateForm()) return;
+
+    // Check transaction velocity limits
+    const usdValue = parseFloat(amount) || 0;
+    const velocityCheck = await checkTransactionVelocity(usdValue);
+    if (!velocityCheck.allowed) {
+      return; // Error toast already shown by the hook
+    }
 
     setIsLoading(true);
     try {
