@@ -69,7 +69,7 @@ const BuyGoldQuote = () => {
                   Minimum gold received
                 </p>
                 <div className="flex items-center gap-2">
-                  <p className="text-[#f9b006] text-base font-bold leading-normal text-right">
+                  <p className="text-primary text-base font-bold leading-normal text-right">
                     {quoteData.minimumGoldReceived}
                   </p>
                 </div>
@@ -79,7 +79,7 @@ const BuyGoldQuote = () => {
             {/* Action Buttons */}
             <div className="mt-8 space-y-3">
               <Button 
-                className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
+                className="w-full h-14 bg-primary text-black font-bold text-lg rounded-xl hover:bg-primary/90"
                 onClick={() => navigate("/buy-gold/confirmation")}
               >
                 Confirm Purchase

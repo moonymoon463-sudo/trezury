@@ -184,7 +184,7 @@ const Settings = () => {
     return (
       <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f9b006]"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -247,7 +247,7 @@ const Settings = () => {
             <Button 
               onClick={updateProfile} 
               disabled={saving} 
-              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
             >
               {saving ? "Updating..." : "Update Profile"}
             </Button>
@@ -269,7 +269,7 @@ const Settings = () => {
                 <span className="font-semibold text-white">KYC Status</span>
                 <Badge 
                   variant={profile.kyc_status === 'verified' ? 'default' : 'secondary'}
-                  className={profile.kyc_status === 'verified' ? 'bg-[#f9b006] text-black' : 'bg-[#1C1C1E] text-gray-400'}
+                  className={profile.kyc_status === 'verified' ? 'bg-primary text-black' : 'bg-[#1C1C1E] text-gray-400'}
                 >
                   {kycInfo.label}
                 </Badge>
@@ -283,7 +283,7 @@ const Settings = () => {
               onClick={() => navigate("/kyc-verification")}
               className={`w-full ${profile.kyc_status === 'failed' 
                 ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-[#f9b006] text-black hover:bg-[#f9b006]/90'
+                : 'bg-primary text-black hover:bg-primary/90'
               }`}
             >
               {profile.kyc_status === 'failed' ? 'Retry Verification' : 'Start Verification'}
@@ -418,9 +418,9 @@ const Settings = () => {
 
         {/* Admin Section */}
         {isAdmin && (
-          <div className="bg-[#2C2C2E] rounded-xl p-4 border border-[#f9b006]/30">
+          <div className="bg-[#2C2C2E] rounded-xl p-4 border border-primary/30">
             <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
-              <Crown size={20} className="text-[#f9b006]" />
+              <Crown size={20} className="text-primary" />
               Admin Panel
             </h3>
             <p className="text-sm text-gray-400 mb-4">
@@ -428,7 +428,7 @@ const Settings = () => {
             </p>
             <Button 
               onClick={() => navigate('/admin')}
-              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
             >
               Access Admin Dashboard
             </Button>

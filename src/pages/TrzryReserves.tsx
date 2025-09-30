@@ -71,7 +71,7 @@ const TrzryReserves = () => {
                 </div>
               </div>
               <Button 
-                className="bg-[#f9b006] text-black font-bold h-10 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
+                className="bg-primary text-black font-bold h-10 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90"
                 onClick={() => navigate("/swap?to=TRZRY")}
               >
                 <ShoppingCart size={14} />
@@ -127,7 +127,7 @@ const TrzryReserves = () => {
             <h3 className="text-white text-base font-bold mb-3">Why TRZRY?</h3>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-[#f9b006] rounded-full flex items-center justify-center text-xs font-bold text-black mt-0.5">
+                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-xs font-bold text-black mt-0.5">
                   1
                 </div>
                 <div>
@@ -137,7 +137,7 @@ const TrzryReserves = () => {
               </div>
               
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-[#f9b006] rounded-full flex items-center justify-center text-xs font-bold text-black mt-0.5">
+                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-xs font-bold text-black mt-0.5">
                   2
                 </div>
                 <div>
@@ -147,7 +147,7 @@ const TrzryReserves = () => {
               </div>
               
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-[#f9b006] rounded-full flex items-center justify-center text-xs font-bold text-black mt-0.5">
+                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-xs font-bold text-black mt-0.5">
                   3
                 </div>
                 <div>

@@ -73,7 +73,7 @@ const Index = () => {
                 <div className="h-4 w-16 bg-gray-600 rounded"></div>
               </div>
             ) : goldPrice && (
-              <div className="flex items-center gap-1 text-[#f9b006]">
+              <div className="flex items-center gap-1 text-primary">
                 <TrendingUp size={14} />
                 <span className="text-xs font-medium">
                   {goldPrice.change_percent_24h >= 0 ? "+" : ""}{goldPrice.change_percent_24h.toFixed(2)}%
@@ -100,42 +100,42 @@ const Index = () => {
         {/* Action Buttons - 2x3 Grid */}
         <div className="grid grid-cols-2 gap-2 flex-shrink-0">
           <Button 
-            className="bg-[#f9b006] text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006]/90"
+            className="bg-primary text-black font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary/90"
             onClick={() => navigate("/buy-sell-hub")}
           >
             <ShoppingCart size={14} />
             Buy Gold
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/buy-sell-hub")}
           >
             <DollarSign size={14} />
             Sell/Cash Out
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/swap")}
           >
             <ArrowRightLeft size={14} />
             Swap
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/swap?to=TRZRY")}
           >
             <TrendingUp size={14} />
             Buy Trzry
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/send")}
           >
             <Send size={14} />
             Send
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[#f9b006] hover:text-black transition-all duration-200"
+            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/receive")}
           >
             <Download size={14} />

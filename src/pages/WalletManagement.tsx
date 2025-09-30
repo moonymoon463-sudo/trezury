@@ -78,7 +78,7 @@ const WalletManagement = () => {
                 <p className="text-gray-400 mb-4">No wallet addresses generated</p>
                 <Button 
                   onClick={generateWallet}
-                  className="bg-[#f9b006] text-black hover:bg-[#f9b006]/90"
+                  className="bg-primary text-black hover:bg-primary/90"
                 >
                   Generate Wallet
                 </Button>
@@ -202,7 +202,7 @@ const WalletManagement = () => {
           <Button 
             onClick={generateWallet}
             disabled={loading}
-            className="bg-[#f9b006] text-black hover:bg-[#f9b006]/90 flex-1"
+            className="bg-primary text-black hover:bg-primary/90 flex-1"
           >
             <Wallet className="w-4 h-4 mr-2" />
             Generate Wallet

@@ -141,7 +141,7 @@ const PaymentMethods = () => {
     return (
       <div className="flex flex-col h-screen bg-[#1C1C1E]">
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#f9b006]"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -175,7 +175,7 @@ const PaymentMethods = () => {
             </p>
             <Button 
               onClick={() => navigate("/kyc-verification")} 
-              className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
             >
               Start Verification
             </Button>
@@ -217,7 +217,7 @@ const PaymentMethods = () => {
           </p>
           <Button 
             onClick={() => navigate("/add-payment-method")} 
-            className="w-full bg-[#f9b006] text-black font-bold hover:bg-[#f9b006]/90"
+            className="w-full bg-primary text-black font-bold hover:bg-primary/90"
           >
             Add Payment Method
           </Button>
@@ -290,7 +290,7 @@ const PaymentMethods = () => {
         {/* Security Notice */}
         <div className="bg-[#2C2C2E] rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <Shield className="h-5 w-5 text-[#f9b006] mt-0.5" />
+            <Shield className="h-5 w-5 text-primary mt-0.5" />
             <div>
               <h4 className="font-semibold text-white mb-1">Secure & Protected</h4>
               <p className="text-sm text-gray-400">

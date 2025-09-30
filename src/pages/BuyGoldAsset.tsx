@@ -47,8 +47,8 @@ const BuyGoldAsset = () => {
               key={asset.symbol}
               className={`flex items-center gap-4 rounded-xl border p-4 transition-all w-full ${
                 selectedAsset === asset.symbol
-                  ? "border-[#f9b006] bg-zinc-900"
-                  : "border-zinc-800 bg-zinc-900 hover:border-[#f9b006]"
+                  ? "border-primary bg-zinc-900"
+                  : "border-zinc-800 bg-zinc-900 hover:border-primary"
               }`}
               onClick={() => setSelectedAsset(asset.symbol)}
             >
@@ -65,7 +65,7 @@ const BuyGoldAsset = () => {
               </div>
               <div className={`flex size-6 items-center justify-center rounded-full border-2 ${
                 selectedAsset === asset.symbol
-                  ? "border-[#f9b006] bg-[#f9b006]"
+                  ? "border-primary bg-primary"
                   : "border-zinc-700"
               }`}>
                 {selectedAsset === asset.symbol && (
@@ -80,7 +80,7 @@ const BuyGoldAsset = () => {
       {/* Continue Button */}
       <div className="p-6">
         <Button 
-          className="w-full h-14 bg-[#f9b006] text-black font-bold text-lg rounded-xl hover:bg-[#f9b006]/90"
+          className="w-full h-14 bg-primary text-black font-bold text-lg rounded-xl hover:bg-primary/90"
           onClick={() => navigate("/buy-gold/quote")}
         >
           Continue
@@ -98,7 +98,7 @@ const BuyGoldAsset = () => {
           </svg>
           <span className="text-xs">Dashboard</span>
         </button>
-        <div className="flex flex-col items-center gap-1 text-[#f9b006]">
+        <div className="flex flex-col items-center gap-1 text-primary">
           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
             <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
           </svg>

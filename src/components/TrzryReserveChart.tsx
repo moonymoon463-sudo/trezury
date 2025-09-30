@@ -18,7 +18,7 @@ const TrzryReserveChart = () => {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-white text-base font-bold">Reserve Growth (30 Days)</h3>
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-[#f9b006] rounded-full"></div>
+          <div className="w-2 h-2 bg-primary rounded-full"></div>
           <span className="text-gray-400 text-xs">Total Value</span>
         </div>
       </div>
@@ -61,10 +61,10 @@ const TrzryReserveChart = () => {
               <Line 
                 type="monotone" 
                 dataKey="value" 
-                stroke="#f9b006" 
+                stroke="hsl(var(--primary))" 
                 strokeWidth={3}
                 dot={false}
-                activeDot={{ r: 5, fill: '#f9b006', strokeWidth: 2, stroke: '#1A1A1A' }}
+                activeDot={{ r: 5, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: '#1A1A1A' }}
               />
             </LineChart>
           </ResponsiveContainer>

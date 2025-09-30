@@ -179,7 +179,7 @@ const BuyGoldAmount = () => {
               <button 
                 className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
                   currency === "USD" 
-                    ? "bg-[#f9b006] text-black" 
+                    ? "bg-primary text-black"
                     : "text-gray-400"
                 }`}
                 onClick={() => setCurrency("USD")}
@@ -189,7 +189,7 @@ const BuyGoldAmount = () => {
               <button 
                 className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
                   currency === "GRAMS" 
-                    ? "bg-[#f9b006] text-black" 
+                    ? "bg-primary text-black" 
                     : "text-gray-400"
                 }`}
                 onClick={() => setCurrency("GRAMS")}
@@ -278,7 +278,7 @@ const BuyGoldAmount = () => {
         {/* Continue Button */}
         <div className="pt-4">
           <Button 
-            className="w-full bg-[#f9b006] text-black font-bold h-14 text-lg rounded-xl hover:bg-[#f9b006]/90"
+            className="w-full bg-primary text-black font-bold h-14 text-lg rounded-xl hover:bg-primary/90"
             disabled={!amount || parseFloat(amount) <= 0 || (paymentMethod === 'usdc' && !quote) || moonPayLoading}
             onClick={handleContinue}
           >

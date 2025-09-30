@@ -73,7 +73,7 @@ const BuyGoldConfirmation = () => {
             <p className="text-gray-400 mb-6">Please return to the amount page to generate a new quote.</p>
             <Button 
               onClick={() => navigate("/buy-gold/amount")}
-              className="bg-[#f9b006] text-black hover:bg-[#f9b006]/90"
+              className="bg-primary text-black hover:bg-primary/90"
             >
               Back to Amount
             </Button>
@@ -106,7 +106,7 @@ const BuyGoldConfirmation = () => {
       <main className="flex-1 px-4 py-8">
         {/* Quote Expiration Warning */}
         {timeRemaining > 0 && (
-          <div className="bg-[#2C2C2E] border border-[#f9b006]/30 rounded-xl p-4 mb-6">
+          <div className="bg-[#2C2C2E] border border-primary/30 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 text-gray-400">
               <Clock size={16} />
               <span className="text-sm">Quote expires in {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</span>
@@ -117,8 +117,8 @@ const BuyGoldConfirmation = () => {
         {/* Quote Summary */}
         <div className="bg-[#2C2C2E] rounded-xl p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-[#f9b006]/20 rounded-full flex items-center justify-center">
-              <TrendingUp size={20} className="text-[#f9b006]" />
+            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
+              <TrendingUp size={20} className="text-primary" />
             </div>
             <h2 className="text-xl font-bold text-white">Purchase Summary</h2>
           </div>
@@ -187,7 +187,7 @@ const BuyGoldConfirmation = () => {
           className={`w-full h-14 font-bold text-lg rounded-xl ${
             timeRemaining === 0 || isExecuting || executionLoading
               ? 'bg-gray-600 text-gray-400' 
-              : 'bg-[#f9b006] text-black hover:bg-[#f9b006]/90'
+              : 'bg-primary text-black hover:bg-primary/90'
           }`}
           disabled={timeRemaining === 0 || isExecuting || executionLoading}
           onClick={handleExecuteTransaction}
