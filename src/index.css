@@ -26,7 +26,7 @@ All colors MUST be HSL.
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 38 92% 50%; /* #f9b006 - gold */
+    --primary: 43 65% 55%; /* Logo-matched gold */
     --primary-foreground: 0 0% 0%; /* black */
 
     --secondary: 0 0% 31%; /* gray-800 */
@@ -35,7 +35,7 @@ All colors MUST be HSL.
     --muted: 0 0% 25%;
     --muted-foreground: 0 0% 64%; /* gray-400 */
 
-    --accent: 38 92% 50%;
+    --accent: 43 65% 55%;
     --accent-foreground: 0 0% 0%;
 
     --destructive: 0 84.2% 60.2%;
@@ -43,21 +43,21 @@ All colors MUST be HSL.
 
     --border: 0 0% 31%;
     --input: 0 0% 31%;
-    --ring: 38 92% 50%;
+    --ring: 43 65% 55%;
 
     --radius: 0.75rem;
 
     /* Aurum specific colors */
-    --aurum-gold: 38 92% 50%; /* #f9b006 */
-    --aurum-glow: 38 92% 65%; /* Lighter gold for gradients */
-    --aurum-dark: 30 35% 11%; /* #352C18 equivalent */
+    --aurum-gold: 43 65% 55%; /* Logo-matched primary gold */
+    --aurum-glow: 48 70% 65%; /* Logo-matched lighter gold */
+    --aurum-dark: 35 45% 35%; /* Logo-matched deep bronze */
     --aurum-gray: 0 0% 31%; /* gray-800 */
     --aurum-text-muted: 0 0% 64%; /* gray-400 */
-    --aurum-muted: 37 35% 65%; /* #CCBA8E equivalent */
+    --aurum-muted: 42 50% 70%; /* Logo-matched muted gold */
     --aurum-border: 37 25% 40%; /* #6a582f equivalent */
     
     /* Additional semantic tokens for comprehensive design system */
-    --chart-primary: 38 92% 50%; /* Gold */
+    --chart-primary: 43 65% 55%; /* Logo-matched gold */
     --chart-secondary: 0 0% 50%; /* Gray */
     --chart-positive: 142 76% 36%; /* Green */
     --chart-negative: 0 84% 60%; /* Red */
@@ -72,12 +72,12 @@ All colors MUST be HSL.
 
     --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary: 43 65% 55%;
     --sidebar-primary-foreground: 0 0% 0%;
     --sidebar-accent: 0 0% 31%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 31%;
-    --sidebar-ring: 38 92% 50%;
+    --sidebar-ring: 43 65% 55%;
   }
 
   .dark {
@@ -90,7 +90,7 @@ All colors MUST be HSL.
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 38 92% 50%;
+    --primary: 43 65% 55%;
     --primary-foreground: 0 0% 0%;
 
     --secondary: 0 0% 31%;
@@ -99,7 +99,7 @@ All colors MUST be HSL.
     --muted: 0 0% 25%;
     --muted-foreground: 0 0% 64%;
 
-    --accent: 38 92% 50%;
+    --accent: 43 65% 55%;
     --accent-foreground: 0 0% 0%;
 
     --destructive: 0 62.8% 30.6%;
@@ -107,15 +107,15 @@ All colors MUST be HSL.
 
     --border: 0 0% 31%;
     --input: 0 0% 31%;
-    --ring: 38 92% 50%;
+    --ring: 43 65% 55%;
     --sidebar-background: 0 0% 9%;
     --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 38 92% 50%;
+    --sidebar-primary: 43 65% 55%;
     --sidebar-primary-foreground: 0 0% 0%;
     --sidebar-accent: 0 0% 31%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 0 0% 31%;
-    --sidebar-ring: 38 92% 50%;
+    --sidebar-ring: 43 65% 55%;
   }
 
 }
