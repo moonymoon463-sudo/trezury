@@ -10,6 +10,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { SessionHealthMonitor } from "@/components/SessionHealthMonitor";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -137,6 +138,7 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <SessionHealthMonitor />
       <PWAProvider>
         <TooltipProvider>
           <Toaster />

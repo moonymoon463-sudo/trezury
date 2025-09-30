@@ -3,6 +3,7 @@ import { ArrowLeft, RefreshCw, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AurumLogo from '@/components/AurumLogo';
+import { ConnectionStatusBadge } from '@/components/ConnectionStatusBadge';
 
 interface StandardHeaderProps {
   title?: string;
@@ -70,6 +71,7 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
 
           {/* Right Section */}
           <div className="w-8 sm:w-10 lg:w-12 flex justify-end gap-1">
+            <ConnectionStatusBadge />
             {rightActions ? (
               <div className="flex items-center gap-1 max-w-full overflow-hidden">
                 {rightActions}
