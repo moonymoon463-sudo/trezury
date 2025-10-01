@@ -1138,7 +1138,6 @@ export type Database = {
           created_at: string
           data_classification: string | null
           date_of_birth: string | null
-          dob_encrypted: string | null
           email: string
           encryption_metadata: Json | null
           first_name: string | null
@@ -1151,7 +1150,6 @@ export type Database = {
           last_pii_access: string | null
           metadata: Json | null
           phone: string | null
-          ssn_encrypted: string | null
           ssn_last_four: string | null
           state: string | null
           updated_at: string
@@ -1164,7 +1162,6 @@ export type Database = {
           created_at?: string
           data_classification?: string | null
           date_of_birth?: string | null
-          dob_encrypted?: string | null
           email: string
           encryption_metadata?: Json | null
           first_name?: string | null
@@ -1177,7 +1174,6 @@ export type Database = {
           last_pii_access?: string | null
           metadata?: Json | null
           phone?: string | null
-          ssn_encrypted?: string | null
           ssn_last_four?: string | null
           state?: string | null
           updated_at?: string
@@ -1190,7 +1186,6 @@ export type Database = {
           created_at?: string
           data_classification?: string | null
           date_of_birth?: string | null
-          dob_encrypted?: string | null
           email?: string
           encryption_metadata?: Json | null
           first_name?: string | null
@@ -1203,7 +1198,6 @@ export type Database = {
           last_pii_access?: string | null
           metadata?: Json | null
           phone?: string | null
-          ssn_encrypted?: string | null
           ssn_last_four?: string | null
           state?: string | null
           updated_at?: string
@@ -1477,51 +1471,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      session_security: {
-        Row: {
-          created_at: string | null
-          device_fingerprint: string | null
-          id: string
-          ip_address: unknown | null
-          is_suspicious: boolean | null
-          last_activity: string | null
-          location: Json | null
-          metadata: Json | null
-          risk_score: number | null
-          session_id: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          device_fingerprint?: string | null
-          id?: string
-          ip_address?: unknown | null
-          is_suspicious?: boolean | null
-          last_activity?: string | null
-          location?: Json | null
-          metadata?: Json | null
-          risk_score?: number | null
-          session_id: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          device_fingerprint?: string | null
-          id?: string
-          ip_address?: unknown | null
-          is_suspicious?: boolean | null
-          last_activity?: string | null
-          location?: Json | null
-          metadata?: Json | null
-          risk_score?: number | null
-          session_id?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
       }
       swap_quotes: {
         Row: {
@@ -2108,21 +2057,9 @@ export type Database = {
         Args: { alert_type: string; details?: Json; severity?: string }
         Returns: undefined
       }
-      decrypt_pii: {
-        Args: {
-          encrypted_data: string
-          field_name: string
-          target_user_id: string
-        }
-        Returns: string
-      }
       emergency_transaction_lockdown: {
         Args: Record<PropertyKey, never>
         Returns: boolean
-      }
-      encrypt_pii: {
-        Args: { field_name: string; plaintext: string }
-        Returns: string
       }
       encrypt_sensitive_field: {
         Args: { input_text: string }
@@ -2134,6 +2071,10 @@ export type Database = {
       }
       get_cron_secret: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_encrypted_profile_field: {
+        Args: { field_name: string; target_user_id?: string }
         Returns: string
       }
       get_gold_price_cron_status: {
@@ -2158,7 +2099,11 @@ export type Database = {
           usd_per_oz: number
         }[]
       }
-      get_masked_profile: {
+      get_public_config: {
+        Args: { key_name: string }
+        Returns: string
+      }
+      get_secure_profile: {
         Args: { target_user_id?: string }
         Returns: {
           address: string
@@ -2169,32 +2114,21 @@ export type Database = {
           email: string
           first_name: string
           id: string
+          kyc_rejection_reason: string
           kyc_status: string
           kyc_submitted_at: string
           kyc_verified_at: string
           last_name: string
           phone: string
-          ssn_display: string
+          ssn_last_four: string
           state: string
           updated_at: string
           zip_code: string
         }[]
       }
-      get_public_config: {
-        Args: { key_name: string }
-        Returns: string
-      }
-      get_security_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       get_system_health_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
-      }
-      get_verified_pii_field: {
-        Args: { field_name: string; target_user_id?: string }
-        Returns: string
       }
       has_role: {
         Args: {
