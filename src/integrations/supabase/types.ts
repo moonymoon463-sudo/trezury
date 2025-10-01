@@ -2192,6 +2192,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_user_email: {
+        Args: { _user_id: string }
+        Returns: string
+      }
       get_verified_pii_field: {
         Args: { field_name: string; target_user_id?: string }
         Returns: string
@@ -2211,8 +2215,16 @@ export type Database = {
         Args: { _user_id?: string }
         Returns: boolean
       }
+      is_institutional_admin: {
+        Args: { _account_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_kyc_verified: {
         Args: { user_uuid: string }
+        Returns: boolean
+      }
+      is_team_member: {
+        Args: { _account_id: string; _user_id: string }
         Returns: boolean
       }
       log_high_risk_operation: {
