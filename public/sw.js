@@ -1,13 +1,15 @@
-const CACHE_NAME = 'trezury-v5';
-const STATIC_CACHE = 'trezury-static-v5';
-const DYNAMIC_CACHE = 'trezury-dynamic-v5';
+const CACHE_NAME = 'trezury-v6';
+const STATIC_CACHE = 'trezury-static-v6';
+const DYNAMIC_CACHE = 'trezury-dynamic-v6';
 
 const urlsToCache = [
   '/',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
-  '/favicon.png',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
+  '/apple-touch-icon.png',
   '/screenshot-mobile.png',
   '/screenshot-desktop.png'
 ];
