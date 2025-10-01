@@ -11,25 +11,25 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/symbol-3.svg",
+      "src": "/symbol.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/symbol.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/symbol.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/symbol.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
