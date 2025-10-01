@@ -10,7 +10,7 @@ import { useEnhancedAI } from '@/hooks/useEnhancedAI';
 import { cn } from '@/lib/utils';
 import DOMPurify from 'dompurify';
 
-// Helper function to format message content with enhanced readability
+// Helper function to format and sanitize message content
 const formatMessageContent = (content: string) => {
   // Enhanced formatting for better readability
   let formatted = content
@@ -28,7 +28,12 @@ const formatMessageContent = (content: string) => {
   // Format percentages
   formatted = formatted.replace(/\d+\.?\d*%/g, '<span class="font-medium text-blue-600 dark:text-blue-400">$&</span>');
 
-  return formatted;
+  // Sanitize HTML to prevent XSS attacks
+  return DOMPurify.sanitize(formatted, {
+    ALLOWED_TAGS: ['strong', 'em', 'div', 'span', 'br'],
+    ALLOWED_ATTR: ['class'],
+    KEEP_CONTENT: true
+  });
 };
 
 interface AIChatInterfaceProps {
