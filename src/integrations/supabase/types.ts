@@ -176,13 +176,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "balance_snapshots_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       chat_conversations: {
@@ -812,13 +805,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "kyc_documents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       moonpay_customers: {
@@ -957,13 +943,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -1286,13 +1265,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "quotes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       real_time_security_events: {
@@ -1341,13 +1313,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "real_time_security_events_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -1509,13 +1474,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "security_incidents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -1805,13 +1763,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_preferences: {
@@ -1922,13 +1873,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_transaction_limits_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       wallets: {
@@ -1959,13 +1903,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wallets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -2047,72 +1984,7 @@ export type Database = {
       }
     }
     Views: {
-      profiles_secure: {
-        Row: {
-          address: string | null
-          city: string | null
-          country: string | null
-          created_at: string | null
-          data_classification: string | null
-          date_of_birth: string | null
-          email: string | null
-          first_name: string | null
-          id: string | null
-          kyc_status: string | null
-          kyc_submitted_at: string | null
-          kyc_verified_at: string | null
-          last_name: string | null
-          metadata: Json | null
-          phone: string | null
-          ssn_display: string | null
-          state: string | null
-          updated_at: string | null
-          zip_code: string | null
-        }
-        Insert: {
-          address?: never
-          city?: string | null
-          country?: string | null
-          created_at?: string | null
-          data_classification?: string | null
-          date_of_birth?: never
-          email?: string | null
-          first_name?: string | null
-          id?: string | null
-          kyc_status?: string | null
-          kyc_submitted_at?: string | null
-          kyc_verified_at?: string | null
-          last_name?: string | null
-          metadata?: Json | null
-          phone?: never
-          ssn_display?: never
-          state?: string | null
-          updated_at?: string | null
-          zip_code?: string | null
-        }
-        Update: {
-          address?: never
-          city?: string | null
-          country?: string | null
-          created_at?: string | null
-          data_classification?: string | null
-          date_of_birth?: never
-          email?: string | null
-          first_name?: string | null
-          id?: string | null
-          kyc_status?: string | null
-          kyc_submitted_at?: string | null
-          kyc_verified_at?: string | null
-          last_name?: string | null
-          metadata?: Json | null
-          phone?: never
-          ssn_display?: never
-          state?: string | null
-          updated_at?: string | null
-          zip_code?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       admin_assign_role: {
@@ -2239,6 +2111,28 @@ export type Database = {
           source: string
           usd_per_gram: number
           usd_per_oz: number
+        }[]
+      }
+      get_masked_profile: {
+        Args: { target_user_id?: string }
+        Returns: {
+          address: string
+          city: string
+          country: string
+          created_at: string
+          date_of_birth: string
+          email: string
+          first_name: string
+          id: string
+          kyc_status: string
+          kyc_submitted_at: string
+          kyc_verified_at: string
+          last_name: string
+          phone: string
+          ssn_display: string
+          state: string
+          updated_at: string
+          zip_code: string
         }[]
       }
       get_public_config: {
