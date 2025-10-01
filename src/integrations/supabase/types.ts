@@ -1478,6 +1478,51 @@ export type Database = {
           },
         ]
       }
+      session_security: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string | null
+          id: string
+          ip_address: unknown | null
+          is_suspicious: boolean | null
+          last_activity: string | null
+          location: Json | null
+          metadata: Json | null
+          risk_score: number | null
+          session_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint?: string | null
+          id?: string
+          ip_address?: unknown | null
+          is_suspicious?: boolean | null
+          last_activity?: string | null
+          location?: Json | null
+          metadata?: Json | null
+          risk_score?: number | null
+          session_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string | null
+          id?: string
+          ip_address?: unknown | null
+          is_suspicious?: boolean | null
+          last_activity?: string | null
+          location?: Json | null
+          metadata?: Json | null
+          risk_score?: number | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       swap_quotes: {
         Row: {
           created_at: string
@@ -2138,6 +2183,10 @@ export type Database = {
       get_public_config: {
         Args: { key_name: string }
         Returns: string
+      }
+      get_security_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_system_health_metrics: {
         Args: Record<PropertyKey, never>
