@@ -2116,6 +2116,10 @@ export type Database = {
         }
         Returns: string
       }
+      emergency_pii_lockdown_active: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       emergency_transaction_lockdown: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -2278,6 +2282,10 @@ export type Database = {
       }
       mask_address: {
         Args: { address_value: string }
+        Returns: string
+      }
+      mask_email: {
+        Args: { email_value: string }
         Returns: string
       }
       mask_phone: {

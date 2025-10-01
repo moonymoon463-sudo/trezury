@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAIChat, ChatMessage } from '@/hooks/useAIChat';
 import { useEnhancedAI } from '@/hooks/useEnhancedAI';
 import { cn } from '@/lib/utils';
+import DOMPurify from 'dompurify';
 
 // Helper function to format message content with enhanced readability
 const formatMessageContent = (content: string) => {
@@ -94,7 +95,12 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
       )}>
         <div 
           className="text-sm leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: formatMessageContent(message.content) }}
+          dangerouslySetInnerHTML={{ 
+            __html: DOMPurify.sanitize(formatMessageContent(message.content), {
+              ALLOWED_TAGS: ['strong', 'em', 'div', 'span', 'br'],
+              ALLOWED_ATTR: ['class']
+            })
+          }}
         />
         <div className={cn(
           "text-xs mt-1.5 opacity-60",
