@@ -2096,6 +2096,10 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: Json
       }
+      cleanup_old_audit_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_old_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2188,6 +2192,10 @@ export type Database = {
         Args: { key_name: string }
         Returns: string
       }
+      get_security_dashboard_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_security_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -2243,6 +2251,17 @@ export type Database = {
       log_pii_access: {
         Args: {
           p_access_granted: boolean
+          p_fields_accessed: string[]
+          p_operation: string
+          p_target_user_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      log_pii_access_enhanced: {
+        Args: {
+          p_access_granted: boolean
+          p_access_reason?: string
           p_fields_accessed: string[]
           p_operation: string
           p_target_user_id: string
