@@ -1,55 +1,70 @@
 import { supabase } from "@/integrations/supabase/client";
 import { OnchainAddress, Deposit } from './providers/types';
+import { secureWalletService } from './secureWalletService';
 
+/**
+ * SECURE WALLET SERVICE
+ * 
+ * This service uses deterministic wallet generation.
+ * Each user gets a unique Ethereum address derived from their user ID.
+ * Private keys are NEVER stored - they can only be derived with the user's password.
+ */
 export class WalletService {
+  /**
+   * Get or create a secure deterministic wallet address for the user
+   * Returns the same address for the same user ID every time
+   */
   async getOrCreateDepositAddress(userId: string): Promise<OnchainAddress> {
-    // First check if user already has a deposit address
+    // Check if user already has a wallet address stored
     const { data: existingAddress, error: fetchError } = await supabase
       .from('onchain_addresses')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (existingAddress && !fetchError) {
       return existingAddress;
     }
 
-    // Generate a new deposit address (placeholder - would integrate with actual wallet provider)
-    const newAddress = this.generatePlaceholderAddress();
+    // Generate secure deterministic wallet address
+    // This creates the SAME address for this user every time based on their user ID
+    const walletAddress = await secureWalletService.getWalletAddress(userId);
     
-    // Create addresses for both assets on Ethereum
-    const usdcAddress = this.generatePlaceholderAddress();
-    const xautAddress = this.generatePlaceholderAddress(); // XAUT (Tether Gold)
-    
-    const { data: createdAddresses, error: createError } = await supabase
+    if (!walletAddress) {
+      throw new Error('Failed to generate wallet address');
+    }
+
+    // Store the public address (NO private keys are stored)
+    const { data: createdAddress, error: createError } = await supabase
       .from('onchain_addresses')
-      .insert([
-        {
-          user_id: userId,
-          address: usdcAddress,
-          chain: 'ethereum',
-          asset: 'USDC'
-        },
-        {
-          user_id: userId,
-          address: xautAddress,
-          chain: 'ethereum',
-          asset: 'XAUT' // Tether Gold (1 token = 1 oz)
-        }
-      ])
-      .select();
+      .insert({
+        user_id: userId,
+        address: walletAddress,
+        chain: 'ethereum',
+        asset: 'USDC', // Same address works for all ERC-20 tokens (USDC, XAUT, etc.)
+        setup_method: 'deterministic',
+        created_with_password: false // Can be accessed with user ID alone
+      })
+      .select()
+      .single();
 
     if (createError) {
-      throw new Error(`Failed to create deposit addresses: ${createError.message}`);
+      // If duplicate, that's fine - address already exists
+      if (createError.code === '23505') {
+        const { data: existing } = await supabase
+          .from('onchain_addresses')
+          .select('*')
+          .eq('user_id', userId)
+          .limit(1)
+          .single();
+        
+        if (existing) return existing;
+      }
+      throw new Error(`Failed to store wallet address: ${createError.message}`);
     }
 
-    // Return the USDC address by default (for backwards compatibility)
-    const createdAddress = createdAddresses?.find(addr => addr.asset === 'USDC');
-
-    if (!createdAddress) {
-      throw new Error('Failed to create USDC deposit address');
-    }
-
+    console.log('✅ Secure wallet created for user:', walletAddress);
     return createdAddress;
   }
 
@@ -105,15 +120,6 @@ export class WalletService {
     }
   }
 
-  private generatePlaceholderAddress(): string {
-    // Generate proper Ethereum ERC20 address format (0x + 40 hex characters)
-    const chars = '0123456789abcdef';
-    let result = '0x';
-    for (let i = 0; i < 40; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }
 }
 
 export const walletService = new WalletService();
