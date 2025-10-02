@@ -183,14 +183,14 @@ const AdminFeesNew = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-[#1C1C1E] items-center justify-center">
+      <div className="flex flex-col h-screen bg-background items-center justify-center">
         <div className="text-white">Loading fee data...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -306,16 +306,16 @@ const AdminFeesNew = () => {
         </div>
 
         {/* Fee Collection Requests */}
-        <Card className="bg-[#2C2C2E] border-gray-700 mb-6">
+        <Card className="bg-card border-border mb-6">
           <CardHeader>
             <CardTitle className="text-white">Fee Collection Requests</CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-muted-foreground">
               Pending fee collections for external wallet processing
             </CardDescription>
           </CardHeader>
           <CardContent>
             {feeRequests.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
+              <div className="text-center text-muted-foreground py-8">
                 No fee collection requests yet
               </div>
             ) : (
@@ -323,7 +323,7 @@ const AdminFeesNew = () => {
                 {feeRequests.slice(0, 10).map((request) => (
                   <div 
                     key={request.id}
-                    className="flex items-center justify-between p-4 bg-[#3C3C3E] rounded-lg"
+                    className="flex items-center justify-between p-4 bg-accent rounded-lg"
                   >
                     <div>
                       <div className="text-white font-medium">
@@ -365,14 +365,14 @@ const AdminFeesNew = () => {
         <TestDataManager />
 
         {/* Instructions */}
-        <Card className="bg-[#2C2C2E] border-gray-700">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-white">External Wallet Integration Guide</CardTitle>
           </CardHeader>
           <CardContent className="text-gray-300 space-y-4">
             <div>
               <strong className="text-white">1. Platform Wallet:</strong>
-              <div className="font-mono text-sm bg-[#1C1C1E] p-2 rounded mt-1">
+              <div className="font-mono text-sm bg-input p-2 rounded mt-1">
                 0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835
               </div>
             </div>

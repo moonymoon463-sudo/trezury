@@ -292,7 +292,7 @@ const Settings = () => {
                 <span className="font-semibold text-white">KYC Status</span>
                 <Badge 
                   variant={profile.kyc_status === 'verified' ? 'default' : 'secondary'}
-                  className={profile.kyc_status === 'verified' ? 'bg-primary text-black' : 'bg-[#1C1C1E] text-gray-400'}
+                  className={profile.kyc_status === 'verified' ? 'bg-primary text-black' : 'bg-input text-muted-foreground'}
                 >
                   {kycInfo.label}
                 </Badge>

@@ -15,7 +15,7 @@ const BuyGoldQuote = () => {
   };
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#111111]">
+    <div className="relative flex h-auto min-h-screen w-full flex-col bg-background">
       {/* Dark overlay background */}
       <div className="absolute inset-0 bg-black/50"></div>
       
@@ -24,7 +24,7 @@ const BuyGoldQuote = () => {
 
       {/* Quote Bottom Sheet */}
       {showQuote && (
-        <div className="relative flex flex-col items-stretch bg-[#1C1C1C] rounded-t-3xl">
+        <div className="relative flex flex-col items-stretch bg-card rounded-t-3xl">
           {/* Drag handle */}
           <div className="flex h-8 w-full items-center justify-center flex-shrink-0">
             <div className="h-1.5 w-10 rounded-full bg-gray-600"></div>

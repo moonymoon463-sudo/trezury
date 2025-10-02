@@ -198,7 +198,7 @@ export default function FundingMethods() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1C1C1E] p-4">
+    <div className="flex flex-col h-screen bg-background">
       <div className="mx-auto max-w-lg md:max-w-2xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

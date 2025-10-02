@@ -106,8 +106,8 @@ const BuyGoldConfirmation = () => {
       <main className="flex-1 px-4 py-8">
         {/* Quote Expiration Warning */}
         {timeRemaining > 0 && (
-          <div className="bg-[#2C2C2E] border border-primary/30 rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-2 text-gray-400">
+          <div className="bg-card border border-primary/30 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Clock size={16} />
               <span className="text-sm">Quote expires in {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</span>
             </div>
@@ -115,7 +115,7 @@ const BuyGoldConfirmation = () => {
         )}
 
         {/* Quote Summary */}
-        <div className="bg-[#2C2C2E] rounded-xl p-6 mb-6">
+        <div className="bg-card rounded-xl p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
               <TrendingUp size={20} className="text-primary" />
@@ -174,8 +174,8 @@ const BuyGoldConfirmation = () => {
         </div>
 
         {/* Risk Disclosure */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4 mb-6">
-          <p className="text-sm text-gray-400">
+        <div className="bg-card rounded-xl p-4 mb-6">
+          <p className="text-sm text-muted-foreground">
             Prices are subject to market fluctuations. The actual amount received may vary slightly due to slippage protection.
           </p>
         </div>
