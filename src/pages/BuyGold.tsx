@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, CreditCard, DollarSign, AlertTriangle, Calendar } from "lucide-react";
-import BottomNavigation from "@/components/BottomNavigation";
+import { CreditCard, DollarSign, AlertTriangle, Calendar } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import AurumLogo from "@/components/AurumLogo";
-import StandardHeader from "@/components/StandardHeader";
+import AppLayout from "@/components/AppLayout";
 import { AutoInvestModal } from "@/components/recurring/AutoInvestModal";
 
 const BuyGold = () => {
@@ -76,16 +74,14 @@ const BuyGold = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <StandardHeader 
-        showBackButton
-        backPath="/"
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 px-4 pb-4">
-        <div className="max-w-lg mx-auto space-y-6 md:max-w-2xl">
+    <AppLayout
+      headerProps={{
+        showBackButton: true,
+        backPath: "/"
+      }}
+      showBottomNav={true}
+    >
+      <div className="max-w-2xl mx-auto space-y-6 px-4">
           <h2 className="text-2xl font-bold text-foreground mb-6">Payment Method</h2>
           
           <div className="space-y-4">
@@ -190,9 +186,8 @@ const BuyGold = () => {
                 : "Continue"
               }
             </Button>
-          </div>
         </div>
-      </main>
+      </div>
 
       {/* Auto-Invest Modal */}
       <AutoInvestModal 
@@ -200,10 +195,7 @@ const BuyGold = () => {
         onOpenChange={setShowAutoInvestModal}
         userCountry={profile?.country || 'US'}
       />
-
-      {/* Bottom Navigation */}
-      <BottomNavigation />
-    </div>
+    </AppLayout>
   );
 };
 

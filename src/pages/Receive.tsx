@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Copy, Check, QrCode, ArrowLeft, RefreshCw } from "lucide-react";
-import StandardHeader from "@/components/StandardHeader";
-import BottomNavigation from "@/components/BottomNavigation";
+import { Copy, Check, QrCode, RefreshCw } from "lucide-react";
+import AppLayout from "@/components/AppLayout";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { useToast } from "@/hooks/use-toast";
 import { useTransactionTracker } from "@/hooks/useTransactionTracker";
@@ -83,14 +82,15 @@ const Receive = () => {
     .slice(0, 5);
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
-      <StandardHeader 
-        title="Receive Tokens"
-        showBackButton
-        onBack={() => navigate("/")}
-      />
-
-      <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)] pt-2 space-y-4">
+    <AppLayout
+      headerProps={{
+        title: "Receive Tokens",
+        showBackButton: true,
+        onBack: () => navigate("/")
+      }}
+      showBottomNav={true}
+    >
+      <div className="max-w-2xl mx-auto space-y-4 px-4">
         {/* Wallet Address Section */}
         <div className="bg-surface-elevated rounded-xl p-4 space-y-4 max-w-full">
           <div className="text-center space-y-4">
@@ -222,9 +222,7 @@ const Receive = () => {
           </AlertDescription>
         </Alert>
       </div>
-
-      <BottomNavigation />
-    </div>
+    </AppLayout>
   );
 };
 

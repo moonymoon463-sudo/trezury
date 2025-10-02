@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Send as SendIcon, AlertTriangle, Copy, Check } from "lucide-react";
-import StandardHeader from "@/components/StandardHeader";
-import BottomNavigation from "@/components/BottomNavigation";
+import { Send as SendIcon, AlertTriangle } from "lucide-react";
+import AppLayout from "@/components/AppLayout";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { useTransactionLimits } from "@/hooks/useTransactionLimits";
@@ -169,15 +168,16 @@ const Send = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-x-hidden bg-background">
-      <StandardHeader 
-        title="Send Tokens"
-        showBackButton
-        onBack={() => navigate("/")}
-      />
-
-      <div className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)] pt-2 space-y-4">
-        <div className="bg-surface-elevated rounded-xl p-4 space-y-4 max-w-full">
+    <AppLayout
+      headerProps={{
+        title: "Send Tokens",
+        showBackButton: true,
+        onBack: () => navigate("/")
+      }}
+      showBottomNav={true}
+    >
+      <div className="max-w-2xl mx-auto space-y-4 px-4">
+        <div className="bg-surface-elevated rounded-xl p-4 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="asset">Select Asset</Label>
             <Select value={asset} onValueChange={setAsset}>
@@ -278,9 +278,7 @@ const Send = () => {
           </Button>
         </div>
       </div>
-
-      <BottomNavigation />
-    </div>
+    </AppLayout>
   );
 };
 
