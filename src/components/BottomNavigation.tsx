@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, TrendingUp, PieChart } from "lucide-react";
+import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, MessageSquare, PieChart } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef } from "react";
 
@@ -28,6 +28,12 @@ const BottomNavigation = () => {
       label: "Swap",
       icon: ArrowUpDown,
       path: "/swap",
+    },
+    {
+      id: "ai-chat",
+      label: "AI Chat",
+      icon: MessageSquare,
+      path: "/ai-chat",
     },
     {
       id: "portfolio",

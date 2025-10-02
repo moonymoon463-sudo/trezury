@@ -15,7 +15,6 @@ import { AdvancedAnalytics } from "@/components/portfolio/AdvancedAnalytics";
 import { RealTimeAlerts } from "@/components/portfolio/RealTimeAlerts";
 import { PerformanceAnalytics } from "@/components/portfolio/PerformanceAnalytics";
 import { MobileLoadingSkeleton } from "@/components/portfolio/MobileLoadingSkeleton";
-import { AIChatInterface } from "@/components/portfolio/AIChatInterface";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
@@ -24,7 +23,6 @@ import { useState } from "react";
 export default function Portfolio() {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isChatCollapsed, setIsChatCollapsed] = useState(true);
   
   // Use mobile-optimized portfolio hook
   const {
@@ -119,21 +117,6 @@ export default function Portfolio() {
             </AlertDescription>
           </Alert>
         )}
-
-        {/* AI Chat Interface - Top Priority */}
-        <AIChatInterface
-          portfolioData={{
-            totalValue,
-            assets: portfolioAssets,
-            summary: portfolioSummary,
-            performance: {
-              period: '24h',
-              return: 0
-            }
-          }}
-          isCollapsed={isChatCollapsed}
-          onToggle={() => setIsChatCollapsed(!isChatCollapsed)}
-        />
 
         {/* Main Content Grid */}
         <div className="grid gap-2 sm:gap-4 lg:gap-6 lg:grid-cols-3">

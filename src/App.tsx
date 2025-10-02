@@ -48,6 +48,7 @@ import AutoInvest from "./pages/AutoInvest";
 import MoonPayCallback from "./pages/MoonPayCallback";
 import WalletManagement from "./pages/WalletManagement";
 import Portfolio from "./pages/Portfolio";
+import AIChat from "./pages/AIChat";
 import TrzryReserves from "./pages/TrzryReserves";
 import Send from "./pages/Send";
 import Receive from "./pages/Receive";
@@ -100,6 +101,7 @@ const AppRoutes = () => {
       <Route path="/sell-gold" element={<ProtectedRoute><SellGold /></ProtectedRoute>} />
       <Route path="/offramp/return" element={<ProtectedRoute><OffRampReturn /></ProtectedRoute>} />
       <Route path="/swap" element={<ProtectedRoute><Swap /></ProtectedRoute>} />
+      <Route path="/ai-chat" element={<ProtectedRoute><AIChat /></ProtectedRoute>} />
       <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
