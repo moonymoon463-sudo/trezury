@@ -66,11 +66,11 @@ const BuyGoldConfirmation = () => {
 
   if (!quote) {
     return (
-      <div className="flex flex-col h-screen bg-[#1C1C1E]">
+      <div className="flex flex-col h-screen bg-background">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl font-bold text-white mb-4">No Quote Found</h2>
-            <p className="text-gray-400 mb-6">Please return to the amount page to generate a new quote.</p>
+            <p className="text-muted-foreground mb-6">Please return to the amount page to generate a new quote.</p>
             <Button 
               onClick={() => navigate("/buy-gold/amount")}
               className="bg-primary text-black hover:bg-primary/90"
@@ -84,7 +84,7 @@ const BuyGoldConfirmation = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -92,7 +92,7 @@ const BuyGoldConfirmation = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/buy-gold/amount")}
-            className="text-white hover:bg-gray-800"
+            className="text-white hover:bg-accent"
           >
             <ArrowLeft size={24} />
           </Button>

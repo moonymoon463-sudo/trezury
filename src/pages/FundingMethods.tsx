@@ -11,6 +11,7 @@ import { walletService } from '@/services/wallet';
 import { useSecureWallet } from '@/hooks/useSecureWallet';
 import { PasswordPrompt } from '@/components/wallet/PasswordPrompt';
 import { Deposit } from '@/services/providers/types';
+import SecureWalletSetup from '@/components/SecureWalletSetup';
 
 export default function FundingMethods() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function FundingMethods() {
   const { toast } = useToast();
   const { walletAddress, createWallet, loading: walletLoading } = useSecureWallet();
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
+  const [hasWallet, setHasWallet] = useState(false);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -154,24 +156,42 @@ export default function FundingMethods() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1C1C1E] p-4">
-        <div className="mx-auto max-w-lg md:max-w-2xl">
-          <div className="flex items-center gap-4 mb-6">
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-lg mx-auto">
+          <h1 className="text-2xl font-bold text-white mb-6">Loading deposit address...</h1>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasWallet) {
+    return (
+      <div className="min-h-screen bg-background p-4">
+        <div className="max-w-lg mx-auto">
+          <header className="flex items-center mb-6">
             <Button 
               variant="ghost" 
-              size="icon" 
+              size="icon"
               onClick={() => navigate(-1)}
-              className="text-white hover:bg-gray-800"
+              className="text-white hover:bg-accent"
             >
               <ArrowLeft className="h-6 w-6" />
             </Button>
             <div className="flex-1 flex justify-center pr-10">
               <div className="text-white font-bold text-lg">TREZURY</div>
             </div>
-          </div>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
+          </header>
+          
+          <SecureWalletSetup 
+            onWalletCreated={(address) => {
+              setDepositAddress(address);
+              setHasWallet(true);
+              toast({
+                title: "Wallet Created Successfully",
+                description: "Your secure wallet is ready to receive funds"
+              });
+            }}
+          />
         </div>
       </div>
     );

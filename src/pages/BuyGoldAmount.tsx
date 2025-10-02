@@ -146,7 +146,7 @@ const BuyGoldAmount = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -154,7 +154,7 @@ const BuyGoldAmount = () => {
             variant="ghost" 
             size="icon"
             onClick={() => navigate("/buy-gold")}
-            className="text-white hover:bg-gray-800"
+            className="text-white hover:bg-accent"
           >
             <ArrowLeft size={24} />
           </Button>
@@ -167,7 +167,7 @@ const BuyGoldAmount = () => {
         <div className="max-w-lg mx-auto space-y-6 md:max-w-2xl">
           {/* USD Balance */}
           <div className="text-center">
-            <p className="text-sm text-gray-400">USD Balance</p>
+            <p className="text-sm text-muted-foreground">USD Balance</p>
             <p className="text-3xl font-bold text-white">
             ${usdBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </p>
@@ -175,12 +175,12 @@ const BuyGoldAmount = () => {
 
           {/* Currency Toggle */}
           <div className="flex justify-center mb-8">
-            <div className="inline-flex rounded-full bg-[#2C2C2E] p-1">
+            <div className="inline-flex rounded-full bg-card p-1">
               <button 
                 className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
                   currency === "USD" 
                     ? "bg-primary text-black"
-                    : "text-gray-400"
+                    : "text-muted-foreground"
                 }`}
                 onClick={() => setCurrency("USD")}
               >
@@ -190,7 +190,7 @@ const BuyGoldAmount = () => {
                 className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
                   currency === "GRAMS" 
                     ? "bg-primary text-black" 
-                    : "text-gray-400"
+                    : "text-muted-foreground"
                 }`}
                 onClick={() => setCurrency("GRAMS")}
               >

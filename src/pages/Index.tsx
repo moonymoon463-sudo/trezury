@@ -107,35 +107,35 @@ const Index = () => {
             Buy Gold
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
+            className="bg-card text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/buy-sell-hub")}
           >
             <DollarSign size={14} />
             Sell/Cash Out
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
+            className="bg-card text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/swap")}
           >
             <ArrowRightLeft size={14} />
             Swap
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
+            className="bg-card text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/swap?to=TRZRY")}
           >
             <TrendingUp size={14} />
             Buy Trzry
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
+            className="bg-card text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/send")}
           >
             <Send size={14} />
             Send
           </Button>
           <Button 
-            className="bg-[#2C2C2E] text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
+            className="bg-card text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
             onClick={() => navigate("/receive")}
           >
             <Download size={14} />

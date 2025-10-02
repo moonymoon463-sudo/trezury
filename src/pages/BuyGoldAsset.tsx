@@ -21,12 +21,12 @@ const BuyGoldAsset = () => {
   ];
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between bg-[#1C1C1C]">
+    <div className="relative flex h-auto min-h-screen w-full flex-col justify-between bg-background">
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between pb-8">
           <button 
-            className="text-white flex size-10 items-center justify-center rounded-full bg-zinc-800"
+            className="text-white flex size-10 items-center justify-center rounded-full bg-accent"
             onClick={() => navigate("/buy-gold/amount")}
           >
             <ArrowLeft size={20} />
@@ -47,8 +47,8 @@ const BuyGoldAsset = () => {
               key={asset.symbol}
               className={`flex items-center gap-4 rounded-xl border p-4 transition-all w-full ${
                 selectedAsset === asset.symbol
-                  ? "border-primary bg-zinc-900"
-                  : "border-zinc-800 bg-zinc-900 hover:border-primary"
+                  ? "border-primary bg-accent"
+                  : "border-border bg-accent hover:border-primary"
               }`}
               onClick={() => setSelectedAsset(asset.symbol)}
             >
@@ -59,14 +59,14 @@ const BuyGoldAsset = () => {
                 <p className="text-white text-base font-medium leading-normal">
                   {asset.symbol}
                 </p>
-                <p className="text-zinc-400 text-sm font-normal leading-normal">
+                <p className="text-muted-foreground text-sm font-normal leading-normal">
                   {asset.name}
                 </p>
               </div>
               <div className={`flex size-6 items-center justify-center rounded-full border-2 ${
                 selectedAsset === asset.symbol
                   ? "border-primary bg-primary"
-                  : "border-zinc-700"
+                  : "border-border"
               }`}>
                 {selectedAsset === asset.symbol && (
                   <Check size={16} className="text-black" />
@@ -88,7 +88,7 @@ const BuyGoldAsset = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <nav className="flex items-center justify-around border-t border-zinc-800 bg-[#1C1C1C] py-3">
+      <nav className="flex items-center justify-around border-t border-border bg-background py-3">
         <button 
           className="flex flex-col items-center gap-1 text-zinc-400"
           onClick={() => navigate("/")}

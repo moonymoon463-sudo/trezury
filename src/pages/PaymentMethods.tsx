@@ -139,7 +139,7 @@ const PaymentMethods = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-[#1C1C1E]">
+      <div className="flex flex-col h-screen bg-background">
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -149,14 +149,14 @@ const PaymentMethods = () => {
 
   if (profile?.kyc_status !== 'verified') {
     return (
-      <div className="flex flex-col h-screen bg-[#1C1C1E]">
+      <div className="flex flex-col h-screen bg-background">
         <header className="p-4">
           <div className="flex items-center">
             <Button 
               variant="ghost" 
               size="icon"
               onClick={() => navigate("/settings")}
-              className="text-white hover:bg-gray-800"
+              className="text-white hover:bg-accent"
             >
               <ArrowLeft size={24} />
             </Button>
@@ -167,10 +167,10 @@ const PaymentMethods = () => {
         </header>
         
         <div className="flex-1 flex items-center justify-center px-4">
-          <div className="bg-[#2C2C2E] rounded-xl p-8 w-full max-w-md text-center">
-            <Shield className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <div className="bg-card rounded-xl p-8 w-full max-w-md text-center">
+            <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h2 className="text-xl font-bold text-white mb-2">Verification Required</h2>
-            <p className="text-gray-400 mb-6">
+            <p className="text-muted-foreground mb-6">
               Complete identity verification to add and manage payment methods for card purchases.
             </p>
             <Button 
