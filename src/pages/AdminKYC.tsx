@@ -13,6 +13,8 @@ import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
 import { maskFullName } from '@/utils/piiMasking';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAdminSessionTimeout } from '@/hooks/useAdminSessionTimeout';
 
 interface KYCSubmission {
   id: string;
@@ -35,6 +37,9 @@ const AdminKYC = () => {
   const [reviewStatus, setReviewStatus] = useState<string>('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [unmaskedIds, setUnmaskedIds] = useState<Set<string>>(new Set());
+  
+  // Implement admin session timeout (15 minutes of inactivity)
+  useAdminSessionTimeout(isAdmin, 15);
 
   useEffect(() => {
     if (!isAdmin && !loading) {
@@ -59,38 +64,64 @@ const AdminKYC = () => {
     setReviewDialog(true);
   };
 
-  const handleTogglePII = (submissionId: string) => {
-    setUnmaskedIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(submissionId)) {
-        newSet.delete(submissionId);
-        toast({
-          title: "PII Masked",
-          description: "Personal information hidden for security.",
+  const handleTogglePII = async (submissionId: string) => {
+    const submission = submissions.find(s => s.id === submissionId);
+    if (!submission) return;
+
+    const isCurrentlyMasked = !unmaskedIds.has(submissionId);
+
+    if (isCurrentlyMasked) {
+      // Unmasking - show PII
+      setUnmaskedIds(prev => new Set([...prev, submissionId]));
+      
+      toast({
+        title: "⚠️ PII Visible",
+        description: "Viewing sensitive personal information. This action is logged.",
+        variant: "destructive",
+      });
+      
+      // Log PII access to audit_log
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('audit_log').insert({
+          user_id: user.id,
+          table_name: 'profiles',
+          operation: 'ADMIN_PII_VIEW',
+          sensitive_fields: ['first_name', 'last_name'],
+          metadata: {
+            target_user_id: submissionId,
+            target_email: submission.email,
+            action: 'unmask_pii',
+            timestamp: new Date().toISOString()
+          }
         });
-      } else {
-        newSet.add(submissionId);
-        toast({
-          title: "⚠️ PII Visible",
-          description: "Viewing sensitive personal information. This action is logged.",
-          variant: "destructive",
-        });
-        
-        // Auto-mask after 30 seconds for security
-        setTimeout(() => {
-          setUnmaskedIds(current => {
-            const updated = new Set(current);
-            updated.delete(submissionId);
-            return updated;
-          });
-          toast({
-            title: "Auto-masked",
-            description: "PII automatically hidden after 30 seconds.",
-          });
-        }, 30000);
       }
-      return newSet;
-    });
+      
+      // Auto-mask after 30 seconds for security
+      setTimeout(() => {
+        setUnmaskedIds(current => {
+          const updated = new Set(current);
+          updated.delete(submissionId);
+          return updated;
+        });
+        toast({
+          title: "Auto-masked",
+          description: "PII automatically hidden after 30 seconds.",
+        });
+      }, 30000);
+    } else {
+      // Masking - hide PII
+      setUnmaskedIds(prev => {
+        const updated = new Set(prev);
+        updated.delete(submissionId);
+        return updated;
+      });
+      
+      toast({
+        title: "PII Masked",
+        description: "Personal information hidden for security.",
+      });
+    }
   };
 
   const handleUpdateStatus = async () => {

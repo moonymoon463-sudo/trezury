@@ -22,11 +22,15 @@ import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
 import { AISystemTest } from '@/components/testing/AISystemTest';
 import { NewsCollectionTrigger } from '@/components/admin/NewsCollectionTrigger';
+import { useAdminSessionTimeout } from '@/hooks/useAdminSessionTimeout';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isAdmin, loading, getDashboardStats } = useAdmin();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  
+  // Implement admin session timeout (15 minutes of inactivity)
+  useAdminSessionTimeout(isAdmin, 15);
 
   useEffect(() => {
     if (!isAdmin && !loading) {

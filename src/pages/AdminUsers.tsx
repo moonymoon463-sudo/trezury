@@ -9,6 +9,7 @@ import { ArrowLeft, Shield, UserCheck, UserX, Users } from 'lucide-react';
 import { useAdmin, AdminUser } from '@/hooks/useAdmin';
 import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
+import { useAdminSessionTimeout } from '@/hooks/useAdminSessionTimeout';
 
 const AdminUsers = () => {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ const AdminUsers = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([]);
   const [filter, setFilter] = useState<string>('all');
+  
+  // Implement admin session timeout (15 minutes of inactivity)
+  useAdminSessionTimeout(isAdmin, 15);
 
   useEffect(() => {
     if (!isAdmin && !loading) {
