@@ -6,7 +6,7 @@ export default function AIChat() {
   return (
     <div className="min-h-screen bg-background">
       <StandardHeader 
-        title="AI Assistant"
+        title="Trez AI"
         showBackButton
         backPath="back"
       />

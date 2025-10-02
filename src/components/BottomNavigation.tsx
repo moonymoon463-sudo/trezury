@@ -31,7 +31,7 @@ const BottomNavigation = () => {
     },
     {
       id: "ai-chat",
-      label: "AI Chat",
+      label: "Trez AI",
       icon: MessageSquare,
       path: "/ai-chat",
     },
