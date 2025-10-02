@@ -5,67 +5,30 @@ import { secureWalletService } from './secureWalletService';
 /**
  * SECURE WALLET SERVICE
  * 
- * This service uses deterministic wallet generation.
- * Each user gets a unique Ethereum address derived from their user ID.
- * Private keys are NEVER stored - they can only be derived with the user's password.
+ * This service manages wallet-related operations that don't require private key access.
+ * For wallet creation and private key operations, use secureWalletService directly with user password.
  */
 export class WalletService {
   /**
-   * Get or create a secure deterministic wallet address for the user
-   * Returns the same address for the same user ID every time
+   * Get existing wallet address for the user
+   * NOTE: This only returns existing addresses, it does NOT create new ones.
+   * To create a wallet, user must use secureWalletService with their password.
    */
-  async getOrCreateDepositAddress(userId: string): Promise<OnchainAddress> {
-    // Check if user already has a wallet address stored
-    const { data: existingAddress, error: fetchError } = await supabase
+  async getExistingAddress(userId: string): Promise<OnchainAddress | null> {
+    const { data, error } = await supabase
       .from('onchain_addresses')
       .select('*')
       .eq('user_id', userId)
+      .eq('created_with_password', true)
       .limit(1)
       .maybeSingle();
 
-    if (existingAddress && !fetchError) {
-      return existingAddress;
+    if (error) {
+      console.error('Error fetching wallet address:', error);
+      return null;
     }
 
-    // Generate secure deterministic wallet address
-    // This creates the SAME address for this user every time based on their user ID
-    const walletAddress = await secureWalletService.getWalletAddress(userId);
-    
-    if (!walletAddress) {
-      throw new Error('Failed to generate wallet address');
-    }
-
-    // Store the public address (NO private keys are stored)
-    const { data: createdAddress, error: createError } = await supabase
-      .from('onchain_addresses')
-      .insert({
-        user_id: userId,
-        address: walletAddress,
-        chain: 'ethereum',
-        asset: 'USDC', // Same address works for all ERC-20 tokens (USDC, XAUT, etc.)
-        setup_method: 'deterministic',
-        created_with_password: false // Can be accessed with user ID alone
-      })
-      .select()
-      .single();
-
-    if (createError) {
-      // If duplicate, that's fine - address already exists
-      if (createError.code === '23505') {
-        const { data: existing } = await supabase
-          .from('onchain_addresses')
-          .select('*')
-          .eq('user_id', userId)
-          .limit(1)
-          .single();
-        
-        if (existing) return existing;
-      }
-      throw new Error(`Failed to store wallet address: ${createError.message}`);
-    }
-
-    console.log('✅ Secure wallet created for user:', walletAddress);
-    return createdAddress;
+    return data;
   }
 
   async getRecentDeposits(userId: string): Promise<Deposit[]> {

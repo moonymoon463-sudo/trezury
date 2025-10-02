@@ -243,7 +243,8 @@ class SecureWalletService {
 
   /**
    * Get wallet address (read-only operation)
-   * Returns null if no secure wallet exists
+   * SECURITY: Only returns addresses created with password
+   * Returns null if no secure wallet exists - user must create with generateDeterministicWallet()
    */
   async getWalletAddress(userId: string): Promise<string | null> {
     try {
@@ -251,14 +252,14 @@ class SecureWalletService {
         .from('onchain_addresses')
         .select('address, created_with_password')
         .eq('user_id', userId)
-        .eq('chain', 'ethereum')
-        .eq('asset', 'XAUT')
+        .eq('created_with_password', true)
         .maybeSingle();
 
-      if (existingAddress?.address && existingAddress.created_with_password) {
+      if (existingAddress?.address) {
         return existingAddress.address;
       }
 
+      console.log('No secure wallet found. User must create wallet with password.');
       return null;
     } catch (error) {
       console.error('Failed to get wallet address:', error);

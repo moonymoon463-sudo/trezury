@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Copy, QrCode, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
@@ -8,17 +8,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { walletService } from '@/services/wallet';
-import { OnchainAddress, Deposit } from '@/services/providers/types';
+import { useSecureWallet } from '@/hooks/useSecureWallet';
+import { PasswordPrompt } from '@/components/wallet/PasswordPrompt';
+import { Deposit } from '@/services/providers/types';
 
 export default function FundingMethods() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [depositAddress, setDepositAddress] = useState<OnchainAddress | null>(null);
+  const { walletAddress, createWallet, loading: walletLoading } = useSecureWallet();
+  const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [walletExists, setWalletExists] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -29,12 +34,21 @@ export default function FundingMethods() {
   const loadDepositData = async () => {
     try {
       setLoading(true);
-      const address = await walletService.getOrCreateDepositAddress(user!.id);
-      setDepositAddress(address);
+      
+      // Check if user has existing secure wallet
+      const existingAddress = await walletService.getExistingAddress(user!.id);
+      
+      if (existingAddress) {
+        setDepositAddress(existingAddress.address);
+        setWalletExists(true);
 
-      // Generate QR code
-      const qrUrl = await QRCode.toDataURL(address.address);
-      setQrCodeUrl(qrUrl);
+        // Generate QR code
+        const qrUrl = await QRCode.toDataURL(existingAddress.address);
+        setQrCodeUrl(qrUrl);
+      } else {
+        // No wallet exists, user needs to create one with password
+        setWalletExists(false);
+      }
 
       const deposits = await walletService.getRecentDeposits(user!.id);
       setRecentDeposits(deposits);
@@ -50,10 +64,37 @@ export default function FundingMethods() {
     }
   };
 
+  const handleCreateWallet = async (password: string) => {
+    try {
+      const wallet = await createWallet(password);
+      if (wallet) {
+        setDepositAddress(wallet.address);
+        setWalletExists(true);
+        
+        // Generate QR code
+        const qrUrl = await QRCode.toDataURL(wallet.address);
+        setQrCodeUrl(qrUrl);
+        
+        setShowPasswordPrompt(false);
+        toast({
+          title: 'Wallet Created',
+          description: 'Your secure deposit address has been generated',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to create wallet:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create wallet. Please try again.',
+      });
+    }
+  };
+
   const copyToClipboard = async () => {
     if (depositAddress) {
       try {
-        await navigator.clipboard.writeText(depositAddress.address);
+        await navigator.clipboard.writeText(depositAddress);
         toast({
           title: 'Copied!',
           description: 'Deposit address copied to clipboard',
@@ -164,51 +205,74 @@ export default function FundingMethods() {
           </TabsList>
 
           <TabsContent value="usdc" className="space-y-6 mt-6">
-            {/* USDC Deposit Address */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center space-y-4">
-                  {/* QR Code */}
-                  <div className="flex justify-center">
-                    {qrCodeUrl && (
-                      <img 
-                        src={qrCodeUrl} 
-                        alt="Deposit Address QR Code" 
-                        className="w-48 h-48 border border-border rounded-lg"
-                      />
-                    )}
-                  </div>
-
-                  {/* Address */}
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Your USDC Deposit Address</p>
-                    <div className="bg-muted p-3 rounded-lg">
-                      <p className="text-sm font-mono text-foreground break-all">
-                        {depositAddress?.address}
+            {!walletExists ? (
+              /* Create Wallet First */
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <p className="text-sm text-yellow-400 mb-4">
+                        <strong>Security Notice:</strong> You need to create a secure wallet before you can receive deposits. Your wallet is protected by your account password.
                       </p>
                     </div>
+                    
                     <Button
-                      variant="outline"
-                      size="sm"
                       className="w-full"
-                      onClick={copyToClipboard}
+                      onClick={() => setShowPasswordPrompt(true)}
+                      disabled={walletLoading}
                     >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy Address
+                      {walletLoading ? 'Creating Wallet...' : 'Create Secure Wallet'}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              /* USDC Deposit Address */
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center space-y-4">
+                    {/* QR Code */}
+                    <div className="flex justify-center">
+                      {qrCodeUrl && (
+                        <img 
+                          src={qrCodeUrl} 
+                          alt="Deposit Address QR Code" 
+                          className="w-48 h-48 border border-border rounded-lg"
+                        />
+                      )}
+                    </div>
 
-                  <div className="text-left space-y-2">
-                    <h3 className="font-medium text-foreground">Instructions:</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Send USDC on Base network to this address</li>
-                      <li>• Minimum deposit: $10 USDC</li>
-                      <li>• Deposits usually confirm within 2-3 minutes</li>
-                    </ul>
+                    {/* Address */}
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Your USDC Deposit Address</p>
+                      <div className="bg-muted p-3 rounded-lg">
+                        <p className="text-sm font-mono text-foreground break-all">
+                          {depositAddress}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={copyToClipboard}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Address
+                      </Button>
+                    </div>
+
+                    <div className="text-left space-y-2">
+                      <h3 className="font-medium text-foreground">Instructions:</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Send USDC on Base network to this address</li>
+                        <li>• Minimum deposit: $10 USDC</li>
+                        <li>• Deposits usually confirm within 2-3 minutes</li>
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Confirm Deposit Section */}
             <Card>
@@ -264,6 +328,14 @@ export default function FundingMethods() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Password Prompt */}
+      <PasswordPrompt
+        open={showPasswordPrompt}
+        onOpenChange={setShowPasswordPrompt}
+        onConfirm={handleCreateWallet}
+        loading={walletLoading}
+      />
     </div>
   );
 }
