@@ -177,6 +177,62 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      // Check transaction velocity for operations that modify state
+      const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'execute_uniswap_swap', 'collect_fee'];
+      if (stateModifyingOps.includes(body.operation)) {
+        const { data: recentTxs, error: velocityError } = await supabase
+          .from('transactions')
+          .select('id, metadata')
+          .eq('user_id', authenticatedUserId)
+          .gte('created_at', new Date(Date.now() - 3600000).toISOString()); // Last hour
+        
+        if (velocityError) {
+          console.error('❌ Velocity check failed:', velocityError);
+        } else if (recentTxs && recentTxs.length >= 10) {
+          console.error(`🚨 Transaction velocity limit exceeded: ${recentTxs.length} txs in last hour`);
+          
+          // Create security alert
+          await supabase.from('security_alerts').insert({
+            alert_type: 'transaction_velocity_exceeded',
+            severity: 'high',
+            title: 'Transaction Velocity Limit Exceeded',
+            description: `User attempted ${recentTxs.length} transactions in the last hour`,
+            user_id: authenticatedUserId,
+            metadata: {
+              transaction_count: recentTxs.length,
+              time_window: '1 hour',
+              operation: body.operation
+            }
+          });
+          
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Transaction velocity limit exceeded. Please wait before making more transactions.' 
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Check for high-value transactions (> $1000)
+        if (body.amount && body.amount > 1000) {
+          console.log(`⚠️ High-value transaction detected: $${body.amount}`);
+          
+          await supabase.from('security_alerts').insert({
+            alert_type: 'high_value_transaction',
+            severity: 'medium',
+            title: 'High-Value Transaction',
+            description: `User initiated a transaction worth $${body.amount}`,
+            user_id: authenticatedUserId,
+            metadata: {
+              amount: body.amount,
+              asset: body.asset,
+              operation: body.operation
+            }
+          });
+        }
+      }
     }
 
     // Initialize live provider and wallet
