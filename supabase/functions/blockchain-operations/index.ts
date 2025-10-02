@@ -107,31 +107,24 @@ function createUserWallet(userId: string): ethers.HDNodeWallet {
   return ethers.Wallet.fromPhrase(mnemonic.phrase);
 }
 
-// Helper function to validate JWT and extract user ID
-function validateJWTAndGetUserId(req: Request): string {
+// Helper function to validate JWT and extract user ID with cryptographic verification
+async function validateJWTAndGetUserId(req: Request): Promise<string> {
   const authHeader = req.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('Missing or invalid authorization header');
   }
   
-  const token = authHeader.substring(7);
-  try {
-    const [header, payload, signature] = token.split('.');
-    if (!payload) {
-      throw new Error('Invalid token format');
-    }
-    
-    const decodedPayload = JSON.parse(atob(payload));
-    
-    if (!decodedPayload.sub) {
-      throw new Error('Invalid token: missing user ID');
-    }
-    
-    return decodedPayload.sub;
-  } catch (error) {
-    console.error('JWT validation error:', error);
-    throw new Error('Invalid JWT token');
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Use Supabase's built-in JWT verification (cryptographically validates signature)
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    console.error('JWT verification failed:', error);
+    throw new Error('Invalid or expired authentication token');
   }
+  
+  return user.id; // Cryptographically verified user ID
 }
 
 // Helper function to validate Ethereum address
@@ -168,7 +161,7 @@ serve(async (req) => {
     let authenticatedUserId: string | null = null;
     if (body.operation !== 'get_rpc_url') {
       try {
-        authenticatedUserId = validateJWTAndGetUserId(req);
+        authenticatedUserId = await validateJWTAndGetUserId(req);
         console.log(`✅ Authenticated user: ${authenticatedUserId}`);
       } catch (error) {
         console.error('❌ Authentication failed:', error);
@@ -231,6 +224,23 @@ serve(async (req) => {
               operation: body.operation
             }
           });
+          
+          // Add hard limit for automated approval
+          const MAX_AUTO_APPROVE = 10000; // $10,000 limit
+          if (body.amount > MAX_AUTO_APPROVE) {
+            console.error(`🚫 Transaction exceeds auto-approval limit: $${body.amount} > $${MAX_AUTO_APPROVE}`);
+            
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `Transaction amount ($${body.amount.toLocaleString()}) exceeds automated approval limit of $${MAX_AUTO_APPROVE.toLocaleString()}. Please contact support for manual approval.`,
+                requires_manual_approval: true,
+                max_auto_approve: MAX_AUTO_APPROVE,
+                requested_amount: body.amount
+              }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
     }
