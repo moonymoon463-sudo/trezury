@@ -7,10 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ArrowLeft, Shield, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Shield, CheckCircle, XCircle, Clock, Eye, EyeOff } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
+import { maskFullName } from '@/utils/piiMasking';
+import { useToast } from '@/hooks/use-toast';
 
 interface KYCSubmission {
   id: string;
@@ -25,12 +27,14 @@ interface KYCSubmission {
 
 const AdminKYC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { isAdmin, loading, getKYCSubmissions, updateKYCStatus } = useAdmin();
   const [submissions, setSubmissions] = useState<KYCSubmission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<KYCSubmission | null>(null);
   const [reviewDialog, setReviewDialog] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<string>('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [unmaskedIds, setUnmaskedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isAdmin && !loading) {
@@ -53,6 +57,40 @@ const AdminKYC = () => {
     setReviewStatus(submission.kyc_status);
     setRejectionReason(submission.kyc_rejection_reason || '');
     setReviewDialog(true);
+  };
+
+  const handleTogglePII = (submissionId: string) => {
+    setUnmaskedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(submissionId)) {
+        newSet.delete(submissionId);
+        toast({
+          title: "PII Masked",
+          description: "Personal information hidden for security.",
+        });
+      } else {
+        newSet.add(submissionId);
+        toast({
+          title: "⚠️ PII Visible",
+          description: "Viewing sensitive personal information. This action is logged.",
+          variant: "destructive",
+        });
+        
+        // Auto-mask after 30 seconds for security
+        setTimeout(() => {
+          setUnmaskedIds(current => {
+            const updated = new Set(current);
+            updated.delete(submissionId);
+            return updated;
+          });
+          toast({
+            title: "Auto-masked",
+            description: "PII automatically hidden after 30 seconds.",
+          });
+        }, 30000);
+      }
+      return newSet;
+    });
   };
 
   const handleUpdateStatus = async () => {
@@ -206,39 +244,56 @@ const AdminKYC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {submissions.map((submission) => (
-                    <TableRow key={submission.id}>
-                      <TableCell className="font-medium">{submission.email}</TableCell>
-                      <TableCell>
-                        {submission.first_name && submission.last_name 
-                          ? `${submission.first_name} ${submission.last_name}`
-                          : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell>{getStatusBadge(submission.kyc_status)}</TableCell>
-                      <TableCell>
-                        {submission.kyc_submitted_at 
-                          ? new Date(submission.kyc_submitted_at).toLocaleDateString()
-                          : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        {submission.kyc_verified_at 
-                          ? new Date(submission.kyc_verified_at).toLocaleDateString()
-                          : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleReview(submission)}
-                        >
-                          Review
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {submissions.map((submission) => {
+                    const isPIIVisible = unmaskedIds.has(submission.id);
+                    return (
+                      <TableRow key={submission.id}>
+                        <TableCell className="font-medium">{submission.email}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {isPIIVisible 
+                                ? (submission.first_name && submission.last_name 
+                                    ? `${submission.first_name} ${submission.last_name}`
+                                    : 'N/A')
+                                : maskFullName(submission.first_name, submission.last_name)
+                              }
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTogglePII(submission.id)}
+                              className="h-6 w-6 p-0"
+                            >
+                              {isPIIVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(submission.kyc_status)}</TableCell>
+                        <TableCell>
+                          {submission.kyc_submitted_at 
+                            ? new Date(submission.kyc_submitted_at).toLocaleDateString()
+                            : 'N/A'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {submission.kyc_verified_at 
+                            ? new Date(submission.kyc_verified_at).toLocaleDateString()
+                            : 'N/A'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleReview(submission)}
+                          >
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -257,12 +312,24 @@ const AdminKYC = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium">User: {selectedSubmission.email}</p>
-                <p className="text-sm text-muted-foreground">
-                  Name: {selectedSubmission.first_name && selectedSubmission.last_name 
-                    ? `${selectedSubmission.first_name} ${selectedSubmission.last_name}`
-                    : 'N/A'
-                  }
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Name: {unmaskedIds.has(selectedSubmission.id)
+                      ? (selectedSubmission.first_name && selectedSubmission.last_name 
+                          ? `${selectedSubmission.first_name} ${selectedSubmission.last_name}`
+                          : 'N/A')
+                      : maskFullName(selectedSubmission.first_name, selectedSubmission.last_name)
+                    }
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleTogglePII(selectedSubmission.id)}
+                    className="h-6 w-6 p-0"
+                  >
+                    {unmaskedIds.has(selectedSubmission.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  </Button>
+                </div>
               </div>
 
               <div>
