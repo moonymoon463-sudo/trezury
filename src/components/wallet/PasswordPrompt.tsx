@@ -49,10 +49,10 @@ export function PasswordPrompt({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Lock className="h-5 w-5 text-primary" />
-            Enter Wallet Password
+            Enter Account Password
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Enter your wallet password to continue. This password was used when you created your wallet.
+            Enter your account password to continue. This is the same password you use to log in.
           </DialogDescription>
         </DialogHeader>
 
@@ -67,7 +67,7 @@ export function PasswordPrompt({
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your wallet password"
+                placeholder="Enter your account password"
                 required
                 disabled={loading}
                 className="bg-input border-border text-white pr-10"
@@ -92,7 +92,7 @@ export function PasswordPrompt({
           <div className="p-3 bg-accent/50 rounded-lg border border-primary/20">
             <p className="text-xs text-muted-foreground flex items-start gap-2">
               <Shield className="h-3 w-3 text-primary mt-0.5 flex-shrink-0" />
-              <span>This password was set when you created your wallet. It's used to securely derive your private keys.</span>
+              <span>Use your account password (the same one you use to log in). It's used to securely derive your private keys.</span>
             </p>
           </div>
 

@@ -15,7 +15,7 @@ export const useWalletSetup = () => {
     }
 
     if (!userPassword || userPassword.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError('Password must be at least 8 characters (use your account password)');
       return null;
     }
 

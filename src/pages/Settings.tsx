@@ -321,7 +321,7 @@ const Settings = () => {
             Wallet Management
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Manage your secure wallet and backup your private key
+            Your wallet is secured with your account password
           </p>
           
           {walletAddress ? (
@@ -360,6 +360,7 @@ const Settings = () => {
                           <li>Never share your private key with anyone</li>
                           <li>Store it securely - we cannot recover lost private keys</li>
                           <li>Anyone with your private key can access your funds</li>
+                          <li>Use your account password to reveal your private key</li>
                         </ul>
                       </div>
                     </div>

@@ -14,7 +14,6 @@ interface SecureWalletSetupProps {
 
 const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }) => {
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -31,20 +30,11 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (password.length < 8) {
       toast({
         variant: "destructive",
-        title: "Password Mismatch",
-        description: "Passwords do not match"
-      });
-      return;
-    }
-
-    if (password.length < 12) {
-      toast({
-        variant: "destructive",
-        title: "Password Too Weak",
-        description: "Password must be at least 12 characters long"
+        title: "Password Too Short",
+        description: "Password must be at least 8 characters (use your account password)"
       });
       return;
     }
@@ -67,7 +57,6 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
 
       // Clear password from memory
       setPassword('');
-      setConfirmPassword('');
     } catch (error) {
       toast({
         variant: "destructive",
@@ -99,7 +88,7 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
           <Alert>
             <Shield className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              Your private keys are never stored anywhere. You'll need your password for transactions.
+              Your private keys are never stored anywhere. You'll need your account password for transactions.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -122,21 +111,24 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-sm">
-            <strong>SECURITY:</strong> Your password generates your wallet. 
-            If you forget it, your wallet cannot be recovered.
+            <strong>IMPORTANT:</strong> Use your login password. If you forget your login password, 
+            you'll lose access to both your account AND your wallet.
           </AlertDescription>
         </Alert>
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">
-            Wallet Password (min 12 characters)
+            Account Password
           </label>
+          <p className="text-xs text-muted-foreground">
+            Enter the same password you use to log in
+          </p>
           <div className="relative">
             <Input
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter a strong password"
+              placeholder="Enter your account password"
               className="pr-10"
             />
             <Button
@@ -151,30 +143,18 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Confirm Password
-          </label>
-          <Input
-            type={showPassword ? "text" : "password"}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm your password"
-          />
-        </div>
-
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground space-y-1">
-            <div>✓ Password creates your wallet deterministically</div>
+            <div>✓ Uses your account password - nothing new to remember</div>
+            <div>✓ One password for login and wallet</div>
             <div>✓ No private keys stored anywhere</div>
             <div>✓ You control your own security</div>
-            <div>✓ Use the same password to access your wallet</div>
           </div>
         </div>
 
         <Button
           onClick={handleCreateWallet}
-          disabled={loading || !password || !confirmPassword}
+          disabled={loading || !password}
           className="w-full"
         >
           {loading ? "Creating Secure Wallet..." : "Create Wallet"}

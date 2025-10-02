@@ -114,6 +114,40 @@ const signedTx = await secureWalletService.signTransaction(
 
 ---
 
+## 🔄 Unified Password System (Updated 2025)
+
+### **New Wallet Creation (2025 onwards):**
+
+All wallets created after this update use a unified password approach for maximum convenience and security:
+
+- **Account Password = Wallet Password**: Users use their login password to secure their wallet
+- **8 character minimum**: Matches Supabase's authentication requirements
+- **Works for all authentication methods**: Email/password AND Google OAuth users
+- **One password to remember**: No separate wallet password needed
+- **Automatic wallet creation**: New signups automatically create wallets during registration
+
+### **Legacy Wallets:**
+
+- Users who created wallets before this update keep their separate wallet passwords
+- These continue to work normally with no changes required
+- No migration needed - both systems coexist seamlessly
+
+### **Benefits of Unified System:**
+
+✅ **Simpler User Experience**: One password for everything  
+✅ **Better Security**: Users are more likely to remember one strong password  
+✅ **No Password Confusion**: Clear which password to use  
+✅ **Automatic Setup**: Wallets created during signup automatically  
+
+### **User Responsibilities (Unchanged):**
+
+- 🔑 **Strong password required** (minimum 8 characters)
+- 🔑 **Password security is user's responsibility**
+- 🔑 **Lost password = lost wallet** (no recovery possible)
+- 🔑 **Same password always regenerates same wallet**
+
+---
+
 ## 🚀 Result: Military-Grade Security
 
 This implementation follows cryptocurrency industry best practices and eliminates the most common attack vectors against wallet applications. Users now have complete control over their wallet security, and the system cannot be compromised to steal private keys because **no private keys exist in the system**.
