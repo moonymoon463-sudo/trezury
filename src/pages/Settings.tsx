@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
+import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 
 interface UserProfile {
   id: string;
@@ -37,6 +38,8 @@ const Settings = () => {
   const [phone, setPhone] = useState("");
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -118,15 +121,29 @@ const Settings = () => {
     }
   };
 
-  const handleRevealPrivateKey = async () => {
+  const handleRevealPrivateKey = async (password: string) => {
     try {
-      const key = await revealPrivateKey();
+      setIsRevealing(true);
+      const key = await revealPrivateKey(password);
       if (key) {
         setPrivateKey(key);
         setShowPrivateKey(true);
+        setShowPasswordPrompt(false);
+        
+        toast({
+          title: "Private Key Revealed",
+          description: "Your private key is now visible. Keep it secure!",
+        });
       }
     } catch (error) {
-      // Error already handled in hook
+      console.error('Failed to reveal private key:', error);
+      toast({
+        variant: "destructive",
+        title: "Invalid Password",
+        description: "The password you entered is incorrect. Please try again.",
+      });
+    } finally {
+      setIsRevealing(false);
     }
   };
 
@@ -373,43 +390,52 @@ const Settings = () => {
                     </div>
                   </div>
                 ) : (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" disabled={walletLoading} className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700">
-                        <Eye className="h-4 w-4 mr-2" />
-                        Reveal Private Key
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-[#2C2C2E] border-gray-600">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2 text-white">
-                          <Shield className="h-5 w-5 text-yellow-500" />
+                  <>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" disabled={walletLoading} className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700">
+                          <Eye className="h-4 w-4 mr-2" />
                           Reveal Private Key
-                        </AlertDialogTitle>
-                        <AlertDialogDescription className="space-y-2 text-gray-400">
-                          <p>You are about to reveal your wallet's private key. This is extremely sensitive information.</p>
-                          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                            <p className="text-sm font-medium text-red-400">⚠️ Security Warning:</p>
-                            <ul className="text-sm text-red-300 mt-1 space-y-1">
-                              <li>• Anyone with this key can steal all your funds</li>
-                              <li>• Only reveal this for backup purposes</li>
-                              <li>• Never share it with anyone, including support</li>
-                              <li>• Store it in a secure location offline</li>
-                            </ul>
-                          </div>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleRevealPrivateKey}
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          I Understand - Reveal Key
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-[#2C2C2E] border-gray-600">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2 text-white">
+                            <Shield className="h-5 w-5 text-yellow-500" />
+                            Reveal Private Key
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-2 text-gray-400">
+                            <p>You are about to reveal your wallet's private key. This is extremely sensitive information.</p>
+                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                              <p className="text-sm font-medium text-red-400">⚠️ Security Warning:</p>
+                              <ul className="text-sm text-red-300 mt-1 space-y-1">
+                                <li>• Anyone with this key can steal all your funds</li>
+                                <li>• Only reveal this for backup purposes</li>
+                                <li>• Never share it with anyone, including support</li>
+                                <li>• Store it in a secure location offline</li>
+                              </ul>
+                            </div>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-[#1C1C1E] border-gray-600 text-white hover:bg-gray-700">Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => setShowPasswordPrompt(true)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            I Understand - Continue
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <PasswordPrompt
+                      open={showPasswordPrompt}
+                      onOpenChange={setShowPasswordPrompt}
+                      onConfirm={handleRevealPrivateKey}
+                      loading={isRevealing}
+                    />
+                  </>
                 )}
               </div>
             </div>

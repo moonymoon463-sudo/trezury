@@ -953,7 +953,9 @@ export type Database = {
           asset: string
           chain: string
           created_at: string
+          created_with_password: boolean | null
           id: string
+          setup_method: string | null
           user_id: string
         }
         Insert: {
@@ -961,7 +963,9 @@ export type Database = {
           asset?: string
           chain?: string
           created_at?: string
+          created_with_password?: boolean | null
           id?: string
+          setup_method?: string | null
           user_id: string
         }
         Update: {
@@ -969,7 +973,9 @@ export type Database = {
           asset?: string
           chain?: string
           created_at?: string
+          created_with_password?: boolean | null
           id?: string
+          setup_method?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1919,6 +1925,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wallet_security_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          success: boolean
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          success: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       wallets: {
         Row: {

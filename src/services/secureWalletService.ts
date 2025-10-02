@@ -203,17 +203,65 @@ class SecureWalletService {
    * WARNING: This should only be used for user-initiated backup operations
    */
   async revealPrivateKey(userId: string, userPassword?: string): Promise<string> {
+    const startTime = Date.now();
+    
     try {
       // Generate the deterministic wallet (private key is ephemeral)
       const wallet = this.createUniqueWallet(userId, userPassword);
       
+      // Verify the password by checking if the generated address matches stored address
+      const storedAddress = await this.getWalletAddress(userId);
+      if (storedAddress && wallet.address.toLowerCase() !== storedAddress.toLowerCase()) {
+        // Password is incorrect - addresses don't match
+        await this.logSecurityEvent(userId, 'private_key_reveal_failed', false, {
+          reason: 'incorrect_password',
+          duration_ms: Date.now() - startTime
+        });
+        throw new Error('Incorrect password');
+      }
+      
       console.log('🔐 Private key revealed for backup (user-initiated)');
+      
+      // Log successful reveal
+      await this.logSecurityEvent(userId, 'private_key_revealed', true, {
+        duration_ms: Date.now() - startTime
+      });
       
       // Return the private key for user backup
       return wallet.privateKey;
     } catch (error) {
+      // Log failed attempt
+      if (error instanceof Error && error.message !== 'Incorrect password') {
+        await this.logSecurityEvent(userId, 'private_key_reveal_failed', false, {
+          error: error.message,
+          duration_ms: Date.now() - startTime
+        });
+      }
+      
       console.error('Failed to reveal private key:', error);
-      throw new Error('Unable to reveal private key. Please check your credentials.');
+      throw error;
+    }
+  }
+
+  /**
+   * Log security events to audit table
+   */
+  private async logSecurityEvent(
+    userId: string,
+    eventType: string,
+    success: boolean,
+    metadata: Record<string, any> = {}
+  ): Promise<void> {
+    try {
+      await supabase.from('wallet_security_events').insert({
+        user_id: userId,
+        event_type: eventType,
+        success: success,
+        metadata: metadata
+      });
+    } catch (error) {
+      console.error('Failed to log security event:', error);
+      // Don't throw - logging failure shouldn't block the operation
     }
   }
 }
