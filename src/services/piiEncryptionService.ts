@@ -115,7 +115,7 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
     try {
       // Check rate limiting for PII access
       const { data: canAccess } = await supabase.rpc('check_pii_rate_limit', {
-        user_uuid: userId
+        p_user_id: userId
       });
       
       if (!canAccess) {

@@ -6,16 +6,16 @@ import { useToast } from '@/hooks/use-toast';
 export interface UseSecureWalletReturn {
   walletAddress: string | null;
   loading: boolean;
-  createWallet: () => Promise<SecureWalletInfo | null>;
+  createWallet: (userPassword: string) => Promise<SecureWalletInfo | null>;
   validateAccess: () => Promise<boolean>;
-  signTransaction: (transactionData: Record<string, unknown>) => Promise<string | null>;
+  signTransaction: (transactionData: Record<string, unknown>, userPassword: string) => Promise<string | null>;
   getWalletAddress: () => Promise<string | null>;
-  revealPrivateKey: (userPassword?: string) => Promise<string | null>;
+  revealPrivateKey: (userPassword: string) => Promise<string | null>;
 }
 
 /**
  * Hook for secure wallet operations
- * Ensures private keys are never stored and always user-controlled
+ * All operations require password authentication
  */
 export const useSecureWallet = (): UseSecureWalletReturn => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -23,40 +23,66 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const createWallet = useCallback(async (): Promise<SecureWalletInfo | null> => {
-    if (!user?.id) {
+  const createWallet = useCallback(async (userPassword: string): Promise<SecureWalletInfo | null> => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to create a wallet"
+      });
       return null;
     }
 
+    if (!userPassword || userPassword.length < 8) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Password",
+        description: "Password must be at least 8 characters"
+      });
+      return null;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // First check if wallet already exists
+      // Check if wallet already exists
       const existingAddress = await secureWalletService.getWalletAddress(user.id);
       if (existingAddress) {
-        console.log('✅ Using existing internal wallet:', existingAddress);
         setWalletAddress(existingAddress);
-        return { address: existingAddress, publicKey: '' };
+        toast({
+          title: "Wallet Already Exists",
+          description: `Address: ${existingAddress.substring(0, 6)}...${existingAddress.substring(38)}`
+        });
+        return { address: existingAddress, publicKey: existingAddress };
       }
-      
-      // Auto-generate wallet using just user ID - no password needed
-      const walletInfo = await secureWalletService.generateDeterministicWallet(user.id);
 
+      // Generate new secure wallet
+      const walletInfo = await secureWalletService.generateDeterministicWallet(
+        user.id,
+        { userPassword }
+      );
       setWalletAddress(walletInfo.address);
       
-      console.log('✅ Internal wallet automatically created');
+      toast({
+        title: "Secure Wallet Created",
+        description: "Your password-protected wallet has been generated"
+      });
 
       return walletInfo;
     } catch (error) {
-      console.error('Auto wallet creation failed:', error);
+      console.error('Wallet creation failed:', error);
+      toast({
+        variant: "destructive",
+        title: "Wallet Creation Failed",
+        description: error instanceof Error ? error.message : "Failed to create wallet"
+      });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   const validateAccess = useCallback(async (): Promise<boolean> => {
-    if (!user?.id) {
+    if (!user) {
       return false;
     }
 
@@ -72,29 +98,46 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
 
   const signTransaction = useCallback(async (
     transactionData: Record<string, unknown>,
-    userPassword?: string
+    userPassword: string
   ): Promise<string | null> => {
-    if (!user?.id) {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to sign transactions"
+      });
       return null;
     }
 
+    if (!userPassword) {
+      toast({
+        variant: "destructive",
+        title: "Password Required",
+        description: "Password is required to sign transactions"
+      });
+      return null;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Sign transaction using user's unique wallet
-      const signedTx = await secureWalletService.signTransaction(
+      const signature = await secureWalletService.signTransaction(
         user.id,
         transactionData,
         userPassword
       );
+      
+      toast({
+        title: "Transaction Signed",
+        description: "Your transaction has been signed successfully"
+      });
 
-      return signedTx;
+      return signature;
     } catch (error) {
       console.error('Transaction signing failed:', error);
       toast({
         variant: "destructive",
         title: "Transaction Failed",
-        description: "Unable to sign transaction. Please check your password.",
+        description: "Unable to sign transaction. Please check your password."
       });
       return null;
     } finally {
@@ -103,7 +146,7 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
   }, [user, toast]);
 
   const getWalletAddress = useCallback(async (): Promise<string | null> => {
-    if (!user?.id) {
+    if (!user) {
       return null;
     }
 
@@ -111,38 +154,56 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
       const address = await secureWalletService.getWalletAddress(user.id);
       if (address) {
         setWalletAddress(address);
-        console.log('✅ Retrieved existing wallet address:', address);
-      } else {
-        console.log('ℹ️ No wallet found, will create one when needed');
-        // Auto-create wallet if none exists
-        const walletInfo = await createWallet();
-        return walletInfo?.address || null;
       }
       return address;
     } catch (error) {
       console.error('Error getting wallet address:', error);
       return null;
     }
-  }, [user, createWallet]);
+  }, [user]);
 
-  const revealPrivateKey = useCallback(async (userPassword?: string): Promise<string | null> => {
-    if (!user?.id) {
-      throw new Error('User not authenticated');
+  const revealPrivateKey = useCallback(async (userPassword: string): Promise<string | null> => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in first"
+      });
+      return null;
     }
 
+    if (!userPassword) {
+      toast({
+        variant: "destructive",
+        title: "Password Required",
+        description: "Password is required to reveal private key"
+      });
+      return null;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
-      
       const privateKey = await secureWalletService.revealPrivateKey(user.id, userPassword);
       
+      toast({
+        title: "Private Key Retrieved",
+        description: "⚠️ CRITICAL: Never share this key with anyone",
+        variant: "destructive"
+      });
+
       return privateKey;
     } catch (error) {
       console.error('Failed to reveal private key:', error);
-      throw error; // Let the calling component handle the error
+      toast({
+        variant: "destructive",
+        title: "Failed to Reveal Key",
+        description: error instanceof Error ? error.message : "Incorrect password or error"
+      });
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   return {
     walletAddress,

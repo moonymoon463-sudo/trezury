@@ -1323,6 +1323,30 @@ export type Database = {
           },
         ]
       }
+      secure_wallet_metadata: {
+        Row: {
+          created_at: string
+          kdf_iterations: number
+          kdf_salt: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          kdf_iterations?: number
+          kdf_salt: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          kdf_iterations?: number
+          kdf_salt?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       security_alerts: {
         Row: {
           alert_type: string
@@ -2124,7 +2148,7 @@ export type Database = {
         }[]
       }
       check_pii_rate_limit: {
-        Args: { user_uuid: string }
+        Args: { p_user_id: string }
         Returns: boolean
       }
       check_transaction_access_rate_limit: {

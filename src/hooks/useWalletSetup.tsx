@@ -8,9 +8,14 @@ export const useWalletSetup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const setupWallet = async (userPassword?: string) => {
+  const setupWallet = async (userPassword: string) => {
     if (!user) {
       setError('User must be authenticated');
+      return null;
+    }
+
+    if (!userPassword || userPassword.length < 8) {
+      setError('Password must be at least 8 characters');
       return null;
     }
 
@@ -18,14 +23,19 @@ export const useWalletSetup = () => {
       setLoading(true);
       setError(null);
 
-      // Get wallet address - this will create one if it doesn't exist
-      const walletAddress = await secureWalletService.getWalletAddress(user.id);
+      // Check if wallet already exists
+      let walletAddress = await secureWalletService.getWalletAddress(user.id);
       
       if (!walletAddress) {
-        throw new Error('Failed to create wallet address');
+        // Create new secure wallet with password
+        const walletInfo = await secureWalletService.generateDeterministicWallet(
+          user.id,
+          { userPassword }
+        );
+        walletAddress = walletInfo.address;
       }
 
-      console.log(`Unique wallet setup for user ${user.id}: ${walletAddress}`);
+      console.log(`Secure wallet ready for user ${user.id}: ${walletAddress}`);
       
       return {
         address: walletAddress
