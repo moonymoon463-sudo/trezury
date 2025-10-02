@@ -32,10 +32,10 @@ const TrzryReserves = () => {
   };
 
   return (
-    <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#1A1A1A] justify-between">
+    <div className="relative flex h-auto min-h-screen w-full flex-col bg-background justify-between">
       <div className="flex-grow">
         {/* Header */}
-        <div className="flex items-center bg-[#1A1A1A] p-4 pb-2 justify-between sticky top-0 z-10">
+        <div className="flex items-center bg-background p-4 pb-2 justify-between sticky top-0 z-10">
           <button 
             className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-transparent text-white hover:bg-white/10 transition-colors"
             onClick={() => navigate("/")}
@@ -54,7 +54,7 @@ const TrzryReserves = () => {
 
         <div className="px-4 pt-6 pb-4 space-y-4">
           {/* Your TRZRY Balance */}
-          <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <div className="bg-card rounded-xl p-4">
             <h3 className="text-white text-base font-bold mb-3">Your TRZRY Balance</h3>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -81,7 +81,7 @@ const TrzryReserves = () => {
           </div>
 
           {/* Reserve Information */}
-          <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <div className="bg-card rounded-xl p-4">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-white text-base font-bold">Gold Reserve Backing</h3>
               {!reserveLoading && growthPercentage !== null && (
@@ -109,7 +109,7 @@ const TrzryReserves = () => {
                 </span>
               </div>
               
-              <div className="bg-[#1A1A1A] rounded-lg p-3 mt-3">
+              <div className="bg-muted rounded-lg p-3 mt-3">
                 <p className="text-gray-300 text-xs leading-relaxed">
                   Each TRZRY token is backed by real gold reserves held in secure vaults. 
                   The reserve grows over time through yield generation and strategic acquisitions, 
@@ -123,7 +123,7 @@ const TrzryReserves = () => {
           <TrzryReserveChart />
 
           {/* Key Features */}
-          <div className="bg-[#2C2C2E] rounded-xl p-4">
+          <div className="bg-card rounded-xl p-4">
             <h3 className="text-white text-base font-bold mb-3">Why TRZRY?</h3>
             <div className="space-y-3">
               <div className="flex items-start gap-3">

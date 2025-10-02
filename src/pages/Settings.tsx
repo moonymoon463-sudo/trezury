@@ -481,7 +481,7 @@ const Settings = () => {
         )}
 
         {/* Payment Methods */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4">
+        <div className="bg-card rounded-xl p-4">
           <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
             <CreditCard size={20} />
             Payment Methods
@@ -495,46 +495,46 @@ const Settings = () => {
           <Button 
             onClick={() => navigate("/payment-methods")}
             disabled={profile.kyc_status !== 'verified'}
-            className="w-full bg-[#1C1C1E] border border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50"
+            className="w-full bg-muted border border-border text-foreground hover:bg-accent disabled:opacity-50"
           >
             Manage Payment Methods
           </Button>
         </div>
 
         {/* Notifications */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4">
-          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+        <div className="bg-card rounded-xl p-4">
+          <h3 className="text-foreground text-lg font-bold mb-4 flex items-center gap-2">
             <Bell size={20} />
             Notifications
           </h3>
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Manage your notification preferences
           </p>
           <Button 
             disabled 
-            className="w-full bg-[#1C1C1E] border border-gray-600 text-gray-500 opacity-50"
+            className="w-full bg-muted border border-border text-muted-foreground opacity-50"
           >
             Coming Soon
           </Button>
         </div>
 
         {/* Legal */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4">
-          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+        <div className="bg-card rounded-xl p-4">
+          <h3 className="text-foreground text-lg font-bold mb-4 flex items-center gap-2">
             <FileText size={20} />
             Legal
           </h3>
           <div className="space-y-3">
             <Button 
               onClick={() => navigate("/privacy-policy")}
-              className="w-full bg-[#1C1C1E] border border-gray-600 text-white hover:bg-gray-700 justify-start"
+              className="w-full bg-muted border border-border text-foreground hover:bg-accent justify-start"
               variant="outline"
             >
               Privacy Policy
             </Button>
             <Button 
               onClick={() => navigate("/terms-of-service")}
-              className="w-full bg-[#1C1C1E] border border-gray-600 text-white hover:bg-gray-700 justify-start"
+              className="w-full bg-muted border border-border text-foreground hover:bg-accent justify-start"
               variant="outline"
             >
               Terms of Service
@@ -543,7 +543,7 @@ const Settings = () => {
         </div>
 
         {/* Account Actions */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4">
+        <div className="bg-card rounded-xl p-4">
           <Button 
             onClick={handleSignOut}
             className="w-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"

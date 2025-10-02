@@ -188,7 +188,7 @@ const PaymentMethods = () => {
   const activePaymentMethods = paymentMethods.filter(pm => pm.is_active);
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -209,7 +209,7 @@ const PaymentMethods = () => {
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
         {/* Add Payment Method */}
-        <div className="bg-[#2C2C2E] rounded-xl p-6 border-2 border-dashed border-gray-600 text-center">
+        <div className="bg-card rounded-xl p-6 border-2 border-dashed border-border text-center">
           <Plus className="h-8 w-8 mx-auto mb-4 text-gray-400" />
           <h3 className="font-semibold text-white mb-2">Add Payment Method</h3>
           <p className="text-sm text-gray-400 mb-4">
@@ -228,7 +228,7 @@ const PaymentMethods = () => {
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-white">Your Payment Methods</h2>
             {activePaymentMethods.map((method) => (
-              <div key={method.id} className="bg-[#2C2C2E] rounded-xl p-4">
+              <div key={method.id} className="bg-card rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="text-2xl">
@@ -257,7 +257,7 @@ const PaymentMethods = () => {
                           </p>
                         </>
                       )}
-                      <Badge variant="secondary" className="text-xs mt-1 bg-[#1C1C1E] text-gray-400">
+                      <Badge variant="secondary" className="text-xs mt-1 bg-muted text-muted-foreground">
                         {method.provider}
                       </Badge>
                     </div>
@@ -278,7 +278,7 @@ const PaymentMethods = () => {
 
         {/* Empty State */}
         {activePaymentMethods.length === 0 && (
-          <div className="bg-[#2C2C2E] rounded-xl p-12 text-center">
+          <div className="bg-card rounded-xl p-12 text-center">
             <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-semibold text-white mb-2">No Payment Methods</h3>
             <p className="text-gray-400">
@@ -288,7 +288,7 @@ const PaymentMethods = () => {
         )}
 
         {/* Security Notice */}
-        <div className="bg-[#2C2C2E] rounded-xl p-4">
+        <div className="bg-card rounded-xl p-4">
           <div className="flex items-start gap-3">
             <Shield className="h-5 w-5 text-primary mt-0.5" />
             <div>

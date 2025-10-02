@@ -2,6 +2,7 @@ import React from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import StandardHeader from '@/components/StandardHeader';
 import BottomNavigation from '@/components/BottomNavigation';
+import { UpdatePrompt } from '@/components/UpdatePrompt';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -34,6 +35,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
   return (
     <div className="screen flex flex-col bg-background">
+      {/* Update Prompt */}
+      <UpdatePrompt />
+      
       {/* Header */}
       {showHeader && <StandardHeader {...headerProps} />}
 

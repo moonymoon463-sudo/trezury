@@ -1,12 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Send, Download } from "lucide-react";
+import { TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Send, Download, Wallet, AlertCircle } from "lucide-react";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
+import { useSecureWallet } from "@/hooks/useSecureWallet";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AppLayout from "@/components/AppLayout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
 
 
 const Index = () => {
@@ -14,7 +16,20 @@ const Index = () => {
   const navigate = useNavigate();
   const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
   const { getBalance, loading: balanceLoading } = useWalletBalance();
+  const { walletAddress, getWalletAddress } = useSecureWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasWallet, setHasWallet] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkWallet = async () => {
+      const address = await getWalletAddress();
+      console.info('[Index] Wallet check:', address ? 'exists' : 'not found');
+      setHasWallet(!!address);
+    };
+    if (user) {
+      checkWallet();
+    }
+  }, [user, getWalletAddress]);
 
   // Get real balances
   const usdcBalance = getBalance('USDC');
@@ -64,6 +79,32 @@ const Index = () => {
     >
       
       <div className="flex-1 min-h-0 overflow-y-auto px-1 sm:px-2 md:px-4 space-y-2 sm:space-y-3">
+        {/* Wallet Creation Banner */}
+        {hasWallet === false && (
+          <Card className="bg-accent/50 border-primary/50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm text-foreground mb-1">
+                  Create Your Secure Wallet
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Set up your secure wallet to start receiving deposits and managing your assets.
+                </p>
+                <Button 
+                  size="sm"
+                  onClick={() => navigate("/settings")}
+                  className="text-xs bg-primary text-black hover:bg-primary/90"
+                >
+                  Create Wallet Now
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Gold Price Section */}
         <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
           <div className="flex justify-between items-center mb-2">

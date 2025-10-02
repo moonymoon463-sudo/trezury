@@ -37,14 +37,14 @@ const WalletManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-[#1C1C1E] items-center justify-center">
+      <div className="flex flex-col h-screen bg-background items-center justify-center">
         <div className="text-white">Loading wallet information...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#1C1C1E]">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
       <header className="p-4">
         <div className="flex items-center">
@@ -64,7 +64,7 @@ const WalletManagement = () => {
       <main className="flex-1 px-4 pb-6 overflow-y-auto space-y-6">
         
         {/* Wallet Addresses */}
-        <Card className="bg-[#2C2C2E] border-gray-700">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-white">Wallet Addresses</CardTitle>
             <CardDescription className="text-gray-400">
@@ -86,13 +86,13 @@ const WalletManagement = () => {
             ) : (
               <div className="space-y-4">
                 {walletInfo.map((wallet, index) => (
-                  <div key={index} className="bg-[#3C3C3E] rounded-lg p-4">
+                  <div key={index} className="bg-muted rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-white font-medium">{wallet.asset} Wallet</span>
                       <span className="text-gray-400 text-sm">{wallet.chain}</span>
                     </div>
                     <div className="flex items-center gap-2 mb-2">
-                      <code className="bg-[#1C1C1E] px-2 py-1 rounded text-xs text-white flex-1">
+                      <code className="bg-background px-2 py-1 rounded text-xs text-foreground flex-1">
                         {wallet.address}
                       </code>
                       <Button 
@@ -115,7 +115,7 @@ const WalletManagement = () => {
         </Card>
 
         {/* Wallet Status */}
-        <Card className="bg-[#2C2C2E] border-gray-700">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-white">Wallet Status</CardTitle>
             <CardDescription className="text-gray-400">
@@ -128,7 +128,7 @@ const WalletManagement = () => {
             ) : (
               <div className="space-y-4">
                 {walletInfo.map((wallet, index) => (
-                  <div key={index} className="bg-[#3C3C3E] rounded-lg p-4">
+                  <div key={index} className="bg-muted rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-white font-medium">{wallet.asset} Status</span>
                       <CheckCircle className="text-green-500" size={16} />
@@ -151,7 +151,7 @@ const WalletManagement = () => {
         </Card>
 
         {/* Fee Collection Control */}
-        <Card className="bg-[#2C2C2E] border-gray-700">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-white">Automated Fee Collection</CardTitle>
             <CardDescription className="text-gray-400">
@@ -210,7 +210,7 @@ const WalletManagement = () => {
         </div>
 
         {/* Instructions */}
-        <Card className="bg-[#2C2C2E] border-gray-700">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-white">Platform Management Guide</CardTitle>
           </CardHeader>

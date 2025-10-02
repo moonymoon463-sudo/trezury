@@ -19,7 +19,6 @@ export default function FundingMethods() {
   const { toast } = useToast();
   const { walletAddress, createWallet, loading: walletLoading } = useSecureWallet();
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
-  const [hasWallet, setHasWallet] = useState(false);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -36,11 +35,13 @@ export default function FundingMethods() {
   const loadDepositData = async () => {
     try {
       setLoading(true);
+      console.info('[FundingMethods] Loading deposit data...');
       
       // Check if user has existing secure wallet
       const existingAddress = await walletService.getExistingAddress(user!.id);
       
       if (existingAddress) {
+        console.info('[FundingMethods] Wallet exists:', existingAddress.address);
         setDepositAddress(existingAddress.address);
         setWalletExists(true);
 
@@ -49,6 +50,7 @@ export default function FundingMethods() {
         setQrCodeUrl(qrUrl);
       } else {
         // No wallet exists, user needs to create one with password
+        console.info('[FundingMethods] No wallet found, showing setup');
         setWalletExists(false);
       }
 
@@ -68,8 +70,10 @@ export default function FundingMethods() {
 
   const handleCreateWallet = async (password: string) => {
     try {
+      console.info('[FundingMethods] Creating wallet with password...');
       const wallet = await createWallet(password);
       if (wallet) {
+        console.info('[FundingMethods] Wallet created:', wallet.address);
         setDepositAddress(wallet.address);
         setWalletExists(true);
         
@@ -158,13 +162,14 @@ export default function FundingMethods() {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold text-white mb-6">Loading deposit address...</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-6">Loading deposit address...</h1>
         </div>
       </div>
     );
   }
 
-  if (!hasWallet) {
+  if (!walletExists) {
+    console.info('[FundingMethods] Rendering SecureWalletSetup');
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-lg mx-auto">
@@ -173,19 +178,20 @@ export default function FundingMethods() {
               variant="ghost" 
               size="icon"
               onClick={() => navigate(-1)}
-              className="text-white hover:bg-accent"
+              className="text-foreground hover:bg-accent"
             >
               <ArrowLeft className="h-6 w-6" />
             </Button>
             <div className="flex-1 flex justify-center pr-10">
-              <div className="text-white font-bold text-lg">TREZURY</div>
+              <div className="text-foreground font-bold text-lg">TREZURY</div>
             </div>
           </header>
           
           <SecureWalletSetup 
             onWalletCreated={(address) => {
+              console.info('[FundingMethods] Wallet created callback:', address);
               setDepositAddress(address);
-              setHasWallet(true);
+              setWalletExists(true);
               toast({
                 title: "Wallet Created Successfully",
                 description: "Your secure wallet is ready to receive funds"
@@ -206,12 +212,12 @@ export default function FundingMethods() {
             variant="ghost" 
             size="icon" 
             onClick={() => navigate(-1)}
-            className="text-white hover:bg-gray-800"
+            className="text-foreground hover:bg-accent"
           >
             <ArrowLeft className="h-6 w-6" />
           </Button>
           <div className="flex-1 flex justify-center pr-10">
-            <div className="text-white font-bold text-lg">TREZURY</div>
+            <div className="text-foreground font-bold text-lg">TREZURY</div>
           </div>
         </div>
 
@@ -230,8 +236,8 @@ export default function FundingMethods() {
               <Card>
                 <CardContent className="p-6">
                   <div className="text-center space-y-4">
-                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                      <p className="text-sm text-yellow-400 mb-4">
+                    <div className="p-4 bg-accent/50 border border-border rounded-lg">
+                      <p className="text-sm text-foreground mb-4">
                         <strong>Security Notice:</strong> You need to create a secure wallet before you can receive deposits. Your wallet is protected by your account password.
                       </p>
                     </div>

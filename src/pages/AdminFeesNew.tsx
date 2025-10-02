@@ -210,7 +210,7 @@ const AdminFeesNew = () => {
       <main className="flex-1 px-4 pb-6 overflow-y-auto">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[#2C2C2E] border-gray-700">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Collected Fees</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-400" />
@@ -223,7 +223,7 @@ const AdminFeesNew = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#2C2C2E] border-gray-700">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Pending Requests</CardTitle>
               <Clock className="h-4 w-4 text-blue-400" />
@@ -236,7 +236,7 @@ const AdminFeesNew = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#2C2C2E] border-gray-700">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Uncollected Fees</CardTitle>
               <TrendingUp className="h-4 w-4 text-yellow-400" />
@@ -249,7 +249,7 @@ const AdminFeesNew = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#2C2C2E] border-gray-700">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-400">Platform Wallet</CardTitle>
               <Wallet className="h-4 w-4 text-blue-400" />
