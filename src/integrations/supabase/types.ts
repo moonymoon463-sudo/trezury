@@ -482,6 +482,33 @@ export type Database = {
         }
         Relationships: []
       }
+      encrypted_wallet_keys: {
+        Row: {
+          created_at: string
+          encrypted_private_key: string
+          encryption_iv: string
+          encryption_salt: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_private_key: string
+          encryption_iv: string
+          encryption_salt: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_private_key?: string
+          encryption_iv?: string
+          encryption_salt?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       faq_categories: {
         Row: {
           created_at: string

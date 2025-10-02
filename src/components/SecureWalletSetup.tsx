@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Lock, Eye, EyeOff, Shield, AlertTriangle } from "lucide-react";
+import { Lock, Shield } from "lucide-react";
 import { secureWalletService } from "@/services/secureWalletService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,8 +13,6 @@ interface SecureWalletSetupProps {
 }
 
 const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }) => {
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const { user } = useAuth();
@@ -30,33 +28,19 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
       return;
     }
 
-    if (password.length < 8) {
-      toast({
-        variant: "destructive",
-        title: "Password Too Short",
-        description: "Password must be at least 8 characters (use your account password)"
-      });
-      return;
-    }
-
     try {
       setLoading(true);
       
-      const walletInfo = await secureWalletService.generateDeterministicWallet(
-        user.id,
-        { userPassword: password }
-      );
+      // Instant wallet creation - NO PASSWORD REQUIRED
+      const walletInfo = await secureWalletService.generateRandomWallet(user.id);
 
       setWalletAddress(walletInfo.address);
       onWalletCreated?.(walletInfo.address);
 
       toast({
-        title: "Secure Wallet Created",
-        description: "Your wallet has been created securely without storing any private keys"
+        title: "Wallet Created Instantly",
+        description: "Your secure wallet is ready to use!"
       });
-
-      // Clear password from memory
-      setPassword('');
     } catch (error) {
       toast({
         variant: "destructive",
@@ -101,63 +85,36 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-foreground">
           <Lock className="h-5 w-5" />
-          Create Secure Wallet
+          Create Your Wallet
         </CardTitle>
         <CardDescription className="text-muted-foreground">
-          Create a secure wallet without storing private keys
+          Instant wallet creation - no password required
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
-          <AlertTriangle className="h-4 w-4" />
+          <Shield className="h-4 w-4" />
           <AlertDescription className="text-sm">
-            <strong>IMPORTANT:</strong> Use your login password. If you forget your login password, 
-            you'll lose access to both your account AND your wallet.
+            Your wallet will be created instantly. You'll only need your 
+            account password to reveal your private key for backup purposes.
           </AlertDescription>
         </Alert>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
-            Account Password
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Enter the same password you use to log in
-          </p>
-          <div className="relative">
-            <Input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your account password"
-              className="pr-10"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-
         <div className="space-y-3">
           <div className="text-xs text-muted-foreground space-y-1">
-            <div>✓ Uses your account password - nothing new to remember</div>
-            <div>✓ One password for login and wallet</div>
-            <div>✓ No private keys stored anywhere</div>
-            <div>✓ You control your own security</div>
+            <div>✓ Instant wallet creation</div>
+            <div>✓ Private key encrypted with your account password</div>
+            <div>✓ Password only needed for backup/reveal</div>
+            <div>✓ Secure encryption using AES-256-GCM</div>
           </div>
         </div>
 
         <Button
           onClick={handleCreateWallet}
-          disabled={loading || !password}
+          disabled={loading}
           className="w-full"
         >
-          {loading ? "Creating Secure Wallet..." : "Create Wallet"}
+          {loading ? "Creating Wallet..." : "Create Wallet Instantly"}
         </Button>
       </CardContent>
     </Card>

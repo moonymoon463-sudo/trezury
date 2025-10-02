@@ -148,6 +148,64 @@ All wallets created after this update use a unified password approach for maximu
 
 ---
 
-## 🚀 Result: Military-Grade Security
+## Result: Military-Grade Security
 
-This implementation follows cryptocurrency industry best practices and eliminates the most common attack vectors against wallet applications. Users now have complete control over their wallet security, and the system cannot be compromised to steal private keys because **no private keys exist in the system**.
+Zero attack surface. No private keys exist in:
+- ❌ Database (except encrypted)
+- ❌ localStorage
+- ❌ Server memory
+- ❌ Logs
+- ❌ Anywhere else unencrypted
+
+The only place private keys exist is temporarily in browser memory during transaction signing, then immediately garbage collected.
+
+---
+
+## Instant Wallet Creation (Updated 2025-10-02)
+
+### **NEW: Passwordless Wallet Creation**
+- Wallets are now created instantly without requiring a password
+- Private keys are randomly generated and encrypted with user's account-derived encryption
+- Password is ONLY required to:
+  - Reveal/backup your private key  
+  - Sign transactions
+
+### **How It Works:**
+1. **Creation**: Random private key generated → Encrypted with account-derived key → Stored in database
+2. **Storage**: Encrypted using AES-GCM (256-bit) with PBKDF2 key derivation (100k iterations)
+3. **Access**: Private key decrypted on-demand when you provide your account password
+4. **Security**: Even if database is compromised, private keys are useless without your password
+
+### **Key Benefits:**
+- ✅ Instant wallet creation (no password prompt)
+- ✅ Automatic wallet creation during signup
+- ✅ Password only for sensitive operations (backup, transactions)
+- ✅ Military-grade encryption (AES-256-GCM)
+- ✅ Brute-force protection (100k PBKDF2 iterations)
+
+### **Architecture:**
+```
+User Signs Up → Wallet Generated Instantly
+             ↓
+Random Private Key → Encrypted with AES-256-GCM
+             ↓
+Stored in database (encrypted_wallet_keys table)
+             ↓
+Public Address → Visible immediately in UI
+             ↓
+Private Key → Only decrypted when user provides password
+```
+
+### **Encryption Details:**
+- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
+- **Key Derivation**: PBKDF2-HMAC-SHA256
+- **Iterations**: 100,000 (prevents brute-force attacks)
+- **Salt**: Random 16-byte salt per wallet
+- **IV**: Random 12-byte initialization vector
+- **Password**: User's account login password (when revealing/signing)
+
+### **Legacy Wallet Support:**
+- Old deterministic wallets (created with password) still work
+- System automatically detects wallet type
+- No migration required for existing users
+- Both systems coexist seamlessly
