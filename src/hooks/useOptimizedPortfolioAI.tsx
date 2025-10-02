@@ -102,7 +102,7 @@ export function useOptimizedPortfolioAI() {
     });
   }, []);
 
-  // Optimized AI analysis with circuit breaker and caching
+  // Optimized AI analysis with circuit breaker, caching, and timeout
   const generateAIAnalysis = useCallback(async (skipCache = false) => {
     if (!portfolioData) return;
 
@@ -112,6 +112,12 @@ export function useOptimizedPortfolioAI() {
       console.log('Skipping analysis due to circuit breaker');
       return;
     }
+
+    // CRITICAL: Timeout protection - never let AI loading block UI
+    const analysisTimeout = setTimeout(() => {
+      console.log('⏰ AI analysis timeout - using local insights only');
+      setLoading(false);
+    }, 2000);
 
     // On mobile, check for significant value changes before re-analyzing
     if (isMobile && !skipCache) {
@@ -212,6 +218,7 @@ export function useOptimizedPortfolioAI() {
         setError(err instanceof Error ? err.message : 'Failed to generate analysis');
       }
     } finally {
+      clearTimeout(analysisTimeout);
       setLoading(false);
       analysisRef.current = null;
     }

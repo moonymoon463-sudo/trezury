@@ -18,11 +18,13 @@ import { MobileLoadingSkeleton } from "@/components/portfolio/MobileLoadingSkele
 import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function Portfolio() {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasTimedOut, setHasTimedOut] = useState(false);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
   
   // Use mobile-optimized portfolio hook
   const {
@@ -55,8 +57,30 @@ export default function Portfolio() {
     }
   };
 
-  // Progressive loading: only show skeleton if no data at all
-  if (loading && portfolioAssets.length === 0 && isMobile) {
+  // CRITICAL: Force loading screen to timeout after 2 seconds
+  useEffect(() => {
+    if (loading && portfolioAssets.length === 0) {
+      // Start 2-second timeout
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ Loading timeout reached - forcing content display');
+        setHasTimedOut(true);
+      }, 2000);
+    } else {
+      setHasTimedOut(false);
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    }
+    
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [loading, portfolioAssets.length]);
+
+  // Progressive loading: only show skeleton if no data at all AND not timed out
+  if (loading && portfolioAssets.length === 0 && !hasTimedOut && isMobile) {
     return (
       <div className="min-h-screen bg-background">
         <StandardHeader 
@@ -74,8 +98,8 @@ export default function Portfolio() {
     );
   }
 
-  // Desktop: only show full loading if no data
-  if (loading && portfolioAssets.length === 0 && !isMobile) {
+  // Desktop: only show full loading if no data AND not timed out
+  if (loading && portfolioAssets.length === 0 && !hasTimedOut && !isMobile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-2">

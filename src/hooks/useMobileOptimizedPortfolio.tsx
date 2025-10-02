@@ -323,23 +323,44 @@ export function useMobileOptimizedPortfolio() {
     }
   }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary]);
 
-  // Fast initial load with background refresh
+  // Fast initial load with 2-second timeout guarantee
   useEffect(() => {
     if (user?.id) {
-      // Fast initial load
-      fetchBalances().then((balances) => {
-        setBalances(balances);
-        const assets = calculatePortfolioAssets(balances, goldPrice);
-        const summary = calculateSummary(assets);
-        setPortfolioSummary(summary);
+      let timeoutId: NodeJS.Timeout;
+      
+      // CRITICAL: Guarantee loading stops after 2 seconds
+      const loadingTimeout = setTimeout(() => {
+        console.log('⏰ Force stopping loading after 2 seconds');
         setLoading(false);
-        hasInitialLoad.current = true;
-        
-        // Schedule background refresh after 2 seconds
-        setTimeout(() => {
-          refreshData(true);
-        }, 2000);
-      });
+      }, 2000);
+
+      // Fast initial load
+      fetchBalances()
+        .then((balances) => {
+          setBalances(balances);
+          const assets = calculatePortfolioAssets(balances, goldPrice);
+          const summary = calculateSummary(assets);
+          setPortfolioSummary(summary);
+          hasInitialLoad.current = true;
+          
+          // Schedule background refresh after 2 seconds
+          timeoutId = setTimeout(() => {
+            refreshData(true);
+          }, 2000);
+        })
+        .catch((err) => {
+          console.error('❌ Initial load failed:', err);
+          setError('Failed to load portfolio data');
+        })
+        .finally(() => {
+          clearTimeout(loadingTimeout);
+          setLoading(false);
+        });
+
+      return () => {
+        clearTimeout(loadingTimeout);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
   }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary, refreshData]);
 
