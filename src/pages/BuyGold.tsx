@@ -1,19 +1,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { CreditCard, DollarSign, AlertTriangle, Calendar } from "lucide-react";
+import { CreditCard, DollarSign, AlertTriangle, Calendar, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { AutoInvestModal } from "@/components/recurring/AutoInvestModal";
+import { MoonPayFrame } from "@/components/recurring/MoonPayFrame";
+import { useToast } from "@/hooks/use-toast";
+import { secureWalletService } from "@/services/secureWalletService";
 
 const BuyGold = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [paymentMethod, setPaymentMethod] = useState("credit_card");
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAutoInvestModal, setShowAutoInvestModal] = useState(false);
+  const [showMoonPayDialog, setShowMoonPayDialog] = useState(false);
+  const [moonPayUrl, setMoonPayUrl] = useState("");
+  const [initiatingMoonPay, setInitiatingMoonPay] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -39,7 +46,54 @@ const BuyGold = () => {
     }
   };
 
-  const handleContinue = () => {
+  const initiateMoonPayPurchase = async () => {
+    setInitiatingMoonPay(true);
+    try {
+      // Get wallet address
+      const walletAddress = await secureWalletService.getWalletAddress(user!.id);
+      if (!walletAddress) {
+        toast({
+          title: "Wallet Required",
+          description: "Please set up your wallet first",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Call MoonPay proxy with default amount ($100)
+      const { data, error } = await supabase.functions.invoke('moonpay-proxy', {
+        body: {
+          amount: 100,
+          currency: 'USD',
+          walletAddress
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.widgetUrl) {
+        setMoonPayUrl(data.widgetUrl);
+        setShowMoonPayDialog(true);
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to initiate MoonPay",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('MoonPay initiation error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initiate purchase",
+        variant: "destructive"
+      });
+    } finally {
+      setInitiatingMoonPay(false);
+    }
+  };
+
+  const handleContinue = async () => {
     if (paymentMethod === "usdc") {
       navigate("/swap");
       return;
@@ -50,9 +104,11 @@ const BuyGold = () => {
       return;
     }
     
-    // Store payment method and navigate to amount page for credit card
-    sessionStorage.setItem('selectedPaymentMethod', paymentMethod);
-    navigate("/buy-gold/amount");
+    // For credit card - open MoonPay directly
+    if (paymentMethod === "credit_card") {
+      await initiateMoonPayPurchase();
+      return;
+    }
   };
 
   if (loading) {
@@ -152,8 +208,16 @@ const BuyGold = () => {
             <Button 
               className="w-full font-bold h-14 text-lg rounded-xl"
               onClick={handleContinue}
+              disabled={initiatingMoonPay}
             >
-              {paymentMethod === "auto_invest" ? "Set up Auto-Invest" : "Continue"}
+              {initiatingMoonPay ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                paymentMethod === "auto_invest" ? "Set up Auto-Invest" : "Continue"
+              )}
             </Button>
         </div>
       </div>
@@ -163,6 +227,20 @@ const BuyGold = () => {
         open={showAutoInvestModal}
         onOpenChange={setShowAutoInvestModal}
         userCountry={profile?.country || 'US'}
+      />
+
+      {/* MoonPay Dialog */}
+      <MoonPayFrame
+        url={moonPayUrl}
+        open={showMoonPayDialog}
+        onOpenChange={setShowMoonPayDialog}
+        onComplete={() => {
+          toast({
+            title: "Purchase Complete",
+            description: "Your gold purchase was successful!"
+          });
+          navigate("/portfolio");
+        }}
       />
     </AppLayout>
   );
