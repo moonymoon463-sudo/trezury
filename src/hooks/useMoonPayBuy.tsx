@@ -12,6 +12,7 @@ interface MoonPayBuyRequest {
 interface MoonPayBuyResponse {
   success: boolean;
   transactionId?: string;
+  widgetUrl?: string;
   error?: string;
   requiresConfirmation?: boolean;
 }
@@ -85,18 +86,10 @@ export const useMoonPayBuy = () => {
         }
       }
 
-      // Open MoonPay widget URL in new window
-      const widgetWindow = window.open(data.widgetUrl, 'MoonPayWidget', 'width=500,height=700');
-      
-      if (!widgetWindow) {
-        // Fallback to redirect if popup was blocked
-        window.location.href = data.widgetUrl;
-      }
-
-      toast.success('Opening payment widget...');
-
+      // Return widget URL for embedded dialog
       return {
         success: true,
+        widgetUrl: data.widgetUrl,
         transactionId: data.transactionId || `moonpay_${Date.now()}`,
         requiresConfirmation: data.requiresConfirmation,
       };

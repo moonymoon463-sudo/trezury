@@ -5,25 +5,30 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useBuyQuote } from "@/hooks/useBuyQuote";
-import { useMoonPayBuy } from "@/hooks/useMoonPayBuy";
 import { useTransactionLimits } from "@/hooks/useTransactionLimits";
 import { quoteEngineService } from "@/services/quoteEngine";
 import { buyGoldSchema } from "@/lib/validation/transactionSchemas";
 import { toast } from "sonner";
+import { MoonPayFrame } from "@/components/recurring/MoonPayFrame";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { secureWalletService } from "@/services/secureWalletService";
 
 const BuyGoldAmount = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [currency, setCurrency] = useState<"USD" | "GRAMS">("USD");
   const [amount, setAmount] = useState("100");
+  const [showMoonPayDialog, setShowMoonPayDialog] = useState(false);
+  const [moonPayUrl, setMoonPayUrl] = useState('');
   
   const { price: goldPrice } = useGoldPrice();
   const { quote, loading: quoteLoading, generateQuote } = useBuyQuote();
-  const { initiateBuy, loading: moonPayLoading } = useMoonPayBuy();
   const { checkTransactionVelocity, checking: limitsChecking } = useTransactionLimits();
   
-  // Get payment method from location state (passed from BuyGold page)
-  const paymentMethod = location.state?.paymentMethod || 'usdc';
+  // Get payment method from sessionStorage
+  const paymentMethod = sessionStorage.getItem('selectedPaymentMethod') || 'usdc';
   
   // Mock USD balance - would come from wallet service
   const usdBalance = 10000.00;
@@ -104,19 +109,50 @@ const BuyGoldAmount = () => {
 
     // Handle card payment with MoonPay
     if (paymentMethod === 'credit_card') {
+      if (!user) {
+        toast.error('Please sign in to continue');
+        return;
+      }
+
       try {
-        const result = await initiateBuy({
-          amount: usdAmount,
-          currency: 'USD'
+        // Get wallet address
+        const walletAddress = await secureWalletService.getWalletAddress(user.id);
+        if (!walletAddress) {
+          toast.error('Unable to retrieve wallet address');
+          return;
+        }
+
+        // Get session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast.error('Session expired. Please sign in again.');
+          return;
+        }
+
+        // Call moonpay-proxy to get widget URL
+        const { data, error } = await supabase.functions.invoke('moonpay-proxy', {
+          body: {
+            amount: usdAmount,
+            currency: 'USD',
+            walletAddress,
+            userId: user.id,
+            returnUrl: `${window.location.origin}/moonpay-callback`,
+          },
         });
 
-        if (result.success) {
-          // Success message and handling are done in the hook via SDK callbacks
-          console.log('MoonPay widget initiated successfully:', result.transactionId);
-        } else {
-          // Error handling is already done in the hook
-          console.error('MoonPay initiation failed:', result.error);
+        if (error) {
+          toast.error(error.message || 'Failed to initiate payment');
+          return;
         }
+
+        if (!data.success) {
+          toast.error(data.error || 'Payment initiation failed');
+          return;
+        }
+
+        // Open MoonPay in embedded dialog
+        setMoonPayUrl(data.widgetUrl);
+        setShowMoonPayDialog(true);
       } catch (error) {
         console.error('MoonPay initiation error:', error);
         toast.error('Failed to initiate payment. Please try again.');
@@ -279,14 +315,28 @@ const BuyGoldAmount = () => {
         <div className="pt-4">
           <Button 
             className="w-full bg-primary text-black font-bold h-14 text-lg rounded-xl hover:bg-primary/90"
-            disabled={!amount || parseFloat(amount) <= 0 || (paymentMethod === 'usdc' && !quote) || moonPayLoading}
+            disabled={!amount || parseFloat(amount) <= 0 || (paymentMethod === 'usdc' && !quote)}
             onClick={handleContinue}
           >
-            {moonPayLoading ? 'Processing...' : paymentMethod === 'credit_card' ? 'Pay with Card' : 'Continue'}
+            {paymentMethod === 'credit_card' ? 'Pay with Card' : 'Continue'}
           </Button>
         </div>
         </div>
       </main>
+
+      {/* MoonPay Embedded Dialog */}
+      <MoonPayFrame
+        url={moonPayUrl}
+        open={showMoonPayDialog}
+        onOpenChange={setShowMoonPayDialog}
+        onComplete={() => {
+          setShowMoonPayDialog(false);
+          navigate('/transaction-success');
+        }}
+        onError={(error) => {
+          toast.error(error);
+        }}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation />
