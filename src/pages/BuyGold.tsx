@@ -6,10 +6,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { AutoInvestModal } from "@/components/recurring/AutoInvestModal";
+import { useMoonPayBuy } from "@/hooks/useMoonPayBuy";
+import { useToast } from "@/hooks/use-toast";
 
 const BuyGold = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const { initiateBuy, loading: moonPayLoading } = useMoonPayBuy();
   const [paymentMethod, setPaymentMethod] = useState("credit_card");
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -39,22 +43,36 @@ const BuyGold = () => {
     }
   };
 
+  const initiateMoonPayPurchase = async () => {
+    try {
+      await initiateBuy({ 
+        amount: 100, // Default amount - user can adjust in MoonPay widget
+        currency: 'USD' 
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to open payment widget. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleContinue = () => {
     if (paymentMethod === "usdc") {
-      // Redirect to swap page for USDC purchases
       navigate("/swap");
       return;
     }
 
     if (paymentMethod === "auto_invest") {
-      // Show auto-invest modal for recurring purchases
       setShowAutoInvestModal(true);
       return;
     }
     
-    // Store payment method for later use
-    sessionStorage.setItem('selectedPaymentMethod', paymentMethod);
-    navigate("/buy-gold/amount");
+    if (paymentMethod === "credit_card") {
+      initiateMoonPayPurchase();
+      return;
+    }
   };
 
   if (loading) {
@@ -154,8 +172,9 @@ const BuyGold = () => {
             <Button 
               className="w-full font-bold h-14 text-lg rounded-xl"
               onClick={handleContinue}
+              disabled={moonPayLoading}
             >
-              {paymentMethod === "auto_invest" ? "Set up Auto-Invest" : "Continue"}
+              {moonPayLoading ? "Opening Payment..." : paymentMethod === "auto_invest" ? "Set up Auto-Invest" : paymentMethod === "credit_card" ? "Pay with Card" : "Continue"}
             </Button>
         </div>
       </div>
