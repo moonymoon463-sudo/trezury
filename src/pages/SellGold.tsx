@@ -22,7 +22,7 @@ const SellGold = () => {
         environment: 'sandbox', // Change to 'production' for live
         variant: 'overlay',
         params: {
-          apiKey: import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY || 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
+          apiKey: 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
           theme: 'dark' as const,
           currencyCode: 'usdc', // For sell flow, this is what we're selling
           baseCurrencyAmount: '100',

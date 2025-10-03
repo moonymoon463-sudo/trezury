@@ -41,7 +41,7 @@ export const useMoonPayRecurring = () => {
 
     const baseUrl = 'https://buy.moonpay.com';
     const urlParams = new URLSearchParams({
-      apiKey: import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY || '',
+      apiKey: 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
       baseCurrencyCode: params.currency.toLowerCase(),
       baseCurrencyAmount: params.amount.toString(),
       currencyCode: params.assetSymbol.toLowerCase(),

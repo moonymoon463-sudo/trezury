@@ -230,6 +230,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "balance_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
+            referencedColumns: ["id"]
+          },
         ]
       }
       chat_conversations: {
@@ -886,6 +893,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "kyc_documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
+            referencedColumns: ["id"]
+          },
         ]
       }
       moonpay_customers: {
@@ -1024,6 +1038,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
             referencedColumns: ["id"]
           },
         ]
@@ -1343,6 +1364,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "quotes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
+            referencedColumns: ["id"]
+          },
         ]
       }
       real_time_security_events: {
@@ -1391,6 +1419,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "real_time_security_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
             referencedColumns: ["id"]
           },
         ]
@@ -1576,6 +1611,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_incidents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
             referencedColumns: ["id"]
           },
         ]
@@ -1910,6 +1952,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_preferences: {
@@ -2020,6 +2069,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_transaction_limits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "v_profiles_masked"
+            referencedColumns: ["id"]
+          },
         ]
       }
       wallet_security_events: {
@@ -2083,6 +2139,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
             referencedColumns: ["id"]
           },
         ]
@@ -2221,7 +2284,63 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_profiles_masked: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string | null
+          id: string | null
+          kyc_status: string | null
+          last_name: string | null
+          metadata: Json | null
+          phone: string | null
+          ssn_last_four: string | null
+          state: string | null
+          updated_at: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          address?: never
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          date_of_birth?: never
+          email?: string | null
+          first_name?: never
+          id?: string | null
+          kyc_status?: string | null
+          last_name?: never
+          metadata?: Json | null
+          phone?: never
+          ssn_last_four?: string | null
+          state?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          address?: never
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          date_of_birth?: never
+          email?: string | null
+          first_name?: never
+          id?: string | null
+          kyc_status?: string | null
+          last_name?: never
+          metadata?: Json | null
+          phone?: never
+          ssn_last_four?: string | null
+          state?: string | null
+          updated_at?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_assign_role: {
@@ -2267,6 +2386,10 @@ export type Database = {
       can_access_sensitive_pii: {
         Args: { target_user_id: string; user_uuid: string }
         Returns: boolean
+      }
+      check_balance_verification_status: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       check_extension_security: {
         Args: Record<PropertyKey, never>
