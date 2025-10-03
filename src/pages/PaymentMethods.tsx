@@ -53,15 +53,6 @@ const PaymentMethods = () => {
       if (error) throw error;
       
       setProfile(data);
-
-      if (data?.kyc_status !== 'verified') {
-        toast({
-          variant: "destructive",
-          title: "Verification Required",
-          description: "Please complete identity verification to manage payment methods"
-        });
-        navigate("/kyc-verification");
-      }
     } catch (error) {
       console.error('Failed to fetch profile:', error);
     }
@@ -147,43 +138,6 @@ const PaymentMethods = () => {
     );
   }
 
-  if (profile?.kyc_status !== 'verified') {
-    return (
-      <div className="flex flex-col h-screen bg-background">
-        <header className="p-4">
-          <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate("/settings")}
-              className="text-white hover:bg-accent"
-            >
-              <ArrowLeft size={24} />
-            </Button>
-            <div className="flex-1 flex justify-center pr-6">
-              <AurumLogo compact />
-            </div>
-          </div>
-        </header>
-        
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="bg-card rounded-xl p-8 w-full max-w-md text-center">
-            <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-xl font-bold text-white mb-2">Verification Required</h2>
-            <p className="text-muted-foreground mb-6">
-              Complete identity verification to add and manage payment methods for card purchases.
-            </p>
-            <Button 
-              onClick={() => navigate("/kyc-verification")} 
-              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
-            >
-              Start Verification
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const activePaymentMethods = paymentMethods.filter(pm => pm.is_active);
 

@@ -190,29 +190,6 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Alert Cards */}
-        {stats && stats.pending_kyc > 0 && (
-          <Card className="mb-6 border-orange-200 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-800">
-                <AlertTriangle className="h-5 w-5" />
-                Pending KYC Reviews
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-orange-700">
-                {stats.pending_kyc} users are waiting for KYC verification.
-              </p>
-              <Button 
-                variant="outline" 
-                className="mt-3"
-                onClick={() => navigate('/admin/kyc')}
-              >
-                Review KYC Submissions
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Quick Actions */}
         <Card className="mb-6">
@@ -239,16 +216,7 @@ const AdminDashboard = () => {
                 <span className="text-sm">Transactions</span>
               </Button>
               
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/admin/kyc')}
-                className="h-20 flex flex-col gap-2"
-              >
-                <Shield className="h-6 w-6" />
-                <span className="text-sm">KYC Reviews</span>
-              </Button>
-              
-              <Button 
+              <Button
                 variant="outline" 
                 onClick={() => navigate('/admin/fees')}
                 className="h-20 flex flex-col gap-2"

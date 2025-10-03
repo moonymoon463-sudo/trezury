@@ -302,15 +302,9 @@ const Settings = () => {
           </div>
           
           {profile.kyc_status !== 'verified' && (
-            <Button 
-              onClick={() => navigate("/kyc-verification")}
-              className={`w-full ${profile.kyc_status === 'failed' 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-primary text-black hover:bg-primary/90'
-              }`}
-            >
-              {profile.kyc_status === 'failed' ? 'Retry Verification' : 'Start Verification'}
-            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              Verification happens automatically when you make your first purchase through MoonPay
+            </p>
           )}
         </div>
 

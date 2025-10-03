@@ -1230,10 +1230,7 @@ export type Database = {
           encryption_metadata: Json | null
           first_name: string | null
           id: string
-          kyc_rejection_reason: string | null
           kyc_status: string | null
-          kyc_submitted_at: string | null
-          kyc_verified_at: string | null
           last_name: string | null
           last_pii_access: string | null
           metadata: Json | null
@@ -1256,10 +1253,7 @@ export type Database = {
           encryption_metadata?: Json | null
           first_name?: string | null
           id: string
-          kyc_rejection_reason?: string | null
           kyc_status?: string | null
-          kyc_submitted_at?: string | null
-          kyc_verified_at?: string | null
           last_name?: string | null
           last_pii_access?: string | null
           metadata?: Json | null
@@ -1282,10 +1276,7 @@ export type Database = {
           encryption_metadata?: Json | null
           first_name?: string | null
           id?: string
-          kyc_rejection_reason?: string | null
           kyc_status?: string | null
-          kyc_submitted_at?: string | null
-          kyc_verified_at?: string | null
           last_name?: string | null
           last_pii_access?: string | null
           metadata?: Json | null

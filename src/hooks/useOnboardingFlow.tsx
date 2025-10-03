@@ -266,20 +266,12 @@ export const defaultOnboardingSteps: OnboardingStep[] = [
     order: 2
   },
   {
-    id: 'kyc',
-    title: 'Verify Your Identity',
-    description: 'Complete KYC verification for full platform access',
-    component: ({ onNext }) => <div>KYC verification component</div>,
-    required: true,
-    order: 3
-  },
-  {
     id: 'features',
     title: 'Explore Features',
     description: 'Learn about our advanced DeFi features',
     component: ({ onNext }) => <div>Features overview component</div>,
     required: false,
-    order: 4
+    order: 3
   },
   {
     id: 'first-transaction',
@@ -287,6 +279,6 @@ export const defaultOnboardingSteps: OnboardingStep[] = [
     description: 'Try supplying assets or borrowing against collateral',
     component: ({ onNext }) => <div>First transaction guide</div>,
     required: false,
-    order: 5
+    order: 4
   }
 ];

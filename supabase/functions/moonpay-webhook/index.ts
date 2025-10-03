@@ -366,7 +366,7 @@ serve(async (req) => {
                                  kycStatus === 'rejected' ? 'Identity Verification Failed' : 
                                  'Identity Verification In Progress'
         
-        const notificationBody = kycStatus === 'verified' ? 'Your identity has been successfully verified. You can now make purchases.' :
+        const notificationBody = kycStatus === 'verified' ? 'Congratulations! Your identity has been successfully verified. You\'re all set to start using the app and managing your crypto with ease!' :
                                 kycStatus === 'rejected' ? 'Your identity verification was rejected. Please contact support for assistance.' :
                                 'Your identity verification is being processed. This may take a few minutes.'
 

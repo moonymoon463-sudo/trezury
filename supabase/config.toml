@@ -85,6 +85,9 @@ verify_jwt = true
 [functions.verify-balances]
 verify_jwt = false
 
+[functions.moonpay-proxy]
+verify_jwt = true
+
 [studio]
 enabled = true
 port = 54323

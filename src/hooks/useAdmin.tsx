@@ -201,77 +201,6 @@ export const useAdmin = () => {
     }
   };
 
-  const getKYCSubmissions = async () => {
-    if (!isAdmin) {
-      toast.error('Admin access required');
-      return [];
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name, kyc_status, kyc_submitted_at, kyc_verified_at, kyc_rejection_reason')
-        .in('kyc_status', ['pending', 'under_review', 'verified', 'rejected'])
-        .order('kyc_submitted_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching KYC submissions:', error);
-        toast.error('Failed to fetch KYC submissions');
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching KYC submissions:', error);
-      toast.error('Failed to fetch KYC submissions');
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateKYCStatus = async (userId: string, status: string, rejectionReason?: string): Promise<boolean> => {
-    if (!isAdmin) {
-      toast.error('Admin access required');
-      return false;
-    }
-
-    setLoading(true);
-    try {
-      const updateData: any = {
-        kyc_status: status,
-      };
-
-      if (status === 'verified') {
-        updateData.kyc_verified_at = new Date().toISOString();
-      }
-
-      if (status === 'rejected' && rejectionReason) {
-        updateData.kyc_rejection_reason = rejectionReason;
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', userId);
-      
-      if (error) {
-        console.error('Error updating KYC status:', error);
-        toast.error('Failed to update KYC status');
-        return false;
-      }
-
-      toast.success(`KYC status updated to ${status}`);
-      return true;
-    } catch (error) {
-      console.error('Error updating KYC status:', error);
-      toast.error('Failed to update KYC status');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getFeeAnalytics = async (startDate?: string, endDate?: string) => {
     if (!isAdmin) {
@@ -310,8 +239,6 @@ export const useAdmin = () => {
     assignRole,
     removeRole,
     getTransactions,
-    getKYCSubmissions,
-    updateKYCStatus,
     getFeeAnalytics
   };
 };

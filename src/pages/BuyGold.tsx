@@ -40,12 +40,6 @@ const BuyGold = () => {
   };
 
   const handleContinue = () => {
-    if (paymentMethod === "credit_card" && profile?.kyc_status !== 'verified') {
-      // Redirect to KYC if trying to use card without verification
-      navigate("/kyc-verification");
-      return;
-    }
-    
     if (paymentMethod === "usdc") {
       // Redirect to swap page for USDC purchases
       navigate("/swap");
@@ -95,9 +89,7 @@ const BuyGold = () => {
                 <CreditCard className="text-muted-foreground" size={24} />
                 <div>
                   <span className="text-foreground font-medium block">Credit Card/Bank</span>
-                  {profile?.kyc_status !== 'verified' && (
-                    <span className="text-xs text-muted-foreground">Requires identity verification</span>
-                  )}
+                  <span className="text-xs text-muted-foreground">Fast and convenient</span>
                 </div>
               </div>
               <input
@@ -109,22 +101,6 @@ const BuyGold = () => {
                 className="h-5 w-5 text-primary focus:ring-primary bg-transparent border-border"
               />
             </label>
-
-            {/* KYC Warning for Credit Card */}
-            {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' && (
-              <div className="bg-card border border-primary/30 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-primary text-sm">Identity Verification Required</p>
-                    <p className="text-muted-foreground text-sm mt-1">
-                      To buy gold with a credit card, you need to complete identity verification first. 
-                      This helps us comply with financial regulations.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* USDC Option */}
             <label className={`flex items-center justify-between rounded-xl p-4 cursor-pointer transition-all ${
@@ -179,12 +155,7 @@ const BuyGold = () => {
               className="w-full font-bold h-14 text-lg rounded-xl"
               onClick={handleContinue}
             >
-              {paymentMethod === "credit_card" && profile?.kyc_status !== 'verified' 
-                ? "Verify Identity & Continue" 
-                : paymentMethod === "auto_invest"
-                ? "Set up Auto-Invest"
-                : "Continue"
-              }
+              {paymentMethod === "auto_invest" ? "Set up Auto-Invest" : "Continue"}
             </Button>
         </div>
       </div>

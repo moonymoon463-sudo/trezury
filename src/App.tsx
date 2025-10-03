@@ -33,7 +33,6 @@ import FundingMethods from "./pages/FundingMethods";
 import Settings from "./pages/Settings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
-import KYCVerification from "./pages/KYCVerification";
 import PaymentMethods from "./pages/PaymentMethods";
 import AddPaymentMethod from "./pages/AddPaymentMethod";
 import AddUSDC from "./pages/AddUSDC";
@@ -41,7 +40,6 @@ import AdminFees from "./pages/AdminFees";
 import AdminFeesNew from "./pages/AdminFeesNew";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
-import AdminKYC from "./pages/AdminKYC";
 import AdminTransactions from "./pages/AdminTransactions";
 import AutoInvest from "./pages/AutoInvest";
 import MoonPayCallback from "./pages/MoonPayCallback";
@@ -110,13 +108,11 @@ const AppRoutes = () => {
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
-      <Route path="/kyc-verification" element={<ProtectedRoute><KYCVerification /></ProtectedRoute>} />
       <Route path="/payment-methods" element={<ProtectedRoute><PaymentMethods /></ProtectedRoute>} />
       <Route path="/add-payment-method" element={<ProtectedRoute><AddPaymentMethod /></ProtectedRoute>} />
       <Route path="/add-usdc" element={<ProtectedRoute><AddUSDC /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
-      <Route path="/admin/kyc" element={<ProtectedRoute><AdminKYC /></ProtectedRoute>} />
       <Route path="/admin/transactions" element={<ProtectedRoute><AdminTransactions /></ProtectedRoute>} />
       <Route path="/admin/fees" element={<ProtectedRoute><AdminFees /></ProtectedRoute>} />
       <Route path="/admin/fees-external" element={<ProtectedRoute><AdminFeesNew /></ProtectedRoute>} />
