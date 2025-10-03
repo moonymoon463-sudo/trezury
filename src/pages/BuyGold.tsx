@@ -65,7 +65,8 @@ const BuyGold = () => {
         body: {
           amount: 100,
           currency: 'USD',
-          walletAddress
+          walletAddress,
+          userId: user!.id
         }
       });
 
