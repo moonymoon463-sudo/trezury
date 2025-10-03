@@ -82,6 +82,9 @@ verify_jwt = true
 [functions.trigger-news-collection]
 verify_jwt = true
 
+[functions.verify-balances]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323

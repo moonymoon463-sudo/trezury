@@ -146,6 +146,60 @@ export type Database = {
         }
         Relationships: []
       }
+      balance_reconciliations: {
+        Row: {
+          address: string
+          asset: string
+          chain_balance: number
+          created_at: string
+          db_balance: number
+          detected_at: string
+          difference: number
+          id: string
+          metadata: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          asset: string
+          chain_balance: number
+          created_at?: string
+          db_balance: number
+          detected_at?: string
+          difference: number
+          id?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          asset?: string
+          chain_balance?: number
+          created_at?: string
+          db_balance?: number
+          detected_at?: string
+          difference?: number
+          id?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       balance_snapshots: {
         Row: {
           amount: number
