@@ -561,7 +561,7 @@ serve(async (req) => {
     const processingTime = Date.now() - startTime
     console.error('MoonPay webhook error:', error)
     
-    // Log error
+    // Log error and insert into DLQ
     try {
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
@@ -570,8 +570,48 @@ serve(async (req) => {
       
       const webhookData = webhookBody ? JSON.parse(webhookBody) : {}
       await logWebhookEvent(supabase, webhookData.type || 'unknown', webhookData, 'error', error instanceof Error ? error.message : 'Unknown error')
+      
+      // Check if this is a replay attempt from DLQ
+      const isReplay = req.headers.get('x-replay-from-dlq') === 'true'
+      
+      // Insert into DLQ if not a replay and has valid webhook data
+      if (!isReplay && webhookData.type && webhookData.data) {
+        const signature = req.headers.get('x-moonpay-signature')
+        const webhookId = `${webhookData.type}_${webhookData.data?.id}_${Date.now()}`
+        
+        console.warn('⚠️ Inserting failed webhook into DLQ:', webhookId)
+        
+        const { error: dlqError } = await supabase
+          .from('webhook_dlq')
+          .insert({
+            webhook_id: webhookId,
+            event_type: webhookData.type,
+            payload: webhookData,
+            signature: signature || null,
+            retry_count: 3, // Max retries reached
+            last_error: error instanceof Error ? error.message : 'Unknown error',
+            error_details: {
+              error_name: error instanceof Error ? error.name : 'Error',
+              error_stack: error instanceof Error ? error.stack : undefined,
+              processing_time_ms: processingTime,
+              timestamp: new Date().toISOString()
+            },
+            original_timestamp: new Date().toISOString(),
+            metadata: {
+              client_ip: req.headers.get('cf-connecting-ip') || 
+                         req.headers.get('x-forwarded-for') || 
+                         'unknown'
+            }
+          })
+        
+        if (dlqError) {
+          console.error('Failed to insert into DLQ:', dlqError)
+        } else {
+          console.log('✅ Failed webhook saved to DLQ for manual replay')
+        }
+      }
     } catch (logError) {
-      console.error('Failed to log error:', logError)
+      console.error('Failed to log error or insert DLQ:', logError)
     }
 
     return new Response(

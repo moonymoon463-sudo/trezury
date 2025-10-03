@@ -2096,6 +2096,63 @@ export type Database = {
           },
         ]
       }
+      webhook_dlq: {
+        Row: {
+          created_at: string
+          error_details: Json | null
+          event_type: string
+          id: string
+          last_error: string | null
+          metadata: Json | null
+          original_timestamp: string
+          payload: Json
+          queued_at: string
+          replay_error: string | null
+          replay_status: string | null
+          replayed_at: string | null
+          retry_count: number
+          signature: string | null
+          updated_at: string
+          webhook_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_details?: Json | null
+          event_type: string
+          id?: string
+          last_error?: string | null
+          metadata?: Json | null
+          original_timestamp: string
+          payload: Json
+          queued_at?: string
+          replay_error?: string | null
+          replay_status?: string | null
+          replayed_at?: string | null
+          retry_count?: number
+          signature?: string | null
+          updated_at?: string
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          error_details?: Json | null
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          metadata?: Json | null
+          original_timestamp?: string
+          payload?: Json
+          queued_at?: string
+          replay_error?: string | null
+          replay_status?: string | null
+          replayed_at?: string | null
+          retry_count?: number
+          signature?: string | null
+          updated_at?: string
+          webhook_id?: string
+        }
+        Relationships: []
+      }
       webhook_processing_log: {
         Row: {
           completed_at: string | null
@@ -2501,6 +2558,10 @@ export type Database = {
           p_threshold_warning?: number
         }
         Returns: string
+      }
+      replay_webhook_from_dlq: {
+        Args: { dlq_id: string }
+        Returns: Json
       }
       test_gold_price_collection: {
         Args: Record<PropertyKey, never>

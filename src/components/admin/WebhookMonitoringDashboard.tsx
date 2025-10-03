@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { enhancedMoonPayValidationService, MoonPayValidationReport } from '@/services/enhancedMoonPayValidationService';
 import { Activity, CheckCircle, XCircle, AlertTriangle, Clock, Zap, Shield, TrendingUp } from 'lucide-react';
+import { WebhookDLQManager } from './WebhookDLQManager';
 
 interface WebhookStats {
   total_processed: number;
@@ -252,6 +253,7 @@ export default function WebhookMonitoringDashboard() {
       <Tabs defaultValue="webhooks" className="space-y-4">
         <TabsList>
           <TabsTrigger value="webhooks">Webhook Activity</TabsTrigger>
+          <TabsTrigger value="dlq">Failed Webhooks (DLQ)</TabsTrigger>
           <TabsTrigger value="validation">Validation Results</TabsTrigger>
           <TabsTrigger value="performance">Performance Metrics</TabsTrigger>
           <TabsTrigger value="security">Security Status</TabsTrigger>
@@ -289,6 +291,10 @@ export default function WebhookMonitoringDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="dlq" className="space-y-4">
+          <WebhookDLQManager />
         </TabsContent>
 
         <TabsContent value="validation" className="space-y-4">
