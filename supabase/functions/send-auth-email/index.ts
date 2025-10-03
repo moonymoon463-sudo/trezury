@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { SESClient, SendEmailCommand } from "https://esm.sh/@aws-sdk/client-ses@3.675.0";
-import { createHmac } from "https://deno.land/std@0.190.0/node/crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,11 +18,27 @@ const sesClient = new SESClient({
 const fromEmail = Deno.env.get('SES_FROM_EMAIL') || 'Trezury <noreply@trezury.com>';
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') || '';
 
-// Verify webhook signature from Supabase
-function verifySignature(payload: string, signature: string, secret: string): boolean {
-  const hmac = createHmac('sha256', secret);
-  hmac.update(payload);
-  const expectedSignature = hmac.digest('hex');
+// Verify webhook signature from Supabase using Web Crypto API
+async function verifySignature(payload: string, signature: string, secret: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signatureData = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(payload)
+  );
+  
+  const expectedSignature = Array.from(new Uint8Array(signatureData))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
   return signature === expectedSignature;
 }
 
@@ -338,7 +353,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     // Verify webhook signature if secret is configured
     if (hookSecret && signature) {
-      const isValid = verifySignature(payload, signature, hookSecret);
+      const isValid = await verifySignature(payload, signature, hookSecret);
       if (!isValid) {
         console.error('Invalid webhook signature');
         return new Response(
