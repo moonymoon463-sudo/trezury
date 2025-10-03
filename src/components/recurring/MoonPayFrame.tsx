@@ -72,7 +72,7 @@ export const MoonPayFrame = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0">
+      <DialogContent className="max-w-full sm:max-w-[95vw] sm:max-h-[95vh] p-0 gap-0">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
@@ -100,7 +100,7 @@ export const MoonPayFrame = ({
         </div>
 
         {/* Content */}
-        <div className="relative h-[600px]">
+        <div className="relative h-[calc(100vh-160px)] sm:h-[calc(95vh-120px)]">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background">
               <div className="text-center space-y-2">
