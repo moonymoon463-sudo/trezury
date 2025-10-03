@@ -6,15 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-auth-signature',
 };
 
-// Initialize AWS SES client
-const sesClient = new SESClient({
-  region: Deno.env.get('AWS_REGION') || 'us-east-1',
-  credentials: {
-    accessKeyId: Deno.env.get('AWS_ACCESS_KEY_ID')!,
-    secretAccessKey: Deno.env.get('AWS_SECRET_ACCESS_KEY')!,
-  },
-});
-
+// Configuration from environment variables
 const fromEmail = Deno.env.get('SES_FROM_EMAIL') || 'Trezury <noreply@trezury.com>';
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') || '';
 
@@ -409,6 +401,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log('Sending email via SES:', { to: user.email, subject, type: email_action_type });
+
+    // Initialize AWS SES client (lazy initialization to avoid cold start issues)
+    const sesClient = new SESClient({
+      region: Deno.env.get('AWS_REGION') || 'us-east-1',
+      credentials: {
+        accessKeyId: Deno.env.get('AWS_ACCESS_KEY_ID')!,
+        secretAccessKey: Deno.env.get('AWS_SECRET_ACCESS_KEY')!,
+      },
+    });
 
     // Send email via AWS SES
     const command = new SendEmailCommand({
