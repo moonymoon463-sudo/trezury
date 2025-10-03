@@ -2284,6 +2284,17 @@ export type Database = {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
       }
+      get_balance_verification_cron_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active: boolean
+          database: string
+          jobid: number
+          jobname: string
+          schedule: string
+          username: string
+        }[]
+      }
       get_cron_secret: {
         Args: Record<PropertyKey, never>
         Returns: string
