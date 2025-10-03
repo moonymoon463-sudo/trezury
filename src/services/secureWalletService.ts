@@ -150,7 +150,7 @@ class SecureWalletService {
           created_with_password: true,
           created_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id,chain,asset'
+          onConflict: 'user_id'
         });
 
       if (insertError) {
@@ -277,30 +277,48 @@ class SecureWalletService {
         throw new Error('User authentication mismatch');
       }
 
-      // Use user's ID as base for encryption (will require actual password for decryption)
-      const encryptionPassword = userId;
-      
-      // Encrypt private key
-      const { encryptedKey, iv, salt } = await this.encryptPrivateKey(
-        wallet.privateKey,
-        encryptionPassword
-      );
-      
-      // Store encrypted key (upsert to handle duplicate attempts)
-      const { error: keyError } = await supabase
+      // Check if encrypted key already exists (idempotency check)
+      const { data: existingKey } = await supabase
         .from('encrypted_wallet_keys')
-        .upsert({
-          user_id: userId,
-          encrypted_private_key: encryptedKey,
-          encryption_iv: iv,
-          encryption_salt: salt
-        }, {
-          onConflict: 'user_id'
-        });
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      if (keyError) {
-        console.error('Failed to store encrypted key:', keyError);
-        throw new Error('Failed to store encrypted wallet');
+      if (!existingKey) {
+        // Use user's ID as base for encryption (will require actual password for decryption)
+        const encryptionPassword = userId;
+        
+        // Encrypt private key
+        const { encryptedKey, iv, salt } = await this.encryptPrivateKey(
+          wallet.privateKey,
+          encryptionPassword
+        );
+        
+        // Store encrypted key (upsert to handle race conditions)
+        const { error: keyError } = await supabase
+          .from('encrypted_wallet_keys')
+          .upsert({
+            user_id: userId,
+            encrypted_private_key: encryptedKey,
+            encryption_iv: iv,
+            encryption_salt: salt
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (keyError) {
+          console.error('Failed to store encrypted key:', keyError);
+          
+          // Provide specific error messages
+          if (keyError.message.includes('duplicate')) {
+            throw new Error('Wallet already exists for this user');
+          }
+          if (keyError.message.includes('policy')) {
+            throw new Error('Authentication error. Please log out and log back in.');
+          }
+          
+          throw new Error(`Failed to store encrypted wallet: ${keyError.message}`);
+        }
       }
 
       // Store public address
@@ -315,7 +333,7 @@ class SecureWalletService {
           created_with_password: false,
           created_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id,chain,asset'
+          onConflict: 'user_id'
         });
 
       if (addressError) {
