@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -70,16 +70,25 @@ export const MoonPayFrame = ({
     }
   }, [open, onComplete, onOpenChange]);
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full w-screen h-screen sm:max-w-[98vw] sm:h-[98vh] p-0 gap-0 border-0">
+  if (!open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Dark backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={() => onOpenChange(false)}
+      />
+      
+      {/* Main content */}
+      <div className="relative w-full h-full bg-background flex flex-col">
         {/* Minimal overlay controls */}
-        <div className="absolute top-2 right-2 z-50 flex items-center gap-2">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
           <Button
             variant="secondary"
             size="sm"
             onClick={openInNewWindow}
-            className="h-9 w-9 p-0 shadow-lg"
+            className="h-10 w-10 p-0 shadow-lg"
             title="Open in new window"
           >
             <ExternalLink className="h-4 w-4" />
@@ -88,7 +97,7 @@ export const MoonPayFrame = ({
             variant="secondary"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="h-9 w-9 p-0 shadow-lg"
+            className="h-10 w-10 p-0 shadow-lg"
             title="Close"
           >
             <X className="h-4 w-4" />
@@ -137,7 +146,8 @@ export const MoonPayFrame = ({
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
           />
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body
   );
 };
