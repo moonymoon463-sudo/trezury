@@ -286,14 +286,16 @@ class SecureWalletService {
         encryptionPassword
       );
       
-      // Store encrypted key
+      // Store encrypted key (upsert to handle duplicate attempts)
       const { error: keyError } = await supabase
         .from('encrypted_wallet_keys')
-        .insert({
+        .upsert({
           user_id: userId,
           encrypted_private_key: encryptedKey,
           encryption_iv: iv,
           encryption_salt: salt
+        }, {
+          onConflict: 'user_id'
         });
 
       if (keyError) {
@@ -321,12 +323,17 @@ class SecureWalletService {
         throw new Error('Failed to store wallet address');
       }
 
-      await this.logSecurityEvent(
-        userId,
-        'wallet_generated_instant',
-        true,
-        { address: wallet.address, setup_method: 'instant_random' }
-      );
+      // Log success (non-blocking)
+      try {
+        await this.logSecurityEvent(
+          userId,
+          'wallet_generated_instant',
+          true,
+          { address: wallet.address, setup_method: 'instant_random' }
+        );
+      } catch (logError) {
+        console.error('Failed to log wallet creation event:', logError);
+      }
 
       return {
         address: wallet.address,
@@ -334,12 +341,29 @@ class SecureWalletService {
       };
     } catch (error) {
       console.error('Instant wallet creation failed:', error);
-      await this.logSecurityEvent(
-        userId,
-        'wallet_generation_failed',
-        false,
-        { error: error instanceof Error ? error.message : 'Unknown error' }
-      );
+      
+      // Log failure (non-blocking)
+      try {
+        await this.logSecurityEvent(
+          userId,
+          'wallet_generation_failed',
+          false,
+          { error: error instanceof Error ? error.message : 'Unknown error' }
+        );
+      } catch (logError) {
+        console.error('Failed to log wallet creation failure:', logError);
+      }
+      
+      // Return user-friendly error message
+      if (error instanceof Error) {
+        if (error.message.includes('duplicate key')) {
+          throw new Error('Wallet already exists for this user');
+        }
+        if (error.message.includes('row-level security')) {
+          throw new Error('Permission denied. Please try again or contact support.');
+        }
+      }
+      
       throw error;
     }
   }
