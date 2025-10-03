@@ -72,37 +72,33 @@ export const MoonPayFrame = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full sm:max-w-[95vw] sm:max-h-[95vh] p-0 gap-0">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">MoonPay</span>
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={openInNewWindow}
-              className="h-8 w-8 p-0"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <DialogContent className="max-w-full w-screen h-screen sm:max-w-[98vw] sm:h-[98vh] p-0 gap-0 border-0">
+        {/* Minimal overlay controls */}
+        <div className="absolute top-2 right-2 z-50 flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={openInNewWindow}
+            className="h-9 w-9 p-0 shadow-lg"
+            title="Open in new window"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="h-9 w-9 p-0 shadow-lg"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Content */}
-        <div className="relative h-[calc(100vh-160px)] sm:h-[calc(95vh-120px)]">
+        <div className="relative w-full h-full">
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background">
+            <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
               <div className="text-center space-y-2">
                 <Loader2 className="h-8 w-8 mx-auto animate-spin" />
                 <p className="text-sm text-muted-foreground">Loading MoonPay...</p>
@@ -111,7 +107,7 @@ export const MoonPayFrame = ({
           )}
 
           {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background p-4">
+            <div className="absolute inset-0 flex items-center justify-center bg-background p-4 z-10">
               <Alert variant="destructive">
                 <AlertDescription>
                   <div className="space-y-3">
@@ -140,19 +136,6 @@ export const MoonPayFrame = ({
             title="MoonPay"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
           />
-        </div>
-
-        {/* Footer */}
-        <div className="p-3 border-t bg-muted/20">
-          <p className="text-xs text-muted-foreground text-center">
-            Secure payment processing by MoonPay. 
-            Having issues? <button 
-              onClick={openInNewWindow}
-              className="text-primary hover:underline"
-            >
-              Open in new window
-            </button>
-          </p>
         </div>
       </DialogContent>
     </Dialog>
