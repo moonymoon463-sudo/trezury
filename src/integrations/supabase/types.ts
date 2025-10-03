@@ -2296,7 +2296,6 @@ export type Database = {
           id: string | null
           kyc_status: string | null
           last_name: string | null
-          metadata: Json | null
           phone: string | null
           ssn_last_four: string | null
           state: string | null
@@ -2305,39 +2304,37 @@ export type Database = {
         }
         Insert: {
           address?: never
-          city?: string | null
+          city?: never
           country?: string | null
           created_at?: string | null
           date_of_birth?: never
           email?: string | null
-          first_name?: never
+          first_name?: string | null
           id?: string | null
           kyc_status?: string | null
-          last_name?: never
-          metadata?: Json | null
+          last_name?: string | null
           phone?: never
-          ssn_last_four?: string | null
-          state?: string | null
+          ssn_last_four?: never
+          state?: never
           updated_at?: string | null
-          zip_code?: string | null
+          zip_code?: never
         }
         Update: {
           address?: never
-          city?: string | null
+          city?: never
           country?: string | null
           created_at?: string | null
           date_of_birth?: never
           email?: string | null
-          first_name?: never
+          first_name?: string | null
           id?: string | null
           kyc_status?: string | null
-          last_name?: never
-          metadata?: Json | null
+          last_name?: string | null
           phone?: never
-          ssn_last_four?: string | null
-          state?: string | null
+          ssn_last_four?: never
+          state?: never
           updated_at?: string | null
-          zip_code?: string | null
+          zip_code?: never
         }
         Relationships: []
       }
