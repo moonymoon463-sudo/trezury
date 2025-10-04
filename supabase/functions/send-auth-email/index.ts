@@ -411,7 +411,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
 
     // Send email via Resend
-    const { data, error } = await resend.emails.send({
+    const { data: emailData, error } = await resend.emails.send({
       from: fromEmail,
       to: [user.email],
       subject: subject,
@@ -423,12 +423,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Resend API error: ${error.message}`);
     }
 
-    console.log('Resend email sent successfully:', data?.id);
+    console.log('Resend email sent successfully:', emailData?.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageId: data?.id,
+        messageId: emailData?.id,
         type: email_action_type 
       }),
       { 
