@@ -59,7 +59,7 @@ const SellGold = () => {
 
       {/* Main Content */}
       <main className="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+1rem)] pt-2">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-6 sm:mb-8">Which gold would you like to sell?</h2>
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-6 sm:mb-8">Sell Your Gold Holdings for Fiat</h2>
         
         <div className="space-y-4 max-w-full">
           {/* GOLD Token Option */}
@@ -74,8 +74,8 @@ const SellGold = () => {
               </div>
             </div>
             <div className="flex-1">
-              <p className="text-base font-semibold text-foreground">GOLD</p>
-              <p className="text-sm text-muted-foreground">Aurum Gold Token</p>
+              <p className="text-base font-semibold text-foreground">GOLD Token</p>
+              <p className="text-sm text-muted-foreground">Convert to USD via bank transfer or USDC</p>
             </div>
             {loading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent"></div>
