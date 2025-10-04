@@ -246,7 +246,7 @@ const Settings = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-safe py-4 space-y-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
         {/* Profile Information */}
         <div className="bg-card rounded-xl p-4">
           <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
