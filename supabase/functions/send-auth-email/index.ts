@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SESClient, SendEmailCommand } from "https://esm.sh/@aws-sdk/client-ses@3.675.0";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 // Configuration from environment variables
-const fromEmail = Deno.env.get('SES_FROM_EMAIL') || 'Trezury <noreply@trezury.com>';
+const resendApiKey = Deno.env.get('RESEND_API_KEY') || '';
+const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Trezury <onboarding@resend.dev>';
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') || '';
 
 // Verify webhook signature from Supabase using Web Crypto API
@@ -400,44 +401,34 @@ const handler = async (req: Request): Promise<Response> => {
         );
     }
 
-    console.log('Sending email via SES:', { to: user.email, subject, type: email_action_type });
+    console.log('Sending email via Resend:', { to: user.email, subject, type: email_action_type });
 
-    // Initialize AWS SES client (lazy initialization to avoid cold start issues)
-    const sesClient = new SESClient({
-      region: Deno.env.get('AWS_REGION') || 'us-east-1',
-      credentials: {
-        accessKeyId: Deno.env.get('AWS_ACCESS_KEY_ID')!,
-        secretAccessKey: Deno.env.get('AWS_SECRET_ACCESS_KEY')!,
-      },
+    // Initialize Resend client
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+    
+    const resend = new Resend(resendApiKey);
+
+    // Send email via Resend
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: [user.email],
+      subject: subject,
+      html: htmlContent,
     });
 
-    // Send email via AWS SES
-    const command = new SendEmailCommand({
-      Source: fromEmail,
-      Destination: {
-        ToAddresses: [user.email],
-      },
-      Message: {
-        Subject: {
-          Data: subject,
-          Charset: 'UTF-8',
-        },
-        Body: {
-          Html: {
-            Data: htmlContent,
-            Charset: 'UTF-8',
-          },
-        },
-      },
-    });
+    if (error) {
+      console.error('Resend error:', error);
+      throw new Error(`Resend API error: ${error.message}`);
+    }
 
-    const response = await sesClient.send(command);
-    console.log('SES email sent successfully:', response.MessageId);
+    console.log('Resend email sent successfully:', data?.id);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageId: response.MessageId,
+        messageId: data?.id,
         type: email_action_type 
       }),
       { 
