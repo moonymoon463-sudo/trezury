@@ -2416,11 +2416,13 @@ export type Database = {
         Returns: undefined
       }
       decrypt_pii: {
-        Args: {
-          encrypted_data: string
-          field_name: string
-          target_user_id: string
-        }
+        Args:
+          | { ciphertext: string }
+          | {
+              encrypted_data: string
+              field_name: string
+              target_user_id: string
+            }
         Returns: string
       }
       emergency_pii_lockdown_active: {
@@ -2432,7 +2434,7 @@ export type Database = {
         Returns: boolean
       }
       encrypt_pii: {
-        Args: { field_name: string; plaintext: string }
+        Args: { field_name: string; plaintext: string } | { plaintext: string }
         Returns: string
       }
       encrypt_sensitive_field: {
@@ -2686,6 +2688,14 @@ export type Database = {
           p_user_id?: string
         }
         Returns: string
+      }
+      update_encrypted_dob: {
+        Args: { dob_value: string; user_uuid: string }
+        Returns: undefined
+      }
+      update_encrypted_ssn: {
+        Args: { ssn_value: string; user_uuid: string }
+        Returns: undefined
       }
       user_can_see_sensitive_data: {
         Args: Record<PropertyKey, never>
