@@ -4,14 +4,14 @@ import BottomNavigation from "@/components/BottomNavigation";
 
 export default function AIChat() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col h-[100dvh] bg-background">
       <StandardHeader 
         title="Trez AI"
         showBackButton
         backPath="back"
       />
 
-      <main className="pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] px-1 sm:px-2 md:px-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] md:pb-4">
+      <main className="flex-1 min-h-0 px-1 sm:px-2 md:px-6 pt-2 pb-2">
         <AIChatInterface
           isCollapsed={false}
         />

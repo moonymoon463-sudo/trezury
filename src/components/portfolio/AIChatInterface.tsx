@@ -193,7 +193,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="flex flex-col shadow-sm border-border/50 h-[calc(100dvh-3.5rem-56px-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] md:h-[600px] lg:h-[650px]">
+    <Card className="flex flex-col shadow-sm border-border/50 h-full">
       {onToggle && (
         <Button
           onClick={onToggle}
