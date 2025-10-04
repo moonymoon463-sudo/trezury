@@ -12,6 +12,9 @@ import { UpdatePrompt } from "@/components/UpdatePrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SessionHealthMonitor } from "@/components/SessionHealthMonitor";
 import { SupabaseHealthIndicator } from "@/components/SupabaseHealthIndicator";
+import { AssistantProvider } from "@/contexts/AssistantContext";
+import { FloatingAssistant } from "@/components/assistant/FloatingAssistant";
+import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -145,12 +148,16 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <ScrollToTop />
-            <AppRoutes />
-            <InstallPrompt />
-            <UpdatePrompt />
-            <OfflineIndicator />
-            <SupabaseHealthIndicator />
+            <AssistantProvider>
+              <ScrollToTop />
+              <AppRoutes />
+              <FloatingAssistant />
+              <AssistantDrawer />
+              <InstallPrompt />
+              <UpdatePrompt />
+              <OfflineIndicator />
+              <SupabaseHealthIndicator />
+            </AssistantProvider>
           </BrowserRouter>
         </TooltipProvider>
       </PWAProvider>

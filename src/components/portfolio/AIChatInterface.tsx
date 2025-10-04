@@ -40,6 +40,8 @@ interface AIChatInterfaceProps {
   portfolioData?: any;
   isCollapsed?: boolean;
   onToggle?: () => void;
+  contextType?: string;
+  initialQuickActions?: string[];
 }
 
 const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
@@ -124,12 +126,23 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
 export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   portfolioData,
   isCollapsed = false,
-  onToggle
+  onToggle,
+  contextType,
+  initialQuickActions
 }) => {
   const [input, setInput] = useState('');
   const [showQuickActions, setShowQuickActions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const defaultQuickActions = [
+    "Analyze my portfolio",
+    "Market insights",
+    "Investment risks",
+    "Gold strategy"
+  ];
+
+  const quickActionsToUse = initialQuickActions || defaultQuickActions;
   
   const {
     messages,
@@ -158,9 +171,10 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     setInput('');
     setShowQuickActions(false);
     
+    const context = contextType || (portfolioData ? 'portfolio' : 'general');
     await sendMessage(
       messageToSend, 
-      portfolioData ? 'portfolio' : 'general',
+      context as any,
       portfolioData
     );
   };

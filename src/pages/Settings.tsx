@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown, Wallet, Copy, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown, Wallet, Copy, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,9 @@ import StandardHeader from "@/components/StandardHeader";
 import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 import SecureWalletSetup from "@/components/SecureWalletSetup";
 import { LegacyWalletMigration } from "@/components/wallet/LegacyWalletMigration";
+import { useAssistantPreferences } from "@/hooks/useAssistantPreferences";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserProfile {
   id: string;
@@ -43,6 +46,7 @@ const Settings = () => {
   const [privateKey, setPrivateKey] = useState<string | null>(null);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
+  const { preferences, setPreferences, resetPreferences, clearConversationHistory } = useAssistantPreferences();
 
   useEffect(() => {
     if (user) {
@@ -501,6 +505,87 @@ const Settings = () => {
           >
             Manage Payment Methods
           </Button>
+        </div>
+
+        {/* Virtual Assistant */}
+        <div className="bg-card rounded-xl p-4">
+          <h3 className="text-foreground text-lg font-bold mb-4 flex items-center gap-2">
+            <Sparkles size={20} />
+            Virtual Assistant
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Enable Assistant</Label>
+                <p className="text-xs text-muted-foreground mt-1">Show the floating assistant button</p>
+              </div>
+              <Switch
+                checked={preferences.enabled}
+                onCheckedChange={(checked) => setPreferences({ enabled: checked })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Assistance Level</Label>
+              <Select
+                value={preferences.assistanceLevel}
+                onValueChange={(value: any) => setPreferences({ assistanceLevel: value })}
+                disabled={!preferences.enabled}
+              >
+                <SelectTrigger className="bg-input border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal">Minimal - Only when asked</SelectItem>
+                  <SelectItem value="helpful">Helpful - Occasional tips</SelectItem>
+                  <SelectItem value="proactive">Proactive - Active guidance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Proactive Tips</Label>
+                <p className="text-xs text-muted-foreground mt-1">Show helpful suggestions</p>
+              </div>
+              <Switch
+                checked={preferences.showProactiveTips}
+                onCheckedChange={(checked) => setPreferences({ showProactiveTips: checked })}
+                disabled={!preferences.enabled}
+              />
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await clearConversationHistory();
+                  toast({
+                    title: "History Cleared",
+                    description: "Your conversation history has been cleared"
+                  });
+                }}
+                className="w-full"
+              >
+                Clear Conversation History
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  resetPreferences();
+                  toast({
+                    title: "Settings Reset",
+                    description: "Assistant settings restored to defaults"
+                  });
+                }}
+                className="w-full"
+              >
+                Reset to Defaults
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Notifications */}
