@@ -17,6 +17,7 @@ import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
 import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 import SecureWalletSetup from "@/components/SecureWalletSetup";
+import { LegacyWalletMigration } from "@/components/wallet/LegacyWalletMigration";
 
 interface UserProfile {
   id: string;
@@ -310,6 +311,9 @@ const Settings = () => {
             </p>
           )}
         </div>
+
+        {/* Legacy Wallet Migration Warning */}
+        <LegacyWalletMigration />
 
         {/* Wallet Management */}
         <div className="bg-card rounded-xl p-4">
