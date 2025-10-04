@@ -260,7 +260,10 @@ class SecureWalletService {
    * INSTANT WALLET CREATION - No password required
    * Generates random wallet and encrypts private key
    */
-  async generateRandomWallet(userId: string): Promise<SecureWalletInfo> {
+  async generateRandomWallet(
+    userId: string, 
+    options?: { userPassword?: string }
+  ): Promise<SecureWalletInfo> {
     try {
       // Check if wallet already exists
       const existingAddress = await this.getWalletAddress(userId);
@@ -285,10 +288,15 @@ class SecureWalletService {
         .maybeSingle();
 
       if (!existingKey) {
-        // Use user's ID as base for encryption (will require actual password for decryption)
-        const encryptionPassword = userId;
+        // Use provided user password for encryption (SECURE)
+        // If no password provided, user must re-authenticate
+        if (!options?.userPassword) {
+          throw new Error('User password required for wallet encryption. Please sign in again.');
+        }
         
-        // Encrypt private key
+        const encryptionPassword = options.userPassword;
+        
+        // Encrypt private key with user's actual password
         const { encryptedKey, iv, salt } = await this.encryptPrivateKey(
           wallet.privateKey,
           encryptionPassword
@@ -437,7 +445,7 @@ class SecureWalletService {
    */
   private async decryptPrivateKey(
     userId: string,
-    userPassword: string
+    password: string
   ): Promise<string> {
     // Fetch encrypted key from database
     const { data, error } = await supabase
@@ -458,8 +466,12 @@ class SecureWalletService {
       atob(data.encryption_iv).split('').map(c => c.charCodeAt(0))
     );
     
-    // Use userId as base (temporary - will need actual password in production)
-    const decryptionPassword = userId;
+    // Use actual user password for decryption (SECURE)
+    if (!password) {
+      throw new Error('Password required to decrypt wallet. Please sign in again.');
+    }
+    
+    const decryptionPassword = password;
     
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
