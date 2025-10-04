@@ -19,9 +19,12 @@ import BottomNavigation from "@/components/BottomNavigation";
 import AurumLogo from "@/components/AurumLogo";
 import StandardHeader from "@/components/StandardHeader";
 import { useState, useEffect, useRef } from "react";
+import { blockchainMonitoringService } from "@/services/blockchainMonitoringService";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Portfolio() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasTimedOut, setHasTimedOut] = useState(false);
   const loadingTimeoutRef = useRef<NodeJS.Timeout>();
@@ -44,33 +47,26 @@ export default function Portfolio() {
     riskAssessment,
     loading: aiLoading,
     refreshAnalysis
-  } = useOptimizedPortfolioAI(// Add import at top
-import { blockchainMonitoringService } from "@/services/blockchainMonitoringService";
-import { useAuth } from "@/hooks/useAuth";
+  } = useOptimizedPortfolioAI();
 
-// Then inside the Portfolio component, add:
-const { user } = useAuth();
-
-// Add effect to start monitoring
-useEffect(() => {
-  const startMonitoring = async () => {
-    if (user?.id) {
-      const addresses = await blockchainMonitoringService.getUserWalletAddresses(user.id);
-      if (addresses.length > 0) {
-        console.log('🔍 Starting blockchain monitoring for', addresses.length, 'addresses');
-        await blockchainMonitoringService.startMonitoring(addresses);
+  // Start blockchain monitoring when user logs in
+  useEffect(() => {
+    const startMonitoring = async () => {
+      if (user?.id) {
+        const addresses = await blockchainMonitoringService.getUserWalletAddresses(user.id);
+        if (addresses.length > 0) {
+          console.log('🔍 Starting blockchain monitoring for', addresses.length, 'addresses');
+          await blockchainMonitoringService.startMonitoring(addresses);
+        }
       }
-    }
-  };
+    };
 
-  startMonitoring();
+    startMonitoring();
 
-  // Cleanup on unmount
-  return () => {
-    blockchainMonitoringService.stopMonitoring();
-  };
-}, [user?.id]);
-;
+    return () => {
+      blockchainMonitoringService.stopMonitoring();
+    };
+  }, [user?.id]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
