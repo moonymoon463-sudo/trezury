@@ -4,10 +4,10 @@ import { AIChatInterface } from '@/components/portfolio/AIChatInterface';
 import { Sparkles } from 'lucide-react';
 
 export const AssistantDrawer = () => {
-  const { isAssistantOpen, closeAssistant, currentContext } = useAssistant();
+  const { isAssistantOpen, openAssistant, closeAssistant, currentContext } = useAssistant();
 
   return (
-    <Sheet open={isAssistantOpen} onOpenChange={closeAssistant}>
+    <Sheet open={isAssistantOpen} onOpenChange={(open) => open ? openAssistant() : closeAssistant()}>
       <SheetContent 
         side="right" 
         className="w-full sm:max-w-lg p-0 flex flex-col max-h-[100dvh] pt-safe"
