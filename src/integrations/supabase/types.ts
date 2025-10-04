@@ -2313,45 +2313,27 @@ export type Database = {
     Views: {
       v_profiles_masked: {
         Row: {
-          birth_year: string | null
-          country: string | null
           created_at: string | null
           email: string | null
-          first_name: string | null
           id: string | null
           kyc_status: string | null
-          last_name: string | null
-          masked_address: string | null
           masked_phone: string | null
-          masked_ssn: string | null
           updated_at: string | null
         }
         Insert: {
-          birth_year?: never
-          country?: string | null
           created_at?: string | null
           email?: string | null
-          first_name?: string | null
           id?: string | null
           kyc_status?: string | null
-          last_name?: string | null
-          masked_address?: never
           masked_phone?: never
-          masked_ssn?: never
           updated_at?: string | null
         }
         Update: {
-          birth_year?: never
-          country?: string | null
           created_at?: string | null
           email?: string | null
-          first_name?: string | null
           id?: string | null
           kyc_status?: string | null
-          last_name?: string | null
-          masked_address?: never
           masked_phone?: never
-          masked_ssn?: never
           updated_at?: string | null
         }
         Relationships: []
