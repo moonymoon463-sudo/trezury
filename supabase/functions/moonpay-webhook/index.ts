@@ -154,24 +154,38 @@ serve(async (req) => {
       ip: clientIP
     })
 
-    // Webhook signature verification
-    const signature = req.headers.get('x-moonpay-signature')
+    // Webhook signature verification - MANDATORY
     const webhookSecret = Deno.env.get('MOONPAY_WEBHOOK_SECRET')
     
-    if (webhookSecret && signature) {
-      const isValid = await verifyWebhookSignature(webhookBody, signature, webhookSecret)
-      if (!isValid) {
-        console.error('Invalid webhook signature')
-        await logWebhookEvent(supabase, webhookData.type || 'unknown', webhookData, 'error', 'Invalid signature')
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      console.log('✅ Webhook signature verified')
-    } else if (webhookSecret) {
-      console.warn('⚠️ Webhook signature missing but secret configured')
+    if (!webhookSecret) {
+      console.error('❌ MOONPAY_WEBHOOK_SECRET not configured - rejecting webhook')
+      await logWebhookEvent(supabase, 'configuration_error', webhookData, 'error', 'Webhook secret not configured')
+      return new Response(
+        JSON.stringify({ error: 'Webhook verification not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
+    
+    const signature = req.headers.get('x-moonpay-signature')
+    if (!signature) {
+      console.error('❌ Missing webhook signature')
+      await logWebhookEvent(supabase, webhookData.type || 'unknown', webhookData, 'error', 'Missing signature')
+      return new Response(
+        JSON.stringify({ error: 'Missing signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    const isValid = await verifyWebhookSignature(webhookBody, signature, webhookSecret)
+    if (!isValid) {
+      console.error('❌ Invalid webhook signature')
+      await logWebhookEvent(supabase, webhookData.type || 'unknown', webhookData, 'error', 'Invalid signature')
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    console.log('✅ Webhook signature verified')
 
     const { type, data } = webhookData
     const webhookId = `${type}_${data?.id}_${Date.now()}`

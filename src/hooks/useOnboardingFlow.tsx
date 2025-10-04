@@ -67,7 +67,9 @@ export function useOnboardingFlow(steps: OnboardingStep[]) {
       // Determine completed steps based on user data
       const completedSteps: string[] = [];
       
-      if (profile?.first_name && profile?.last_name) {
+      // Profile completion check - masked view doesn't expose first_name/last_name
+      // Instead, check if profile exists and has email
+      if (profile?.email) {
         completedSteps.push('profile');
       }
       

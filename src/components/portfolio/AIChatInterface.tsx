@@ -104,8 +104,11 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
           className="text-sm leading-relaxed"
           dangerouslySetInnerHTML={{ 
             __html: DOMPurify.sanitize(formatMessageContent(message.content), {
-              ALLOWED_TAGS: ['strong', 'em', 'div', 'span', 'br'],
-              ALLOWED_ATTR: ['class']
+              ALLOWED_TAGS: ['strong', 'em', 'div', 'span', 'br', 'p', 'ul', 'ol', 'li'],
+              ALLOWED_ATTR: ['class'],
+              KEEP_CONTENT: false,
+              FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
+              FORBID_ATTR: ['onerror', 'onload', 'onclick']
             })
           }}
         />
