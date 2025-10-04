@@ -548,6 +548,7 @@ export type Database = {
           created_at: string
           encrypted_private_key: string
           encryption_iv: string
+          encryption_method: string | null
           encryption_salt: string
           updated_at: string
           user_id: string
@@ -556,6 +557,7 @@ export type Database = {
           created_at?: string
           encrypted_private_key: string
           encryption_iv: string
+          encryption_method?: string | null
           encryption_salt: string
           updated_at?: string
           user_id: string
@@ -564,6 +566,7 @@ export type Database = {
           created_at?: string
           encrypted_private_key?: string
           encryption_iv?: string
+          encryption_method?: string | null
           encryption_salt?: string
           updated_at?: string
           user_id?: string

@@ -288,28 +288,36 @@ class SecureWalletService {
         .maybeSingle();
 
       if (!existingKey) {
-        // Use provided user password for encryption (SECURE)
-        // If no password provided, user must re-authenticate
-        if (!options?.userPassword) {
-          throw new Error('User password required for wallet encryption. Please sign in again.');
+        // Determine encryption method
+        let encryptionPassword: string;
+        let encryptionMethod: string;
+        
+        if (options?.userPassword) {
+          // NEW SECURE METHOD: Use actual user password
+          encryptionPassword = options.userPassword;
+          encryptionMethod = 'password_based';
+        } else {
+          // LEGACY FALLBACK: Use userId (mark for migration)
+          console.warn('Creating wallet with legacy userId encryption - should migrate to password-based');
+          encryptionPassword = userId;
+          encryptionMethod = 'legacy_userid';
         }
         
-        const encryptionPassword = options.userPassword;
-        
-        // Encrypt private key with user's actual password
+        // Encrypt private key
         const { encryptedKey, iv, salt } = await this.encryptPrivateKey(
           wallet.privateKey,
           encryptionPassword
         );
         
-        // Store encrypted key (upsert to handle race conditions)
+        // Store encrypted key with method tracking
         const { error: keyError } = await supabase
           .from('encrypted_wallet_keys')
           .upsert({
             user_id: userId,
             encrypted_private_key: encryptedKey,
             encryption_iv: iv,
-            encryption_salt: salt
+            encryption_salt: salt,
+            encryption_method: encryptionMethod
           }, {
             onConflict: 'user_id'
           });
@@ -466,12 +474,19 @@ class SecureWalletService {
       atob(data.encryption_iv).split('').map(c => c.charCodeAt(0))
     );
     
-    // Use actual user password for decryption (SECURE)
-    if (!password) {
+    // Determine decryption password based on encryption method
+    let decryptionPassword: string;
+    
+    if (data.encryption_method === 'legacy_userid') {
+      // LEGACY: encrypted with userId
+      console.warn(`Wallet for user ${userId} uses legacy encryption - recommend re-encrypting with password`);
+      decryptionPassword = userId;
+    } else if (password) {
+      // SECURE: encrypted with user password
+      decryptionPassword = password;
+    } else {
       throw new Error('Password required to decrypt wallet. Please sign in again.');
     }
-    
-    const decryptionPassword = password;
     
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
