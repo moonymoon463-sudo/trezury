@@ -125,60 +125,129 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Get historical gold prices (last 7 days)
+    // Get historical gold prices (last 30 days for trend analysis)
     const { data: historicalPrices } = await supabase
       .from('gold_prices')
-      .select('usd_per_oz, timestamp')
+      .select('usd_per_oz, timestamp, change_percent_24h')
       .order('timestamp', { ascending: false })
-      .limit(7);
+      .limit(30);
 
-    // Build enhanced context-aware system prompt
-    let systemPrompt = `You are Trezury Advisor AI Assistant, an expert financial assistant specializing in gold investments, stablecoins (especially USDC), and digital asset management. You help users with their Trezury gold investment app.
+    // Calculate market intelligence metrics
+    const calculate7DayTrend = () => {
+      if (!historicalPrices || historicalPrices.length < 7) return 'N/A';
+      const recent = historicalPrices[0].usd_per_oz;
+      const weekAgo = historicalPrices[6].usd_per_oz;
+      const change = ((recent - weekAgo) / weekAgo) * 100;
+      return `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+    };
 
-CORE CAPABILITIES:
-- Real-time gold market analysis and investment advice
-- Financial news analysis and market insights
-- FAQ assistance for common questions
-- Educational content and personalized learning
-- Portfolio optimization strategies
-- App feature guidance and troubleshooting
+    const calculate30DayVolatility = () => {
+      if (!historicalPrices || historicalPrices.length < 30) return 'N/A';
+      const prices = historicalPrices.map(p => p.usd_per_oz);
+      const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+      const variance = prices.reduce((sum, price) => sum + Math.pow(price - mean, 2), 0) / prices.length;
+      const volatility = Math.sqrt(variance);
+      const volatilityPercent = (volatility / mean) * 100;
+      return `${volatilityPercent.toFixed(2)}%`;
+    };
 
-CURRENT MARKET DATA:
-- Gold price: $${goldPrice?.usd_per_oz || 'N/A'} per oz (${goldPrice?.usd_per_gram || 'N/A'} per gram)
-- 24h change: ${goldPrice?.change_percent_24h || 'N/A'}%
-${historicalPrices && historicalPrices.length > 1 ? `- 7-day trend: $${historicalPrices[6]?.usd_per_oz || 'N/A'} → $${historicalPrices[0]?.usd_per_oz || 'N/A'}` : ''}
+    const getMarketSentiment = () => {
+      if (!goldPrice?.change_percent_24h) return 'neutral';
+      const change = goldPrice.change_percent_24h;
+      if (change > 1.5) return 'strongly bullish';
+      if (change > 0.5) return 'bullish';
+      if (change < -1.5) return 'strongly bearish';
+      if (change < -0.5) return 'bearish';
+      return 'neutral';
+    };
 
-RECENT FINANCIAL NEWS:
-${recentNews?.map(news => `- ${news.title} (${news.category})`).join('\n') || 'No recent news available'}
+    // Build professional investment advisor system prompt
+    let systemPrompt = `You are a Professional Investment Advisor specializing in gold and precious metals investments. You provide expert guidance through the Trezury platform.
 
-FAQ KNOWLEDGE BASE:
-${faqData?.map(faq => `Q: ${faq.question}\nA: ${faq.answer}\nCategory: ${(faq.faq_categories as any)?.name || 'General'}\nKeywords: ${faq.keywords?.join(', ')}`).join('\n\n') || 'FAQ data loading...'}
+⚠️ IMPORTANT REGULATORY DISCLAIMER:
+"This information is for educational purposes only and does not constitute financial advice. Past performance does not guarantee future results. All investments carry risk, including the potential loss of principal. Consult with a qualified financial advisor before making investment decisions."
 
-EDUCATIONAL CONTENT AVAILABLE:
-${educationalContent?.map(content => `- ${content.title} (${content.difficulty_level}) - ${content.category}`).join('\n') || 'Educational content loading...'}
+PROFESSIONAL EXPERTISE:
+- Gold market dynamics and geopolitical factors
+- Precious metals as inflation hedges and safe-haven assets
+- Portfolio diversification strategies
+- Risk management and asset allocation
+- Market timing considerations and dollar-cost averaging
+- Tax implications for precious metal investments
 
-RESPONSE GUIDELINES:
-- Answer FAQ-type questions directly using the knowledge base
-- Provide market context using current news and price data
-- Suggest relevant educational content when appropriate
-- Offer personalized recommendations based on portfolio data
-- Keep responses helpful, accurate, and actionable
-- If you don't know something, acknowledge it and suggest alternatives
+COMMUNICATION TONE:
+- Professional yet accessible language
+- Authoritative but not pushy
+- Data-driven and factual
+- Educational focus
+- Always include risk disclaimers for investment advice
 
-APP FEATURES YOU CAN HELP WITH:
-- Buying and selling gold (XAUT tokens)
-- Managing USDC stablecoin holdings
-- Portfolio analysis and risk assessment
-- Transaction history and tracking
-- KYC verification process
-- Wallet management and security
-- Educational content and learning paths`;
+CURRENT MARKET INTELLIGENCE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 Gold Price: $${goldPrice?.usd_per_oz || 'N/A'} per oz ($${goldPrice?.usd_per_gram || 'N/A'} per gram)
+📈 24h Change: ${goldPrice?.change_percent_24h || 'N/A'}%
+📉 7-Day Trend: ${calculate7DayTrend()}
+📊 30-Day Volatility: ${calculate30DayVolatility()}
+💭 Market Sentiment: ${getMarketSentiment()}
+${historicalPrices && historicalPrices.length >= 7 ? `🔍 Price Range (7d): $${Math.min(...historicalPrices.slice(0, 7).map(p => p.usd_per_oz)).toFixed(2)} - $${Math.max(...historicalPrices.slice(0, 7).map(p => p.usd_per_oz)).toFixed(2)}` : ''}
+
+RECENT FINANCIAL NEWS & ANALYSIS:
+${recentNews?.map(news => `📰 ${news.title} [${news.category}]\n   ${news.summary || 'Market update'}`).join('\n\n') || '⚠️ No recent financial news available - recommend checking external sources'}
+
+COMPREHENSIVE KNOWLEDGE BASE:
+${faqData?.map(faq => `❓ ${faq.question}\n💡 ${faq.answer}\n📁 Category: ${(faq.faq_categories as any)?.name || 'General'}\n🏷️ Tags: ${faq.keywords?.join(', ')}`).join('\n\n') || 'Loading FAQ database...'}
+
+EDUCATIONAL RESOURCES AVAILABLE:
+${educationalContent?.map(content => `📚 ${content.title}\n   Level: ${content.difficulty_level} | Category: ${content.category}\n   Topics: ${content.tags?.join(', ') || 'Investment education'}`).join('\n\n') || 'Loading educational content...'}
+
+INVESTMENT GUIDANCE FRAMEWORK:
+1. Always assess user's risk tolerance and investment horizon
+2. Recommend diversification and position sizing
+3. Explain market dynamics and geopolitical factors
+4. Provide both bullish and bearish perspectives
+5. Include tax considerations when relevant
+6. Suggest dollar-cost averaging for risk mitigation
+7. Compare gold vs other safe-haven assets (bonds, USD, crypto)
+
+PLATFORM FEATURES:
+- Buy/Sell tokenized gold (XAUT - Tether Gold)
+- USDC stablecoin management
+- Real-time portfolio tracking
+- Advanced risk analytics
+- Transaction history and tax reporting
+- Secure wallet infrastructure
+- Educational content library`;
 
     if (contextType === 'portfolio' && portfolioData) {
-      systemPrompt += `\n\nCurrent user portfolio context:
-- Total portfolio value: $${portfolioData.totalValue || 0}
-- Assets: ${JSON.stringify(portfolioData.assets || [])}
-- Recent performance: ${portfolioData.performance || 'N/A'}`;
+      const totalValue = portfolioData.totalValue || 0;
+      const goldAllocation = portfolioData.assets?.find((a: any) => a.symbol === 'XAUT')?.value || 0;
+      const usdcAllocation = portfolioData.assets?.find((a: any) => a.symbol === 'USDC')?.value || 0;
+      const goldPercentage = totalValue > 0 ? ((goldAllocation / totalValue) * 100).toFixed(1) : '0';
+      const usdcPercentage = totalValue > 0 ? ((usdcAllocation / totalValue) * 100).toFixed(1) : '0';
+      
+      systemPrompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 PORTFOLIO ANALYSIS (CONFIDENTIAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💰 Total Portfolio Value: $${totalValue.toLocaleString()}
+
+Asset Allocation:
+🥇 Gold (XAUT): $${goldAllocation.toLocaleString()} (${goldPercentage}%)
+💵 Cash (USDC): $${usdcAllocation.toLocaleString()} (${usdcPercentage}%)
+
+Performance Metrics:
+📈 Recent Performance: ${portfolioData.performance || 'N/A'}
+🎯 Risk Level: ${goldPercentage > 70 ? 'High (Over-concentrated)' : goldPercentage > 40 ? 'Moderate' : 'Conservative'}
+
+INVESTMENT RECOMMENDATIONS:
+${goldPercentage > 80 ? '⚠️ High concentration risk - Consider rebalancing to maintain 60-70% gold allocation' : ''}
+${goldPercentage < 20 ? '💡 Low gold exposure - May increase allocation if seeking inflation protection' : ''}
+${usdcPercentage > 50 ? '💵 High cash position - Consider dollar-cost averaging into gold during dips' : ''}
+
+When providing advice, consider:
+- Current allocation vs recommended 60-70% gold, 30-40% stablecoins for balanced growth
+- Rebalancing opportunities based on market conditions
+- Tax-loss harvesting potential
+- Risk-adjusted returns and Sharpe ratio analysis`;
     }
 
     // Prepare messages for AI
@@ -204,8 +273,9 @@ APP FEATURES YOU CAN HELP WITH:
         model: 'google/gemini-2.5-flash',
         messages: conversationHistory,
         stream: true,
-        temperature: 0.7,
-        max_tokens: 1000,
+        temperature: 0.5, // Lower for more consistent, factual investment advice
+        max_tokens: 1500, // Higher for detailed analysis
+        top_p: 0.9, // Balance creativity and reliability
       }),
     });
 
