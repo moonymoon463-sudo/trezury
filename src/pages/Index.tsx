@@ -149,7 +149,7 @@ const Index = () => {
           </Button>
           <Button 
             className="bg-card text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-black transition-all duration-200"
-            onClick={() => navigate("/buy-sell-hub")}
+            onClick={() => navigate("/sell-gold")}
           >
             <DollarSign size={14} />
             Sell/Cash Out
