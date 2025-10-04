@@ -40,9 +40,9 @@ const SystemMonitor = () => {
     try {
       const issues: string[] = [];
       
-      // Check database connectivity
+      // Check database connectivity (use masked view)
       const { data: dbTest, error: dbError } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('count')
         .limit(1);
       
@@ -110,9 +110,9 @@ const SystemMonitor = () => {
         issues.push(`Suspicious rapid PII access detected`);
       }
 
-      // Get system metrics
+      // Get system metrics (use masked view)
       const { data: userCount } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('id', { count: 'exact' });
 
       const { data: activeTransactions } = await supabase

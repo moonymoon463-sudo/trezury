@@ -102,10 +102,10 @@ class RateLimitingService {
       const { data: isAdminData } = await supabase.rpc('is_admin', { _user_id: userId });
       if (isAdminData) return 'admin';
 
-      // Check profile for premium features
+      // Check profile for premium features (use masked view)
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('kyc_status, metadata')
+        .from('v_profiles_masked')
+        .select('kyc_status')
         .eq('id', userId)
         .single();
 

@@ -155,19 +155,10 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
       // Encrypt the actual value for secure storage
       const encryptedSSN = await this.encryptSSN(ssnLastFour);
       
-      // Store both hash and encrypted value
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          ssn_last_four: ssnLastFour, // Store as-is for compatibility
-          metadata: {
-            ssn_hash: ssnHash,
-            ssn_encrypted: encryptedSSN,
-            encryption_version: '1.0',
-            encrypted_at: new Date().toISOString()
-          }
-        })
-        .eq('id', userId);
+      // Use secure update function for PII
+      const { error } = await supabase.rpc('update_my_profile', {
+        p_ssn_last_four: ssnLastFour
+      });
       
       if (error) throw error;
       
@@ -187,8 +178,9 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
       const retentionDate = new Date();
       retentionDate.setFullYear(retentionDate.getFullYear() - 7);
       
+      // Use masked view for retention policy (admin function would need separate implementation)
       const { data: oldProfiles } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('id, created_at')
         .lt('created_at', retentionDate.toISOString())
         .eq('kyc_status', 'verified');

@@ -30,9 +30,9 @@ const BuyGold = () => {
 
   const fetchProfile = async () => {
     try {
-      // Query only KYC status to avoid PII rate limiting
+      // Use masked view for security
       const { data, error } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('kyc_status')
         .eq('id', user!.id)
         .single();

@@ -61,9 +61,9 @@ export class SystemAnalyticsService {
 
       if (healthError) throw healthError;
 
-      // Get user activity metrics
+      // Get user activity metrics (use masked view)
       const { data: userMetrics, error: userError } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('id, created_at')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
@@ -145,9 +145,9 @@ export class SystemAnalyticsService {
       const metrics = await this.getSystemMetrics();
       const currentLoad = (metrics.cpu_usage + metrics.memory_usage) / 2;
       
-      // Get user growth data
+      // Get user growth data (use masked view)
       const { data: userGrowth, error } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('created_at')
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: true });
