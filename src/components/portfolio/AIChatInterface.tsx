@@ -193,7 +193,8 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="h-[500px] flex flex-col shadow-sm border-border/50">{onToggle && (
+    <Card className="flex flex-col shadow-sm border-border/50 h-[calc(100dvh-3.5rem-56px-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] md:h-[600px] lg:h-[650px]">
+      {onToggle && (
         <Button
           onClick={onToggle}
           variant="ghost"
@@ -254,7 +255,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         )}
 
         {/* Input Area */}
-        <div className="border-t border-border/30 p-3 bg-muted/20">
+        <div className="border-t border-border/30 p-3 bg-muted/20 sticky bottom-0 z-10">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
