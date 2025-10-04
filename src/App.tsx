@@ -137,8 +137,8 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <SessionHealthMonitor />
       <PWAProvider>
+        <SessionHealthMonitor />
         <TooltipProvider>
           <Toaster />
           <Sonner />
