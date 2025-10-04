@@ -67,7 +67,7 @@ const TrzryHub = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Reserve Value</p>
                     <p className="text-base font-bold text-foreground truncate">
-                      {reserveLoading ? "..." : `$${reserveValue.toLocaleString()}`}
+                      {reserveLoading ? "..." : `$${(reserveValue || 0).toLocaleString()}`}
                     </p>
                   </div>
                 </div>
@@ -79,7 +79,7 @@ const TrzryHub = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Gold Backing</p>
                     <p className="text-base font-bold text-foreground truncate">
-                      {reserveLoading ? "..." : `${totalXautBalance.toFixed(2)} oz`}
+                      {reserveLoading ? "..." : `${(totalXautBalance || 0).toFixed(2)} oz`}
                     </p>
                   </div>
                 </div>
@@ -91,7 +91,7 @@ const TrzryHub = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">7-Day Growth</p>
                     <p className="text-base font-bold text-primary">
-                      {reserveLoading ? "..." : `+${growthPercentage.toFixed(2)}%`}
+                      {reserveLoading ? "..." : `+${(growthPercentage || 0).toFixed(2)}%`}
                     </p>
                   </div>
                 </div>
