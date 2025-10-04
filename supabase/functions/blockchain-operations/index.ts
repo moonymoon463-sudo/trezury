@@ -107,24 +107,44 @@ function createUserWallet(userId: string): ethers.HDNodeWallet {
   return ethers.Wallet.fromPhrase(mnemonic.phrase);
 }
 
-// Helper function to validate JWT and extract user ID with cryptographic verification
-async function validateJWTAndGetUserId(req: Request): Promise<string> {
+// Helper function to validate authentication (supports both user JWT and service role)
+async function validateAuth(req: Request): Promise<{ 
+  userId: string | null, 
+  isServiceRole: boolean 
+}> {
   const authHeader = req.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Missing or invalid authorization header');
+  
+  if (!authHeader) {
+    throw new Error('Missing authorization header');
   }
   
-  const token = authHeader.replace('Bearer ', '');
+  // Extract the token/key from header
+  const token = authHeader.startsWith('Bearer ') 
+    ? authHeader.replace('Bearer ', '') 
+    : authHeader;
   
-  // Use Supabase's built-in JWT verification (cryptographically validates signature)
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  // Check if it's a service role request
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   
-  if (error || !user) {
-    console.error('JWT verification failed:', error);
-    throw new Error('Invalid or expired authentication token');
+  if (token === serviceRoleKey) {
+    console.log('✅ Service role authenticated');
+    return { userId: null, isServiceRole: true };
   }
   
-  return user.id; // Cryptographically verified user ID
+  // Otherwise validate as user JWT
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('JWT verification failed:', error);
+      throw new Error('Invalid or expired authentication token');
+    }
+    
+    console.log(`✅ User authenticated: ${user.id}`);
+    return { userId: user.id, isServiceRole: false };
+  } catch (error) {
+    throw new Error('Invalid authentication credentials');
+  }
 }
 
 // Helper function to validate Ethereum address
@@ -157,12 +177,21 @@ serve(async (req) => {
     const body: BlockchainOperationRequest = await req.json();
     console.log(`Processing LIVE blockchain operation: ${body.operation}`);
     
-    // Validate JWT for all operations except get_rpc_url
+    // Validate authentication for all operations except get_rpc_url
     let authenticatedUserId: string | null = null;
+    let isServiceRole = false;
+    
     if (body.operation !== 'get_rpc_url') {
       try {
-        authenticatedUserId = await validateJWTAndGetUserId(req);
-        console.log(`✅ Authenticated user: ${authenticatedUserId}`);
+        const authResult = await validateAuth(req);
+        authenticatedUserId = authResult.userId;
+        isServiceRole = authResult.isServiceRole;
+        
+        if (isServiceRole) {
+          console.log(`✅ Service role request for operation: ${body.operation}`);
+        } else {
+          console.log(`✅ Authenticated user: ${authenticatedUserId}`);
+        }
       } catch (error) {
         console.error('❌ Authentication failed:', error);
         return new Response(
@@ -171,9 +200,9 @@ serve(async (req) => {
         );
       }
       
-      // Check transaction velocity for operations that modify state
+      // Check transaction velocity for operations that modify state (only for user requests)
       const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'execute_uniswap_swap', 'collect_fee'];
-      if (stateModifyingOps.includes(body.operation)) {
+      if (!isServiceRole && stateModifyingOps.includes(body.operation)) {
         const { data: recentTxs, error: velocityError } = await supabase
           .from('transactions')
           .select('id, metadata')
@@ -271,6 +300,33 @@ serve(async (req) => {
             throw new Error('Invalid Ethereum address provided');
           }
           
+          // Security: User requests can only query their own addresses
+          if (!isServiceRole && authenticatedUserId) {
+            const { data: userAddresses, error: addressError } = await supabase
+              .from('onchain_addresses')
+              .select('address')
+              .eq('user_id', authenticatedUserId);
+            
+            if (addressError) {
+              throw new Error('Failed to verify address ownership');
+            }
+            
+            const ownsAddress = userAddresses?.some(a => 
+              a.address.toLowerCase() === address.toLowerCase()
+            );
+            
+            if (!ownsAddress) {
+              console.error(`❌ User ${authenticatedUserId} attempted to query unauthorized address: ${address}`);
+              return new Response(
+                JSON.stringify({ 
+                  success: false, 
+                  error: 'Unauthorized: You can only query your own wallet addresses' 
+                }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+          
           const contractAddress = getContractAddress(asset);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
@@ -305,6 +361,33 @@ serve(async (req) => {
           
           if (!address || !isValidEthereumAddress(address)) {
             throw new Error('Invalid Ethereum address provided');
+          }
+          
+          // Security: User requests can only query their own addresses
+          if (!isServiceRole && authenticatedUserId) {
+            const { data: userAddresses, error: addressError } = await supabase
+              .from('onchain_addresses')
+              .select('address')
+              .eq('user_id', authenticatedUserId);
+            
+            if (addressError) {
+              throw new Error('Failed to verify address ownership');
+            }
+            
+            const ownsAddress = userAddresses?.some(a => 
+              a.address.toLowerCase() === address.toLowerCase()
+            );
+            
+            if (!ownsAddress) {
+              console.error(`❌ User ${authenticatedUserId} attempted to query unauthorized address: ${address}`);
+              return new Response(
+                JSON.stringify({ 
+                  success: false, 
+                  error: 'Unauthorized: You can only query your own wallet addresses' 
+                }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
           
           const assets = ['USDC', 'XAUT', 'TRZRY'];
