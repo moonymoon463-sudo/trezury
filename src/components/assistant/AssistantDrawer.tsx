@@ -8,8 +8,11 @@ export const AssistantDrawer = () => {
 
   return (
     <Sheet open={isAssistantOpen} onOpenChange={closeAssistant}>
-      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
-        <SheetHeader className="px-6 py-4 border-b border-border">
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-lg p-0 flex flex-col max-h-[100dvh] pt-safe"
+      >
+        <SheetHeader className="px-6 py-4 border-b border-border flex-shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Trezury Assistant
@@ -19,7 +22,7 @@ export const AssistantDrawer = () => {
           </p>
         </SheetHeader>
         
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-h-0">
           <AIChatInterface
             isCollapsed={false}
             contextType={currentContext.page as any}
