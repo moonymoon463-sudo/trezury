@@ -23,6 +23,7 @@ export const useAIChat = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState<ChatMessage | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load conversations
@@ -138,7 +139,8 @@ export const useAIChat = () => {
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      // Use separate streaming state instead of adding to messages array
+      setStreamingMessage(assistantMessage);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -157,26 +159,28 @@ export const useAIChat = () => {
               
               if (parsed.type === 'conversation_id') {
                 setCurrentConversationId(parsed.conversationId);
-                await loadConversations(); // Refresh conversations list
+                await loadConversations();
                 continue;
               }
 
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 assistantContent += content;
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: assistantContent }
-                    : msg
-                ));
+                // Update streaming message state only
+                setStreamingMessage(prev => prev ? { ...prev, content: assistantContent } : null);
               }
             } catch (e) {
-              // Skip invalid JSON
               continue;
             }
           }
         }
       }
+
+      // Add complete message to messages array when done
+      if (assistantContent) {
+        setMessages(prev => [...prev, { ...assistantMessage, content: assistantContent }]);
+      }
+      setStreamingMessage(null);
 
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -221,6 +225,7 @@ export const useAIChat = () => {
     currentConversationId,
     isLoading,
     isStreaming,
+    streamingMessage,
     sendMessage,
     loadConversations,
     loadMessages,

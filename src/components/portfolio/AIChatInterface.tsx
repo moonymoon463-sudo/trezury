@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useAIChat, ChatMessage } from '@/hooks/useAIChat';
-import { useEnhancedAI } from '@/hooks/useEnhancedAI';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import DOMPurify from 'dompurify';
 
@@ -79,7 +79,7 @@ const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
   );
 };
 
-const MessageBubble = ({ message }: { message: ChatMessage }) => {
+const MessageBubble = React.memo(({ message }: { message: ChatMessage }) => {
   const isUser = message.role === 'user';
   
   return (
@@ -124,7 +124,7 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
       </div>
     </div>
   );
-};
+});
 
 export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   portfolioData,
@@ -135,8 +135,11 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [showQuickActions, setShowQuickActions] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
+  const isNearBottomRef = useRef(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   
   const defaultQuickActions = [
     "Analyze my portfolio",
@@ -151,21 +154,62 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     messages,
     isLoading,
     isStreaming,
+    streamingMessage,
     sendMessage,
     stopStreaming
   } = useAIChat();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ 
-      behavior: 'smooth',
-      block: 'end',
-      inline: 'nearest'
-    });
+  // Check if user is near bottom
+  const checkIfNearBottom = () => {
+    if (!scrollRef.current) return;
+    
+    const scrollContainer = isMobile 
+      ? scrollRef.current 
+      : scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+    
+    if (scrollContainer) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100;
+    }
+  };
+
+  // Optimized auto-scroll with debouncing
+  const scrollToBottom = (smooth = false) => {
+    if (!isNearBottomRef.current) return;
+    
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (scrollRef.current) {
+        const scrollContainer = isMobile 
+          ? scrollRef.current 
+          : scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        
+        if (scrollContainer) {
+          requestAnimationFrame(() => {
+            scrollContainer.scrollTo({
+              top: scrollContainer.scrollHeight,
+              behavior: smooth && !isStreaming ? 'smooth' : 'auto'
+            });
+          });
+        }
+      }
+    }, isStreaming ? 100 : 0);
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSend = async (messageText?: string) => {
     const messageToSend = messageText || input.trim();
@@ -209,6 +253,11 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     );
   }
 
+  // Combined messages array for rendering
+  const allMessages = streamingMessage 
+    ? [...messages, streamingMessage] 
+    : messages;
+
   return (
     <Card className="flex flex-col shadow-sm border-border/50 h-full max-h-full overflow-hidden">
       {onToggle && (
@@ -238,34 +287,75 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
-        {/* Messages Area */}
-        <ScrollArea className="flex-1 min-h-0 px-4">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
-              <Bot size={32} className="mb-2 opacity-40" />
-              <h3 className="text-sm font-medium mb-1">Trezury Advisor AI Assistant</h3>
-              <p className="text-xs max-w-xs leading-relaxed">
-                Ask about investments, portfolio analysis, or market insights.
-              </p>
-            </div>
-          ) : (
-            <div className="py-3">
-              {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))}
-              {isStreaming && (
-                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
-                  <Loader2 size={14} className="animate-spin" />
-                  Trezury Advisor AI Assistant is thinking...
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </ScrollArea>
+        {/* Messages Area - Use native scrolling on mobile for better performance */}
+        {isMobile ? (
+          <div 
+            ref={scrollRef}
+            onScroll={checkIfNearBottom}
+            className={cn(
+              "flex-1 overflow-y-auto px-4",
+              "[-webkit-overflow-scrolling:touch]",
+              "will-change-scroll"
+            )}
+            style={{ 
+              minHeight: 0,
+              maxHeight: '100%'
+            }}
+          >
+            {allMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
+                <Bot size={32} className="mb-2 opacity-40" />
+                <h3 className="text-sm font-medium mb-1">Trezury Advisor AI Assistant</h3>
+                <p className="text-xs max-w-xs leading-relaxed">
+                  Ask about investments, portfolio analysis, or market insights.
+                </p>
+              </div>
+            ) : (
+              <div className="py-3">
+                {allMessages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))}
+                {isStreaming && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
+                    <Loader2 size={14} className="animate-spin" />
+                    Trezury Advisor AI Assistant is thinking...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <ScrollArea 
+            ref={scrollRef} 
+            className="flex-1 min-h-0 px-4"
+            onScrollCapture={checkIfNearBottom}
+          >
+            {allMessages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
+                <Bot size={32} className="mb-2 opacity-40" />
+                <h3 className="text-sm font-medium mb-1">Trezury Advisor AI Assistant</h3>
+                <p className="text-xs max-w-xs leading-relaxed">
+                  Ask about investments, portfolio analysis, or market insights.
+                </p>
+              </div>
+            ) : (
+              <div className="py-3">
+                {allMessages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))}
+                {isStreaming && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
+                    <Loader2 size={14} className="animate-spin" />
+                    Trezury Advisor AI Assistant is thinking...
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        )}
 
         {/* Quick Actions */}
-        {showQuickActions && messages.length === 0 && (
+        {showQuickActions && allMessages.length === 0 && (
           <div className="px-4 pb-3">
             <QuickActions onSend={handleSend} />
           </div>
