@@ -44,7 +44,33 @@ export default function Portfolio() {
     riskAssessment,
     loading: aiLoading,
     refreshAnalysis
-  } = useOptimizedPortfolioAI();
+  } = useOptimizedPortfolioAI(// Add import at top
+import { blockchainMonitoringService } from "@/services/blockchainMonitoringService";
+import { useAuth } from "@/hooks/useAuth";
+
+// Then inside the Portfolio component, add:
+const { user } = useAuth();
+
+// Add effect to start monitoring
+useEffect(() => {
+  const startMonitoring = async () => {
+    if (user?.id) {
+      const addresses = await blockchainMonitoringService.getUserWalletAddresses(user.id);
+      if (addresses.length > 0) {
+        console.log('🔍 Starting blockchain monitoring for', addresses.length, 'addresses');
+        await blockchainMonitoringService.startMonitoring(addresses);
+      }
+    }
+  };
+
+  startMonitoring();
+
+  // Cleanup on unmount
+  return () => {
+    blockchainMonitoringService.stopMonitoring();
+  };
+}, [user?.id]);
+;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
