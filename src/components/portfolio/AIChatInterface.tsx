@@ -193,7 +193,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   }
 
   return (
-    <Card className="flex flex-col shadow-sm border-border/50 h-full">
+    <Card className="flex flex-col shadow-sm border-border/50 h-full max-h-full overflow-hidden">
       {onToggle && (
         <Button
           onClick={onToggle}
@@ -204,7 +204,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
           ×
         </Button>
       )}
-      <CardHeader className="pb-3 px-4 py-3 border-b border-border/30">
+      <CardHeader className="pb-3 px-4 py-3 border-b border-border/30 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2 font-medium">
             <Bot size={16} className="text-primary" />
@@ -220,9 +220,9 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
         {/* Messages Area */}
-        <ScrollArea className="flex-1 px-4">
+        <ScrollArea className="flex-1 min-h-0 px-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
               <Bot size={32} className="mb-2 opacity-40" />
@@ -255,7 +255,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         )}
 
         {/* Input Area */}
-        <div className="border-t border-border/30 p-3 bg-muted/20 sticky bottom-0 z-10">
+        <div className="border-t border-border/30 p-3 bg-muted/20 flex-shrink-0">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
