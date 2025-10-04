@@ -56,17 +56,23 @@ const Settings = () => {
 
   const fetchProfile = async () => {
     try {
-      // Query profile data directly to avoid PII rate limiting
+      // Use masked view for PII security  
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, email, phone, kyc_status, created_at, updated_at')
+        .from('v_profiles_masked')
+        .select('id, email, masked_phone, kyc_status, created_at, updated_at')
         .eq('id', user!.id)
         .single();
 
       if (error) throw error;
       
-      setProfile(data);
-      setPhone(data?.phone || "");
+      // Map masked_phone to phone for compatibility
+      const profileData = {
+        ...data,
+        phone: data?.masked_phone || null
+      };
+      
+      setProfile(profileData as any);
+      setPhone(data?.masked_phone || "");
     } catch (error) {
       console.error('Failed to fetch profile:', error);
       toast({
@@ -84,13 +90,10 @@ const Settings = () => {
 
     try {
       setSaving(true);
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          phone: phone || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user!.id);
+      // Use secure function for PII updates
+      const { data, error } = await supabase.rpc('update_my_profile', {
+        p_phone: phone || null
+      });
 
       if (error) throw error;
 

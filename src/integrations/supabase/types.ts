@@ -2700,6 +2700,21 @@ export type Database = {
         Args: { ssn_value: string; user_uuid: string }
         Returns: undefined
       }
+      update_my_profile: {
+        Args: {
+          p_address?: string
+          p_city?: string
+          p_country?: string
+          p_date_of_birth?: string
+          p_first_name?: string
+          p_last_name?: string
+          p_phone?: string
+          p_ssn_last_four?: string
+          p_state?: string
+          p_zip_code?: string
+        }
+        Returns: Json
+      }
       user_can_see_sensitive_data: {
         Args: Record<PropertyKey, never>
         Returns: boolean

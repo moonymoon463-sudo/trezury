@@ -44,9 +44,9 @@ export const SecurityStatus: React.FC = () => {
       let totalScore = 0;
       const maxScore = 100;
 
-      // Check 1: Account verification status
+      // Check 1: Account verification status (use masked view)
       const { data: profile } = await supabase
-        .from('profiles')
+        .from('v_profiles_masked')
         .select('kyc_status, email, created_at')
         .eq('id', user.id)
         .single();
