@@ -52,12 +52,11 @@ export const FloatingAssistant = () => {
       </AnimatePresence>
 
       {/* Floating Button */}
-      <motion.div
-        className="fixed bottom-20 right-6 z-50"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-      >
+      <div className="fixed bottom-20 right-6 z-50">
+        <motion.div
+          animate={{ scale: isAssistantOpen ? 0.95 : 1 }}
+          transition={{ duration: 0.2 }}
+        >
         <Button
           onClick={toggleAssistant}
           size="lg"
@@ -99,7 +98,8 @@ export const FloatingAssistant = () => {
             {isAssistantOpen ? 'Close Assistant' : 'Need Help?'}
           </div>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </>
   );
 };
