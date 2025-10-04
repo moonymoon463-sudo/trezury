@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_mfa_status: {
+        Row: {
+          created_at: string
+          mfa_enabled: boolean
+          mfa_verified_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          mfa_enabled?: boolean
+          mfa_verified_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          mfa_enabled?: boolean
+          mfa_verified_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_analysis_cache: {
         Row: {
           analysis: string
@@ -2543,6 +2567,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: {
+        Args: { _user_id?: string }
+        Returns: boolean
+      }
+      is_admin_with_mfa: {
         Args: { _user_id?: string }
         Returns: boolean
       }
