@@ -30,12 +30,6 @@ const BottomNavigation = () => {
       path: "/swap",
     },
     {
-      id: "ai-chat",
-      label: "Trez AI",
-      icon: MessageSquare,
-      path: "/ai-chat",
-    },
-    {
       id: "portfolio",
       label: "Portfolio",
       icon: PieChart,
