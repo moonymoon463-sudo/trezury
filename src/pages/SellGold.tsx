@@ -62,19 +62,14 @@ const SellGold = () => {
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-6 sm:mb-8">Sell Your Gold Holdings for Fiat</h2>
         
         <div className="space-y-4 max-w-full">
-          {/* GOLD Token Option */}
+          {/* Convert Assets Option */}
           <button 
             onClick={handleSellGold}
             disabled={loading}
             className="flex items-center gap-4 rounded-xl bg-card border border-border p-4 sm:p-6 transition-colors hover:bg-accent w-full text-left disabled:opacity-50 disabled:cursor-not-allowed max-w-full"
           >
-            <div className="flex-shrink-0">
-              <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">GOLD</span>
-              </div>
-            </div>
             <div className="flex-1">
-              <p className="text-base font-semibold text-foreground">GOLD Token</p>
+              <p className="text-base font-semibold text-foreground">Convert Assets</p>
               <p className="text-sm text-muted-foreground">Convert to USD via bank transfer or USDC</p>
             </div>
             {loading ? (
