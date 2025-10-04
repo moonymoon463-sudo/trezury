@@ -47,6 +47,7 @@ import WalletManagement from "./pages/WalletManagement";
 import Portfolio from "./pages/Portfolio";
 import AIChat from "./pages/AIChat";
 import TrzryReserves from "./pages/TrzryReserves";
+import TrzryHub from "./pages/TrzryHub";
 import Send from "./pages/Send";
 import Receive from "./pages/Receive";
 import RealTimeSystemMonitor from "./components/admin/RealTimeSystemMonitor";
@@ -125,6 +126,7 @@ const AppRoutes = () => {
       <Route path="/admin/alerts" element={<ProtectedRoute><AlertManagementSystem /></ProtectedRoute>} />
       <Route path="/admin/capacity-planning" element={<ProtectedRoute><CapacityPlanningDashboard /></ProtectedRoute>} />
       <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />
+      <Route path="/trzry-hub" element={<ProtectedRoute><TrzryHub /></ProtectedRoute>} />
       <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
       <Route path="/receive" element={<ProtectedRoute><Receive /></ProtectedRoute>} />
       <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
