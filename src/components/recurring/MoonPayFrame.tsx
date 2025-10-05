@@ -81,36 +81,36 @@ export const MoonPayFrame = ({
       />
       
       {/* Main content */}
-      <div className="relative w-full h-full bg-background flex flex-col">
+      <div className="relative w-full h-full max-h-[100dvh] bg-background flex flex-col">
         {/* Minimal overlay controls */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 flex items-center gap-1.5 sm:gap-2">
           <Button
             variant="secondary"
             size="sm"
             onClick={openInNewWindow}
-            className="h-10 w-10 p-0 shadow-lg"
+            className="h-8 w-8 sm:h-10 sm:w-10 p-0 shadow-lg"
             title="Open in new window"
           >
-            <ExternalLink className="h-4 w-4" />
+            <ExternalLink className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
           <Button
             variant="secondary"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="h-10 w-10 p-0 shadow-lg"
+            className="h-8 w-8 sm:h-10 sm:w-10 p-0 shadow-lg"
             title="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full overflow-hidden">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
-              <div className="text-center space-y-2">
-                <Loader2 className="h-8 w-8 mx-auto animate-spin" />
-                <p className="text-sm text-muted-foreground">Loading MoonPay...</p>
+              <div className="text-center space-y-2 px-4">
+                <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 mx-auto animate-spin" />
+                <p className="text-xs sm:text-sm text-muted-foreground">Loading MoonPay...</p>
               </div>
             </div>
           )}
@@ -139,7 +139,7 @@ export const MoonPayFrame = ({
           <iframe
             ref={iframeRef}
             src={url}
-            className="w-full h-full border-0"
+            className="w-full h-full border-0 scale-[0.95] sm:scale-100 origin-top-left"
             onLoad={handleIframeLoad}
             onError={handleIframeError}
             title="MoonPay"
