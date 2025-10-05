@@ -56,13 +56,13 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-surface-elevated">
       {/* Header */}
-      <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50 pt-[max(8px,env(safe-area-inset-top))]">
-        <div className="container mx-auto px-4 py-1 flex items-center justify-between">
+      <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-0 z-50 pt-[max(4px,env(safe-area-inset-top))]">
+        <div className="container mx-auto px-4 py-0.5 flex items-center justify-between">
           <div className="flex items-center">
-            <AurumLogo compact />
+            <AurumLogo size="xs" />
           </div>
           <Link to="/auth">
-            <Button variant="outline" size="sm" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10">
+            <Button variant="outline" size="sm" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10 h-8 text-xs">
               Get Started
             </Button>
           </Link>
@@ -280,15 +280,15 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 bg-background/80 py-12 px-4">
+      <footer className="border-t border-border/40 bg-background/80 py-6 px-4">
         <div className="container mx-auto text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <AurumLogo />
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <AurumLogo size="xs" />
           </div>
-          <p className="text-muted-foreground mb-4">
+          <p className="text-muted-foreground text-sm mb-2">
             Secure Gold Trading Platform
           </p>
-          <div className="flex justify-center space-x-8 text-sm text-muted-foreground">
+          <div className="flex justify-center space-x-6 text-xs text-muted-foreground">
             <Link to="/privacy-policy" className="hover:text-aurum transition-colors">Privacy Policy</Link>
             <Link to="/terms-of-service" className="hover:text-aurum transition-colors">Terms of Service</Link>
           </div>

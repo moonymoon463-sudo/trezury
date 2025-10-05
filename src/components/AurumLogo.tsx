@@ -4,11 +4,12 @@ import trezuryLogo from '@/assets/trezury-logo.png';
 interface AurumLogoProps {
   className?: string;
   compact?: boolean;
-  size?: 'default' | 'header';
+  size?: 'default' | 'header' | 'xs';
 }
 
 const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, size = 'default' }) => {
   const sizeClasses = {
+    xs: 'h-[60px] sm:h-[70px] md:h-[80px]',
     compact: 'h-[100px] sm:h-[110px] md:h-[120px]',
     header: 'h-[140px] sm:h-[160px] md:h-[180px]',
     default: 'h-[180px] sm:h-[210px] md:h-[240px]'
