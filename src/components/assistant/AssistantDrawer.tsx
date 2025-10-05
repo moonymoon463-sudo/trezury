@@ -10,14 +10,14 @@ export const AssistantDrawer = () => {
     <Sheet open={isAssistantOpen} onOpenChange={(open) => open ? openAssistant() : closeAssistant()}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-lg p-0 flex flex-col max-h-[100dvh] pt-safe"
+        className="w-full sm:max-w-lg p-0 flex flex-col max-h-[90dvh] sm:max-h-[95dvh]"
       >
-        <SheetHeader className="px-6 py-4 border-b border-border flex-shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+        <SheetHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border flex-shrink-0">
+          <SheetTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             Trezury Assistant
           </SheetTitle>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
             I'm here to help you with {currentContext.helpTopic.toLowerCase()}
           </p>
         </SheetHeader>
