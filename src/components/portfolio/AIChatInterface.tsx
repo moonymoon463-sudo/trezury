@@ -199,9 +199,20 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     }, isStreaming ? 100 : 0);
   };
 
+  // Force scroll on new messages
   useEffect(() => {
+    console.log('[AIChatInterface] Messages changed, scrolling. Count:', messages.length);
+    isNearBottomRef.current = true; // Force scroll on new message
     scrollToBottom();
-  }, [messages, streamingMessage]);
+  }, [messages.length]);
+
+  // Also scroll when streaming message updates  
+  useEffect(() => {
+    if (streamingMessage && streamingMessage.content.length > 0) {
+      console.log('[AIChatInterface] Streaming update, length:', streamingMessage.content.length);
+      scrollToBottom();
+    }
+  }, [streamingMessage?.content]);
 
   useEffect(() => {
     return () => {
@@ -253,10 +264,13 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     );
   }
 
-  // Combined messages array for rendering
-  const allMessages = streamingMessage 
+  // Combined messages array for rendering - only include streaming message if it has content
+  const allMessages = streamingMessage && streamingMessage.content.length > 0
     ? [...messages, streamingMessage] 
     : messages;
+  
+  // Debug logging for mobile
+  console.log('[AIChatInterface] Messages:', messages.length, 'Streaming:', !!streamingMessage, 'Content:', streamingMessage?.content.length || 0);
 
   return (
     <Card className="flex flex-col shadow-sm border-border/50 h-full max-h-full overflow-hidden">
@@ -308,10 +322,11 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="py-3 pb-4">
-                {allMessages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))}
+              <div className="w-full py-3 pb-4">
+                {allMessages.map((message) => {
+                  console.log('[AIChatInterface] Rendering:', message.role, message.content.substring(0, 30));
+                  return <MessageBubble key={message.id} message={message} />;
+                })}
                 {isStreaming && (
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
                     <Loader2 size={14} className="animate-spin" />
