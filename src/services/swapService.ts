@@ -35,7 +35,7 @@ export interface SwapResult {
 class SwapService {
   private readonly FEE_BPS = 80; // 0.8% total fee
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
-  private readonly QUOTE_VALIDITY_MINUTES = 5;
+  private readonly QUOTE_VALIDITY_MINUTES = 10; // Extended to 10 minutes
 
   /**
    * Generate swap quote between supported assets
@@ -160,20 +160,33 @@ class SwapService {
         };
       }
 
-      // Get quote from database
+      // Get quote from database with better error handling
+      console.log('🔍 Looking for quote:', quoteId, 'for user:', userId);
+      
       const { data: quoteData, error } = await supabase
         .from('quotes')
         .select('*')
         .eq('id', quoteId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error || !quoteData) {
+      if (error) {
+        console.error('❌ Database error retrieving quote:', error);
         return {
           success: false,
-          error: 'Quote not found or expired'
+          error: `Database error: ${error.message}`
         };
       }
+
+      if (!quoteData) {
+        console.error('❌ Quote not found in database');
+        return {
+          success: false,
+          error: 'Quote not found. Please generate a new quote.'
+        };
+      }
+
+      console.log('✅ Quote found:', quoteData);
 
       // Check if quote is still valid
       if (new Date() > new Date(quoteData.expires_at)) {
@@ -311,6 +324,8 @@ class SwapService {
   }
 
   private async saveSwapQuote(quote: SwapQuote, userId: string): Promise<void> {
+    console.log('💾 Saving swap quote:', quote.id);
+    
     // Store in existing quotes table with swap-specific metadata
     const { error } = await supabase
       .from('quotes')
@@ -336,9 +351,11 @@ class SwapService {
       });
 
     if (error) {
-      console.error('Failed to save swap quote:', error);
-      // Don't throw error - quote can still be used
+      console.error('❌ Failed to save swap quote to database:', error);
+      throw new Error(`Failed to save quote: ${error.message}`);
     }
+    
+    console.log('✅ Quote saved successfully');
   }
 }
 
