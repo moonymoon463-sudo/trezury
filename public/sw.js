@@ -1,6 +1,6 @@
-const CACHE_NAME = 'trezury-v6';
-const STATIC_CACHE = 'trezury-static-v6';
-const DYNAMIC_CACHE = 'trezury-dynamic-v6';
+const CACHE_NAME = 'trezury-v7';
+const STATIC_CACHE = 'trezury-static-v7';
+const DYNAMIC_CACHE = 'trezury-dynamic-v7';
 
 const urlsToCache = [
   '/',
@@ -60,13 +60,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip dev-time assets (Vite dev server paths)
+  if (url.pathname.startsWith('/src/')) {
+    return;
+  }
+
   // Handle different caching strategies
   if (NETWORK_FIRST.some(path => url.pathname.startsWith(path))) {
     // Network first for API calls
     event.respondWith(networkFirst(request));
   } else if (CACHE_FIRST.some(ext => url.pathname.endsWith(ext))) {
-    // Cache first for static assets
-    event.respondWith(cacheFirst(request));
+    // Stale while revalidate for images to prevent stale brand assets
+    if (['.png', '.jpg', '.jpeg', '.svg'].some(ext => url.pathname.endsWith(ext))) {
+      event.respondWith(staleWhileRevalidate(request));
+    } else {
+      // Cache first for other static assets (fonts, css, js)
+      event.respondWith(cacheFirst(request));
+    }
   } else {
     // Stale while revalidate for HTML pages
     event.respondWith(staleWhileRevalidate(request));

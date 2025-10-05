@@ -20,7 +20,7 @@ const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, 
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <img 
-        src={trezuryLogo} 
+        src={`${trezuryLogo}?v=7`} 
         alt="TREZURY Logo" 
         className={`${sizeClasses[logoSize]} w-auto object-contain`}
       />
