@@ -9,7 +9,7 @@ interface AurumLogoProps {
 
 const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, size = 'default' }) => {
   const sizeClasses = {
-    compact: 'h-16',
+    compact: 'h-20',
     header: 'h-16',
     default: 'h-28'
   };
