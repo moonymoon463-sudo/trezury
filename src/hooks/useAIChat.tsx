@@ -146,101 +146,143 @@ export const useAIChat = () => {
       // Try streaming via ReadableStream; fallback to full text if not supported
       const reader = response.body?.getReader();
       if (!reader) {
+        // Non-stream fallback: reconstruct events from full text
         const fullText = await response.text();
-        let buffered = '';
-        const chunks = fullText.replace(/\r\n/g, '\n').split('\n');
-        for (const raw of chunks) {
-          const line = raw.trim();
-          if (!line.startsWith('data:')) continue;
-          const data = line.slice(5).trim();
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === 'conversation_id') {
-              setCurrentConversationId(parsed.conversationId);
-              await loadConversations();
-              continue;
+        const text = fullText.replace(/\r\n/g, '\n');
+        let eventData = '';
+        for (const rawLine of text.split('\n')) {
+          const line = rawLine.trimEnd();
+          if (line === '') {
+            if (eventData) {
+              try {
+                const parsed = JSON.parse(eventData);
+                if (parsed.type === 'conversation_id') {
+                  setCurrentConversationId(parsed.conversationId);
+                  await loadConversations();
+                } else {
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  if (delta) assistantContent += delta;
+                }
+              } catch {}
+              eventData = '';
             }
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) buffered += delta;
-          } catch {}
+            continue;
+          }
+          if (line.startsWith('data:')) {
+            const piece = line.slice(5).trimStart();
+            if (piece === '[DONE]') break;
+            eventData += (eventData ? '\n' : '') + piece;
+          }
         }
         if (assistantId) {
-          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: buffered } : m));
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
         }
         return;
       }
 
+      // Streaming path with mobile-safe SSE parser
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      let eventData = '';
       let doneStreaming = false;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Throttle UI updates to prevent jank on mobile
+      let pendingFlush = false;
+      const flushUI = () => {
+        pendingFlush = false;
+        if (assistantId) {
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
+        }
+      };
+      const scheduleFlush = () => {
+        if (!pendingFlush) {
+          pendingFlush = true;
+          setTimeout(flushUI, 100);
+        }
+      };
 
-        buffer += decoder.decode(value, { stream: true });
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        let lineBreakIndex;
-        while ((lineBreakIndex = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, lineBreakIndex);
-          buffer = buffer.slice(lineBreakIndex + 1);
+          buffer += decoder.decode(value, { stream: true });
 
-          line = line.replace(/\r$/, '').trim();
+          let nl;
+          while ((nl = buffer.indexOf('\n')) !== -1) {
+            let line = buffer.slice(0, nl);
+            buffer = buffer.slice(nl + 1);
+            line = line.replace(/\r$/, '');
 
-          if (!line.startsWith('data:')) continue;
-          const data = line.slice(5).trim();
-          if (!data) continue;
-
-          if (data === '[DONE]') {
-            doneStreaming = true;
-            break;
-          }
-
-          try {
-            const parsed = JSON.parse(data);
-
-            if (parsed.type === 'conversation_id') {
-              setCurrentConversationId(parsed.conversationId);
-              await loadConversations();
+            if (line === '') {
+              // Blank line = event boundary
+              if (eventData) {
+                try {
+                  if (eventData === '[DONE]') {
+                    doneStreaming = true;
+                    break;
+                  }
+                  const parsed = JSON.parse(eventData);
+                  if (parsed.type === 'conversation_id') {
+                    setCurrentConversationId(parsed.conversationId);
+                    await loadConversations();
+                  } else {
+                    const delta = parsed.choices?.[0]?.delta?.content;
+                    if (delta) {
+                      assistantContent += delta;
+                      scheduleFlush();
+                    }
+                  }
+                } catch {}
+                eventData = '';
+              }
               continue;
             }
 
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              assistantContent += delta;
-              if (assistantId) {
-                setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
+            if (line.startsWith('data:')) {
+              const piece = line.slice(5).trimStart();
+              if (piece === '[DONE]') {
+                doneStreaming = true;
+                break;
               }
+              eventData += (eventData ? '\n' : '') + piece;
             }
-          } catch {
-            // Ignore partial JSON; it will be completed in subsequent chunks
+          }
+
+          if (doneStreaming) break;
+        }
+
+        // Flush remaining decoder state and process tail
+        buffer += decoder.decode();
+        if (buffer.length) {
+          const tail = buffer.replace(/\r\n/g, '\n').split('\n');
+          for (const rawLine of tail) {
+            const line = rawLine.trimEnd();
+            if (line === '') {
+              if (eventData) {
+                try {
+                  if (eventData !== '[DONE]') {
+                    const parsed = JSON.parse(eventData);
+                    const delta = parsed.choices?.[0]?.delta?.content;
+                    if (delta) assistantContent += delta;
+                  }
+                } catch {}
+                eventData = '';
+              }
+            } else if (line.startsWith('data:')) {
+              const piece = line.slice(5).trimStart();
+              if (piece === '[DONE]') break;
+              eventData += (eventData ? '\n' : '') + piece;
+            }
           }
         }
 
-        if (doneStreaming) break;
-      }
-
-      // Flush any remaining buffered line (without trailing newline)
-      if (buffer.length) {
-        try {
-          const maybeLine = buffer.trim();
-          if (maybeLine.startsWith('data:')) {
-            const data = maybeLine.slice(5).trim();
-            if (data && data !== '[DONE]') {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                assistantContent += delta;
-                if (assistantId) {
-                  setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
-                }
-              }
-            }
-          }
-        } catch {
-          // ignore
+        // Final UI sync
+        if (assistantId) {
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
         }
+      } finally {
+        try { reader.releaseLock(); } catch {}
       }
 
 

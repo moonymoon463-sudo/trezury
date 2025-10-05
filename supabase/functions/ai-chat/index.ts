@@ -560,7 +560,7 @@ When providing advice, consider:
       throw new Error(`AI Gateway error: ${errorText}`);
     }
 
-    // Set up streaming response
+    // Set up streaming response with robust SSE parser
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -570,49 +570,101 @@ When providing advice, consider:
           const reader = aiResponse.body?.getReader();
           if (!reader) throw new Error('No response body');
 
+          // Send conversation ID as first event
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'conversation_id',
+            conversationId: currentConversationId
+          })}\n\n`));
+
+          const decoder = new TextDecoder('utf-8');
+          let buffer = '';
+          let eventData = '';
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = new TextDecoder().decode(value);
-            const lines = chunk.split('\n');
+            buffer += decoder.decode(value, { stream: true });
 
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6);
-                if (data === '[DONE]') {
-                  // Save assistant message to database
+            let nl;
+            while ((nl = buffer.indexOf('\n')) !== -1) {
+              let line = buffer.slice(0, nl);
+              buffer = buffer.slice(nl + 1);
+              line = line.replace(/\r$/, '');
+
+              if (line === '') {
+                // Blank line = event boundary
+                if (eventData) {
+                  try {
+                    if (eventData === '[DONE]') {
+                      await supabase.from('chat_messages').insert({
+                        conversation_id: currentConversationId,
+                        role: 'assistant',
+                        content: assistantMessage
+                      });
+                      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                      controller.close();
+                      return;
+                    }
+                    const parsed = JSON.parse(eventData);
+                    const delta = parsed.choices?.[0]?.delta?.content;
+                    if (delta) assistantMessage += delta;
+                    // Forward complete event with proper SSE framing
+                    controller.enqueue(encoder.encode(`data: ${eventData}\n\n`));
+                  } catch {}
+                  eventData = '';
+                }
+                continue;
+              }
+
+              if (line.startsWith('data:')) {
+                const piece = line.slice(5).trimStart();
+                if (piece === '[DONE]') {
                   await supabase.from('chat_messages').insert({
                     conversation_id: currentConversationId,
                     role: 'assistant',
                     content: assistantMessage
                   });
-
-                  // Send final response with conversation ID
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                    type: 'conversation_id',
-                    conversationId: currentConversationId
-                  })}\n\n`));
-                  
+                  controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                   controller.close();
                   return;
                 }
-
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content;
-                  if (content) {
-                    assistantMessage += content;
-                    // Forward the chunk to client
-                    controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-                  }
-                } catch (e) {
-                  // Skip invalid JSON
-                  continue;
-                }
+                eventData += (eventData ? '\n' : '') + piece;
               }
             }
           }
+
+          // Flush remaining bytes
+          buffer += decoder.decode();
+          if (buffer.length) {
+            const tail = buffer.replace(/\r\n/g, '\n').split('\n');
+            for (const rawLine of tail) {
+              const line = rawLine.trimEnd();
+              if (line === '' && eventData) {
+                try {
+                  const parsed = JSON.parse(eventData);
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  if (delta) assistantMessage += delta;
+                  controller.enqueue(encoder.encode(`data: ${eventData}\n\n`));
+                } catch {}
+                eventData = '';
+              } else if (line.startsWith('data:')) {
+                const piece = line.slice(5).trimStart();
+                eventData += (eventData ? '\n' : '') + piece;
+              }
+            }
+          }
+
+          // Save final message
+          if (assistantMessage) {
+            await supabase.from('chat_messages').insert({
+              conversation_id: currentConversationId,
+              role: 'assistant',
+              content: assistantMessage
+            });
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
         } catch (error) {
           console.error('Streaming error:', error);
           controller.error(error);
@@ -623,9 +675,10 @@ When providing advice, consider:
     return new Response(stream, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
       },
     });
 
