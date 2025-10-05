@@ -22,7 +22,9 @@ const Swap = () => {
   const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
+  const [autoQuoteLoading, setAutoQuoteLoading] = useState(false);
 
   // Handle URL parameters and initialize wallet
   useEffect(() => {
@@ -47,11 +49,49 @@ const Swap = () => {
     return 'Ethereum'; // All assets on Ethereum mainnet
   };
   
+  // Auto-generate quote as user types (debounced)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (!user || !fromAmount || parseFloat(fromAmount) <= 0) {
+        setAutoQuote(null);
+        return;
+      }
+
+      // Validate asset pair
+      if ((fromAsset === 'USDC' && toAsset !== 'XAUT' && toAsset !== 'TRZRY') || 
+          (fromAsset === 'XAUT' && toAsset !== 'USDC') ||
+          (fromAsset === 'TRZRY' && toAsset !== 'USDC')) {
+        setAutoQuote(null);
+        return;
+      }
+
+      try {
+        setAutoQuoteLoading(true);
+        const newQuote = await swapService.generateSwapQuote(
+          fromAsset,
+          toAsset,
+          parseFloat(fromAmount),
+          user.id
+        );
+        setAutoQuote(newQuote);
+      } catch (error) {
+        console.error('Auto-quote generation failed:', error);
+        setAutoQuote(null);
+      } finally {
+        setAutoQuoteLoading(false);
+      }
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [fromAmount, fromAsset, toAsset, user]);
+
   const handleSwapTokens = () => {
     const tempAsset = fromAsset;
     setFromAsset(toAsset);
     setToAsset(tempAsset);
     setFromAmount('');
+    setQuote(null);
+    setAutoQuote(null);
   };
   
   const handlePreviewSwap = async () => {
@@ -290,7 +330,7 @@ const Swap = () => {
               <Input
                 className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
                 placeholder="0.00"
-                value={quote ? quote.outputAmount.toFixed(6) : ''}
+                value={(quote || autoQuote) ? (quote || autoQuote)!.outputAmount.toFixed(6) : autoQuoteLoading ? '...' : ''}
                 readOnly
               />
             </div>

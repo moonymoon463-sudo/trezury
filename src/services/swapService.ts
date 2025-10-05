@@ -354,7 +354,7 @@ class SwapService {
       .insert({
         id: quote.id,
         user_id: userId,
-        side: 'swap',
+        side: 'SWAP',
         input_asset: quote.inputAsset,
         output_asset: quote.outputAsset,
         input_amount: quote.inputAmount,
