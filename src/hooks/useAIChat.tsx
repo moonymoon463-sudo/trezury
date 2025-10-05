@@ -114,6 +114,8 @@ export const useAIChat = () => {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify({
           message: content.trim(),
@@ -122,16 +124,14 @@ export const useAIChat = () => {
           portfolioData
         }),
         signal: abortController.signal,
+        cache: 'no-store'
       });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-
+      // Prepare assistant placeholder and attempt streaming
       let assistantContent = '';
       assistantId = crypto.randomUUID();
       const assistantMessage: ChatMessage = {
@@ -140,9 +140,37 @@ export const useAIChat = () => {
         content: '',
         timestamp: new Date()
       };
-
-      // Append placeholder assistant message to the list
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Try streaming via ReadableStream; fallback to full text if not supported
+      const reader = response.body?.getReader();
+      if (!reader) {
+        const fullText = await response.text();
+        const lines = fullText.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'conversation_id') {
+              setCurrentConversationId(parsed.conversationId);
+              await loadConversations();
+              continue;
+            }
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              assistantContent += delta;
+            }
+          } catch (_) {
+            continue;
+          }
+        }
+        if (assistantId) {
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
+        }
+        return;
+      }
 
       while (true) {
         const { done, value } = await reader.read();
