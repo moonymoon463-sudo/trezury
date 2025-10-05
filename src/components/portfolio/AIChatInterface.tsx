@@ -154,7 +154,6 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     messages,
     isLoading,
     isStreaming,
-    streamingMessage,
     sendMessage,
     stopStreaming
   } = useAIChat();
@@ -175,7 +174,8 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 
   // Optimized auto-scroll with debouncing
   const scrollToBottom = (smooth = false) => {
-    if (!isNearBottomRef.current) return;
+    const bypass = isStreaming; // during streaming, always pin to bottom
+    if (!bypass && !isNearBottomRef.current) return;
     
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
@@ -206,13 +206,13 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages.length]);
 
-  // Also scroll when streaming message updates  
+  // While streaming, force pin to bottom on any content change
   useEffect(() => {
-    if (streamingMessage && streamingMessage.content.length > 0) {
-      console.log('[AIChatInterface] Streaming update, length:', streamingMessage.content.length);
+    if (isStreaming) {
+      isNearBottomRef.current = true;
       scrollToBottom();
     }
-  }, [streamingMessage?.content]);
+  }, [messages, isStreaming]);
 
   useEffect(() => {
     return () => {
@@ -264,13 +264,9 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
     );
   }
 
-  // Combined messages array for rendering - only include streaming message if it has content
-  const allMessages = streamingMessage && streamingMessage.content.length > 0
-    ? [...messages, streamingMessage] 
-    : messages;
-  
+  // Render messages directly; streaming updates modify the last assistant message in-place
   // Debug logging for mobile
-  console.log('[AIChatInterface] Messages:', messages.length, 'Streaming:', !!streamingMessage, 'Content:', streamingMessage?.content.length || 0);
+  console.log('[AIChatInterface] Messages:', messages.length, 'Streaming:', !!isStreaming);
 
   return (
     <Card className="flex flex-col shadow-sm border-border/50 h-full max-h-full overflow-hidden">
@@ -313,7 +309,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               "min-h-0"
             )}
           >
-            {allMessages.length === 0 ? (
+            {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 text-center text-muted-foreground py-6">
                 <Bot size={32} className="mb-2 opacity-40" />
                 <h3 className="text-sm font-medium mb-1">Trezury Advisor AI Assistant</h3>
@@ -323,9 +319,9 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               </div>
             ) : (
               <div className="w-full py-3 pb-4">
-                {allMessages.map((message, idx) => {
+                {messages.map((message) => {
                   console.log('[AIChatInterface] Rendering:', message.role, message.content.substring(0, 30));
-                  return <MessageBubble key={`${idx}-${message.role}`} message={message} />;
+                  return <MessageBubble key={message.id} message={message} />;
                 })}
                 {isStreaming && (
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
@@ -342,7 +338,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
             className="flex-1 min-h-0 px-4"
             onScrollCapture={checkIfNearBottom}
           >
-            {allMessages.length === 0 ? (
+            {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-6">
                 <Bot size={32} className="mb-2 opacity-40" />
                 <h3 className="text-sm font-medium mb-1">Trezury Advisor AI Assistant</h3>
@@ -352,8 +348,8 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               </div>
             ) : (
               <div className="py-3">
-                {allMessages.map((message, idx) => (
-                  <MessageBubble key={`${idx}-${message.role}`} message={message} />
+                {messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
                 ))}
                 {isStreaming && (
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
@@ -367,7 +363,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         )}
 
         {/* Quick Actions */}
-        {showQuickActions && allMessages.length === 0 && (
+        {showQuickActions && messages.length === 0 && (
           <div className="px-4 pb-3">
             <QuickActions onSend={handleSend} />
           </div>

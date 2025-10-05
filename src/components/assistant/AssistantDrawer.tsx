@@ -10,7 +10,7 @@ export const AssistantDrawer = () => {
     <Sheet open={isAssistantOpen} onOpenChange={(open) => open ? openAssistant() : closeAssistant()}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-lg p-0 flex flex-col h-[80dvh] sm:h-[95dvh] mt-[10dvh] sm:mt-0"
+        className="w-full sm:max-w-lg p-0 flex flex-col h-[calc(100svh)] sm:h-[95vh] sm:mt-0 pt-[env(safe-area-inset-top)] data-[state=open]:duration-0 data-[state=closed]:duration-0"
       >
         <SheetHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border flex-shrink-0">
           <SheetTitle className="flex items-center gap-2 text-base sm:text-lg">

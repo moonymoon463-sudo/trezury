@@ -23,7 +23,7 @@ export const useAIChat = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState<ChatMessage | null>(null);
+  
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load conversations
@@ -91,6 +91,7 @@ export const useAIChat = () => {
       abortControllerRef.current.abort();
     }
 
+    let assistantId: string | null = null;
     try {
       setIsStreaming(true);
       
@@ -132,15 +133,16 @@ export const useAIChat = () => {
       if (!reader) throw new Error('No response body');
 
       let assistantContent = '';
+      assistantId = crypto.randomUUID();
       const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: assistantId,
         role: 'assistant',
         content: '',
         timestamp: new Date()
       };
 
-      // Use separate streaming state instead of adding to messages array
-      setStreamingMessage(assistantMessage);
+      // Append placeholder assistant message to the list
+      setMessages(prev => [...prev, assistantMessage]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -166,8 +168,9 @@ export const useAIChat = () => {
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 assistantContent += content;
-                // Update streaming message state only
-                setStreamingMessage(prev => prev ? { ...prev, content: assistantContent } : null);
+                if (assistantId) {
+                  setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
+                }
               }
             } catch (e) {
               continue;
@@ -176,11 +179,6 @@ export const useAIChat = () => {
         }
       }
 
-      // Add complete message to messages array when done
-      if (assistantContent) {
-        setMessages(prev => [...prev, { ...assistantMessage, content: assistantContent }]);
-      }
-      setStreamingMessage(null);
 
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -190,15 +188,19 @@ export const useAIChat = () => {
       
       console.error('Error sending message:', error);
       
-      // Add error message
-      const errorMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'I apologize, but I encountered an error while processing your request. Please try again.',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      // Add error message or update assistant placeholder if present
+      const fallbackContent = 'I apologize, but I encountered an error while processing your request. Please try again.';
+      if (assistantId) {
+        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fallbackContent } : m));
+      } else {
+        const errorMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: fallbackContent,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
     } finally {
       setIsStreaming(false);
       abortControllerRef.current = null;
@@ -225,7 +227,6 @@ export const useAIChat = () => {
     currentConversationId,
     isLoading,
     isStreaming,
-    streamingMessage,
     sendMessage,
     loadConversations,
     loadMessages,
