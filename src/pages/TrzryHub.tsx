@@ -8,6 +8,7 @@ import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useTrzryReserves } from "@/hooks/useTrzryReserves";
 import { TrendingUp, Shield, BarChart3, ArrowRight, Coins } from "lucide-react";
 import TrzryReserveChart from "@/components/TrzryReserveChart";
+import { AirdropEligibilityCard } from "@/components/AirdropEligibilityCard";
 
 const TrzryHub = () => {
   const navigate = useNavigate();
@@ -195,6 +196,9 @@ const TrzryHub = () => {
                 </div>
               </div>
             </Card>
+
+            {/* Airdrop Eligibility Section */}
+            <AirdropEligibilityCard />
 
             {/* CTA Button */}
             <Button

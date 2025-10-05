@@ -1988,6 +1988,33 @@ export type Database = {
           },
         ]
       }
+      trzry_holding_tracker: {
+        Row: {
+          created_at: string
+          current_balance: number
+          first_acquisition_date: string
+          id: string
+          last_updated: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance?: number
+          first_acquisition_date: string
+          id?: string
+          last_updated?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_balance?: number
+          first_acquisition_date?: string
+          id?: string
+          last_updated?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           ai_personalization_data: Json | null
@@ -2528,6 +2555,16 @@ export type Database = {
       get_system_health_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_trzry_holding_status: {
+        Args: { p_user_id: string }
+        Returns: {
+          days_remaining: number
+          holding_days: number
+          months_held: number
+          progress_percentage: number
+          qualified_for_airdrop: boolean
+        }[]
       }
       get_user_email: {
         Args: { _user_id: string }
