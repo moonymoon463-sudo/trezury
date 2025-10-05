@@ -323,9 +323,9 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               </div>
             ) : (
               <div className="w-full py-3 pb-4">
-                {allMessages.map((message) => {
+                {allMessages.map((message, idx) => {
                   console.log('[AIChatInterface] Rendering:', message.role, message.content.substring(0, 30));
-                  return <MessageBubble key={message.id} message={message} />;
+                  return <MessageBubble key={`${idx}-${message.role}`} message={message} />;
                 })}
                 {isStreaming && (
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
@@ -352,8 +352,8 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               </div>
             ) : (
               <div className="py-3">
-                {allMessages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
+                {allMessages.map((message, idx) => (
+                  <MessageBubble key={`${idx}-${message.role}`} message={message} />
                 ))}
                 {isStreaming && (
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3 px-1">
