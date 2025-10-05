@@ -607,7 +607,6 @@ When providing advice, consider:
                 if (eventData) {
                   try {
                     if (eventData === '[DONE]') {
-                      clearInterval(heartbeat);
                       await supabase.from('chat_messages').insert({
                         conversation_id: currentConversationId,
                         role: 'assistant',
@@ -631,7 +630,6 @@ When providing advice, consider:
               if (line.startsWith('data:')) {
                 const piece = line.slice(5).trimStart();
                 if (piece === '[DONE]') {
-                  clearInterval(heartbeat);
                   await supabase.from('chat_messages').insert({
                     conversation_id: currentConversationId,
                     role: 'assistant',
@@ -675,13 +673,13 @@ When providing advice, consider:
               content: assistantMessage
             });
           }
-          clearInterval(heartbeat);
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         } catch (error) {
           console.error('Streaming error:', error);
-          clearInterval(heartbeat);
           controller.error(error);
+        } finally {
+          if (heartbeat) clearInterval(heartbeat);
         }
       }
     });
