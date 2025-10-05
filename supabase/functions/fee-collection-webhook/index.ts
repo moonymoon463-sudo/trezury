@@ -15,8 +15,36 @@ interface WebhookPayload {
   requestId: string;
   externalTxHash: string;
   status: 'completed' | 'failed';
-  signature?: string;
   metadata?: Record<string, any>;
+}
+
+// HMAC-SHA256 signature verification
+async function verifyWebhookSignature(
+  body: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+  const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  // Constant-time comparison
+  if (signature.length !== expectedSignature.length) return false;
+  let result = 0;
+  for (let i = 0; i < signature.length; i++) {
+    result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 serve(async (req) => {
@@ -44,15 +72,55 @@ serve(async (req) => {
 
     console.log('Fee collection webhook called');
     
-    const payload: WebhookPayload = await req.json();
-    console.log('Webhook payload received:', payload);
-
-    // Verify the request signature (basic validation)
+    // Get webhook secret - REQUIRED
     const webhookSecret = Deno.env.get('FEE_COLLECTION_WEBHOOK_SECRET');
-    if (webhookSecret && payload.signature) {
-      // In production, implement proper HMAC-SHA256 signature verification
-      console.log('Webhook signature verification would happen here');
+    if (!webhookSecret) {
+      console.error('FEE_COLLECTION_WEBHOOK_SECRET not configured');
+      return new Response(
+        JSON.stringify({ error: 'Webhook verification not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Get signature header - REQUIRED
+    const signature = req.headers.get('x-signature');
+    if (!signature) {
+      console.warn('⚠️ Webhook missing signature header');
+      return new Response(
+        JSON.stringify({ error: 'Missing signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Read body for signature verification
+    const webhookBody = await req.text();
+    
+    // Verify HMAC-SHA256 signature
+    const isValid = await verifyWebhookSignature(webhookBody, signature, webhookSecret);
+    if (!isValid) {
+      console.error('❌ Invalid webhook signature');
+      
+      // Log security alert
+      await supabase.from('security_alerts').insert({
+        alert_type: 'invalid_webhook_signature',
+        severity: 'high',
+        title: 'Fee Collection Webhook - Invalid Signature',
+        description: 'Webhook request rejected due to invalid HMAC signature',
+        metadata: {
+          ip: getClientIp(req),
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse payload AFTER verification
+    const payload: WebhookPayload = JSON.parse(webhookBody);
+    console.log('✅ Webhook signature verified, payload:', payload);
 
     // Validate required fields
     if (!payload.requestId || !payload.status) {

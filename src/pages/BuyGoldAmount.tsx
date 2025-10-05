@@ -174,11 +174,9 @@ const BuyGoldAmount = () => {
       }
     }
 
-    // Store the amount and currency for the next step
-    sessionStorage.setItem('buyGoldAmount', amount);
-    sessionStorage.setItem('buyGoldCurrency', currency);
-    
-    navigate('/buy-gold/confirmation', { state: { quote } });
+    // Navigate with quote in state (server-authoritative)
+    // Server will validate all amounts during execution
+    navigate('/buy-gold/confirmation', { state: { quote, amount, currency } });
   };
 
   return (

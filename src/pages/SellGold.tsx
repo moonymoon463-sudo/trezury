@@ -14,6 +14,11 @@ const SellGold = () => {
   const handleSellGold = async () => {
     setLoading(true);
     try {
+      const moonpayKey = import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY;
+      if (!moonpayKey) {
+        throw new Error('MoonPay API key not configured');
+      }
+
       // Initialize MoonPay SDK
       const moonPay = await loadMoonPay();
       
@@ -22,7 +27,7 @@ const SellGold = () => {
         environment: 'sandbox', // Change to 'production' for live
         variant: 'overlay',
         params: {
-          apiKey: 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
+          apiKey: moonpayKey,
           theme: 'dark' as const,
           currencyCode: 'usdc', // For sell flow, this is what we're selling
           baseCurrencyAmount: '100',

@@ -10,15 +10,15 @@ export interface PIIEncryptionService {
 
 class PIIEncryptionServiceImpl implements PIIEncryptionService {
   private getEncryptionKey(): string {
-    // Fetch encryption key from environment (Supabase secrets)
-    // This should be set via Supabase dashboard: Settings -> Edge Functions -> Secrets
+    // CRITICAL: Encryption key MUST come from environment only
+    // Never use localStorage or hardcoded fallbacks for PII encryption
     const keyString = typeof process !== 'undefined' 
       ? process.env.PII_ENCRYPTION_KEY 
-      : localStorage.getItem('__dev_pii_key'); // Dev fallback only
+      : undefined;
     
     if (!keyString) {
-      console.error('PII_ENCRYPTION_KEY not configured. Using fallback (INSECURE).');
-      return 'dev-fallback-key-insecure'; // Fallback for development
+      // Fail closed - do not allow PII operations without proper key
+      throw new Error('CRITICAL: PII_ENCRYPTION_KEY not configured. PII operations cannot proceed.');
     }
     
     return keyString;

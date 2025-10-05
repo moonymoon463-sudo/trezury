@@ -39,9 +39,14 @@ export const useMoonPayRecurring = () => {
   const buildMoonPayUrl = useCallback((params: MoonPayRecurringRequest): string => {
     if (!user) throw new Error('User not authenticated');
 
+    const moonpayKey = import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY;
+    if (!moonpayKey) {
+      throw new Error('MoonPay API key not configured');
+    }
+
     const baseUrl = 'https://buy.moonpay.com';
     const urlParams = new URLSearchParams({
-      apiKey: 'pk_test_hnzbkKKRwR5ksg8cbLVafnA1Pv05YH46',
+      apiKey: moonpayKey,
       baseCurrencyCode: params.currency.toLowerCase(),
       baseCurrencyAmount: params.amount.toString(),
       currencyCode: params.assetSymbol.toLowerCase(),
