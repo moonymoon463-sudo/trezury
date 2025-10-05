@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SwapFeeCalculation {
   feeAmount: number;
-  feeAsset: 'USDC' | 'GOLD';
+  feeAsset: 'USDC' | 'XAUT';
   platformFeeWallet: string;
   remainingAmount: number;
 }
@@ -12,12 +12,12 @@ class SwapFeeService {
   private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   /**
-   * Calculate swap fee in the output token (GOLD or USDC) instead of ETH
+   * Calculate swap fee in the output token (XAUT or USDC) instead of ETH
    */
   calculateSwapFee(
     outputAmount: number, 
-    outputAsset: 'USDC' | 'GOLD',
-    inputAsset: 'USDC' | 'GOLD'
+    outputAsset: 'USDC' | 'XAUT',
+    inputAsset: 'USDC' | 'XAUT'
   ): SwapFeeCalculation {
     // Take fee from the output token to avoid ETH gas fees
     const feeAmount = (outputAmount * this.PLATFORM_FEE_BPS) / 10000;
@@ -45,7 +45,7 @@ class SwapFeeService {
         .from('balance_snapshots')
         .insert({
           user_id: userId, // Keep user_id for RLS, but mark as platform fee in metadata
-          asset: feeCalculation.feeAsset === 'GOLD' ? 'XAUT' : 'USDC', // Use actual token names
+          asset: feeCalculation.feeAsset, // Already using actual token names (XAUT or USDC)
           amount: feeCalculation.feeAmount,
           snapshot_at: new Date().toISOString(),
         });

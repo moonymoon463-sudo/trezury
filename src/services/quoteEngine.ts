@@ -3,8 +3,8 @@ import { goldPriceService } from "./goldPrice";
 
 export interface QuoteRequest {
   side: 'buy' | 'sell';
-  inputAsset: 'USDC' | 'GOLD';
-  outputAsset: 'USDC' | 'GOLD';
+  inputAsset: 'USDC' | 'XAUT';
+  outputAsset: 'USDC' | 'XAUT';
   inputAmount?: number;
   outputAmount?: number;
   grams?: number;

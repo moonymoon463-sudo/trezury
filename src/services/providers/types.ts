@@ -37,7 +37,7 @@ export interface PaymentMethod {
 export type DepositStatus = 'pending' | 'confirmed' | 'failed';
 export type PaymentMethodType = 'card' | 'bank_account';
 export type SupportedChain = 'base' | 'ethereum';
-export type SupportedAsset = 'USDC' | 'GOLD' | 'XAUT' | 'TRZRY';
+export type SupportedAsset = 'USDC' | 'XAUT' | 'TRZRY';
 
 export interface NetworkConfig {
   chain: SupportedChain;

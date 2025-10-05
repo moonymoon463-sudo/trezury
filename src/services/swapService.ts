@@ -314,8 +314,8 @@ class SwapService {
       // Calculate and record swap fee
       const feeCalculation = swapFeeService.calculateSwapFee(
         quoteData.output_amount,
-        quoteData.output_asset as 'USDC' | 'GOLD',
-        quoteData.input_asset as 'USDC' | 'GOLD'
+        quoteData.output_asset as 'USDC' | 'XAUT',
+        quoteData.input_asset as 'USDC' | 'XAUT'
       );
 
       // Record fee collection for tracking

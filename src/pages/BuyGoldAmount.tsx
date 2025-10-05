@@ -68,13 +68,13 @@ const BuyGoldAmount = () => {
           ? {
               side: 'buy' as const,
               inputAsset: 'USDC' as const,
-              outputAsset: 'GOLD' as const,
+              outputAsset: 'XAUT' as const,
               inputAmount: numericAmount
             }
           : {
               side: 'buy' as const,
               inputAsset: 'USDC' as const,
-              outputAsset: 'GOLD' as const,
+              outputAsset: 'XAUT' as const,
               grams: numericAmount
             };
         
