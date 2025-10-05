@@ -9,9 +9,9 @@ interface AurumLogoProps {
 
 const AurumLogo: React.FC<AurumLogoProps> = ({ className = '', compact = false, size = 'default' }) => {
   const sizeClasses = {
-    compact: 'h-12',
-    header: 'h-16',
-    default: 'h-28'
+    compact: 'h-18',
+    header: 'h-24',
+    default: 'h-42'
   };
 
   const logoSize = compact ? 'compact' : size;
