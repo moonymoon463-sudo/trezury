@@ -246,7 +246,7 @@ const Settings = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-safe py-4 space-y-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto px-3 md:px-4 pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] py-4 space-y-6 pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] [-webkit-overflow-scrolling:touch]">
         {/* Profile Information */}
         <div className="bg-card rounded-xl p-4">
           <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
@@ -255,24 +255,24 @@ const Settings = () => {
           </h3>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="email" className="text-muted-foreground text-sm">Email</Label>
+              <Label htmlFor="email" className="text-muted-foreground text-sm mb-2 block">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={profile.email}
                 disabled
-                className="bg-input border-border text-white mt-2"
+                className="bg-input border-border text-white"
               />
             </div>
             <div>
-              <Label htmlFor="phone" className="text-muted-foreground text-sm">Phone Number</Label>
+              <Label htmlFor="phone" className="text-muted-foreground text-sm mb-2 block">Phone Number</Label>
               <Input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Enter your phone number"
-                className="bg-input border-border text-white mt-2"
+                className="bg-input border-border text-white"
               />
             </div>
             <Button 

@@ -28,7 +28,7 @@ const TrzryHub = () => {
       }}
       className="flex flex-col flex-1 min-h-0"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto px-1 sm:px-2 md:px-4 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-1 sm:px-2 md:px-4 pb-4 [-webkit-overflow-scrolling:touch] overscroll-behavior-y-contain">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
