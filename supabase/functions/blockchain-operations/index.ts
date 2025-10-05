@@ -687,7 +687,7 @@ serve(async (req) => {
           
           // Get quote first to calculate minimum output
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
-          const amountOut = await quoterContract.quoteExactInputSingle(
+          const amountOut = await quoterContract.quoteExactInputSingle.staticCall(
             tokenInAddress,
             tokenOutAddress,
             fee,
@@ -865,7 +865,7 @@ serve(async (req) => {
           const amountIn = ethers.parseUnits(amount.toString(), 6); // Both USDC and XAUT have 6 decimals
           
           // Get quote from Uniswap V3 Quoter
-          const amountOut = await quoterContract.quoteExactInputSingle(
+          const amountOut = await quoterContract.quoteExactInputSingle.staticCall(
             tokenInAddress,
             tokenOutAddress,
             fee,
