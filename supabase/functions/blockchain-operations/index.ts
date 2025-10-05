@@ -600,50 +600,6 @@ serve(async (req) => {
         }
         break;
 
-      case 'get_uniswap_quote':
-        try {
-          const { inputAsset, outputAsset, amount, slippage } = body;
-          console.log(`Getting Uniswap V3 quote: ${amount} ${inputAsset} to ${outputAsset}`);
-          
-          if (!amount) {
-            throw new Error('Amount is required for quote');
-          }
-          
-          const tokenInAddress = getContractAddress(inputAsset);
-          const tokenOutAddress = getContractAddress(outputAsset);
-          const fee = 3000; // 0.3% pool fee
-          
-          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
-          const amountIn = ethers.parseUnits(amount.toString(), 6); // Both USDC and XAUT have 6 decimals
-          
-          // Get quote from Uniswap V3 Quoter
-          const amountOut = await quoterContract.quoteExactInputSingle(
-            tokenInAddress,
-            tokenOutAddress,
-            fee,
-            amountIn,
-            0 // sqrtPriceLimitX96 (0 = no limit)
-          );
-          
-          const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
-          const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
-          
-          // Estimate gas for the swap
-          const gasEstimate = 200000; // Typical Uniswap V3 swap gas
-          
-          result = {
-            success: true,
-            outputAmount,
-            priceImpact,
-            gasEstimate,
-            fee,
-            route: 'uniswap-v3'
-          };
-        } catch (error) {
-          console.error('Uniswap quote failed:', error);
-          throw error;
-        }
-        break;
 
       case 'execute_uniswap_swap':
         try {
