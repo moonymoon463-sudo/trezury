@@ -35,7 +35,7 @@ export interface SwapResult {
 class SwapService {
   private readonly FEE_BPS = 80; // 0.8% total fee
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
-  private readonly QUOTE_VALIDITY_MINUTES = 5;
+  private readonly QUOTE_VALIDITY_MINUTES = 10; // 10 minutes for user review
 
   /**
    * Generate swap quote between supported assets
@@ -151,37 +151,67 @@ class SwapService {
    */
   async executeSwap(quoteId: string, userId: string): Promise<SwapResult> {
     try {
+      console.log(`[SwapService] Starting swap execution for quote: ${quoteId}, user: ${userId}`);
+      
       // Get user's wallet address from secure wallet service
       const userWalletAddress = await secureWalletService.getWalletAddress(userId);
       if (!userWalletAddress) {
+        console.error('[SwapService] User wallet not found');
         return {
           success: false,
           error: 'User wallet not found. Please set up your wallet first.'
         };
       }
 
-      // Get quote from database
+      console.log(`[SwapService] Retrieved user wallet: ${userWalletAddress}`);
+
+      // Get quote from database with detailed logging
+      console.log(`[SwapService] Fetching quote from database...`);
       const { data: quoteData, error } = await supabase
         .from('quotes')
         .select('*')
         .eq('id', quoteId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error || !quoteData) {
+      console.log(`[SwapService] Quote query result:`, { 
+        found: !!quoteData, 
+        error: error?.message,
+        quoteId,
+        userId 
+      });
+
+      if (error) {
+        console.error('[SwapService] Database error fetching quote:', error);
         return {
           success: false,
-          error: 'Quote not found or expired'
+          error: `Database error: ${error.message}`
         };
       }
+
+      if (!quoteData) {
+        console.error('[SwapService] Quote not found in database');
+        return {
+          success: false,
+          error: 'Quote not found. It may have been deleted or never saved properly.'
+        };
+      }
+
+      console.log(`[SwapService] Quote found, checking expiration...`);
 
       // Check if quote is still valid
-      if (new Date() > new Date(quoteData.expires_at)) {
+      const now = new Date();
+      const expiresAt = new Date(quoteData.expires_at);
+      if (now > expiresAt) {
+        const expiredMinutesAgo = Math.floor((now.getTime() - expiresAt.getTime()) / 60000);
+        console.error(`[SwapService] Quote expired ${expiredMinutesAgo} minutes ago`);
         return {
           success: false,
-          error: 'Quote has expired'
+          error: `Quote expired ${expiredMinutesAgo} minutes ago. Please generate a new quote.`
         };
       }
+
+      console.log(`[SwapService] Quote is valid, checking balance...`);
 
       // Verify user has sufficient on-chain balance
       const { data: balanceData, error: balanceError } = await supabase.functions.invoke('blockchain-operations', {
@@ -193,13 +223,17 @@ class SwapService {
       });
 
       if (balanceError || !balanceData?.success) {
+        console.error('[SwapService] Failed to verify balance:', balanceError);
         return {
           success: false,
           error: 'Failed to verify wallet balance'
         };
       }
 
+      console.log(`[SwapService] Balance check: ${balanceData.balance} ${quoteData.input_asset} available`);
+
       if (balanceData.balance < quoteData.input_amount) {
+        console.error('[SwapService] Insufficient balance');
         return {
           success: false,
           error: `Insufficient ${quoteData.input_asset} balance. Required: ${quoteData.input_amount}, Available: ${balanceData.balance}`
@@ -207,6 +241,7 @@ class SwapService {
       }
 
       // Get optimal DEX route with user's wallet address
+      console.log(`[SwapService] Finding best DEX route...`);
       const routes = await DexAggregatorService.getBestRoute(
         quoteData.input_asset,
         quoteData.output_asset,
@@ -216,6 +251,7 @@ class SwapService {
       );
 
       if (!routes || routes.length === 0) {
+        console.error('[SwapService] No swap routes available');
         return {
           success: false,
           error: 'No available swap routes found'
@@ -223,6 +259,7 @@ class SwapService {
       }
 
       const bestRoute = routes[0];
+      console.log(`[SwapService] Best route selected: ${bestRoute.protocol}`);
       
       // Execute swap through DEX aggregator with user's wallet
       const swapResult = await DexAggregatorService.executeOptimalSwap(
@@ -336,8 +373,8 @@ class SwapService {
       });
 
     if (error) {
-      console.error('Failed to save swap quote:', error);
-      // Don't throw error - quote can still be used
+      console.error('Failed to save swap quote to database:', error);
+      throw new Error(`Failed to save quote: ${error.message}`);
     }
   }
 }

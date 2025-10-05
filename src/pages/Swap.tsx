@@ -105,14 +105,15 @@ const Swap = () => {
       
       toast({
         title: "Quote Generated",
-        description: "Swap quote ready for execution"
+        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${toAsset}`
       });
     } catch (error) {
       console.error('Quote generation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate swap quote';
       toast({
         variant: "destructive",
         title: "Quote Failed", 
-        description: "Failed to generate swap quote"
+        description: errorMessage
       });
     } finally {
       setLoading(false);
@@ -130,11 +131,14 @@ const Swap = () => {
     }
 
     // Check if quote is expired
-    if (new Date() > new Date(quote.expiresAt)) {
+    const now = new Date();
+    const expiresAt = new Date(quote.expiresAt);
+    if (now > expiresAt) {
+      const expiredMinutesAgo = Math.floor((now.getTime() - expiresAt.getTime()) / 60000);
       toast({
         variant: "destructive",
         title: "Quote Expired",
-        description: "Please generate a new quote"
+        description: `Quote expired ${expiredMinutesAgo} minutes ago. Please generate a new quote.`
       });
       setQuote(null);
       return;
