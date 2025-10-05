@@ -124,7 +124,8 @@ export const useAIChat = () => {
           portfolioData
         }),
         signal: abortController.signal,
-        cache: 'no-store'
+        cache: 'no-store',
+        keepalive: true
       });
 
       if (!response.ok) {
@@ -146,10 +147,12 @@ export const useAIChat = () => {
       const reader = response.body?.getReader();
       if (!reader) {
         const fullText = await response.text();
-        const lines = fullText.split('\n');
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6);
+        let buffered = '';
+        const chunks = fullText.replace(/\r\n/g, '\n').split('\n');
+        for (const raw of chunks) {
+          const line = raw.trim();
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
           if (data === '[DONE]') break;
           try {
             const parsed = JSON.parse(data);
@@ -159,51 +162,84 @@ export const useAIChat = () => {
               continue;
             }
             const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              assistantContent += delta;
-            }
-          } catch (_) {
-            continue;
-          }
+            if (delta) buffered += delta;
+          } catch {}
         }
         if (assistantId) {
-          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: buffered } : m));
         }
         return;
       }
+
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let doneStreaming = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = new TextDecoder().decode(value);
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
+        let lineBreakIndex;
+        while ((lineBreakIndex = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, lineBreakIndex);
+          buffer = buffer.slice(lineBreakIndex + 1);
 
-            try {
-              const parsed = JSON.parse(data);
-              
-              if (parsed.type === 'conversation_id') {
-                setCurrentConversationId(parsed.conversationId);
-                await loadConversations();
-                continue;
+          line = line.replace(/\r$/, '').trim();
+
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (!data) continue;
+
+          if (data === '[DONE]') {
+            doneStreaming = true;
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+
+            if (parsed.type === 'conversation_id') {
+              setCurrentConversationId(parsed.conversationId);
+              await loadConversations();
+              continue;
+            }
+
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              assistantContent += delta;
+              if (assistantId) {
+                setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
               }
+            }
+          } catch {
+            // Ignore partial JSON; it will be completed in subsequent chunks
+          }
+        }
 
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                assistantContent += content;
+        if (doneStreaming) break;
+      }
+
+      // Flush any remaining buffered line (without trailing newline)
+      if (buffer.length) {
+        try {
+          const maybeLine = buffer.trim();
+          if (maybeLine.startsWith('data:')) {
+            const data = maybeLine.slice(5).trim();
+            if (data && data !== '[DONE]') {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                assistantContent += delta;
                 if (assistantId) {
                   setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: assistantContent } : m));
                 }
               }
-            } catch (e) {
-              continue;
             }
           }
+        } catch {
+          // ignore
         }
       }
 
