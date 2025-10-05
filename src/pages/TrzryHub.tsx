@@ -127,6 +127,9 @@ const TrzryHub = () => {
               </div>
             </Card>
 
+            {/* Airdrop Eligibility Section */}
+            <AirdropEligibilityCard />
+
             {/* Reserve Chart Preview */}
             <div className="h-48">
               <TrzryReserveChart />
@@ -196,9 +199,6 @@ const TrzryHub = () => {
                 </div>
               </div>
             </Card>
-
-            {/* Airdrop Eligibility Section */}
-            <AirdropEligibilityCard />
 
             {/* CTA Button */}
             <Button
