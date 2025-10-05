@@ -94,8 +94,6 @@ const Swap = () => {
     
     try {
       setLoading(true);
-      console.log('🔄 Generating swap quote...');
-      
       const newQuote = await swapService.generateSwapQuote(
         fromAsset,
         toAsset,
@@ -103,23 +101,18 @@ const Swap = () => {
         user.id
       );
       
-      console.log('✅ Quote generated:', newQuote);
       setQuote(newQuote);
-      
-      // Calculate expiry time for display
-      const expiresIn = Math.floor((new Date(newQuote.expiresAt).getTime() - Date.now()) / 1000 / 60);
       
       toast({
         title: "Quote Generated",
-        description: `Quote valid for ${expiresIn} minutes`
+        description: "Swap quote ready for execution"
       });
     } catch (error) {
-      console.error('❌ Quote generation error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate swap quote';
+      console.error('Quote generation error:', error);
       toast({
         variant: "destructive",
         title: "Quote Failed", 
-        description: errorMessage
+        description: "Failed to generate swap quote"
       });
     } finally {
       setLoading(false);
@@ -151,8 +144,7 @@ const Swap = () => {
       setLoading(true);
       
       // Execute the REAL swap transaction
-      console.log('🔄 Executing REAL on-chain swap with quote:', quote.id);
-      console.log('📊 Quote details:', { fromAsset, toAsset, fromAmount, quote });
+      console.log('🔄 Executing REAL on-chain swap...');
       const result = await swapService.executeSwap(quote.id, user.id);
       
       if (result.success) {
