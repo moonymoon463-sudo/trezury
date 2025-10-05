@@ -4,7 +4,8 @@ import { checkRateLimit, createRateLimitResponse, getRateLimitHeaders } from '..
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, accept',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 interface ChatRequest {
@@ -16,7 +17,7 @@ interface ChatRequest {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -576,6 +577,15 @@ When providing advice, consider:
             conversationId: currentConversationId
           })}\n\n`));
 
+          // Keep-alive heartbeat for mobile connections
+          const heartbeat = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode('data: {"type":"ping"}\n\n'));
+            } catch (e) {
+              clearInterval(heartbeat);
+            }
+          }, 20000); // Every 20 seconds
+
           const decoder = new TextDecoder('utf-8');
           let buffer = '';
           let eventData = '';
@@ -597,6 +607,7 @@ When providing advice, consider:
                 if (eventData) {
                   try {
                     if (eventData === '[DONE]') {
+                      clearInterval(heartbeat);
                       await supabase.from('chat_messages').insert({
                         conversation_id: currentConversationId,
                         role: 'assistant',
@@ -620,6 +631,7 @@ When providing advice, consider:
               if (line.startsWith('data:')) {
                 const piece = line.slice(5).trimStart();
                 if (piece === '[DONE]') {
+                  clearInterval(heartbeat);
                   await supabase.from('chat_messages').insert({
                     conversation_id: currentConversationId,
                     role: 'assistant',
@@ -663,10 +675,12 @@ When providing advice, consider:
               content: assistantMessage
             });
           }
+          clearInterval(heartbeat);
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
         } catch (error) {
           console.error('Streaming error:', error);
+          clearInterval(heartbeat);
           controller.error(error);
         }
       }

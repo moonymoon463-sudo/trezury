@@ -115,7 +115,8 @@ export const useAIChat = () => {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify({
           message: content.trim(),
