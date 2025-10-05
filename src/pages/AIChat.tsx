@@ -11,7 +11,7 @@ export default function AIChat() {
       }}
       className="flex flex-col flex-1 min-h-0 overflow-hidden"
     >
-      <div className="flex-1 min-h-0 px-1 sm:px-2 md:px-4">
+      <div className="flex-1 min-h-0 px-1 sm:px-2 md:px-4 h-[calc(100svh-8rem)] sm:h-auto pb-[env(safe-area-inset-bottom)]">
         <AIChatInterface
           isCollapsed={false}
         />

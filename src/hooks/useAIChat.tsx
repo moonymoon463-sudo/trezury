@@ -84,10 +84,26 @@ export const useAIChat = () => {
     contextType: 'general' | 'portfolio' | 'market' = 'general',
     portfolioData?: any
   ) => {
-    if (!session?.access_token || !content.trim()) return;
+    if (!content.trim()) {
+      console.warn('⚠️ Empty message, skipping send');
+      return;
+    }
+
+    if (!session?.access_token) {
+      console.error('❌ No session access token available');
+      return;
+    }
+
+    console.log('🚀 Sending message:', {
+      messageLength: content.length,
+      hasSession: !!session?.access_token,
+      conversationId: currentConversationId,
+      contextType
+    });
 
     // Cancel any ongoing stream
     if (abortControllerRef.current) {
+      console.log('🛑 Aborting previous stream');
       abortControllerRef.current.abort();
     }
 
@@ -104,10 +120,24 @@ export const useAIChat = () => {
       };
       
       setMessages(prev => [...prev, userMessage]);
+      console.log('✅ User message added to UI');
 
       // Prepare request
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+
+      const requestBody = {
+        message: content.trim(),
+        conversationId: currentConversationId,
+        contextType,
+        portfolioData
+      };
+
+      console.log('📤 Fetching AI response...', {
+        url: 'https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat',
+        hasAuth: !!session.access_token,
+        bodySize: JSON.stringify(requestBody).length
+      });
 
       const response = await fetch(`https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat`, {
         method: 'POST',
@@ -118,19 +148,27 @@ export const useAIChat = () => {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         },
-        body: JSON.stringify({
-          message: content.trim(),
-          conversationId: currentConversationId,
-          contextType,
-          portfolioData
-        }),
+        body: JSON.stringify(requestBody),
         signal: abortController.signal,
         cache: 'no-store',
         keepalive: true
       });
 
+      console.log('📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries([...response.headers.entries()])
+      });
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        console.error('❌ API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       // Prepare assistant placeholder and attempt streaming
@@ -289,14 +327,32 @@ export const useAIChat = () => {
 
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('Request was aborted');
+        console.log('⏹️ Request was aborted by user');
         return;
       }
       
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      // Determine user-friendly error message
+      let fallbackContent = 'I apologize, but I encountered an error while processing your request. ';
+      
+      if (error.message.includes('429')) {
+        fallbackContent += 'The AI service is currently rate limited. Please try again in a moment.';
+      } else if (error.message.includes('402')) {
+        fallbackContent += 'The AI service requires additional credits. Please contact support.';
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        fallbackContent += 'Authentication failed. Please try logging out and back in.';
+      } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        fallbackContent += 'Network connection issue. Please check your internet connection and try again.';
+      } else {
+        fallbackContent += 'Please try again or contact support if the issue persists.';
+      }
       
       // Add error message or update assistant placeholder if present
-      const fallbackContent = 'I apologize, but I encountered an error while processing your request. Please try again.';
       if (assistantId) {
         setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fallbackContent } : m));
       } else {
@@ -311,6 +367,7 @@ export const useAIChat = () => {
     } finally {
       setIsStreaming(false);
       abortControllerRef.current = null;
+      console.log('🏁 Message send completed');
     }
   }, [session?.access_token, currentConversationId, loadConversations]);
 

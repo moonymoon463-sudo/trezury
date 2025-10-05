@@ -269,7 +269,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   console.log('[AIChatInterface] Messages:', messages.length, 'Streaming:', !!isStreaming);
 
   return (
-    <Card className="flex flex-col shadow-sm border-border/50 h-full max-h-full overflow-hidden">
+    <Card className="flex flex-col shadow-sm border-border/50 h-full max-h-[calc(100svh-10rem)] sm:max-h-full overflow-hidden">
       {onToggle && (
         <Button
           onClick={onToggle}
