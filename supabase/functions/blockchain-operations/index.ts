@@ -54,6 +54,7 @@ function getContractAddress(asset: string | undefined): string {
 // Uniswap V3 contracts
 const UNISWAP_V3_QUOTER = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
 const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'; // Wrapped ETH for multi-hop routing
 
 // ERC20 ABI for basic operations
 const ERC20_ABI = [
@@ -61,16 +62,19 @@ const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
   "function decimals() view returns (uint8)",
   "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
   "event Transfer(address indexed from, address indexed to, uint256 value)"
 ];
 
 // Uniswap V3 ABIs
 const QUOTER_ABI = [
-  "function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)"
+  "function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)",
+  "function quoteExactInput(bytes path, uint256 amountIn) external returns (uint256 amountOut)"
 ];
 
 const SWAP_ROUTER_ABI = [
-  "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)"
+  "function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)",
+  "function exactInput((bytes path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum)) external payable returns (uint256 amountOut)"
 ];
 
 interface BlockchainOperationRequest {
@@ -687,13 +691,32 @@ serve(async (req) => {
           
           // Get quote first to calculate minimum output
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
-          const amountOut = await quoterContract.quoteExactInputSingle.staticCall(
-            tokenInAddress,
-            tokenOutAddress,
-            fee,
-            requiredAmount,
-            0
-          );
+          
+          let amountOut: bigint;
+          let useMultiHop = false;
+          
+          try {
+            // Try single-hop first
+            console.log(`🔍 Getting single-hop quote for execution`);
+            amountOut = await quoterContract.quoteExactInputSingle.staticCall(
+              tokenInAddress,
+              tokenOutAddress,
+              fee,
+              requiredAmount,
+              0
+            );
+          } catch (quoteError) {
+            // Single-hop failed, use multi-hop via WETH
+            console.log(`⚠️ Single-hop quote failed, using multi-hop via WETH`);
+            useMultiHop = true;
+            
+            const path = ethers.solidityPacked(
+              ['address', 'uint24', 'address', 'uint24', 'address'],
+              [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
+            );
+            
+            amountOut = await quoterContract.quoteExactInput.staticCall(path, requiredAmount);
+          }
           
           // Apply slippage protection
           const slippageBps = Math.floor((slippage || 0.5) * 100);
@@ -721,7 +744,7 @@ serve(async (req) => {
               const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
               
               // Get how much input token equals the gas cost in ETH
-              const gasInInputToken = await quoterContract.quoteExactInputSingle(
+              const gasInInputToken = await quoterContract.quoteExactInputSingle.staticCall(
                 wethAddress,
                 tokenInAddress,
                 3000, // 0.3% pool fee for WETH pairs
@@ -779,31 +802,64 @@ serve(async (req) => {
           // Recalculate output amount if we used tokens for gas
           let finalAmountOutMinimum = amountOutMinimum;
           if (gasInTokens > 0) {
-            const adjustedAmountOut = await quoterContract.quoteExactInputSingle(
-              tokenInAddress,
-              tokenOutAddress,
-              fee,
-              adjustedAmountIn,
-              0
-            );
-            finalAmountOutMinimum = adjustedAmountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+            if (useMultiHop) {
+              const path = ethers.solidityPacked(
+                ['address', 'uint24', 'address', 'uint24', 'address'],
+                [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
+              );
+              const adjustedAmountOut = await quoterContract.quoteExactInput.staticCall(path, adjustedAmountIn);
+              finalAmountOutMinimum = adjustedAmountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+            } else {
+              const adjustedAmountOut = await quoterContract.quoteExactInputSingle.staticCall(
+                tokenInAddress,
+                tokenOutAddress,
+                fee,
+                adjustedAmountIn,
+                0
+              );
+              finalAmountOutMinimum = adjustedAmountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+            }
           }
-          
-          const swapParams = {
-            tokenIn: tokenInAddress,
-            tokenOut: tokenOutAddress,
-            fee: fee,
-            recipient: userWallet.address, // Receive tokens to user's wallet
-            deadline: deadline,
-            amountIn: adjustedAmountIn, // Use adjusted amount after gas deduction
-            amountOutMinimum: finalAmountOutMinimum,
-            sqrtPriceLimitX96: 0
-          };
           
           // Execute swap using user's wallet
           const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, userWalletWithProvider);
-          const tx = await swapRouter.exactInputSingle(swapParams);
-          const receipt = await tx.wait();
+          let tx, receipt;
+          
+          if (useMultiHop) {
+            // Execute multi-hop swap
+            console.log(`🔄 Executing multi-hop swap via WETH`);
+            const path = ethers.solidityPacked(
+              ['address', 'uint24', 'address', 'uint24', 'address'],
+              [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
+            );
+            
+            const multiHopParams = {
+              path: path,
+              recipient: userWallet.address,
+              deadline: deadline,
+              amountIn: adjustedAmountIn,
+              amountOutMinimum: finalAmountOutMinimum
+            };
+            
+            tx = await swapRouter.exactInput(multiHopParams);
+            receipt = await tx.wait();
+          } else {
+            // Execute single-hop swap
+            console.log(`🔄 Executing single-hop swap`);
+            const swapParams = {
+              tokenIn: tokenInAddress,
+              tokenOut: tokenOutAddress,
+              fee: fee,
+              recipient: userWallet.address,
+              deadline: deadline,
+              amountIn: adjustedAmountIn,
+              amountOutMinimum: finalAmountOutMinimum,
+              sqrtPriceLimitX96: 0
+            };
+            
+            tx = await swapRouter.exactInputSingle(swapParams);
+            receipt = await tx.wait();
+          }
           
           console.log(`🎉 REAL Uniswap V3 swap completed: ${receipt.hash}`);
           
@@ -864,20 +920,41 @@ serve(async (req) => {
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
           const amountIn = ethers.parseUnits(amount.toString(), 6); // Both USDC and XAUT have 6 decimals
           
-          // Get quote from Uniswap V3 Quoter
-          const amountOut = await quoterContract.quoteExactInputSingle.staticCall(
-            tokenInAddress,
-            tokenOutAddress,
-            fee,
-            amountIn,
-            0 // sqrtPriceLimitX96 (0 = no limit)
-          );
+          let amountOut: bigint;
+          let routeUsed = 'single-hop';
+          
+          try {
+            // Try single-hop first
+            console.log(`🔍 Trying single-hop route: ${inputAsset} -> ${outputAsset}`);
+            amountOut = await quoterContract.quoteExactInputSingle.staticCall(
+              tokenInAddress,
+              tokenOutAddress,
+              fee,
+              amountIn,
+              0 // sqrtPriceLimitX96 (0 = no limit)
+            );
+          } catch (singleHopError) {
+            // Single-hop failed, try multi-hop via WETH
+            console.log(`⚠️ Single-hop failed, trying multi-hop via WETH:`, singleHopError);
+            routeUsed = 'multi-hop-weth';
+            
+            // Build path: tokenIn -> WETH -> tokenOut (fee tier 3000 for each hop)
+            const path = ethers.solidityPacked(
+              ['address', 'uint24', 'address', 'uint24', 'address'],
+              [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
+            );
+            
+            console.log(`🛤️ Multi-hop path: ${inputAsset} -> WETH -> ${outputAsset}`);
+            amountOut = await quoterContract.quoteExactInput.staticCall(path, amountIn);
+          }
           
           const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
           const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
           
-          // Estimate gas for the swap
-          const gasEstimate = 200000; // Typical Uniswap V3 swap gas
+          // Estimate gas for the swap (higher for multi-hop)
+          const gasEstimate = routeUsed === 'multi-hop-weth' ? 300000 : 200000;
+          
+          console.log(`✅ Quote successful via ${routeUsed}: ${amount} ${inputAsset} = ${outputAmount} ${outputAsset}`);
           
           result = {
             success: true,
@@ -885,7 +962,7 @@ serve(async (req) => {
             priceImpact,
             gasEstimate,
             fee,
-            route: 'uniswap-v3',
+            route: routeUsed,
             tokenAddresses: {
               tokenIn: tokenInAddress,
               tokenOut: tokenOutAddress

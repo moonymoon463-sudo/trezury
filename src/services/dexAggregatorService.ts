@@ -35,7 +35,7 @@ export class DexAggregatorService {
   private static readonly UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
   
   private static readonly TOKEN_ADDRESSES = {
-    USDC: '0xA0b86a33E6481b7C88047F0fE3BDD78DB8DC820B', // Corrected USDC checksum
+    USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC mainnet (corrected)
     XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold mainnet
     TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B' // TRZRY Token
   };
