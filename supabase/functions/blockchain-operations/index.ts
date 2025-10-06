@@ -976,7 +976,7 @@ serve(async (req) => {
           const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
           
           const ethPriceUsd = await getEthPrice().catch(() => 2500);
-          const relayFeeMargin = 1.2; // 20% margin
+          const relayFeeMargin = 1.5; // 50% margin for gas spike protection (Priority 3.1)
           const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * relayFeeMargin;
           
           const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
@@ -1038,6 +1038,21 @@ serve(async (req) => {
             console.log(`✅ Single-hop swap completed: ${receipt.hash}`);
           }
           
+          // ===== POST-SWAP: FEE VERIFICATION (Priority 3.2) =====
+          const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice.gasPrice || BigInt(0));
+          const actualGasCostUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd;
+          
+          // Check if gas exceeded 1.5x margin
+          if (actualGasCostUsd > (estimatedRelayFeeUsd / relayFeeMargin) * relayFeeMargin) {
+            const overage = actualGasCostUsd - (estimatedRelayFeeUsd / relayFeeMargin);
+            const percentageOver = ((actualGasCostUsd / (estimatedRelayFeeUsd / relayFeeMargin)) - 1) * 100;
+            console.warn(`⚠️ Gas cost exceeded ${relayFeeMargin}x margin!`, {
+              estimated: (estimatedRelayFeeUsd / relayFeeMargin).toFixed(2),
+              actual: actualGasCostUsd.toFixed(2),
+              overage: overage.toFixed(2),
+              percentage: percentageOver.toFixed(1) + '%'
+            });
+          }
           
           // ===== STEP 6: DISBURSE OUTPUT TOKENS =====
           console.log(`\n💵 STEP 6: Calculating fees and disbursing output tokens`);
@@ -1177,6 +1192,42 @@ serve(async (req) => {
             }
             
             console.log(`✅ Fee collection recorded: ${platformFeeCollected} ${outputAsset}`);
+            
+            // ATOMIC WRITE: Fee reconciliation log (Priority 3.4)
+            const { error: feeLogError } = await supabase.from('fee_reconciliation_log').insert({
+              transaction_id: transactionId,
+              user_id: authenticatedUserId,
+              quote_id: quoteId || null,
+              estimated_gas_cost: estimatedRelayFeeUsd / relayFeeMargin,
+              actual_gas_cost: actualGasCostUsd,
+              gas_price_gwei: parseFloat(ethers.formatUnits(receipt.gasPrice || gasPrice.gasPrice || BigInt(0), 'gwei')),
+              gas_used: Number(receipt.gasUsed),
+              platform_fee_bps: PLATFORM_FEE_BPS,
+              platform_fee_amount: platformFeeCollected,
+              platform_fee_asset: outputAsset,
+              relay_fee_usd: actualRelayFeeUsd,
+              relay_fee_asset: outputAsset,
+              relay_fee_amount: relayFeeInOutputTokens,
+              relay_margin: relayFeeMargin,
+              total_fees_charged: relayFeeInOutputTokens + platformFeeCollected,
+              output_asset: outputAsset,
+              output_amount_gross: grossAmount,
+              output_amount_net: netAmount,
+              swap_protocol: useMultiHop ? 'uniswap_v3_multi_hop' : 'uniswap_v3_single_hop',
+              chain: 'ethereum',
+              metadata: {
+                eth_price_usd: ethPriceUsd,
+                output_token_price_usd: outputTokenPriceUsd,
+                relay_wallet: relayerWallet.address,
+                platform_wallet: PLATFORM_WALLET
+              }
+            });
+            
+            if (feeLogError) {
+              console.error('⚠️ Failed to log fee reconciliation (non-critical):', feeLogError);
+            } else {
+              console.log(`✅ Fee reconciliation logged`);
+            }
             
             // ATOMIC WRITE: Balance snapshots (2 rows: input decrease, output increase)
             const { error: balanceError } = await supabase.from('balance_snapshots').insert([
@@ -1363,7 +1414,7 @@ serve(async (req) => {
           const estimatedGasCost = BigInt(gasEstimate) * (feeData.gasPrice || BigInt(0));
           
           const ethPriceUsd = await getEthPrice().catch(() => 2500);
-          const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * 1.2; // 20% margin
+          const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * 1.5; // 50% margin (Priority 3.1)
           
           const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
           const estimatedRelayFeeInOutputTokens = estimatedRelayFeeUsd / outputTokenPriceUsd;
