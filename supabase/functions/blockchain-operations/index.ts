@@ -1247,7 +1247,7 @@ serve(async (req) => {
               const refundReceipt = await refundTx.wait();
               
               console.log(`✅ REFUND SUCCESSFUL: ${refundReceipt.hash}`);
-              console.log(`💰 Refunded ${amountIn} ${inputAsset} to ${userWallet.address}\n`);
+              console.log(`💰 Refunded ${actualAmount} ${inputAsset} to ${userWallet.address}\n`);
 
               // 🔒 Update intent status: refunded
               if (intentId) {
@@ -1277,7 +1277,7 @@ serve(async (req) => {
             } catch (refundError) {
               console.error(`🚨 CRITICAL: REFUND FAILED:`, refundError);
               console.error(`🚨 User funds stuck in relayer wallet: ${relayerWallet.address}`);
-              console.error(`🚨 Amount: ${amountIn} ${inputAsset}`);
+              console.error(`🚨 Amount: ${actualAmount} ${inputAsset}`);
               console.error(`🚨 User: ${userWallet.address}`);
 
               // 🔒 Update intent status: critical failure
@@ -1306,7 +1306,7 @@ serve(async (req) => {
                   intent_id: intentId,
                   userAddress: userWallet.address,
                   relayerAddress: relayerWallet.address,
-                  amount: amountIn,
+                  amount: actualAmount,
                   asset: inputAsset,
                   pullTxHash: pullReceipt.hash,
                   swapError: swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError),
