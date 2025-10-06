@@ -9,6 +9,7 @@ import { ArrowLeft, Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Transaction {
   id: string;
@@ -19,7 +20,13 @@ interface Transaction {
   fee_usd: number;
   status: string;
   created_at: string;
+  tx_hash?: string;
+  input_asset?: string;
+  output_asset?: string;
+  metadata?: any;
   profiles: { email: string } | null;
+  activity_type?: string;
+  provider?: string;
 }
 
 const AdminTransactions = () => {
@@ -35,16 +42,56 @@ const AdminTransactions = () => {
       return;
     }
 
-    const fetchTransactions = async () => {
-      const txList = await getTransactions(100);
-      setTransactions(txList);
-      setFilteredTransactions(txList);
+    const fetchAllActivity = async () => {
+      try {
+        const { data: regularTxs } = await supabase
+          .from('transactions')
+          .select('*, profiles(email)')
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        const { data: paymentTxs } = await supabase
+          .from('payment_transactions')
+          .select('*, profiles(email)')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        // Combine all transactions
+        const allTxs = [
+          ...(regularTxs || []).map(tx => ({ 
+            ...tx, 
+            activity_type: 'transaction',
+            timestamp: tx.created_at 
+          })),
+          ...(paymentTxs || []).map(pt => ({
+            id: pt.id,
+            type: pt.provider === 'moonpay' ? ((pt.metadata as any)?.transaction_type || 'buy') : 'payment',
+            asset: pt.currency,
+            quantity: pt.amount,
+            unit_price_usd: 1,
+            fee_usd: 0,
+            status: pt.status,
+            created_at: pt.created_at,
+            tx_hash: pt.external_id,
+            metadata: pt.metadata,
+            profiles: pt.profiles,
+            activity_type: 'payment',
+            provider: pt.provider,
+            timestamp: pt.created_at
+          }))
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        setTransactions(allTxs as any);
+        setFilteredTransactions(allTxs as any);
+      } catch (error) {
+        console.error('Error fetching activity:', error);
+      }
     };
 
     if (isAdmin) {
-      fetchTransactions();
+      fetchAllActivity();
     }
-  }, [isAdmin, loading, getTransactions, navigate]);
+  }, [isAdmin, loading, navigate]);
 
   useEffect(() => {
     if (filter === 'all') {
@@ -53,6 +100,10 @@ const AdminTransactions = () => {
       setFilteredTransactions(transactions.filter(tx => tx.type === 'buy'));
     } else if (filter === 'sell') {
       setFilteredTransactions(transactions.filter(tx => tx.type === 'sell'));
+    } else if (filter === 'swap') {
+      setFilteredTransactions(transactions.filter(tx => tx.type === 'swap'));
+    } else if (filter === 'payment') {
+      setFilteredTransactions(transactions.filter(tx => tx.activity_type === 'payment'));
     } else if (filter === 'completed') {
       setFilteredTransactions(transactions.filter(tx => tx.status === 'completed'));
     } else if (filter === 'pending') {
@@ -73,12 +124,17 @@ const AdminTransactions = () => {
     }
   };
 
-  const getTypeBadge = (type: string) => {
+  const getTypeBadge = (type: string, activityType?: string) => {
+    if (activityType === 'payment') {
+      return <Badge className="bg-purple-500">MoonPay</Badge>;
+    }
     switch (type) {
       case 'buy':
         return <Badge className="bg-blue-500"><TrendingUp className="w-3 h-3 mr-1" />Buy</Badge>;
       case 'sell':
         return <Badge className="bg-orange-500"><TrendingDown className="w-3 h-3 mr-1" />Sell</Badge>;
+      case 'swap':
+        return <Badge className="bg-indigo-500">Swap</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }
@@ -208,9 +264,11 @@ const AdminTransactions = () => {
                 <SelectValue placeholder="Filter transactions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Transactions</SelectItem>
+                <SelectItem value="all">All Activity</SelectItem>
                 <SelectItem value="buy">Buy Orders</SelectItem>
                 <SelectItem value="sell">Sell Orders</SelectItem>
+                <SelectItem value="swap">Swaps</SelectItem>
+                <SelectItem value="payment">MoonPay Payments</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
@@ -236,6 +294,7 @@ const AdminTransactions = () => {
                     <TableHead>Value</TableHead>
                     <TableHead>Fee</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>TX Hash</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -245,8 +304,12 @@ const AdminTransactions = () => {
                       <TableCell className="font-medium">
                         {transaction.profiles?.email || 'Unknown'}
                       </TableCell>
-                      <TableCell>{getTypeBadge(transaction.type)}</TableCell>
-                      <TableCell>{transaction.asset}</TableCell>
+                      <TableCell>{getTypeBadge(transaction.type, transaction.activity_type)}</TableCell>
+                      <TableCell>
+                        {transaction.input_asset && transaction.output_asset 
+                          ? `${transaction.input_asset} → ${transaction.output_asset}`
+                          : transaction.asset}
+                      </TableCell>
                       <TableCell>{transaction.quantity.toFixed(4)}</TableCell>
                       <TableCell>{formatCurrency(transaction.unit_price_usd)}</TableCell>
                       <TableCell>
@@ -254,6 +317,20 @@ const AdminTransactions = () => {
                       </TableCell>
                       <TableCell>{formatCurrency(transaction.fee_usd || 0)}</TableCell>
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                      <TableCell>
+                        {transaction.tx_hash ? (
+                          <a
+                            href={`https://etherscan.io/tx/${transaction.tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline text-xs"
+                          >
+                            {transaction.tx_hash.slice(0, 6)}...
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {new Date(transaction.created_at).toLocaleDateString()}
                       </TableCell>

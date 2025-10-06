@@ -1095,6 +1095,54 @@ serve(async (req) => {
             console.warn(`⚠️ RELAYER BALANCE LOW: ${relayerBalanceEth.toFixed(4)} ETH - Please fund relayer wallet!\n`);
           }
           
+          // ===== STEP 10: RECORD TRANSACTION IN DATABASE =====
+          console.log(`\n💾 STEP 10: Recording transaction in database`);
+          
+          try {
+            const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
+            const totalFeeUsd = actualRelayFeeUsd + (platformFeeCollected * outputTokenPriceUsd);
+            
+            const { error: txError } = await supabase.from('transactions').insert({
+              user_id: userId,
+              quote_id: quoteId,
+              type: 'swap',
+              asset: outputAsset,
+              quantity: netAmount,
+              unit_price_usd: outputTokenPriceUsd,
+              fee_usd: totalFeeUsd,
+              status: 'completed',
+              input_asset: inputAsset,
+              output_asset: outputAsset,
+              tx_hash: receipt.hash,
+              metadata: {
+                swap_tx_hash: receipt.hash,
+                platform_fee_tx_hash: platformFeeReceipt.hash,
+                user_transfer_tx_hash: userTransferReceipt.hash,
+                pull_tx_hash: pullReceipt.hash,
+                input_amount: parseFloat(requiredAmount.toString()) / 1e6,
+                output_amount_gross: parseFloat(ethers.formatUnits(relayerOutputBalance, 6)),
+                platform_fee: platformFeeCollected,
+                relay_fee: relayFeeInOutputTokens,
+                net_to_user: netAmount,
+                slippage: slippage || 0.5,
+                route: useMultiHop ? 'multi-hop' : 'single-hop',
+                relayer_address: relayerWallet.address,
+                gas_used: receipt.gasUsed?.toString(),
+                block_number: receipt.blockNumber
+              }
+            });
+            
+            if (txError) {
+              console.error('❌ Failed to record transaction in DB:', txError);
+              // Don't fail the whole operation, just log
+            } else {
+              console.log('✅ Transaction recorded in database');
+            }
+          } catch (dbError) {
+            console.error('❌ Database recording error:', dbError);
+            // Don't fail the whole operation
+          }
+          
           result = {
             success: true,
             txHash: receipt.hash,
