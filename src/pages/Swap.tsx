@@ -220,6 +220,7 @@ const Swap = () => {
           state: {
             transaction: {
               tx_hash: result.hash,
+              transaction_id: result.transactionId,
               input_asset: fromAsset,
               output_asset: toAsset,
               input_amount: parseFloat(fromAmount),

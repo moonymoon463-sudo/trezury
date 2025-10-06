@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface SwapTransaction {
   tx_hash: string;
+  transaction_id?: string;
   input_asset: string;
   output_asset: string;
   input_amount: number;
@@ -170,6 +171,15 @@ const SwapSuccess = () => {
 
       {/* Action Buttons */}
       <div className="px-4 py-6 space-y-3">
+        {transaction.transaction_id && (
+          <Button 
+            className="w-full h-14 font-bold text-lg rounded-xl"
+            onClick={() => navigate(`/transaction-detail/${transaction.transaction_id}`)}
+          >
+            View Transaction Details
+          </Button>
+        )}
+        
         <Button 
           className="w-full h-14 font-bold text-lg rounded-xl"
           onClick={() => navigate("/")}

@@ -1102,7 +1102,7 @@ serve(async (req) => {
             const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
             const totalFeeUsd = actualRelayFeeUsd + (platformFeeCollected * outputTokenPriceUsd);
             
-            const { error: txError } = await supabase.from('transactions').insert({
+            const { data: txData, error: txError } = await supabase.from('transactions').insert({
               user_id: userId,
               quote_id: quoteId,
               type: 'swap',
@@ -1130,13 +1130,13 @@ serve(async (req) => {
                 gas_used: receipt.gasUsed?.toString(),
                 block_number: receipt.blockNumber
               }
-            });
+            }).select('id').single();
             
             if (txError) {
               console.error('❌ Failed to record transaction in DB:', txError);
               // Don't fail the whole operation, just log
             } else {
-              console.log('✅ Transaction recorded in database');
+              console.log('✅ Transaction recorded in database:', txData?.id);
               
               // Create notification for successful swap
               try {
@@ -1149,7 +1149,7 @@ serve(async (req) => {
                   body: `Successfully swapped ${inputAmountFormatted} ${inputAsset} → ${outputAmountFormatted} ${outputAsset}`,
                   kind: 'swap_completed',
                   read: false,
-                  action_url: `/transactions`,
+                  action_url: txData?.id ? `/transaction-detail/${txData.id}` : `/transactions`,
                   icon: 'swap',
                   priority: 'info'
                 });
@@ -1157,7 +1157,7 @@ serve(async (req) => {
                 if (notifError) {
                   console.error('❌ Failed to create notification:', notifError);
                 } else {
-                  console.log('✅ Swap notification created');
+                  console.log('✅ Swap notification created with link to transaction:', txData?.id);
                 }
               } catch (notifErr) {
                 console.error('❌ Notification creation error:', notifErr);
