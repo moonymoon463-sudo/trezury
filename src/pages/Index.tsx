@@ -15,7 +15,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
-  const { getBalance, loading: balanceLoading } = useWalletBalance();
+  const { getBalance, loading: balanceLoading, refreshBalances } = useWalletBalance();
   const { walletAddress, getWalletAddress } = useSecureWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
@@ -43,7 +43,10 @@ const Index = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshPrice();
+      await Promise.all([
+        refreshPrice(),
+        refreshBalances()
+      ]);
     } finally {
       setIsRefreshing(false);
     }
