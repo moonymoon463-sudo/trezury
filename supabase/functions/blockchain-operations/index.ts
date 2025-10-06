@@ -951,7 +951,7 @@ serve(async (req) => {
           const userBalance = await inputTokenContract.balanceOf(userWallet.address);
           
           if (userBalance < requiredAmount) {
-            throw new Error(`Insufficient ${inputAsset} balance. Required: ${amount}, Available: ${ethers.formatUnits(userBalance, 6)}`);
+            throw new Error(`Insufficient ${inputAsset} balance. Required: ${amountIn}, Available: ${ethers.formatUnits(userBalance, 6)}`);
           }
           console.log(`✅ User has sufficient balance: ${ethers.formatUnits(userBalance, 6)} ${inputAsset}`);
           
@@ -1013,7 +1013,7 @@ serve(async (req) => {
           console.log(`✅ ALL CHECKS PASSED - Safe to pull funds\n`);
           
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
-          console.log(`\n🔐 PHASE 2: Pulling ${amount} ${inputAsset} from user to relayer (gasless)`);
+          console.log(`\n🔐 PHASE 2: Pulling ${amountIn} ${inputAsset} from user to relayer (gasless)`);
           
           if (inputAsset !== 'USDC') {
             throw new Error('Gasless swaps currently only support USDC as input token');
@@ -1078,7 +1078,7 @@ serve(async (req) => {
           );
           const pullReceipt = await pullTx.wait();
           console.log(`✅ Funds pulled successfully: ${pullReceipt.hash}`);
-          console.log(`💸 Amount transferred: ${amount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
+          console.log(`💸 Amount transferred: ${amountIn} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
 
           // 🔒 Update intent status: funds pulled
           if (intentId) {
@@ -1242,7 +1242,7 @@ serve(async (req) => {
               const refundReceipt = await refundTx.wait();
               
               console.log(`✅ REFUND SUCCESSFUL: ${refundReceipt.hash}`);
-              console.log(`💰 Refunded ${amount} ${inputAsset} to ${userWallet.address}\n`);
+              console.log(`💰 Refunded ${amountIn} ${inputAsset} to ${userWallet.address}\n`);
 
               // 🔒 Update intent status: refunded
               if (intentId) {
@@ -1272,7 +1272,7 @@ serve(async (req) => {
             } catch (refundError) {
               console.error(`🚨 CRITICAL: REFUND FAILED:`, refundError);
               console.error(`🚨 User funds stuck in relayer wallet: ${relayerWallet.address}`);
-              console.error(`🚨 Amount: ${amount} ${inputAsset}`);
+              console.error(`🚨 Amount: ${amountIn} ${inputAsset}`);
               console.error(`🚨 User: ${userWallet.address}`);
 
               // 🔒 Update intent status: critical failure
@@ -1301,7 +1301,7 @@ serve(async (req) => {
                   intent_id: intentId,
                   userAddress: userWallet.address,
                   relayerAddress: relayerWallet.address,
-                  amount,
+                  amount: amountIn,
                   asset: inputAsset,
                   pullTxHash: pullReceipt.hash,
                   swapError: swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError),
