@@ -1879,12 +1879,11 @@ serve(async (req) => {
       case 'get_transaction_history':
         console.log('Getting transaction history for:', body.address);
         
-        return new Response(JSON.stringify({ 
+        result = { 
           success: true,
           transactions: [] // Mock empty for now
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        };
+        break;
 
       case 'wallet_readonly_diagnostics':
         try {
@@ -1980,27 +1979,24 @@ serve(async (req) => {
           
           console.log(`Gas estimate: ${estimatedFeeUSD.toFixed(4)} USD (${feeInToken.toFixed(6)} ${body.asset})`);
           
-          return new Response(JSON.stringify({ 
+          result = { 
             success: true,
             fee_in_token: Number(feeInToken.toFixed(6)),
             fee_usd: Number(estimatedFeeUSD.toFixed(4)),
             gas_price: gasPrice.gasPrice?.toString(),
             gas_limit: gasLimit.toString()
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          };
         } catch (error) {
           console.error('Gas estimation failed:', error);
           // Fallback to simple estimation
           const fallbackFee = body.asset === 'USDC' ? 0.005 : 0.0001;
-          return new Response(JSON.stringify({ 
+          result = { 
             success: true,
             fee_in_token: fallbackFee,
             fee_usd: fallbackFee * (body.asset === 'USDC' ? 1 : 2000)
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
+          };
         }
+        break;
 
       case 'transfer':
         const { asset, to_address, amount, from_address } = body;
