@@ -2554,6 +2554,16 @@ export type Database = {
       }
     }
     Views: {
+      reconciliation_alerts_summary: {
+        Row: {
+          alert_count: number | null
+          alert_type: string | null
+          latest_alert: string | null
+          recent_alerts: Json | null
+          severity: string | null
+        }
+        Relationships: []
+      }
       reconciliation_cron_status: {
         Row: {
           active: boolean | null
@@ -2658,6 +2668,10 @@ export type Database = {
       check_pii_rate_limit: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      check_reconciliation_cron_health: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       check_transaction_access_rate_limit: {
         Args: Record<PropertyKey, never>
@@ -2775,6 +2789,10 @@ export type Database = {
       get_public_config: {
         Args: { key_name: string }
         Returns: string
+      }
+      get_reconciliation_alerts: {
+        Args: { limit_count?: number }
+        Returns: Json
       }
       get_reconciliation_cron_health: {
         Args: Record<PropertyKey, never>
