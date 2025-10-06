@@ -1,17 +1,48 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bug, Wallet, User, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Bug, Wallet, User, AlertCircle, CheckCircle, XCircle, Archive } from "lucide-react";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { secureWalletService } from "@/services/secureWalletService";
 
 export function WalletDebugPanel() {
   const { wallet, connectWallet, connecting } = useWalletConnection();
   const { user } = useAuth();
   const [testingEdge, setTestingEdge] = useState(false);
   const [edgeTestResult, setEdgeTestResult] = useState<string>('');
+  const [allWallets, setAllWallets] = useState<Array<{ address: string; status: string; is_primary: boolean; balance?: number }>>([]);
+  const [loadingWallets, setLoadingWallets] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadAllWallets();
+    }
+  }, [user]);
+
+  const loadAllWallets = async () => {
+    if (!user) return;
+    setLoadingWallets(true);
+    try {
+      const wallets = await secureWalletService.getAllWallets(user.id);
+      
+      // Check balance for each wallet
+      const walletsWithBalances = await Promise.all(
+        wallets.map(async (w) => {
+          const balance = await secureWalletService.checkWalletBalance(w.address);
+          return { ...w, balance };
+        })
+      );
+      
+      setAllWallets(walletsWithBalances);
+    } catch (error) {
+      console.error('Failed to load wallets:', error);
+    } finally {
+      setLoadingWallets(false);
+    }
+  };
 
   const testEdgeFunction = async () => {
     setTestingEdge(true);
@@ -97,14 +128,55 @@ export function WalletDebugPanel() {
           </Badge>
         </div>
 
+        {/* All User Wallets */}
+        {user && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Your Wallets:</span>
+              <Button
+                onClick={loadAllWallets}
+                disabled={loadingWallets}
+                variant="ghost"
+                size="sm"
+              >
+                {loadingWallets ? 'Loading...' : 'Refresh'}
+              </Button>
+            </div>
+            {allWallets.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No wallets found</div>
+            ) : (
+              <div className="space-y-2">
+                {allWallets.map((w) => (
+                  <div key={w.address} className="p-3 bg-muted rounded space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono">{w.address.substring(0, 20)}...</span>
+                      <div className="flex gap-1">
+                        {w.is_primary && <Badge variant="default" className="text-xs">Primary</Badge>}
+                        <Badge variant={w.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                          {w.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    {w.balance !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        Balance: ${w.balance.toFixed(2)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Wallet Details */}
         {wallet.isConnected && (
           <div className="space-y-2 text-sm">
-            <div><strong>Address:</strong> {wallet.address}</div>
+            <div><strong>Connected Wallet:</strong> {wallet.address}</div>
             <div><strong>Chain ID:</strong> {wallet.chainId}</div>
             <div><strong>Network:</strong> {wallet.networkName}</div>
             <div><strong>Supported:</strong> {wallet.isSupported ? 'Yes' : 'No'}</div>
-            {wallet.balance && <div><strong>Balance:</strong> {wallet.balance} ETH</div>}
+            {wallet.balance && <div><strong>ETH Balance:</strong> {wallet.balance}</div>}
           </div>
         )}
 

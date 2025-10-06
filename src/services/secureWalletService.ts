@@ -138,19 +138,31 @@ class SecureWalletService {
       // Create wallet from derived key
       const wallet = new ethers.Wallet(privateKey);
 
-      // Store ONLY the public address
+      // CRITICAL: Check for existing wallets with funds before creating new one
+      const existingWallets = await this.getAllWallets(userId);
+      for (const existingWallet of existingWallets) {
+        const balance = await this.checkWalletBalance(existingWallet.address);
+        if (balance > 0) {
+          throw new Error(
+            `Cannot create new wallet. Existing wallet (${existingWallet.address}) has funds. ` +
+            `Please transfer funds or explicitly archive the old wallet first.`
+          );
+        }
+      }
+
+      // Store ONLY the public address (SAFE INSERT - no overwrite)
       const { error: insertError } = await supabase
         .from('onchain_addresses')
-        .upsert({
+        .insert({
           user_id: userId,
           address: wallet.address,
           chain: 'ethereum',
           asset: 'XAUT',
           setup_method: 'user_password',
           created_with_password: true,
+          is_primary: existingWallets.length === 0, // First wallet is primary
+          status: 'active',
           created_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
         });
 
       if (insertError) {
@@ -337,19 +349,31 @@ class SecureWalletService {
         }
       }
 
-      // Store public address
+      // CRITICAL: Check for existing wallets with funds before creating new one
+      const existingWallets = await this.getAllWallets(userId);
+      for (const existingWallet of existingWallets) {
+        const balance = await this.checkWalletBalance(existingWallet.address);
+        if (balance > 0) {
+          throw new Error(
+            `Cannot create new wallet. Existing wallet (${existingWallet.address}) has funds. ` +
+            `Please transfer funds or explicitly archive the old wallet first.`
+          );
+        }
+      }
+
+      // Store public address (SAFE INSERT - no overwrite)
       const { error: addressError } = await supabase
         .from('onchain_addresses')
-        .upsert({
+        .insert({
           user_id: userId,
           address: wallet.address,
           chain: 'ethereum',
           asset: 'XAUT',
           setup_method: 'instant_random',
           created_with_password: false,
+          is_primary: existingWallets.length === 0, // First wallet is primary
+          status: 'active',
           created_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
         });
 
       if (addressError) {
@@ -521,6 +545,122 @@ class SecureWalletService {
     );
     
     return new TextDecoder().decode(decrypted);
+  }
+
+  /**
+   * Check if wallet has on-chain balance
+   */
+  async checkWalletBalance(address: string): Promise<number> {
+    try {
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance',
+          address,
+          asset: 'USDC'
+        }
+      });
+
+      if (error) {
+        console.error('Failed to check balance:', error);
+        return 0;
+      }
+
+      return data?.balance || 0;
+    } catch (error) {
+      console.error('Balance check error:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get all wallets for a user
+   */
+  async getAllWallets(userId: string): Promise<Array<{ address: string; status: string; is_primary: boolean }>> {
+    try {
+      const { data, error } = await supabase
+        .from('onchain_addresses')
+        .select('address, status, is_primary')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Failed to get wallets:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Get wallets error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Archive a wallet (with balance check)
+   */
+  async archiveWallet(userId: string, address: string, userConfirmed: boolean): Promise<void> {
+    const balance = await this.checkWalletBalance(address);
+
+    if (balance > 0 && !userConfirmed) {
+      throw new Error('Wallet has funds. User must explicitly confirm archival.');
+    }
+
+    // Create audit record
+    await supabase.from('wallet_change_audit').insert({
+      user_id: userId,
+      old_address: address,
+      change_type: 'archived',
+      had_balance: balance > 0,
+      balance_at_change: balance,
+      user_confirmed: userConfirmed
+    });
+
+    // Mark as archived (don't delete)
+    await supabase
+      .from('onchain_addresses')
+      .update({ 
+        status: 'archived', 
+        archived_at: new Date().toISOString() 
+      })
+      .eq('user_id', userId)
+      .eq('address', address);
+
+    await this.logSecurityEvent(userId, 'wallet_archived', true, { address, had_balance: balance > 0 });
+  }
+
+  /**
+   * Set primary wallet
+   */
+  async setPrimaryWallet(userId: string, address: string): Promise<void> {
+    // Unset all primary flags
+    await supabase
+      .from('onchain_addresses')
+      .update({ is_primary: false })
+      .eq('user_id', userId);
+
+    // Set new primary
+    await supabase
+      .from('onchain_addresses')
+      .update({ is_primary: true })
+      .eq('user_id', userId)
+      .eq('address', address);
+  }
+
+  /**
+   * Attempt legacy recovery methods
+   */
+  async attemptLegacyRecovery(userId: string, password: string): Promise<string | null> {
+    try {
+      // Try current derivation method
+      const privateKey = await this.derivePrivateKey(userId, password);
+      const wallet = new ethers.Wallet(privateKey);
+      
+      console.log('✅ Legacy recovery successful, derived address:', wallet.address);
+      return privateKey;
+    } catch (error) {
+      console.error('Legacy recovery failed:', error);
+      return null;
+    }
   }
 
   /**
