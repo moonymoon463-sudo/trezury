@@ -900,24 +900,85 @@ serve(async (req) => {
           console.log(`👤 User wallet: ${userWallet.address}`);
           console.log(`🔐 Relayer wallet: ${relayerWallet.address}`);
           
-          // Validate token addresses (checksum corrected)
+          // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
+          console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
+          
           const tokenInAddress = getContractAddress(inputAsset);
           const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
+          const requiredAmount = ethers.parseUnits(amount.toString(), 6);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
-          // Check user's input token balance
+          // 1.1: Check user's balance BEFORE pulling
           const inputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, provider);
           const userBalance = await inputTokenContract.balanceOf(userWallet.address);
-          const requiredAmount = ethers.parseUnits(amount.toString(), 6);
           
           if (userBalance < requiredAmount) {
             throw new Error(`Insufficient ${inputAsset} balance. Required: ${amount}, Available: ${ethers.formatUnits(userBalance, 6)}`);
           }
+          console.log(`✅ User has sufficient balance: ${ethers.formatUnits(userBalance, 6)} ${inputAsset}`);
           
-          // ===== STEP 1: GASLESS TOKEN TRANSFER (EIP-3009) =====
-          console.log(`\n🔐 STEP 1: Pulling ${amount} ${inputAsset} from user to relayer (gasless)`);
+          // 1.2: Get Uniswap quote BEFORE pulling funds
+          console.log(`🔍 Getting Uniswap quote (validating liquidity)...`);
+          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+          
+          let amountOut: bigint;
+          let useMultiHop = false;
+          
+          try {
+            amountOut = await quoterContract.quoteExactInputSingle.staticCall(
+              tokenInAddress,
+              tokenOutAddress,
+              fee,
+              requiredAmount,
+              0
+            );
+            console.log(`✅ Single-hop quote validated: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
+          } catch (quoteError) {
+            console.log(`⚠️ Single-hop not available, trying multi-hop via WETH`);
+            useMultiHop = true;
+            
+            const path = ethers.solidityPacked(
+              ['address', 'uint24', 'address', 'uint24', 'address'],
+              [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
+            );
+            
+            amountOut = await quoterContract.quoteExactInput.staticCall(path, requiredAmount);
+            console.log(`✅ Multi-hop quote validated: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
+          }
+          
+          // 1.3: Apply slippage and validate minimum output
+          const slippageBps = Math.floor((slippage || 0.5) * 100);
+          const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
+          console.log(`✅ Minimum output with slippage: ${ethers.formatUnits(amountOutMinimum, 6)} ${outputAsset}`);
+          
+          // 1.4: Estimate gas costs BEFORE pulling funds
+          console.log(`⛽ Estimating gas costs...`);
+          const marginConfig = await calculateDynamicMargin(provider);
+          const gasPrice = await provider.getFeeData();
+          const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000);
+          const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
+          const ethPriceUsd = await getEthPrice().catch(() => 2500);
+          const estimatedGasCostUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd;
+          const estimatedRelayFeeUsd = estimatedGasCostUsd * marginConfig.margin;
+          
+          const GAS_FLOOR_USD = 2.0;
+          const GAS_CEILING_USD = 50.0;
+          
+          if (estimatedRelayFeeUsd > GAS_CEILING_USD) {
+            throw new Error(`Gas fee too high ($${estimatedRelayFeeUsd.toFixed(2)}). Network congestion is severe. Please try again later.`);
+          }
+          
+          const finalRelayFeeUsd = Math.max(estimatedRelayFeeUsd, GAS_FLOOR_USD);
+          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
+          const estimatedRelayFeeInOutputTokens = finalRelayFeeUsd / outputTokenPriceUsd;
+          
+          console.log(`✅ Pre-flight validation complete! Relay fee: $${finalRelayFeeUsd.toFixed(2)}`);
+          console.log(`✅ ALL CHECKS PASSED - Safe to pull funds\n`);
+          
+          // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
+          console.log(`\n🔐 PHASE 2: Pulling ${amount} ${inputAsset} from user to relayer (gasless)`);
           
           if (inputAsset !== 'USDC') {
             throw new Error('Gasless swaps currently only support USDC as input token');
@@ -984,80 +1045,15 @@ serve(async (req) => {
           console.log(`✅ USDC pulled to relayer: ${pullReceipt.hash}`);
           console.log(`💸 Amount transferred: ${amount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
           
-          // ===== STEP 2: GET QUOTE =====
-          console.log(`🔍 STEP 2: Getting Uniswap quote`);
-          const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
+          // ===== PHASE 3: EXECUTE SWAP WITH REFUND LOGIC =====
+          console.log(`\n🔄 PHASE 3: Executing swap with automatic refund on failure`);
           
-          let amountOut: bigint;
-          let useMultiHop = false;
+          let swapTxHash: string | null = null;
+          let actualOutputAmount: bigint | null = null;
           
           try {
-            // Try single-hop first
-            amountOut = await quoterContract.quoteExactInputSingle.staticCall(
-              tokenInAddress,
-              tokenOutAddress,
-              fee,
-              requiredAmount,
-              0
-            );
-            console.log(`✅ Single-hop quote: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
-          } catch (quoteError) {
-            // Single-hop failed, use multi-hop via WETH
-            console.log(`⚠️ Single-hop failed, using multi-hop via WETH`);
-            useMultiHop = true;
-            
-            const path = ethers.solidityPacked(
-              ['address', 'uint24', 'address', 'uint24', 'address'],
-              [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
-            );
-            
-            amountOut = await quoterContract.quoteExactInput.staticCall(path, requiredAmount);
-            console.log(`✅ Multi-hop quote: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
-          }
-          
-          // Apply slippage protection
-          const slippageBps = Math.floor((slippage || 0.5) * 100);
-          const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
-          
-          // ===== STEP 3: ESTIMATE GAS FEE WITH DYNAMIC MARGIN =====
-          console.log(`\n⛽ STEP 3: Estimating gas fee with dynamic margin`);
-          
-          // Get dynamic margin based on network conditions
-          const marginConfig = await calculateDynamicMargin(provider);
-          console.log(`🎯 Dynamic margin: ${marginConfig.margin}x (${marginConfig.tier}) - ${marginConfig.reason}`);
-          
-          const gasPrice = await provider.getFeeData();
-          const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000);
-          const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
-          
-          const ethPriceUsd = await getEthPrice().catch(() => 2500);
-          const estimatedGasCostUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd;
-          
-          // Apply dynamic margin to relay fee
-          const estimatedRelayFeeUsd = estimatedGasCostUsd * marginConfig.margin;
-          
-          // Apply gas floor ($2 minimum) and ceiling ($50 maximum)
-          const GAS_FLOOR_USD = 2.0;
-          const GAS_CEILING_USD = 50.0;
-          
-          if (estimatedRelayFeeUsd < GAS_FLOOR_USD) {
-            console.log(`⬆️ Applying gas floor: $${GAS_FLOOR_USD} (was $${estimatedRelayFeeUsd.toFixed(2)})`);
-          }
-          
-          if (estimatedRelayFeeUsd > GAS_CEILING_USD) {
-            console.error(`❌ Gas fee exceeds ceiling: $${estimatedRelayFeeUsd.toFixed(2)} > $${GAS_CEILING_USD}`);
-            throw new Error(`Gas fee too high ($${estimatedRelayFeeUsd.toFixed(2)}). Network congestion is severe. Please try again later.`);
-          }
-          
-          const finalRelayFeeUsd = Math.max(estimatedRelayFeeUsd, GAS_FLOOR_USD);
-          
-          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
-          const estimatedRelayFeeInOutputTokens = finalRelayFeeUsd / outputTokenPriceUsd;
-          
-          console.log(`✅ Estimated relay fee: $${finalRelayFeeUsd.toFixed(2)} (${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset}) [margin: ${marginConfig.margin}x]\n`);
-          
-          // ===== STEP 4: APPROVE RELAYER'S TOKENS FOR UNISWAP =====
-          console.log(`📝 STEP 4: Approving relayer's ${inputAsset} for Uniswap router`);
+            // STEP 3.1: APPROVE RELAYER'S TOKENS FOR UNISWAP
+            console.log(`📝 Approving relayer's ${inputAsset} for Uniswap router`);
           const relayerInputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, relayerWallet);
           const currentAllowance = await relayerInputTokenContract.allowance(relayerWallet.address, UNISWAP_V3_ROUTER);
           
@@ -1069,12 +1065,12 @@ serve(async (req) => {
             console.log(`✅ Sufficient allowance already exists\n`);
           }
           
-          // ===== STEP 5: EXECUTE SWAP (RELAYER -> USER) =====
-          console.log(`🔄 STEP 5: Executing Uniswap swap (relayer pays gas, user receives tokens)`);
-          const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
-          
-          const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, relayerWallet);
-          let tx, receipt;
+            // STEP 3.2: EXECUTE SWAP
+            console.log(`🔄 Executing Uniswap swap (relayer pays gas)`);
+            const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+            
+            const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, relayerWallet);
+            let tx, receipt;
           
           if (useMultiHop) {
             const path = ethers.solidityPacked(
@@ -1110,7 +1106,8 @@ serve(async (req) => {
             console.log(`✅ Single-hop swap completed: ${receipt.hash}`);
           }
           
-          
+            swapTxHash = receipt.hash;
+            
           // ===== STEP 6: DISBURSE OUTPUT TOKENS =====
           console.log(`\n💵 STEP 6: Calculating fees and disbursing output tokens`);
           
@@ -1162,8 +1159,71 @@ serve(async (req) => {
           const userTransferTx = await outputTokenWithRelayer.transfer(userWallet.address, userTokensWei);
           const userTransferReceipt = await userTransferTx.wait();
           console.log(`✅ User output transferred: ${userTransferReceipt.hash}\n`);
+          console.log(`✅ SWAP SUCCESSFUL - User received net output\n`);
           
           const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, 6));
+          
+          } catch (swapExecutionError) {
+            // ===== SWAP FAILED - AUTOMATIC REFUND =====
+            console.error(`❌ Swap execution failed:`, swapExecutionError);
+            console.log(`\n🔄 INITIATING AUTOMATIC REFUND...`);
+            
+            try {
+              // Refund USDC from relayer back to user
+              const refundContract = new ethers.Contract(tokenInAddress, ERC20_ABI, relayerWallet);
+              const refundTx = await refundContract.transfer(userWallet.address, requiredAmount);
+              const refundReceipt = await refundTx.wait();
+              
+              console.log(`✅ REFUND SUCCESSFUL: ${refundReceipt.hash}`);
+              console.log(`💰 Refunded ${amount} ${inputAsset} to ${userWallet.address}\n`);
+              
+              return new Response(JSON.stringify({
+                success: false,
+                error: `Swap failed but funds were refunded: ${swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError)}`,
+                refunded: true,
+                refundTxHash: refundReceipt.hash,
+                pullTxHash: pullReceipt.hash
+              }), {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            } catch (refundError) {
+              console.error(`🚨 CRITICAL: REFUND FAILED:`, refundError);
+              console.error(`🚨 User funds stuck in relayer wallet: ${relayerWallet.address}`);
+              console.error(`🚨 Amount: ${amount} ${inputAsset}`);
+              console.error(`🚨 User: ${userWallet.address}`);
+              
+              // Create critical security alert
+              await supabaseAdmin.from('security_alerts').insert({
+                alert_type: 'swap_refund_failed',
+                severity: 'critical',
+                title: 'Swap Failed and Refund Failed',
+                description: `Swap execution failed and automatic refund also failed. User funds stuck in relayer wallet.`,
+                metadata: {
+                  userAddress: userWallet.address,
+                  relayerAddress: relayerWallet.address,
+                  amount,
+                  asset: inputAsset,
+                  pullTxHash: pullReceipt.hash,
+                  swapError: swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError),
+                  refundError: refundError instanceof Error ? refundError.message : String(refundError),
+                  timestamp: new Date().toISOString(),
+                  requiresManualIntervention: true
+                }
+              });
+              
+              return new Response(JSON.stringify({
+                success: false,
+                error: 'Swap failed and automatic refund failed. Admin has been notified. Your funds will be manually returned.',
+                criticalError: true,
+                pullTxHash: pullReceipt.hash,
+                requiresManualIntervention: true
+              }), {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+          }
           
           // ===== STEP 9: MONITOR RELAYER BALANCE WITH DATABASE ALERTS =====
           const relayerBalance = await provider.getBalance(relayerWallet.address);
@@ -1230,9 +1290,9 @@ serve(async (req) => {
               status: 'completed',
               input_asset: inputAsset,
               output_asset: outputAsset,
-              tx_hash: receipt.hash,
+              tx_hash: swapTxHash!,
               metadata: {
-                swap_tx_hash: receipt.hash,
+                swap_tx_hash: swapTxHash!,
                 platform_fee_tx_hash: platformFeeReceipt.hash,
                 user_transfer_tx_hash: userTransferReceipt.hash,
                 pull_tx_hash: pullReceipt.hash,
@@ -1251,9 +1311,42 @@ serve(async (req) => {
               }
             }).select('id').single();
             
-            if (txError) {
-              console.error('❌ CRITICAL: Failed to record transaction:', txError);
-              throw new Error(`Transaction DB insert failed: ${txError.message}`);
+            if (txError || !txData) {
+              console.error(`🚨 CRITICAL: On-chain swap succeeded but DB record creation failed:`, txError);
+              
+              // Create security alert for reconciliation
+              await supabaseAdmin.from('security_alerts').insert({
+                alert_type: 'swap_db_record_failed',
+                severity: 'critical',
+                title: 'Swap Succeeded On-Chain But DB Record Failed',
+                description: 'Swap completed successfully on blockchain but failed to create database record. Requires reconciliation.',
+                metadata: {
+                  txHash: swapTxHash,
+                  userAddress: userWallet.address,
+                  inputAsset,
+                  outputAsset,
+                  inputAmount: amount,
+                  outputAmount: netAmount,
+                  dbError: txError?.message,
+                  timestamp: new Date().toISOString(),
+                  requiresReconciliation: true
+                }
+              });
+              
+              return new Response(JSON.stringify({
+                success: true,
+                requiresReconciliation: true,
+                txHash: swapTxHash,
+                userWallet: userWallet.address,
+                relayerAddress: relayerWallet.address,
+                netOutputAmount: netAmount.toString(),
+                relayFeeUsd: actualRelayFeeUsd.toFixed(2),
+                error: 'On-chain swap succeeded but database record failed. Balance will update after reconciliation.',
+                dbError: txError?.message
+              }), {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
             }
             
             console.log(`✅ Transaction recorded: ${txData.id}`);
