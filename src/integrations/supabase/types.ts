@@ -1532,6 +1532,33 @@ export type Database = {
           },
         ]
       }
+      relayer_key_metadata: {
+        Row: {
+          created_at: string
+          id: string
+          key_id: string
+          rotated_at: string
+          rotated_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_id: string
+          rotated_at?: string
+          rotated_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_id?: string
+          rotated_at?: string
+          rotated_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       secure_wallet_metadata: {
         Row: {
           created_at: string
@@ -2527,6 +2554,22 @@ export type Database = {
       }
     }
     Views: {
+      reconciliation_cron_status: {
+        Row: {
+          active: boolean | null
+          database: string | null
+          health_status: string | null
+          jobname: string | null
+          last_run_end: string | null
+          last_run_message: string | null
+          last_run_start: string | null
+          last_run_status: string | null
+          nodename: string | null
+          runid: number | null
+          schedule: string | null
+        }
+        Relationships: []
+      }
       v_profiles_masked: {
         Row: {
           created_at: string | null
@@ -2732,6 +2775,10 @@ export type Database = {
       get_public_config: {
         Args: { key_name: string }
         Returns: string
+      }
+      get_reconciliation_cron_health: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_security_dashboard_metrics: {
         Args: Record<PropertyKey, never>
