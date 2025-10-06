@@ -44,7 +44,9 @@ export class DexAggregatorService {
     'USDC-XAUT': 3000, // 0.3%
     'XAUT-USDC': 3000, // 0.3%
     'USDC-TRZRY': 3000, // 0.3%
-    'TRZRY-USDC': 3000  // 0.3%
+    'TRZRY-USDC': 3000, // 0.3%
+    'XAUT-TRZRY': 3000, // 0.3%
+    'TRZRY-XAUT': 3000  // 0.3%
   };
 
   static async getBestRoute(

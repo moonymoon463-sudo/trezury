@@ -55,7 +55,8 @@ class SwapService {
       
       const supportedPairs = [
         ['USDC', 'XAUT'], ['XAUT', 'USDC'],
-        ['USDC', 'TRZRY'], ['TRZRY', 'USDC']
+        ['USDC', 'TRZRY'], ['TRZRY', 'USDC'],
+        ['XAUT', 'TRZRY'], ['TRZRY', 'XAUT']
       ];
       
       const pairExists = supportedPairs.some(([asset1, asset2]) => 
@@ -63,7 +64,7 @@ class SwapService {
       );
       
       if (!pairExists) {
-        throw new Error('Only USDC ⟷ XAUT and USDC ⟷ TRZRY swaps are currently supported');
+        throw new Error('Only USDC ⟷ XAUT, USDC ⟷ TRZRY, and XAUT ⟷ TRZRY swaps are supported');
       }
 
       let outputAmount: number;
@@ -94,9 +95,9 @@ class SwapService {
           exchangeRate = goldPricePerOz;
         }
       } else if ((inputAsset === 'USDC' && outputAsset === 'TRZRY') || (inputAsset === 'TRZRY' && outputAsset === 'USDC')) {
-        // TRZRY swaps - use fixed rate for now (1:1 with USDC)
+        // TRZRY swaps - use live market price from Uniswap V3
         provider = 'dex';
-        const trzryPrice = 1.0; // Fixed rate for demo
+        const trzryPrice = await this.getTRZRYPrice();
         priceSource.trzryPrice = trzryPrice;
         priceSource.timestamp = new Date().toISOString();
 
@@ -110,6 +111,36 @@ class SwapService {
           const feeAmount = (grossUsdAmount * this.FEE_BPS) / 10000;
           outputAmount = grossUsdAmount - feeAmount;
           exchangeRate = trzryPrice;
+        }
+      } else if ((inputAsset === 'XAUT' && outputAsset === 'TRZRY') || (inputAsset === 'TRZRY' && outputAsset === 'XAUT')) {
+        // XAUT ↔ TRZRY direct swap
+        provider = 'dex';
+        
+        // Get live TRZRY price from Uniswap V3
+        const trzryPriceInUSDC = await this.getTRZRYPrice();
+        
+        // Get live XAUT price (gold price)
+        const goldPrice = await goldPriceService.getCurrentPrice();
+        const xautPriceInUSDC = goldPrice.usd_per_gram * 31.1035; // per oz
+        
+        priceSource.trzryPrice = trzryPriceInUSDC;
+        priceSource.xautPrice = xautPriceInUSDC;
+        priceSource.timestamp = new Date().toISOString();
+        
+        if (inputAsset === 'XAUT' && outputAsset === 'TRZRY') {
+          // XAUT → TRZRY: Calculate via USDC equivalent
+          const usdcValue = inputAmount * xautPriceInUSDC;
+          const feeAmount = (usdcValue * this.FEE_BPS) / 10000;
+          const netUsdcValue = usdcValue - feeAmount;
+          outputAmount = netUsdcValue / trzryPriceInUSDC;
+          exchangeRate = xautPriceInUSDC / trzryPriceInUSDC;
+        } else {
+          // TRZRY → XAUT: Calculate via USDC equivalent
+          const usdcValue = inputAmount * trzryPriceInUSDC;
+          const feeAmount = (usdcValue * this.FEE_BPS) / 10000;
+          const netUsdcValue = usdcValue - feeAmount;
+          outputAmount = netUsdcValue / xautPriceInUSDC;
+          exchangeRate = trzryPriceInUSDC / xautPriceInUSDC;
         }
       } else {
         throw new Error('Unsupported asset pair');
@@ -356,6 +387,34 @@ class SwapService {
         success: false,
         error: err instanceof Error ? err.message : 'Swap execution failed'
       };
+    }
+  }
+
+  /**
+   * Get live TRZRY price from Uniswap V3
+   */
+  private async getTRZRYPrice(): Promise<number> {
+    try {
+      // Query Uniswap V3 for TRZRY/USDC price
+      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_uniswap_quote',
+          inputAsset: 'TRZRY',
+          outputAsset: 'USDC',
+          amount: 1.0, // Query price of 1 TRZRY
+          slippage: 0.1
+        }
+      });
+
+      if (error || !data?.success) {
+        console.warn('⚠️ Failed to fetch live TRZRY price, using fallback 1.0');
+        return 1.0; // Fallback to 1:1 if pool doesn't exist yet
+      }
+
+      return data.outputAmount; // Live TRZRY price in USDC
+    } catch (error) {
+      console.error('❌ Error fetching TRZRY price:', error);
+      return 1.0; // Fallback
     }
   }
 

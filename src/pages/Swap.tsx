@@ -59,10 +59,8 @@ const Swap = () => {
         return;
       }
 
-      // Validate asset pair
-      if ((fromAsset === 'USDC' && toAsset !== 'XAUT' && toAsset !== 'TRZRY') || 
-          (fromAsset === 'XAUT' && toAsset !== 'USDC') ||
-          (fromAsset === 'TRZRY' && toAsset !== 'USDC')) {
+      // All direct pairs are now supported: USDC↔XAUT, USDC↔TRZRY, XAUT↔TRZRY
+      if (fromAsset === toAsset) {
         setAutoQuote(null);
         return;
       }
@@ -124,21 +122,7 @@ const Swap = () => {
       return;
     }
 
-    // Validate asset pair - Allow USDC ↔ XAUT and USDC ↔ TRZRY
-    const validPairs = [
-      ['USDC', 'XAUT'], ['XAUT', 'USDC'],
-      ['USDC', 'TRZRY'], ['TRZRY', 'USDC']
-    ];
-    const isValidPair = validPairs.some(([from, to]) => from === fromAsset && to === toAsset);
-    
-    if (!isValidPair) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Swap Pair",
-        description: "You can only swap between USDC ↔ XAUT or USDC ↔ TRZRY"
-      });
-      return;
-    }
+    // All direct pairs are supported (validation in swapService)
     
     try {
       setLoading(true);
@@ -360,6 +344,16 @@ const Swap = () => {
                 readOnly
               />
             </div>
+            {fromAsset === 'XAUT' && toAsset === 'TRZRY' && (
+              <div className="text-xs text-muted-foreground mt-2">
+                💡 Direct XAUT → TRZRY swap on Uniswap V3 (market price)
+              </div>
+            )}
+            {fromAsset === 'TRZRY' && toAsset === 'XAUT' && (
+              <div className="text-xs text-muted-foreground mt-2">
+                💡 Direct TRZRY → XAUT swap on Uniswap V3 (market price)
+              </div>
+            )}
           </div>
         </div>
 
