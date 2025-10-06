@@ -36,7 +36,7 @@ const Index = () => {
   const goldBalance = getBalance('XAUT');
   
   // Calculate portfolio values
-  const goldValueUsd = goldPrice && goldBalance ? goldBalance * goldPrice.usd_per_gram : 0;
+  const goldValueUsd = goldPrice && goldBalance ? goldBalance * goldPrice.usd_per_oz : 0;
   const totalPortfolioValue = usdcBalance + goldValueUsd;
 
   // Handle refresh
