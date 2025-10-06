@@ -1,3 +1,4 @@
+// App.tsx - Main application routing and providers (updated for swap success flow)
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
