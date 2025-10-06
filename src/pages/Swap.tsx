@@ -124,12 +124,18 @@ const Swap = () => {
       return;
     }
 
-    // Validate asset pair
-    if ((fromAsset === 'USDC' && toAsset !== 'XAUT') || (fromAsset === 'XAUT' && toAsset !== 'USDC')) {
+    // Validate asset pair - Allow USDC ↔ XAUT and USDC ↔ TRZRY
+    const validPairs = [
+      ['USDC', 'XAUT'], ['XAUT', 'USDC'],
+      ['USDC', 'TRZRY'], ['TRZRY', 'USDC']
+    ];
+    const isValidPair = validPairs.some(([from, to]) => from === fromAsset && to === toAsset);
+    
+    if (!isValidPair) {
       toast({
         variant: "destructive",
         title: "Invalid Swap Pair",
-        description: "You can only swap between USDC and XAUT"
+        description: "You can only swap between USDC ↔ XAUT or USDC ↔ TRZRY"
       });
       return;
     }
