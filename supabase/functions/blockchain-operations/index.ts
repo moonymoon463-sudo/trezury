@@ -870,7 +870,27 @@ serve(async (req) => {
             throw new Error('Authentication required for swap execution');
           }
 
-          const { inputAsset, outputAsset, amount, slippage, walletPassword, quoteId } = body;
+      const { 
+        userId, 
+        inputAsset, 
+        outputAsset, 
+        amountIn, 
+        minAmountOut, 
+        slippageBps = 50,
+        walletPassword,
+        quoteId,
+        intentId
+      } = body as {
+        userId: string;
+        inputAsset: string;
+        outputAsset: string;
+        amountIn: string;
+        minAmountOut: string;
+        slippageBps?: number;
+        walletPassword?: string;
+        quoteId?: string;
+        intentId?: string;
+      };
           console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
           
           if (!amount) {
@@ -1042,8 +1062,20 @@ serve(async (req) => {
             sig.s
           );
           const pullReceipt = await pullTx.wait();
-          console.log(`✅ USDC pulled to relayer: ${pullReceipt.hash}`);
+          console.log(`✅ Funds pulled successfully: ${pullReceipt.hash}`);
           console.log(`💸 Amount transferred: ${amount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
+
+          // 🔒 Update intent status: funds pulled
+          if (intentId) {
+            await supabaseAdmin.from('transaction_intents').update({
+              status: 'funds_pulled',
+              pull_tx_hash: pullReceipt.hash,
+              funds_pulled_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }).eq('id', intentId);
+            console.log(`🔒 Intent ${intentId} updated: funds_pulled`);
+          }
+          
           
           // ===== PHASE 3: EXECUTE SWAP WITH REFUND LOGIC =====
           console.log(`\n🔄 PHASE 3: Executing swap with automatic refund on failure`);
@@ -1160,6 +1192,26 @@ serve(async (req) => {
           const userTransferReceipt = await userTransferTx.wait();
           console.log(`✅ User output transferred: ${userTransferReceipt.hash}\n`);
           console.log(`✅ SWAP SUCCESSFUL - User received net output\n`);
+
+          // 🔒 Update intent status: swap executed
+          if (intentId) {
+            await supabaseAdmin.from('transaction_intents').update({
+              status: 'swap_executed',
+              swap_tx_hash: swapReceipt.hash,
+              disbursement_tx_hash: userTransferReceipt.hash,
+              swap_executed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              blockchain_data: {
+                pull_tx_hash: pullReceipt.hash,
+                swap_tx_hash: swapReceipt.hash,
+                disbursement_tx_hash: userTransferReceipt.hash,
+                output_amount: netAmount,
+                relay_fee_usd: actualRelayFeeUsd
+              }
+            }).eq('id', intentId);
+            console.log(`🔒 Intent ${intentId} updated: swap_executed`);
+          }
+          
           
           const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, 6));
           
@@ -1176,13 +1228,28 @@ serve(async (req) => {
               
               console.log(`✅ REFUND SUCCESSFUL: ${refundReceipt.hash}`);
               console.log(`💰 Refunded ${amount} ${inputAsset} to ${userWallet.address}\n`);
+
+              // 🔒 Update intent status: refunded
+              if (intentId) {
+                await supabaseAdmin.from('transaction_intents').update({
+                  status: 'refunded',
+                  refund_tx_hash: refundReceipt.hash,
+                  failed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  error_message: `Swap failed: ${swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError)}`,
+                  error_details: { swap_error: swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError) }
+                }).eq('id', intentId);
+                console.log(`🔒 Intent ${intentId} updated: refunded`);
+              }
               
               return new Response(JSON.stringify({
                 success: false,
                 error: `Swap failed but funds were refunded: ${swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError)}`,
                 refunded: true,
+                requiresRefund: true,
                 refundTxHash: refundReceipt.hash,
-                pullTxHash: pullReceipt.hash
+                pullTxHash: pullReceipt.hash,
+                intentId
               }), {
                 status: 200,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1192,6 +1259,22 @@ serve(async (req) => {
               console.error(`🚨 User funds stuck in relayer wallet: ${relayerWallet.address}`);
               console.error(`🚨 Amount: ${amount} ${inputAsset}`);
               console.error(`🚨 User: ${userWallet.address}`);
+
+              // 🔒 Update intent status: critical failure
+              if (intentId) {
+                await supabaseAdmin.from('transaction_intents').update({
+                  status: 'failed_needs_manual_refund',
+                  failed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  error_message: 'Swap failed and automatic refund failed',
+                  error_details: {
+                    swap_error: swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError),
+                    refund_error: refundError instanceof Error ? refundError.message : String(refundError),
+                    pull_tx_hash: pullReceipt.hash
+                  }
+                }).eq('id', intentId);
+                console.log(`🔒 Intent ${intentId} updated: failed_needs_manual_refund`);
+              }
               
               // Create critical security alert
               await supabaseAdmin.from('security_alerts').insert({
@@ -1200,6 +1283,7 @@ serve(async (req) => {
                 title: 'Swap Failed and Refund Failed',
                 description: `Swap execution failed and automatic refund also failed. User funds stuck in relayer wallet.`,
                 metadata: {
+                  intent_id: intentId,
                   userAddress: userWallet.address,
                   relayerAddress: relayerWallet.address,
                   amount,
@@ -1217,7 +1301,8 @@ serve(async (req) => {
                 error: 'Swap failed and automatic refund failed. Admin has been notified. Your funds will be manually returned.',
                 criticalError: true,
                 pullTxHash: pullReceipt.hash,
-                requiresManualIntervention: true
+                requiresManualIntervention: true,
+                intentId
               }), {
                 status: 200,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -1313,6 +1398,31 @@ serve(async (req) => {
             
             if (txError || !txData) {
               console.error(`🚨 CRITICAL: On-chain swap succeeded but DB record creation failed:`, txError);
+
+              // 🔒 Update intent status: requires reconciliation
+              if (intentId) {
+                await supabaseAdmin.from('transaction_intents').update({
+                  status: 'requires_reconciliation',
+                  swap_tx_hash: swapReceipt.hash,
+                  disbursement_tx_hash: userTransferReceipt.hash,
+                  swap_executed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  error_message: 'Database record creation failed',
+                  error_details: {
+                    db_error: txError?.message,
+                    pull_tx_hash: pullReceipt.hash,
+                    swap_tx_hash: swapReceipt.hash
+                  },
+                  blockchain_data: {
+                    pull_tx_hash: pullReceipt.hash,
+                    swap_tx_hash: swapReceipt.hash,
+                    disbursement_tx_hash: userTransferReceipt.hash,
+                    output_amount: netAmount,
+                    relay_fee_usd: actualRelayFeeUsd
+                  }
+                }).eq('id', intentId);
+                console.log(`🔒 Intent ${intentId} updated: requires_reconciliation`);
+              }
               
               // Create security alert for reconciliation
               await supabaseAdmin.from('security_alerts').insert({
@@ -1321,7 +1431,8 @@ serve(async (req) => {
                 title: 'Swap Succeeded On-Chain But DB Record Failed',
                 description: 'Swap completed successfully on blockchain but failed to create database record. Requires reconciliation.',
                 metadata: {
-                  txHash: swapTxHash,
+                  intent_id: intentId,
+                  txHash: swapReceipt.hash,
                   userAddress: userWallet.address,
                   inputAsset,
                   outputAsset,
@@ -1336,11 +1447,12 @@ serve(async (req) => {
               return new Response(JSON.stringify({
                 success: true,
                 requiresReconciliation: true,
-                txHash: swapTxHash,
+                txHash: swapReceipt.hash,
                 userWallet: userWallet.address,
                 relayerAddress: relayerWallet.address,
                 netOutputAmount: netAmount.toString(),
                 relayFeeUsd: actualRelayFeeUsd.toFixed(2),
+                intentId,
                 error: 'On-chain swap succeeded but database record failed. Balance will update after reconciliation.',
                 dbError: txError?.message
               }), {
@@ -1523,9 +1635,21 @@ serve(async (req) => {
             break;
           }
           
+          
+          // 🔒 Update intent status: completed
+          if (intentId) {
+            await supabaseAdmin.from('transaction_intents').update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }).eq('id', intentId);
+            console.log(`🔒 Intent ${intentId} updated: completed`);
+          }
+
           result = {
             success: true,
             txHash: receipt.hash,
+            transactionId,
             blockNumber: receipt.blockNumber,
             gasUsed: receipt.gasUsed?.toString(),
             effectiveGasPrice: receipt.effectiveGasPrice?.toString(),
@@ -1542,7 +1666,8 @@ serve(async (req) => {
             relayerBalanceEth: relayerBalanceEth.toString(),
             platformFeeCollected: platformFeeCollected,
             platformFeeAsset: outputAsset,
-            pullTxHash: pullReceipt.hash
+            pullTxHash: pullReceipt.hash,
+            intentId
           };
         } catch (error) {
           console.error('❌ REAL Uniswap swap execution failed:', error);

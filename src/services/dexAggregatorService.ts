@@ -189,7 +189,8 @@ export class DexAggregatorService {
     userAddress: string,
     slippage: number = 0.5,
     walletPassword?: string,
-    quoteId?: string
+    quoteId?: string,
+    intentId?: string
   ): Promise<{ 
     success: boolean; 
     txHash?: string; 
@@ -205,6 +206,9 @@ export class DexAggregatorService {
     outputAmount?: string;
     relayerAddress?: string;
     requiresReconciliation?: boolean;
+    requiresRefund?: boolean;
+    refundTxHash?: string;
+    transactionId?: string;
   }> {
     try {
       console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
@@ -219,7 +223,8 @@ export class DexAggregatorService {
           amount: route.inputAmount,
           slippage: slippage,
           walletPassword: walletPassword,
-          quoteId: quoteId
+          quoteId: quoteId,
+          intentId: intentId // Pass intentId for tracking
           // userAddress is derived from JWT in the edge function
         }
       });
@@ -229,7 +234,9 @@ export class DexAggregatorService {
         return {
           success: false,
           error: swapResult?.error || swapError?.message || 'Real swap execution failed',
-          requiresImport: swapResult?.requiresImport || false
+          requiresImport: swapResult?.requiresImport || false,
+          requiresRefund: swapResult?.requiresRefund || false,
+          refundTxHash: swapResult?.refundTxHash
         };
       }
 
@@ -248,8 +255,10 @@ export class DexAggregatorService {
         netOutputAmount: swapResult.netOutputAmount,
         outputAmount: swapResult.outputAmount,
         relayerAddress: swapResult.relayerAddress,
+        transactionId: swapResult.transactionId,
         requiresReconciliation: swapResult.requiresReconciliation || false
       };
+      
       
     } catch (error) {
       console.error('❌ Error executing REAL swap:', error);

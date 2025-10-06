@@ -3,6 +3,7 @@ import { goldPriceService } from "./goldPrice";
 import { DexAggregatorService } from "./dexAggregatorService";
 import { secureWalletService } from "./secureWalletService";
 import { swapFeeService } from "./swapFeeService";
+import { safeSwapService } from "./safeSwapService";
 
 export interface SwapQuote {
   id: string;
@@ -25,6 +26,7 @@ export interface SwapQuote {
 export interface SwapResult {
   success: boolean;
   transactionId?: string;
+  intentId?: string;
   hash?: string;
   error?: string;
   gasFeePaidInTokens?: boolean;
@@ -32,6 +34,8 @@ export interface SwapResult {
   adjustedInputAmount?: number;
   requiresImport?: boolean; // Indicates user needs to import wallet key
   requiresReconciliation?: boolean; // Indicates on-chain success but DB record failed
+  requiresRefund?: boolean; // Indicates swap failed but refund succeeded
+  refundTxHash?: string;
   relayFeeUsd?: string;
   netOutputAmount?: string;
 }
@@ -275,6 +279,37 @@ class SwapService {
         };
       }
 
+      // 🔒 SAFETY: Create transaction intent BEFORE any blockchain interaction
+      console.log('[SwapService] Creating swap intent for safety tracking...');
+      const intentResult = await safeSwapService.createSwapIntent(
+        quoteId,
+        userId,
+        quoteData.input_asset,
+        quoteData.output_asset,
+        quoteData.input_amount,
+        quoteData.output_amount
+      );
+
+      if (!intentResult) {
+        console.error('[SwapService] ❌ Failed to create swap intent');
+        return {
+          success: false,
+          error: 'Failed to initialize swap tracking. Please try again.'
+        };
+      }
+
+      const { intentId, idempotencyKey } = intentResult;
+      console.log(`[SwapService] 🔒 Intent created: ${intentId}`);
+
+      // Update intent to validating status
+      await safeSwapService.updateIntentStatus(intentId, 'validating', {
+        validation_data: {
+          balance_checked: true,
+          quote_valid: true,
+          wallet_ready: true
+        }
+      });
+
       // Get optimal DEX route with user's wallet address
       console.log(`[SwapService] Finding best DEX route...`);
       const routes = await DexAggregatorService.getBestRoute(
@@ -287,6 +322,10 @@ class SwapService {
 
       if (!routes || routes.length === 0) {
         console.error('[SwapService] No swap routes available');
+        await safeSwapService.updateIntentStatus(intentId, 'validation_failed', {
+          error_message: 'No trading routes available',
+          error_details: { reason: 'no_routes_found' }
+        });
         return {
           success: false,
           error: 'No available swap routes found'
@@ -296,24 +335,32 @@ class SwapService {
       const bestRoute = routes[0];
       console.log(`[SwapService] Best route selected: ${bestRoute.protocol}`);
       
-      // Execute swap through DEX aggregator with user's wallet and password
+      // Execute swap through DEX aggregator with intent tracking
       const swapResult = await DexAggregatorService.executeOptimalSwap(
         bestRoute,
         userWalletAddress,
         this.SLIPPAGE_BPS / 100,
         walletPassword,
-        quoteId // Pass quoteId to blockchain operations
+        quoteId,
+        intentId // Pass intentId for tracking
       );
 
       if (!swapResult.success) {
+        console.error('[SwapService] Swap execution failed:', swapResult.error);
+        // Intent status already updated by blockchain-operations
         return {
           success: false,
           error: swapResult.error || 'DEX swap execution failed',
           requiresImport: swapResult.requiresImport,
           requiresReconciliation: swapResult.requiresReconciliation,
-          hash: swapResult.txHash
+          requiresRefund: swapResult.requiresRefund,
+          refundTxHash: swapResult.refundTxHash,
+          hash: swapResult.txHash,
+          intentId
         };
       }
+      
+      console.log('[SwapService] ✅ Swap executed successfully');
       
       // If reconciliation is required, return immediately (on-chain swap succeeded but DB write failed)
       if (swapResult.requiresReconciliation) {
@@ -322,9 +369,20 @@ class SwapService {
           success: true,
           requiresReconciliation: true,
           hash: swapResult.txHash,
+          intentId,
           transactionId: null // No DB record yet
         };
       }
+
+      // Intent status already updated to 'completed' by blockchain-operations
+      return {
+        success: true,
+        transactionId: swapResult.transactionId,
+        hash: swapResult.txHash,
+        intentId,
+        netOutputAmount: swapResult.netOutputAmount,
+        relayFeeUsd: swapResult.relayFeeUsd
+      };
 
       // Create transaction record with retry logic
       const netOutput = swapResult.netOutputAmount 
