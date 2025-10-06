@@ -148,8 +148,8 @@ async function getDecryptedUserWallet(userId: string): Promise<ethers.Wallet> {
     decryptionPassword
   );
   
-  // Create wallet WITHOUT provider (will be connected later)
-  const wallet = new ethers.Wallet(privateKey);
+  // Create wallet from decrypted key
+  const wallet = new ethers.Wallet(privateKey, provider);
   console.log(`✅ Decrypted wallet address: ${wallet.address}`);
   
   return wallet;
@@ -709,13 +709,20 @@ serve(async (req) => {
           
           // Get user's actual wallet by decrypting from database
           const userWallet = await getDecryptedUserWallet(authenticatedUserId);
-          const userWalletWithProvider = userWallet.connect(provider);
+          const userWalletWithProvider = userWallet; // Already connected to provider
           console.log(`👤 Using actual funded wallet: ${userWallet.address}`);
           
           // Validate token addresses (checksum corrected)
           const tokenInAddress = getContractAddress(inputAsset);
           const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
+          
+          // Create token contract and verify balance
+          const inputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, provider);
+          const verifyBalance = await inputTokenContract.balanceOf(userWallet.address);
+          console.log(`💰 Wallet ${userWallet.address} has ${ethers.formatUnits(verifyBalance, 6)} ${inputAsset}`);
+          
+          // Continue with existing token contracts
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
