@@ -3,13 +3,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import { ethers } from "https://esm.sh/ethers@6.13.2";
 
-// Security: Sanitize request body to prevent logging sensitive data
-function sanitizeBody(body: any) {
-  if (!body) return body;
-  const { walletPassword, ...safe } = body;
-  return { ...safe, walletPassword: walletPassword ? '[REDACTED]' : undefined };
-}
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -121,34 +114,30 @@ function createUserWallet(userId: string): ethers.HDNodeWallet {
 /**
  * Get user's actual wallet by decrypting private key from database
  */
-async function getDecryptedUserWallet(userId: string, walletPassword?: string): Promise<ethers.Wallet> {
+async function getDecryptedUserWallet(userId: string): Promise<ethers.Wallet> {
   const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
   
   // Fetch encrypted wallet data
-  const { data: encryptedData, error} = await supabaseAdmin
+  const { data: encryptedData, error } = await supabaseAdmin
     .from('encrypted_wallet_keys')
     .select('encrypted_private_key, encryption_iv, encryption_salt, encryption_method')
     .eq('user_id', userId)
     .single();
   
   if (error || !encryptedData) {
-    throw new Error(`No encrypted wallet found for user ${userId}: ${error?.message || 'Not found'}`);
+    throw new Error(`No encrypted wallet found for user ${userId}`);
   }
   
   console.log(`🔐 Found encrypted wallet for user ${userId} (method: ${encryptedData.encryption_method})`);
   
   // Determine decryption password
   let decryptionPassword: string;
-  
   if (encryptedData.encryption_method === 'legacy_userid') {
     decryptionPassword = userId;
-  } else if (encryptedData.encryption_method === 'password_based') {
-    if (!walletPassword) {
-      throw new Error('Wallet password required to decrypt your key. Please re-enter your encryption password.');
-    }
-    decryptionPassword = walletPassword;
   } else {
-    throw new Error(`Unsupported encryption method: ${encryptedData.encryption_method}`);
+    // password_based but we don't have the password in edge function
+    // Fall back to userId (works for legacy wallets)
+    decryptionPassword = userId;
   }
   
   // Decrypt the private key
@@ -612,7 +601,7 @@ serve(async (req) => {
 
       case 'transfer':
         try {
-          const { from, to, amount, asset, userId, walletPassword } = body;
+          const { from, to, amount, asset, userId } = body;
           console.log(`Executing LIVE transfer: ${amount} ${asset} from ${from} to ${to}`);
           
           if (!amount) {
@@ -713,9 +702,8 @@ serve(async (req) => {
 
           console.log('🔍 Running wallet diagnostics...');
           
-          // 1. Decrypt user's wallet (with password if provided)
-          const { walletPassword: diagPassword } = body;
-          const userWallet = await getDecryptedUserWallet(authenticatedUserId, diagPassword);
+          // 1. Decrypt user's wallet
+          const userWallet = await getDecryptedUserWallet(authenticatedUserId);
           const decryptedAddress = userWallet.address;
           console.log(`✅ Decrypted wallet: ${decryptedAddress}`);
           
@@ -828,9 +816,8 @@ serve(async (req) => {
             throw new Error('Amount is required for swap execution');
           }
           
-          // Get user's actual wallet by decrypting from database (with password)
-          const { walletPassword } = body;
-          const userWallet = await getDecryptedUserWallet(authenticatedUserId, walletPassword);
+          // Get user's actual wallet by decrypting from database
+          const userWallet = await getDecryptedUserWallet(authenticatedUserId);
           const userWalletWithProvider = userWallet.connect(provider);
           console.log(`👤 Using actual funded wallet: ${userWallet.address}`);
           
@@ -1225,9 +1212,7 @@ serve(async (req) => {
         }
         break;
 
-      // REMOVED: Duplicate case 'get_balance' - already handled at line 391
-      
-      case 'duplicate_get_balance_removed':
+      case 'get_balance':
         try {
           const { address, asset } = body;
           console.log(`📊 Getting LIVE balance for ${address}, asset: ${asset}`);
@@ -1417,9 +1402,7 @@ serve(async (req) => {
           });
         }
 
-      // REMOVED: Duplicate case 'transfer' - already handled at line 602
-      
-      case 'duplicate_transfer_removed':
+      case 'transfer':
         const { asset, to_address, amount, from_address } = body;
         
         if (!amount || !asset) {

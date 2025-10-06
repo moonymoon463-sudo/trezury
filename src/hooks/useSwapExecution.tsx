@@ -5,12 +5,12 @@ export const useSwapExecution = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const executeSwap = async (quoteId: string, userId: string, walletPassword: string): Promise<SwapResult> => {
+  const executeSwap = async (quoteId: string, userId: string): Promise<SwapResult> => {
     try {
       setLoading(true);
       setError(null);
 
-      const result = await swapService.executeSwap(quoteId, userId, walletPassword);
+      const result = await swapService.executeSwap(quoteId, userId);
       
       if (!result.success) {
         setError(result.error || 'Swap execution failed');

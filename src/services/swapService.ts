@@ -149,7 +149,7 @@ class SwapService {
   /**
    * Execute swap transaction
    */
-  async executeSwap(quoteId: string, userId: string, walletPassword: string): Promise<SwapResult> {
+  async executeSwap(quoteId: string, userId: string): Promise<SwapResult> {
     try {
       console.log(`[SwapService] Starting swap execution for quote: ${quoteId}, user: ${userId}`);
       
@@ -261,12 +261,11 @@ class SwapService {
       const bestRoute = routes[0];
       console.log(`[SwapService] Best route selected: ${bestRoute.protocol}`);
       
-      // Execute swap through DEX aggregator with user's wallet and password
+      // Execute swap through DEX aggregator with user's wallet
       const swapResult = await DexAggregatorService.executeOptimalSwap(
         bestRoute,
         userWalletAddress,
-        this.SLIPPAGE_BPS / 100,
-        walletPassword
+        this.SLIPPAGE_BPS / 100
       );
 
       if (!swapResult.success) {
