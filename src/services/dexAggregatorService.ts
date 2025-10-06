@@ -185,8 +185,9 @@ export class DexAggregatorService {
   static async executeOptimalSwap(
     route: DexRoute,
     userAddress: string,
-    slippage: number = 0.5
-  ): Promise<{ success: boolean; txHash?: string; error?: string; gasFeePaidInTokens?: boolean; gasFeeInTokens?: number; adjustedInputAmount?: number }> {
+    slippage: number = 0.5,
+    walletPassword?: string
+  ): Promise<{ success: boolean; txHash?: string; error?: string; gasFeePaidInTokens?: boolean; gasFeeInTokens?: number; adjustedInputAmount?: number; requiresImport?: boolean }> {
     try {
       console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
       console.log(`👤 User wallet: ${userAddress}`);
@@ -198,7 +199,8 @@ export class DexAggregatorService {
           inputAsset: route.inputAsset,
           outputAsset: route.outputAsset,
           amount: route.inputAmount,
-          slippage: slippage
+          slippage: slippage,
+          walletPassword: walletPassword
           // userAddress is derived from JWT in the edge function
         }
       });
@@ -207,7 +209,8 @@ export class DexAggregatorService {
         console.error(`❌ REAL ${route.protocol} swap failed:`, swapError || swapResult?.error);
         return {
           success: false,
-          error: swapResult?.error || swapError?.message || 'Real swap execution failed'
+          error: swapResult?.error || swapError?.message || 'Real swap execution failed',
+          requiresImport: swapResult?.requiresImport || false
         };
       }
 

@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { swapService, SwapQuote } from "@/services/swapService";
+import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 import AppLayout from "@/components/AppLayout";
 
 const Swap = () => {
@@ -25,6 +26,7 @@ const Swap = () => {
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [autoQuoteLoading, setAutoQuoteLoading] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
 
   // Handle URL parameters and initialize wallet
   useEffect(() => {
@@ -184,12 +186,20 @@ const Swap = () => {
       return;
     }
 
+    // Prompt for wallet password before executing
+    setShowPasswordPrompt(true);
+  };
+
+  const handlePasswordConfirm = async (walletPassword: string) => {
+    if (!user || !quote) return;
+    
     try {
       setLoading(true);
+      setShowPasswordPrompt(false);
       
-      // Execute the REAL swap transaction
+      // Execute the REAL swap transaction with wallet password
       console.log('🔄 Executing REAL on-chain swap...');
-      const result = await swapService.executeSwap(quote.id, user.id);
+      const result = await swapService.executeSwap(quote.id, user.id, walletPassword);
       
       if (result.success) {
         console.log('🎉 REAL swap completed successfully!');
@@ -219,7 +229,13 @@ const Swap = () => {
         
         // Enhanced error messages
         let errorMessage = result.error || "Swap execution failed";
-        if (errorMessage.includes("insufficient")) {
+        
+        // Check for wallet import requirement
+        if (result.requiresImport) {
+          errorMessage = "Please import your wallet key to sign transactions. Go to Settings > Wallet Management.";
+        } else if (errorMessage.includes("password")) {
+          errorMessage = "Invalid wallet password. Please try again.";
+        } else if (errorMessage.includes("insufficient")) {
           errorMessage = "Insufficient balance for swap and gas fees";
         } else if (errorMessage.includes("slippage")) {
           errorMessage = "Price moved too much - try again with higher slippage";
@@ -409,6 +425,14 @@ const Swap = () => {
           )}
         </div>
       </div>
+
+      {/* Password Prompt */}
+      <PasswordPrompt
+        open={showPasswordPrompt}
+        onOpenChange={setShowPasswordPrompt}
+        onConfirm={handlePasswordConfirm}
+        loading={loading}
+      />
     </AppLayout>
   );
 };

@@ -78,7 +78,7 @@ const SWAP_ROUTER_ABI = [
 ];
 
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas' | 'wallet_readonly_diagnostics';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -99,16 +99,164 @@ interface BlockchainOperationRequest {
   chain?: string; // For multi-chain fee collection
   route?: any; // DEX route information
   slippage?: number; // Slippage tolerance
+  walletPassword?: string; // For decrypting password-based encrypted keys
 }
 
-// Helper function to create deterministic user wallet
-function createUserWallet(userId: string): ethers.HDNodeWallet {
-  const baseEntropy = ethers.keccak256(
-    ethers.toUtf8Bytes(`aurum-wallet-${userId}-default`)
+// Security: Sanitize body to prevent logging sensitive data
+function sanitizeBody(body: any): any {
+  const sanitized = { ...body };
+  if (sanitized.walletPassword) {
+    sanitized.walletPassword = '[REDACTED]';
+  }
+  return sanitized;
+}
+
+// Helper function to resolve user wallet WITHOUT mutating database
+// This function NEVER creates or modifies database records
+async function resolveUserWallet(
+  userId: string, 
+  walletPassword?: string
+): Promise<{ wallet: ethers.Wallet | null; error?: string; requiresImport?: boolean }> {
+  try {
+    console.log(`🔍 Resolving wallet for user: ${userId}`);
+    
+    // Check if user has encrypted wallet key
+    const { data: encryptedKey, error: keyError } = await supabase
+      .from('encrypted_wallet_keys')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (keyError) {
+      console.error('Error fetching encrypted key:', keyError);
+      return { wallet: null, error: 'Failed to fetch wallet key' };
+    }
+    
+    if (encryptedKey) {
+      console.log(`🔐 Found encrypted wallet key (method: ${encryptedKey.encryption_method})`);
+      
+      // Decrypt the key based on encryption method
+      if (encryptedKey.encryption_method === 'password_based') {
+        if (!walletPassword) {
+          console.warn('⚠️ Password-based encryption requires walletPassword');
+          return { 
+            wallet: null, 
+            error: 'Wallet password required for decryption',
+            requiresImport: false
+          };
+        }
+        
+        // Decrypt using provided password
+        try {
+          const decryptedKey = await decryptWithPassword(
+            encryptedKey.encrypted_private_key,
+            encryptedKey.encryption_iv,
+            encryptedKey.encryption_salt,
+            walletPassword
+          );
+          const wallet = new ethers.Wallet(decryptedKey);
+          console.log(`✅ Decrypted wallet address: ${wallet.address}`);
+          return { wallet };
+        } catch (decryptError) {
+          console.error('❌ Decryption failed:', decryptError);
+          return { wallet: null, error: 'Invalid wallet password' };
+        }
+      } else if (encryptedKey.encryption_method === 'legacy_userid') {
+        // Legacy: decrypt using userId as password
+        try {
+          const decryptedKey = await decryptWithPassword(
+            encryptedKey.encrypted_private_key,
+            encryptedKey.encryption_iv,
+            encryptedKey.encryption_salt,
+            userId
+          );
+          const wallet = new ethers.Wallet(decryptedKey);
+          console.log(`✅ Decrypted legacy wallet address: ${wallet.address}`);
+          return { wallet };
+        } catch (decryptError) {
+          console.error('❌ Legacy decryption failed:', decryptError);
+          return { wallet: null, error: 'Failed to decrypt legacy wallet' };
+        }
+      } else {
+        return { wallet: null, error: `Unsupported encryption method: ${encryptedKey.encryption_method}` };
+      }
+    }
+    
+    // No encrypted key found - check if they have an address
+    const { data: addresses } = await supabase
+      .from('onchain_addresses')
+      .select('address')
+      .eq('user_id', userId)
+      .limit(1);
+    
+    if (addresses && addresses.length > 0) {
+      console.warn(`⚠️ User has onchain_address but no encrypted key - REQUIRES IMPORT`);
+      return { 
+        wallet: null, 
+        error: 'Wallet key must be imported to sign transactions',
+        requiresImport: true
+      };
+    }
+    
+    // No wallet at all
+    console.warn(`⚠️ User has no wallet - setup required`);
+    return { 
+      wallet: null, 
+      error: 'No wallet found. Please set up your wallet first.',
+      requiresImport: true
+    };
+    
+  } catch (error) {
+    console.error('Wallet resolution failed:', error);
+    return { 
+      wallet: null, 
+      error: error instanceof Error ? error.message : 'Wallet resolution failed'
+    };
+  }
+}
+
+// Helper function to decrypt with password using Web Crypto API
+async function decryptWithPassword(
+  encryptedHex: string,
+  ivHex: string,
+  saltHex: string,
+  password: string
+): Promise<string> {
+  // Convert hex strings to Uint8Array
+  const encrypted = new Uint8Array(encryptedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  const salt = new Uint8Array(saltHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  
+  // Derive key from password using PBKDF2
+  const passwordKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
   );
-  const entropy = baseEntropy.slice(2, 34);
-  const mnemonic = ethers.Mnemonic.fromEntropy('0x' + entropy);
-  return ethers.Wallet.fromPhrase(mnemonic.phrase);
+  
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    passwordKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv },
+    derivedKey,
+    encrypted
+  );
+  
+  return new TextDecoder().decode(decrypted);
 }
 
 // Helper function to validate authentication (supports both user JWT and service role)
@@ -179,7 +327,7 @@ serve(async (req) => {
 
   try {
     const body: BlockchainOperationRequest = await req.json();
-    console.log(`Processing LIVE blockchain operation: ${body.operation}`);
+    console.log(`Processing LIVE blockchain operation: ${body.operation}`, sanitizeBody(body));
     
     // Validate authentication for all operations except get_rpc_url
     let authenticatedUserId: string | null = null;
@@ -607,15 +755,29 @@ serve(async (req) => {
             throw new Error('Authentication required for swap execution');
           }
 
-          const { inputAsset, outputAsset, amount, slippage } = body;
+          const { inputAsset, outputAsset, amount, slippage, walletPassword } = body;
           console.log(`🔄 Executing REAL Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
           
           if (!amount) {
             throw new Error('Amount is required for swap execution');
           }
           
-          // Create user wallet deterministically
-          const userWallet = createUserWallet(authenticatedUserId);
+          // Resolve user wallet (NO DATABASE MUTATION)
+          const { wallet: userWallet, error: walletError, requiresImport } = await resolveUserWallet(
+            authenticatedUserId, 
+            walletPassword
+          );
+          
+          if (!userWallet || walletError) {
+            console.error(`❌ Wallet resolution failed: ${walletError}`);
+            result = {
+              success: false,
+              error: walletError || 'Failed to resolve wallet',
+              requiresImport: requiresImport || false
+            };
+            break;
+          }
+          
           const userWalletWithProvider = userWallet.connect(provider);
           console.log(`👤 User wallet: ${userWallet.address}`);
           
@@ -1077,6 +1239,77 @@ serve(async (req) => {
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
+
+      case 'wallet_readonly_diagnostics':
+        try {
+          if (!authenticatedUserId) {
+            throw new Error('Authentication required');
+          }
+          
+          console.log(`🔍 Running read-only wallet diagnostics for user: ${authenticatedUserId}`);
+          
+          // Get onchain addresses (READ ONLY)
+          const { data: addresses } = await supabase
+            .from('onchain_addresses')
+            .select('*')
+            .eq('user_id', authenticatedUserId);
+          
+          // Check encrypted keys (READ ONLY)
+          const { data: encryptedKey } = await supabase
+            .from('encrypted_wallet_keys')
+            .select('encryption_method, created_at, updated_at')
+            .eq('user_id', authenticatedUserId)
+            .maybeSingle();
+          
+          // Get live balances for all addresses
+          const balanceChecks = await Promise.all((addresses || []).map(async (addr) => {
+            try {
+              const contractAddress = getContractAddress(addr.asset);
+              const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
+              const balance = await contract.balanceOf(addr.address);
+              const decimals = await contract.decimals();
+              return {
+                address: addr.address,
+                asset: addr.asset,
+                chain: addr.chain,
+                balance: parseFloat(ethers.formatUnits(balance, decimals)),
+                setup_method: addr.setup_method
+              };
+            } catch (error) {
+              return {
+                address: addr.address,
+                asset: addr.asset,
+                chain: addr.chain,
+                balance: 0,
+                error: error instanceof Error ? error.message : 'Unknown error'
+              };
+            }
+          }));
+          
+          result = {
+            success: true,
+            diagnostics: {
+              user_id: authenticatedUserId,
+              onchain_addresses: addresses || [],
+              live_balances: balanceChecks,
+              encrypted_key_status: encryptedKey ? {
+                exists: true,
+                encryption_method: encryptedKey.encryption_method,
+                created_at: encryptedKey.created_at
+              } : {
+                exists: false
+              },
+              timestamp: new Date().toISOString()
+            }
+          };
+        } catch (error) {
+          console.error('❌ Diagnostics failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Diagnostics failed'
+          };
+        }
+        break;
 
       case 'estimate_gas':
         try {
