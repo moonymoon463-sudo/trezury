@@ -1079,32 +1079,47 @@ export type Database = {
       onchain_addresses: {
         Row: {
           address: string
+          archived_at: string | null
           asset: string
+          balance_snapshot: number | null
           chain: string
           created_at: string
           created_with_password: boolean | null
           id: string
+          is_primary: boolean | null
+          last_balance_check: string | null
           setup_method: string | null
+          status: string | null
           user_id: string
         }
         Insert: {
           address: string
+          archived_at?: string | null
           asset?: string
+          balance_snapshot?: number | null
           chain?: string
           created_at?: string
           created_with_password?: boolean | null
           id?: string
+          is_primary?: boolean | null
+          last_balance_check?: string | null
           setup_method?: string | null
+          status?: string | null
           user_id: string
         }
         Update: {
           address?: string
+          archived_at?: string | null
           asset?: string
+          balance_snapshot?: number | null
           chain?: string
           created_at?: string
           created_with_password?: boolean | null
           id?: string
+          is_primary?: boolean | null
+          last_balance_check?: string | null
           setup_method?: string | null
+          status?: string | null
           user_id?: string
         }
         Relationships: []
@@ -2131,6 +2146,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wallet_balance_alerts: {
+        Row: {
+          alert_reason: string
+          balance_change: number | null
+          created_at: string | null
+          current_balance: number | null
+          id: string
+          previous_balance: number | null
+          resolved: boolean | null
+          severity: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Insert: {
+          alert_reason: string
+          balance_change?: number | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          previous_balance?: number | null
+          resolved?: boolean | null
+          severity?: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Update: {
+          alert_reason?: string
+          balance_change?: number | null
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          previous_balance?: number | null
+          resolved?: boolean | null
+          severity?: string | null
+          user_id?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      wallet_change_audit: {
+        Row: {
+          balance_at_change: number | null
+          change_type: string
+          created_at: string | null
+          had_balance: boolean | null
+          id: string
+          metadata: Json | null
+          new_address: string | null
+          old_address: string | null
+          user_confirmed: boolean | null
+          user_id: string
+        }
+        Insert: {
+          balance_at_change?: number | null
+          change_type: string
+          created_at?: string | null
+          had_balance?: boolean | null
+          id?: string
+          metadata?: Json | null
+          new_address?: string | null
+          old_address?: string | null
+          user_confirmed?: boolean | null
+          user_id: string
+        }
+        Update: {
+          balance_at_change?: number | null
+          change_type?: string
+          created_at?: string | null
+          had_balance?: boolean | null
+          id?: string
+          metadata?: Json | null
+          new_address?: string | null
+          old_address?: string | null
+          user_confirmed?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
       }
       wallet_security_events: {
         Row: {
