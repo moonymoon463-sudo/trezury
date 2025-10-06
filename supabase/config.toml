@@ -91,6 +91,9 @@ verify_jwt = false
 [functions.moonpay-proxy]
 verify_jwt = true
 
+[functions.reconcile-transactions]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323
