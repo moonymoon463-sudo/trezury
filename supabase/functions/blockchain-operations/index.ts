@@ -130,6 +130,56 @@ const SWAP_ROUTER_ABI = [
   "function exactInput((bytes path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum)) external payable returns (uint256 amountOut)"
 ];
 
+// ===== DYNAMIC GAS MARGIN CALCULATION =====
+interface MarginConfig {
+  margin: number;
+  tier: 'normal' | 'busy' | 'high' | 'severe';
+  reason: string;
+}
+
+async function calculateDynamicMargin(provider: ethers.JsonRpcProvider): Promise<MarginConfig> {
+  try {
+    const currentBlock = await provider.getBlockNumber();
+    const blocksToCheck = 10;
+    
+    // Get recent blocks to analyze base fee growth
+    const blocks = await Promise.all(
+      Array.from({ length: blocksToCheck }, (_, i) => 
+        provider.getBlock(currentBlock - i)
+      )
+    );
+    
+    const baseFees = blocks
+      .filter(b => b?.baseFeePerGas)
+      .map(b => Number(b!.baseFeePerGas));
+    
+    if (baseFees.length < 2) {
+      return { margin: 1.5, tier: 'normal', reason: 'Insufficient block data' };
+    }
+    
+    // Calculate base fee growth rate
+    const oldestFee = baseFees[baseFees.length - 1];
+    const newestFee = baseFees[0];
+    const growthRate = ((newestFee - oldestFee) / oldestFee) * 100;
+    
+    console.log(`📊 Base fee analysis: ${oldestFee} → ${newestFee} Gwei (${growthRate.toFixed(1)}% change over ${blocksToCheck} blocks)`);
+    
+    // Dynamic margin tiers based on base fee growth
+    if (growthRate > 50) {
+      return { margin: 2.5, tier: 'severe', reason: `Base fee surging +${growthRate.toFixed(1)}%` };
+    } else if (growthRate > 25) {
+      return { margin: 2.0, tier: 'high', reason: `Base fee rising +${growthRate.toFixed(1)}%` };
+    } else if (growthRate > 10) {
+      return { margin: 1.75, tier: 'busy', reason: `Base fee elevated +${growthRate.toFixed(1)}%` };
+    } else {
+      return { margin: 1.5, tier: 'normal', reason: `Base fee stable (${growthRate.toFixed(1)}%)` };
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to calculate dynamic margin, using default:', error);
+    return { margin: 1.5, tier: 'normal', reason: 'Calculation error, using default' };
+  }
+}
+
 interface BlockchainOperationRequest {
   operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas' | 'wallet_readonly_diagnostics';
   quoteId?: string;
@@ -969,20 +1019,42 @@ serve(async (req) => {
           const slippageBps = Math.floor((slippage || 0.5) * 100);
           const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
           
-          // ===== STEP 3: ESTIMATE GAS FEE =====
-          console.log(`\n⛽ STEP 3: Estimating gas fee`);
+          // ===== STEP 3: ESTIMATE GAS FEE WITH DYNAMIC MARGIN =====
+          console.log(`\n⛽ STEP 3: Estimating gas fee with dynamic margin`);
+          
+          // Get dynamic margin based on network conditions
+          const marginConfig = await calculateDynamicMargin(provider);
+          console.log(`🎯 Dynamic margin: ${marginConfig.margin}x (${marginConfig.tier}) - ${marginConfig.reason}`);
+          
           const gasPrice = await provider.getFeeData();
           const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000);
           const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
           
           const ethPriceUsd = await getEthPrice().catch(() => 2500);
-          const relayFeeMargin = 1.2; // 20% margin
-          const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * relayFeeMargin;
+          const estimatedGasCostUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd;
+          
+          // Apply dynamic margin to relay fee
+          const estimatedRelayFeeUsd = estimatedGasCostUsd * marginConfig.margin;
+          
+          // Apply gas floor ($2 minimum) and ceiling ($50 maximum)
+          const GAS_FLOOR_USD = 2.0;
+          const GAS_CEILING_USD = 50.0;
+          
+          if (estimatedRelayFeeUsd < GAS_FLOOR_USD) {
+            console.log(`⬆️ Applying gas floor: $${GAS_FLOOR_USD} (was $${estimatedRelayFeeUsd.toFixed(2)})`);
+          }
+          
+          if (estimatedRelayFeeUsd > GAS_CEILING_USD) {
+            console.error(`❌ Gas fee exceeds ceiling: $${estimatedRelayFeeUsd.toFixed(2)} > $${GAS_CEILING_USD}`);
+            throw new Error(`Gas fee too high ($${estimatedRelayFeeUsd.toFixed(2)}). Network congestion is severe. Please try again later.`);
+          }
+          
+          const finalRelayFeeUsd = Math.max(estimatedRelayFeeUsd, GAS_FLOOR_USD);
           
           const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
-          const estimatedRelayFeeInOutputTokens = estimatedRelayFeeUsd / outputTokenPriceUsd;
+          const estimatedRelayFeeInOutputTokens = finalRelayFeeUsd / outputTokenPriceUsd;
           
-          console.log(`✅ Estimated relay fee: $${estimatedRelayFeeUsd.toFixed(2)} (${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset})\n`);
+          console.log(`✅ Estimated relay fee: $${finalRelayFeeUsd.toFixed(2)} (${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset}) [margin: ${marginConfig.margin}x]\n`);
           
           // ===== STEP 4: APPROVE RELAYER'S TOKENS FOR UNISWAP =====
           console.log(`📝 STEP 4: Approving relayer's ${inputAsset} for Uniswap router`);
@@ -1050,11 +1122,18 @@ serve(async (req) => {
           // Calculate actual relay fee from gas used
           const gasPrice2 = await provider.getFeeData();
           const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice2.gasPrice || BigInt(0));
-          const actualRelayFeeUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd * relayFeeMargin;
+          const actualGasCostUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd;
+          const actualRelayFeeUsd = actualGasCostUsd * marginConfig.margin;
           const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
           const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
           
-          console.log(`✅ Gas used: ${receipt.gasUsed.toString()}, relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
+          // Check if actual gas exceeded estimate by >15% (after margin)
+          const gasOverrun = actualGasCostUsd > (estimatedGasCostUsd * marginConfig.margin * 1.15);
+          
+          console.log(`✅ Gas used: ${receipt.gasUsed.toString()}, actual relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
+          if (gasOverrun) {
+            console.warn(`⚠️ GAS OVERRUN: Actual $${actualGasCostUsd.toFixed(2)} > Estimated $${(estimatedGasCostUsd * marginConfig.margin * 1.15).toFixed(2)} (+15% tolerance)`);
+          }
           
           // ===== STEP 7: TRANSFER PLATFORM FEE =====
           console.log(`\n💸 STEP 7: Transferring platform fee to platform wallet`);
@@ -1086,13 +1165,42 @@ serve(async (req) => {
           
           const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, 6));
           
-          // ===== STEP 9: MONITOR RELAYER BALANCE =====
+          // ===== STEP 9: MONITOR RELAYER BALANCE WITH DATABASE ALERTS =====
           const relayerBalance = await provider.getBalance(relayerWallet.address);
           const relayerBalanceEth = parseFloat(ethers.formatEther(relayerBalance));
           console.log(`⚡ Relayer balance: ${relayerBalanceEth.toFixed(4)} ETH`);
           
+          // Create database alerts for low relayer balance
           if (relayerBalanceEth < 0.1) {
-            console.warn(`⚠️ RELAYER BALANCE LOW: ${relayerBalanceEth.toFixed(4)} ETH - Please fund relayer wallet!\n`);
+            console.error(`🚨 CRITICAL: Relayer balance below 0.1 ETH: ${relayerBalanceEth.toFixed(4)} ETH`);
+            
+            await supabase.from('security_alerts').insert({
+              alert_type: 'relayer_balance_critical',
+              severity: 'critical',
+              title: 'Relayer Wallet Balance Critical',
+              description: `Relayer ETH balance is critically low: ${relayerBalanceEth.toFixed(4)} ETH. Immediate funding required to prevent transaction failures.`,
+              metadata: {
+                current_balance_eth: relayerBalanceEth,
+                threshold_eth: 0.1,
+                relayer_address: relayerWallet.address,
+                timestamp: new Date().toISOString()
+              }
+            });
+          } else if (relayerBalanceEth < 0.2) {
+            console.warn(`⚠️ WARNING: Relayer balance below 0.2 ETH: ${relayerBalanceEth.toFixed(4)} ETH`);
+            
+            await supabase.from('security_alerts').insert({
+              alert_type: 'relayer_balance_low',
+              severity: 'medium',
+              title: 'Relayer Wallet Balance Low',
+              description: `Relayer ETH balance is getting low: ${relayerBalanceEth.toFixed(4)} ETH. Consider funding soon.`,
+              metadata: {
+                current_balance_eth: relayerBalanceEth,
+                threshold_eth: 0.2,
+                relayer_address: relayerWallet.address,
+                timestamp: new Date().toISOString()
+              }
+            });
           }
           
           // ===== STEP 10: RECORD TRANSACTION IN DATABASE (ATOMIC) =====
@@ -1200,6 +1308,49 @@ serve(async (req) => {
             }
             
             console.log(`✅ Balance snapshots recorded`);
+            
+            // ATOMIC WRITE: Fee reconciliation log
+            const gasPriceGwei = parseFloat(ethers.formatUnits(receipt.gasPrice || BigInt(0), 'gwei'));
+            const gasDifference = actualGasCostUsd - estimatedGasCostUsd;
+            
+            const { error: feeLogError } = await supabase.from('fee_reconciliation_log').insert({
+              transaction_id: transactionId,
+              quote_id: quoteId || null,
+              user_id: authenticatedUserId,
+              platform_fee_bps: PLATFORM_FEE_BPS,
+              platform_fee_amount: platformFeeCollected,
+              platform_fee_asset: outputAsset,
+              relay_fee_amount: relayFeeInOutputTokens,
+              relay_fee_asset: outputAsset,
+              relay_fee_usd: actualRelayFeeUsd,
+              total_fees_charged: totalFeeUsd,
+              estimated_gas_cost: estimatedGasCostUsd,
+              actual_gas_cost: actualGasCostUsd,
+              gas_difference: gasDifference,
+              gas_price_gwei: gasPriceGwei,
+              gas_used: Number(receipt.gasUsed),
+              relay_margin: marginConfig.margin,
+              exceeded_margin: gasOverrun,
+              output_asset: outputAsset,
+              output_amount_gross: grossAmount,
+              output_amount_net: netAmount,
+              chain: 'ethereum',
+              swap_protocol: useMultiHop ? 'uniswap_v3_multihop' : 'uniswap_v3_single',
+              metadata: {
+                margin_tier: marginConfig.tier,
+                margin_reason: marginConfig.reason,
+                swap_tx_hash: receipt.hash,
+                platform_fee_tx_hash: platformFeeReceipt.hash,
+                user_transfer_tx_hash: userTransferReceipt.hash
+              }
+            });
+            
+            if (feeLogError) {
+              console.error('⚠️ Failed to log fee reconciliation:', feeLogError);
+              // Don't throw - transaction succeeded, just log the error
+            } else {
+              console.log(`✅ Fee reconciliation logged with ${gasOverrun ? 'OVERRUN FLAG' : 'normal status'}`);
+            }
             
             // ATOMIC WRITE: Notification
             try {

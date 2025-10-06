@@ -770,6 +770,105 @@ export type Database = {
         }
         Relationships: []
       }
+      fee_reconciliation_log: {
+        Row: {
+          actual_gas_cost: number
+          chain: string | null
+          created_at: string | null
+          estimated_gas_cost: number
+          exceeded_margin: boolean | null
+          gas_difference: number | null
+          gas_price_gwei: number | null
+          gas_used: number | null
+          id: string
+          metadata: Json | null
+          output_amount_gross: number
+          output_amount_net: number
+          output_asset: string
+          platform_fee_amount: number
+          platform_fee_asset: string
+          platform_fee_bps: number
+          quote_id: string | null
+          relay_fee_amount: number
+          relay_fee_asset: string
+          relay_fee_usd: number
+          relay_margin: number
+          swap_protocol: string | null
+          total_fees_charged: number
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_gas_cost: number
+          chain?: string | null
+          created_at?: string | null
+          estimated_gas_cost: number
+          exceeded_margin?: boolean | null
+          gas_difference?: number | null
+          gas_price_gwei?: number | null
+          gas_used?: number | null
+          id?: string
+          metadata?: Json | null
+          output_amount_gross: number
+          output_amount_net: number
+          output_asset: string
+          platform_fee_amount: number
+          platform_fee_asset: string
+          platform_fee_bps?: number
+          quote_id?: string | null
+          relay_fee_amount: number
+          relay_fee_asset: string
+          relay_fee_usd: number
+          relay_margin?: number
+          swap_protocol?: string | null
+          total_fees_charged: number
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_gas_cost?: number
+          chain?: string | null
+          created_at?: string | null
+          estimated_gas_cost?: number
+          exceeded_margin?: boolean | null
+          gas_difference?: number | null
+          gas_price_gwei?: number | null
+          gas_used?: number | null
+          id?: string
+          metadata?: Json | null
+          output_amount_gross?: number
+          output_amount_net?: number
+          output_asset?: string
+          platform_fee_amount?: number
+          platform_fee_asset?: string
+          platform_fee_bps?: number
+          quote_id?: string | null
+          relay_fee_amount?: number
+          relay_fee_asset?: string
+          relay_fee_usd?: number
+          relay_margin?: number
+          swap_protocol?: string | null
+          total_fees_charged?: number
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_reconciliation_log_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_reconciliation_log_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_news: {
         Row: {
           category: string
@@ -2554,6 +2653,20 @@ export type Database = {
       }
     }
     Views: {
+      fee_analytics_summary: {
+        Row: {
+          avg_gas_difference: number | null
+          avg_platform_fee: number | null
+          avg_relay_fee: number | null
+          date: string | null
+          margin_exceeded_count: number | null
+          max_gas_overage: number | null
+          output_asset: string | null
+          swap_count: number | null
+          total_fees: number | null
+        }
+        Relationships: []
+      }
       reconciliation_alerts_summary: {
         Row: {
           alert_count: number | null
@@ -2741,6 +2854,10 @@ export type Database = {
       get_cron_secret: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_fee_reconciliation_summary: {
+        Args: { days_back?: number }
+        Returns: Json
       }
       get_gold_price_cron_status: {
         Args: Record<PropertyKey, never>
