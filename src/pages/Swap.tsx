@@ -394,9 +394,9 @@ const Swap = () => {
               </div>
               
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
-                <span className="text-base text-foreground md:text-sm">Gas Fee</span>
+                <span className="text-base text-foreground md:text-sm">Gas Fee (Relay)</span>
                 <span className="text-base text-green-600 md:text-sm font-medium">
-                  ~$1.50 (paid by relay)
+                  ~${(quote as any).estimatedRelayFeeUsd?.toFixed(2) || '1.50'} (paid by relay)
                 </span>
               </div>
               

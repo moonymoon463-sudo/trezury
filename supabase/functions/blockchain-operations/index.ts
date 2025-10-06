@@ -25,6 +25,47 @@ const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tethe
 const TRZRY_CONTRACT_RAW = '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B'; // Trezury token
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
+// ===== PRICE ORACLE HELPERS =====
+async function getEthPrice(): Promise<number> {
+  // Chainlink ETH/USD price feed on mainnet
+  const priceFeedAddress = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
+  try {
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const priceFeed = new ethers.Contract(
+      priceFeedAddress,
+      ['function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)'],
+      provider
+    );
+    const [, price] = await priceFeed.latestRoundData();
+    return parseFloat(ethers.formatUnits(price, 8));
+  } catch (error) {
+    console.warn('⚠️ Failed to get ETH price from Chainlink, using fallback:', error);
+    return 2500; // Fallback price
+  }
+}
+
+async function getXautPrice(): Promise<number> {
+  // Get gold price from DB
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const { data } = await supabaseAdmin
+      .from('gold_prices')
+      .select('usd_per_oz')
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .single();
+    
+    return data?.usd_per_oz || 3912;
+  } catch (error) {
+    console.warn('⚠️ Failed to get XAUT price from DB, using fallback:', error);
+    return 3912; // Fallback price
+  }
+}
+
 // Helper function to get checksummed contract address
 function getContractAddress(asset: string | undefined): string {
   if (!asset) {
@@ -856,15 +897,6 @@ serve(async (req) => {
           const slippageBps = Math.floor((slippage || 0.5) * 100);
           const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
           
-          // Check if user has enough ETH for gas
-          const ethBalance = await provider.getBalance(userWallet.address);
-          const gasEstimate = await provider.estimateGas({
-            to: UNISWAP_V3_ROUTER,
-            data: "0x"
-          });
-          const gasPrice = await provider.getFeeData();
-          const estimatedGasCost = gasEstimate * (gasPrice.gasPrice || BigInt(0));
-          
           // ERC-2771: Relayer pays gas, user just signs
           console.log(`🔐 Using gasless swap (relayer pays gas)\n`);
           
@@ -872,7 +904,22 @@ serve(async (req) => {
             throw new Error('Relayer wallet not configured. Please set RELAYER_PRIVATE_KEY and fund it with ETH.');
           }
           
-          console.log(`⛽ Estimated gas cost: ${ethers.formatEther(estimatedGasCost)} ETH (paid by relayer)\n`);
+          // ===== STEP 1: ESTIMATE GAS BEFORE SWAP =====
+          const gasPrice = await provider.getFeeData();
+          const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000); // Conservative estimate
+          const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
+          
+          // Get ETH price from oracle (fallback to hardcoded)
+          const ethPriceUsd = await getEthPrice().catch(() => 2500);
+          const relayFeeMargin = 1.2; // 20% margin
+          const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * relayFeeMargin;
+          
+          // Get output token price
+          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
+          const estimatedRelayFeeInOutputTokens = estimatedRelayFeeUsd / outputTokenPriceUsd;
+          
+          console.log(`⛽ Estimated gas: ${ethers.formatEther(estimatedGasCost)} ETH (~$${estimatedRelayFeeUsd.toFixed(2)})`);
+          console.log(`💵 Estimated relay fee: ${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset}\n`);
           
           // Execute the swap FROM USER'S WALLET
           const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
@@ -941,21 +988,32 @@ serve(async (req) => {
           
           console.log(`🎉 Swap completed: ${receipt.hash}`);
           
-          // Calculate relay fee (gas cost + 20% margin) in output tokens
+          // ===== STEP 2: CALCULATE ACTUAL RELAY FEE =====
           const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice.gasPrice || BigInt(0));
-          const ethPriceUsd = 2500; // TODO: Get from price oracle
-          const relayFeeUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd * 1.2; // 20% margin
+          const actualRelayFeeUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd * relayFeeMargin;
+          const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
           
-          // Get output token price
-          const outputTokenPriceUsd = outputAsset === 'XAUT' ? 3912 : 1;
-          const relayFeeInOutputTokens = relayFeeUsd / outputTokenPriceUsd;
+          console.log(`💵 Actual relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
           
-          console.log(`💵 Relay fee: $${relayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
-          
-          // Calculate and collect 0.8% platform fee from output tokens
-          const PLATFORM_FEE_BPS = 80; // 0.8%
+          // ===== STEP 3: TRANSFER RELAY FEE TO RELAYER (REIMBURSE GAS) =====
           const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
+          
+          if (relayFeeInOutputTokens > 0) {
+            const relayFeeAmountBigInt = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
+            const outputTokenWithUserSigner = outputTokenContract.connect(userWalletWithProvider);
+            const relayFeeTx = await (outputTokenWithUserSigner as any).transfer(
+              relayerWallet!.address,
+              relayFeeAmountBigInt
+            );
+            await relayFeeTx.wait();
+            console.log(`💸 Relay fee transferred: ${relayFeeInOutputTokens.toFixed(6)} ${outputAsset} -> ${relayerWallet!.address}`);
+          }
+          
+          // ===== STEP 4: CALCULATE PLATFORM FEE FROM NET BALANCE =====
+          const PLATFORM_FEE_BPS = 80; // 0.8%
           const userOutputBalance = await outputTokenContract.balanceOf(userWallet.address);
+          
+          // Platform fee is calculated AFTER relay fee is deducted
           const feeAmount = userOutputBalance * BigInt(PLATFORM_FEE_BPS) / BigInt(10000);
           let platformFeeCollected = 0;
           
@@ -965,7 +1023,16 @@ serve(async (req) => {
             const feeTx = await (outputTokenWithUserSigner as any).transfer(PLATFORM_WALLET, feeAmount);
             await feeTx.wait();
             platformFeeCollected = parseFloat(ethers.formatUnits(feeAmount, 6));
-            console.log(`💰 Platform fee collected: ${platformFeeCollected} ${outputAsset} -> ${PLATFORM_WALLET}`);
+            console.log(`💰 Platform fee collected: ${platformFeeCollected} ${outputAsset} (0.8% of net) -> ${PLATFORM_WALLET}`);
+          }
+          
+          // ===== STEP 5: MONITOR RELAYER BALANCE =====
+          const relayerBalance = await provider.getBalance(relayerWallet!.address);
+          const relayerBalanceEth = parseFloat(ethers.formatEther(relayerBalance));
+          console.log(`⚡ Relayer balance: ${relayerBalanceEth.toFixed(4)} ETH`);
+          
+          if (relayerBalanceEth < 0.1) {
+            console.warn(`⚠️ RELAYER BALANCE LOW: ${relayerBalanceEth.toFixed(4)} ETH - Please fund relayer wallet!`);
           }
           
           result = {
@@ -979,9 +1046,12 @@ serve(async (req) => {
             userWallet: userWallet.address,
             gasFeePaidByRelayer: true,
             relayFeeInOutputTokens: relayFeeInOutputTokens.toString(),
-            relayFeeUsd: relayFeeUsd.toString(),
-            netOutputAmount: (parseFloat(ethers.formatUnits(amountOut, 6)) - relayFeeInOutputTokens).toString(),
+            relayFeeUsd: actualRelayFeeUsd.toString(),
+            estimatedRelayFeeUsd: estimatedRelayFeeUsd.toString(),
+            estimatedRelayFeeInOutputTokens: estimatedRelayFeeInOutputTokens.toString(),
+            netOutputAmount: (parseFloat(ethers.formatUnits(amountOut, 6)) - relayFeeInOutputTokens - platformFeeCollected).toString(),
             relayerAddress: relayerWallet!.address,
+            relayerBalanceEth: relayerBalanceEth.toString(),
             adjustedInputAmount: parseFloat(ethers.formatUnits(adjustedAmountIn, 6)),
             platformFeeCollected: platformFeeCollected,
             platformFeeAsset: outputAsset
@@ -1043,10 +1113,19 @@ serve(async (req) => {
           const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
           const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
           
-          // Estimate gas for the swap (higher for multi-hop)
+          // Estimate gas and relay fee for the quote
           const gasEstimate = routeUsed === 'multi-hop-weth' ? 300000 : 200000;
+          const feeData = await provider.getFeeData();
+          const estimatedGasCost = BigInt(gasEstimate) * (feeData.gasPrice || BigInt(0));
+          
+          const ethPriceUsd = await getEthPrice().catch(() => 2500);
+          const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * 1.2; // 20% margin
+          
+          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
+          const estimatedRelayFeeInOutputTokens = estimatedRelayFeeUsd / outputTokenPriceUsd;
           
           console.log(`✅ Quote successful via ${routeUsed}: ${amount} ${inputAsset} = ${outputAmount} ${outputAsset}`);
+          console.log(`💵 Estimated relay fee: $${estimatedRelayFeeUsd.toFixed(2)} (${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
           
           result = {
             success: true,
