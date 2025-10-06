@@ -188,7 +188,8 @@ export class DexAggregatorService {
     route: DexRoute,
     userAddress: string,
     slippage: number = 0.5,
-    walletPassword?: string
+    walletPassword?: string,
+    quoteId?: string
   ): Promise<{ 
     success: boolean; 
     txHash?: string; 
@@ -203,10 +204,11 @@ export class DexAggregatorService {
     netOutputAmount?: string;
     outputAmount?: string;
     relayerAddress?: string;
+    requiresReconciliation?: boolean;
   }> {
     try {
       console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
-      console.log(`👤 User wallet: ${userAddress}`);
+      console.log(`👤 User wallet: ${userAddress}, Quote ID: ${quoteId || 'none'}`);
       
       // Execute REAL Uniswap V3 swap through blockchain operations with user's wallet
       const { data: swapResult, error: swapError } = await supabase.functions.invoke('blockchain-operations', {
@@ -216,7 +218,8 @@ export class DexAggregatorService {
           outputAsset: route.outputAsset,
           amount: route.inputAmount,
           slippage: slippage,
-          walletPassword: walletPassword
+          walletPassword: walletPassword,
+          quoteId: quoteId
           // userAddress is derived from JWT in the edge function
         }
       });
@@ -244,7 +247,8 @@ export class DexAggregatorService {
         relayFeeUsd: swapResult.relayFeeUsd,
         netOutputAmount: swapResult.netOutputAmount,
         outputAmount: swapResult.outputAmount,
-        relayerAddress: swapResult.relayerAddress
+        relayerAddress: swapResult.relayerAddress,
+        requiresReconciliation: swapResult.requiresReconciliation || false
       };
       
     } catch (error) {

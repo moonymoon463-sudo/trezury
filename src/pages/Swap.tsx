@@ -194,9 +194,20 @@ const Swap = () => {
       if (result.success) {
         console.log('🎉 REAL swap completed successfully!');
         
+        // Get fee details from result or quote
+        const platformFee = quote?.fee || 0;
+        const relayFee = result.relayFeeUsd ? parseFloat(result.relayFeeUsd) : 0;
+        const netReceived = result.netOutputAmount ? parseFloat(result.netOutputAmount) : quote?.outputAmount || 0;
+        
         toast({
-          title: "Swap Successful!",
-          description: "Your swap has been completed on the blockchain.",
+          title: "Swap Successful! 🎉",
+          description: (
+            <div className="space-y-1">
+              <p>Net received: {netReceived.toFixed(6)} {toAsset}</p>
+              <p className="text-xs text-muted-foreground">Platform fee: {platformFee.toFixed(6)} {toAsset}</p>
+              <p className="text-xs text-muted-foreground">Relay fee: ${relayFee.toFixed(2)} (covered)</p>
+            </div>
+          ),
         });
         
         // Navigate to success page with transaction data
@@ -208,7 +219,9 @@ const Swap = () => {
               input_asset: fromAsset,
               output_asset: toAsset,
               input_amount: parseFloat(fromAmount),
-              output_amount: quote?.outputAmount || 0,
+              output_amount: netReceived,
+              platform_fee: platformFee,
+              relay_fee: relayFee,
               exchange_rate: quote?.exchangeRate || 0,
               fee_usd: quote?.fee || 0,
               executed_at: new Date().toISOString()
@@ -224,19 +237,27 @@ const Swap = () => {
         // Check for reconciliation requirement
         if (result.requiresReconciliation && result.hash) {
           toast({
-            title: "Swap Completed with Delayed Recording",
+            title: "Swap Completed - Updating Records",
             description: (
               <div className="space-y-2">
-                <p>Your swap completed successfully on the blockchain, but we couldn't record it immediately.</p>
-                <p className="text-xs">Transaction: {result.hash.slice(0, 10)}...{result.hash.slice(-8)}</p>
-                <p className="text-xs">Your balance will update automatically within 5 minutes. You can verify on <a href={`https://etherscan.io/tx/${result.hash}`} target="_blank" rel="noopener noreferrer" className="underline">Etherscan</a></p>
+                <p>✅ Your swap succeeded on the blockchain!</p>
+                <p className="text-xs">Tx: {result.hash.slice(0, 10)}...{result.hash.slice(-8)}</p>
+                <p className="text-xs font-medium">💾 Recording transaction... Your balance will update automatically within 5 minutes.</p>
+                <a 
+                  href={`https://etherscan.io/tx/${result.hash}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-xs underline text-primary"
+                >
+                  View on Etherscan →
+                </a>
               </div>
             ),
-            duration: 10000,
+            duration: 15000,
           });
           
           // Refresh balances immediately to fetch on-chain state
-          refreshBalances();
+          setTimeout(() => refreshBalances(), 2000);
           return;
         }
         

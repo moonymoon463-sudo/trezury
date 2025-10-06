@@ -32,6 +32,8 @@ export interface SwapResult {
   adjustedInputAmount?: number;
   requiresImport?: boolean; // Indicates user needs to import wallet key
   requiresReconciliation?: boolean; // Indicates on-chain success but DB record failed
+  relayFeeUsd?: string;
+  netOutputAmount?: string;
 }
 
 class SwapService {
@@ -299,14 +301,28 @@ class SwapService {
         bestRoute,
         userWalletAddress,
         this.SLIPPAGE_BPS / 100,
-        walletPassword
+        walletPassword,
+        quoteId // Pass quoteId to blockchain operations
       );
 
       if (!swapResult.success) {
         return {
           success: false,
           error: swapResult.error || 'DEX swap execution failed',
-          requiresImport: swapResult.requiresImport
+          requiresImport: swapResult.requiresImport,
+          requiresReconciliation: swapResult.requiresReconciliation,
+          hash: swapResult.txHash
+        };
+      }
+      
+      // If reconciliation is required, return immediately (on-chain swap succeeded but DB write failed)
+      if (swapResult.requiresReconciliation) {
+        console.log('[SwapService] Swap succeeded on-chain but requires reconciliation');
+        return {
+          success: true,
+          requiresReconciliation: true,
+          hash: swapResult.txHash,
+          transactionId: null // No DB record yet
         };
       }
 

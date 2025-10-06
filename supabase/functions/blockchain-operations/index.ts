@@ -820,7 +820,7 @@ serve(async (req) => {
             throw new Error('Authentication required for swap execution');
           }
 
-          const { inputAsset, outputAsset, amount, slippage, walletPassword } = body;
+          const { inputAsset, outputAsset, amount, slippage, walletPassword, quoteId } = body;
           console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
           
           if (!amount) {
@@ -1095,16 +1095,25 @@ serve(async (req) => {
             console.warn(`⚠️ RELAYER BALANCE LOW: ${relayerBalanceEth.toFixed(4)} ETH - Please fund relayer wallet!\n`);
           }
           
-          // ===== STEP 10: RECORD TRANSACTION IN DATABASE =====
+          // ===== STEP 10: RECORD TRANSACTION IN DATABASE (ATOMIC) =====
           console.log(`\n💾 STEP 10: Recording transaction in database`);
           
+          const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
+          const grossAmount = parseFloat(ethers.formatUnits(relayerOutputBalance, 6));
+          const inputAmountFormatted = parseFloat(requiredAmount.toString()) / 1e6;
+          const totalFeeUsd = actualRelayFeeUsd + (platformFeeCollected * outputTokenPriceUsd);
+          
+          // Guardrail: Abort if net output is negative or zero
+          if (netAmount <= 0) {
+            console.error(`❌ CRITICAL: Net output is ${netAmount} ${outputAsset} - ABORTING DATABASE WRITE`);
+            throw new Error(`Net output amount invalid: ${netAmount} ${outputAsset}. Fees may have exceeded gross output.`);
+          }
+          
           try {
-            const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
-            const totalFeeUsd = actualRelayFeeUsd + (platformFeeCollected * outputTokenPriceUsd);
-            
+            // ATOMIC WRITE: Transaction record
             const { data: txData, error: txError } = await supabase.from('transactions').insert({
-              user_id: userId,
-              quote_id: quoteId,
+              user_id: authenticatedUserId,
+              quote_id: quoteId || null,
               type: 'swap',
               asset: outputAsset,
               quantity: netAmount,
@@ -1119,10 +1128,12 @@ serve(async (req) => {
                 platform_fee_tx_hash: platformFeeReceipt.hash,
                 user_transfer_tx_hash: userTransferReceipt.hash,
                 pull_tx_hash: pullReceipt.hash,
-                input_amount: parseFloat(requiredAmount.toString()) / 1e6,
-                output_amount_gross: parseFloat(ethers.formatUnits(relayerOutputBalance, 6)),
-                platform_fee: platformFeeCollected,
+                input_amount: inputAmountFormatted,
+                output_amount_gross: grossAmount,
+                platform_fee_collected: platformFeeCollected,
+                platform_fee_asset: outputAsset,
                 relay_fee: relayFeeInOutputTokens,
+                relay_fee_usd: actualRelayFeeUsd,
                 net_to_user: netAmount,
                 slippage: slippage || 0.5,
                 route: useMultiHop ? 'multi-hop' : 'single-hop',
@@ -1133,39 +1144,139 @@ serve(async (req) => {
             }).select('id').single();
             
             if (txError) {
-              console.error('❌ Failed to record transaction in DB:', txError);
-              // Don't fail the whole operation, just log
-            } else {
-              console.log('✅ Transaction recorded in database:', txData?.id);
-              
-              // Create notification for successful swap
-              try {
-                const inputAmountFormatted = (parseFloat(requiredAmount.toString()) / 1e6).toFixed(6);
-                const outputAmountFormatted = netAmount.toFixed(6);
-                
-                const { error: notifError } = await supabase.from('notifications').insert({
-                  user_id: userId,
-                  title: 'Swap Complete! 🎉',
-                  body: `Successfully swapped ${inputAmountFormatted} ${inputAsset} → ${outputAmountFormatted} ${outputAsset}`,
-                  kind: 'swap_completed',
-                  read: false,
-                  action_url: txData?.id ? `/transaction-detail/${txData.id}` : `/transactions`,
-                  icon: 'swap',
-                  priority: 'info'
-                });
-                
-                if (notifError) {
-                  console.error('❌ Failed to create notification:', notifError);
-                } else {
-                  console.log('✅ Swap notification created with link to transaction:', txData?.id);
-                }
-              } catch (notifErr) {
-                console.error('❌ Notification creation error:', notifErr);
-              }
+              console.error('❌ CRITICAL: Failed to record transaction:', txError);
+              throw new Error(`Transaction DB insert failed: ${txError.message}`);
             }
+            
+            console.log(`✅ Transaction recorded: ${txData.id}`);
+            const transactionId = txData.id;
+            
+            // ATOMIC WRITE: Fee collection request (platform fee only, relay fee stays with relayer)
+            const { error: feeError } = await supabase.from('fee_collection_requests').insert({
+              transaction_id: transactionId,
+              user_id: authenticatedUserId,
+              asset: outputAsset,
+              amount: platformFeeCollected,
+              from_address: relayerWallet.address,
+              to_address: PLATFORM_WALLET,
+              chain: 'ethereum',
+              status: 'completed',
+              external_tx_hash: platformFeeReceipt.hash,
+              completed_at: new Date().toISOString(),
+              metadata: {
+                collection_method: 'on_chain_immediate',
+                relay_fee_excluded: true,
+                relay_fee_usd: actualRelayFeeUsd,
+                relay_fee_in_tokens: relayFeeInOutputTokens
+              }
+            });
+            
+            if (feeError) {
+              console.error('❌ CRITICAL: Failed to record fee collection:', feeError);
+              throw new Error(`Fee collection DB insert failed: ${feeError.message}`);
+            }
+            
+            console.log(`✅ Fee collection recorded: ${platformFeeCollected} ${outputAsset}`);
+            
+            // ATOMIC WRITE: Balance snapshots (2 rows: input decrease, output increase)
+            const { error: balanceError } = await supabase.from('balance_snapshots').insert([
+              {
+                user_id: authenticatedUserId,
+                asset: inputAsset,
+                amount: -inputAmountFormatted,
+                snapshot_at: new Date().toISOString()
+              },
+              {
+                user_id: authenticatedUserId,
+                asset: outputAsset,
+                amount: netAmount,
+                snapshot_at: new Date().toISOString()
+              }
+            ]);
+            
+            if (balanceError) {
+              console.error('❌ CRITICAL: Failed to record balance snapshots:', balanceError);
+              throw new Error(`Balance snapshot DB insert failed: ${balanceError.message}`);
+            }
+            
+            console.log(`✅ Balance snapshots recorded`);
+            
+            // ATOMIC WRITE: Notification
+            try {
+              const { error: notifError } = await supabase.from('notifications').insert({
+                user_id: authenticatedUserId,
+                title: 'Swap Complete! 🎉',
+                body: `Swapped ${inputAmountFormatted.toFixed(6)} ${inputAsset} → ${netAmount.toFixed(6)} ${outputAsset}. Platform fee: ${platformFeeCollected.toFixed(6)} ${outputAsset}, Gas covered by relayer.`,
+                kind: 'swap_completed',
+                read: false,
+                action_url: `/transaction-detail/${transactionId}`,
+                icon: 'swap',
+                priority: 'info'
+              });
+              
+              if (notifError) {
+                console.error('⚠️ Notification creation failed (non-critical):', notifError);
+              } else {
+                console.log(`✅ Notification created`);
+              }
+            } catch (notifErr) {
+              console.error('⚠️ Notification error (non-critical):', notifErr);
+            }
+            
           } catch (dbError) {
-            console.error('❌ Database recording error:', dbError);
-            // Don't fail the whole operation
+            // CRITICAL FAILURE PATH: On-chain swap succeeded but DB writes failed
+            console.error('❌ CRITICAL DATABASE FAILURE - SWAP SUCCEEDED ON-CHAIN BUT NOT RECORDED:', dbError);
+            
+            const errorMessage = dbError instanceof Error ? dbError.message : 'Database write failed';
+            
+            // Record in failed_transaction_records for manual reconciliation
+            try {
+              await supabase.from('failed_transaction_records').insert({
+                user_id: authenticatedUserId,
+                quote_id: quoteId || null,
+                tx_hash: receipt.hash,
+                swap_data: {
+                  inputAsset,
+                  outputAsset,
+                  inputAmount: inputAmountFormatted,
+                  outputAmount: grossAmount,
+                  netAmount,
+                  platformFee: platformFeeCollected,
+                  relayFee: relayFeeInOutputTokens,
+                  exchangeRate: outputTokenPriceUsd,
+                  swapResult: {
+                    txHash: receipt.hash,
+                    platformFeeTxHash: platformFeeReceipt.hash,
+                    userTransferTxHash: userTransferReceipt.hash,
+                    pullTxHash: pullReceipt.hash,
+                    blockNumber: receipt.blockNumber
+                  }
+                },
+                error_message: errorMessage,
+                reconciled: false
+              });
+              
+              console.log('✅ Logged to failed_transaction_records for reconciliation');
+            } catch (logError) {
+              console.error('❌ FAILED TO LOG TO failed_transaction_records:', logError);
+            }
+            
+            // Return success with reconciliation flag (swap succeeded on-chain)
+            result = {
+              success: true,
+              requiresReconciliation: true,
+              txHash: receipt.hash,
+              blockNumber: receipt.blockNumber,
+              outputAmount: parseFloat(ethers.formatUnits(amountOut, 6)),
+              netOutputAmount: netAmount.toString(),
+              platformFeeCollected: platformFeeCollected,
+              relayFeeInOutputTokens: relayFeeInOutputTokens.toString(),
+              relayFeeUsd: actualRelayFeeUsd.toString(),
+              reconciliationMessage: 'Swap completed on-chain but requires manual database reconciliation. Your balance will update automatically.',
+              userWallet: userWallet.address,
+              relayerAddress: relayerWallet.address
+            };
+            break;
           }
           
           result = {
