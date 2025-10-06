@@ -185,7 +185,8 @@ export class DexAggregatorService {
   static async executeOptimalSwap(
     route: DexRoute,
     userAddress: string,
-    slippage: number = 0.5
+    slippage: number = 0.5,
+    walletPassword?: string
   ): Promise<{ success: boolean; txHash?: string; error?: string; gasFeePaidInTokens?: boolean; gasFeeInTokens?: number; adjustedInputAmount?: number }> {
     try {
       console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
@@ -198,7 +199,8 @@ export class DexAggregatorService {
           inputAsset: route.inputAsset,
           outputAsset: route.outputAsset,
           amount: route.inputAmount,
-          slippage: slippage
+          slippage: slippage,
+          walletPassword: walletPassword
           // userAddress is derived from JWT in the edge function
         }
       });

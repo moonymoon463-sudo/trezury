@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { swapService, SwapQuote } from "@/services/swapService";
 import AppLayout from "@/components/AppLayout";
+import { usePasswordPrompt } from "@/hooks/usePasswordPrompt";
 
 const Swap = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const Swap = () => {
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [autoQuoteLoading, setAutoQuoteLoading] = useState(false);
+  const { promptForPassword, PasswordPromptComponent } = usePasswordPrompt();
 
   // Handle URL parameters and initialize wallet
   useEffect(() => {
@@ -187,9 +189,22 @@ const Swap = () => {
     try {
       setLoading(true);
       
-      // Execute the REAL swap transaction
+      // Prompt user for wallet password
+      const walletPassword = await promptForPassword();
+      
+      if (!walletPassword) {
+        toast({
+          variant: "destructive",
+          title: "Password Required",
+          description: "Wallet password is required to sign transactions."
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Execute the REAL swap transaction with password
       console.log('🔄 Executing REAL on-chain swap...');
-      const result = await swapService.executeSwap(quote.id, user.id);
+      const result = await swapService.executeSwap(quote.id, user.id, walletPassword);
       
       if (result.success) {
         console.log('🎉 REAL swap completed successfully!');
@@ -251,6 +266,7 @@ const Swap = () => {
       showBottomNavOnAllScreens={true}
       className="flex flex-col h-full overflow-hidden"
     >
+      {PasswordPromptComponent}
       <div className="flex-1 flex flex-col px-4 sm:px-5 py-4 space-y-3 md:px-6 md:py-3 md:space-y-3 max-w-none w-full md:max-w-4xl mx-auto">
         {/* Wallet Status */}
         {secureWalletAddress && (

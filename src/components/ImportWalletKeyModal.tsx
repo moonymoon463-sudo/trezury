@@ -119,22 +119,26 @@ export function ImportWalletKeyModal({ open, onOpenChange, onSuccess }: ImportWa
         throw new Error(`Failed to store encrypted key: ${keyError.message}`);
       }
 
-      // Update onchain_addresses to the new address
-      const { error: addressError } = await supabase
-        .from('onchain_addresses')
-        .upsert({
-          user_id: user.id,
-          address: wallet.address,
-          chain: 'ethereum',
-          asset: 'USDC',
-          setup_method: 'imported_key',
-          created_with_password: true
-        }, {
-          onConflict: 'user_id'
-        });
+      // Update onchain_addresses for ALL supported assets
+      // This ensures the address is found for USDC, XAUT, and TRZRY queries
+      const assets = ['USDC', 'XAUT', 'TRZRY'];
+      for (const asset of assets) {
+        const { error: addressError } = await supabase
+          .from('onchain_addresses')
+          .upsert({
+            user_id: user.id,
+            address: wallet.address,
+            chain: 'ethereum',
+            asset,
+            setup_method: 'imported_key',
+            created_with_password: true
+          }, {
+            onConflict: 'user_id,asset'
+          });
 
-      if (addressError) {
-        throw new Error(`Failed to update address: ${addressError.message}`);
+        if (addressError) {
+          throw new Error(`Failed to update address for ${asset}: ${addressError.message}`);
+        }
       }
 
       // Log security event
