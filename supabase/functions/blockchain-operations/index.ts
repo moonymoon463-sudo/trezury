@@ -907,9 +907,9 @@ serve(async (req) => {
         quoteId?: string;
         intentId?: string;
       };
-          console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
+          console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${amountIn} ${inputAsset} to ${outputAsset}`);
           
-          if (!amount) {
+          if (!amountIn) {
             throw new Error('Amount is required for swap execution');
           }
           
@@ -942,7 +942,7 @@ serve(async (req) => {
           const tokenInAddress = getContractAddress(inputAsset);
           const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
-          const requiredAmount = ethers.parseUnits(amount.toString(), 6);
+          const requiredAmount = ethers.parseUnits(amountIn.toString(), 6);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
