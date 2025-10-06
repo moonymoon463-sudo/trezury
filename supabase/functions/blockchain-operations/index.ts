@@ -969,7 +969,6 @@ serve(async (req) => {
           }
           
           // 1.3: Apply slippage and validate minimum output
-          const slippageBps = Math.floor((slippage || 0.5) * 100);
           const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
           console.log(`✅ Minimum output with slippage: ${ethers.formatUnits(amountOutMinimum, 6)} ${outputAsset}`);
           
