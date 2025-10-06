@@ -1012,7 +1012,7 @@ serve(async (req) => {
             
             const multiHopParams = {
               path: path,
-              recipient: userWallet.address,
+              recipient: relayerWallet.address, // Relayer receives output first
               deadline: deadline,
               amountIn: requiredAmount,
               amountOutMinimum: amountOutMinimum
@@ -1026,7 +1026,7 @@ serve(async (req) => {
               tokenIn: tokenInAddress,
               tokenOut: tokenOutAddress,
               fee: fee,
-              recipient: userWallet.address,
+              recipient: relayerWallet.address, // Relayer receives output first
               deadline: deadline,
               amountIn: requiredAmount,
               amountOutMinimum: amountOutMinimum,
@@ -1039,132 +1039,52 @@ serve(async (req) => {
           }
           
           
-          // ===== STEP 6: CALCULATE ACTUAL RELAY FEE =====
-          console.log(`\n💵 STEP 6: Calculating actual relay fee from gas used`);
+          // ===== STEP 6: DISBURSE OUTPUT TOKENS =====
+          console.log(`\n💵 STEP 6: Calculating fees and disbursing output tokens`);
+          
+          // Get relayer's balance of output token after swap
+          const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
+          const relayerOutputBalance = await outputTokenContract.balanceOf(relayerWallet.address);
+          console.log(`📊 Relayer received: ${ethers.formatUnits(relayerOutputBalance, 6)} ${outputAsset}`);
+          
+          // Calculate actual relay fee from gas used
           const gasPrice2 = await provider.getFeeData();
           const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice2.gasPrice || BigInt(0));
           const actualRelayFeeUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd * relayFeeMargin;
           const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
+          const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
           
-          console.log(`✅ Actual relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})\n`);
+          console.log(`✅ Gas used: ${receipt.gasUsed.toString()}, relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
           
-          // ===== STEP 7: TRANSFER RELAY FEE TO RELAYER (REIMBURSE GAS) =====
-          console.log(`💸 STEP 7: Transferring relay fee from user to relayer`);
-          const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
+          // ===== STEP 7: TRANSFER PLATFORM FEE =====
+          console.log(`\n💸 STEP 7: Transferring platform fee to platform wallet`);
           
-          if (relayFeeInOutputTokens > 0) {
-            const relayFeeAmountBigInt = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
-            
-            // User must sign this transfer with EIP-3009 (gasless)
-            const relayFeeNonce = ethers.hexlify(ethers.randomBytes(32));
-            const relayFeeValidBefore = Math.floor(Date.now() / 1000) + 3600;
-            
-            const relayFeeDomain = {
-              name: outputAsset === 'USDC' ? 'USD Coin' : outputAsset,
-              version: '2',
-              chainId: 1,
-              verifyingContract: tokenOutAddress
-            };
-            
-            const relayFeeTypes = {
-              TransferWithAuthorization: [
-                { name: 'from', type: 'address' },
-                { name: 'to', type: 'address' },
-                { name: 'value', type: 'uint256' },
-                { name: 'validAfter', type: 'uint256' },
-                { name: 'validBefore', type: 'uint256' },
-                { name: 'nonce', type: 'bytes32' }
-              ]
-            };
-            
-            const relayFeeMessage = {
-              from: userWallet.address,
-              to: relayerWallet.address,
-              value: relayFeeAmountBigInt,
-              validAfter: 0,
-              validBefore: relayFeeValidBefore,
-              nonce: relayFeeNonce
-            };
-            
-            const relayFeeSig = ethers.Signature.from(
-              await userWallet.signTypedData(relayFeeDomain, relayFeeTypes, relayFeeMessage)
-            );
-            
-            const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, USDC_EIP3009_ABI, relayerWallet);
-            const relayFeeTx = await outputTokenWithRelayer.transferWithAuthorization(
-              userWallet.address,
-              relayerWallet.address,
-              relayFeeAmountBigInt,
-              0,
-              relayFeeValidBefore,
-              relayFeeNonce,
-              relayFeeSig.v,
-              relayFeeSig.r,
-              relayFeeSig.s
-            );
-            await relayFeeTx.wait();
-            console.log(`✅ Relay fee transferred: ${relayFeeInOutputTokens.toFixed(6)} ${outputAsset} -> ${relayerWallet.address}\n`);
-          }
-          
-          // ===== STEP 8: CALCULATE PLATFORM FEE FROM NET BALANCE =====
-          console.log(`💰 STEP 8: Collecting platform fee`);
+          // Calculate platform fee (0.8% of gross output)
           const PLATFORM_FEE_BPS = 80; // 0.8%
-          const userOutputBalance = await outputTokenContract.balanceOf(userWallet.address);
+          const platformFeeTokensWei = (relayerOutputBalance * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
           
-          const feeAmount = userOutputBalance * BigInt(PLATFORM_FEE_BPS) / BigInt(10000);
-          let platformFeeCollected = 0;
+          console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, 6)} ${outputAsset}`);
           
-          if (feeAmount > 0) {
-            const platformFeeNonce = ethers.hexlify(ethers.randomBytes(32));
-            const platformFeeValidBefore = Math.floor(Date.now() / 1000) + 3600;
-            
-            const platformFeeDomain = {
-              name: outputAsset === 'USDC' ? 'USD Coin' : outputAsset,
-              version: '2',
-              chainId: 1,
-              verifyingContract: tokenOutAddress
-            };
-            
-            const platformFeeTypes = {
-              TransferWithAuthorization: [
-                { name: 'from', type: 'address' },
-                { name: 'to', type: 'address' },
-                { name: 'value', type: 'uint256' },
-                { name: 'validAfter', type: 'uint256' },
-                { name: 'validBefore', type: 'uint256' },
-                { name: 'nonce', type: 'bytes32' }
-              ]
-            };
-            
-            const platformFeeMessage = {
-              from: userWallet.address,
-              to: PLATFORM_WALLET,
-              value: feeAmount,
-              validAfter: 0,
-              validBefore: platformFeeValidBefore,
-              nonce: platformFeeNonce
-            };
-            
-            const platformFeeSig = ethers.Signature.from(
-              await userWallet.signTypedData(platformFeeDomain, platformFeeTypes, platformFeeMessage)
-            );
-            
-            const outputTokenWithRelayer2 = new ethers.Contract(tokenOutAddress, USDC_EIP3009_ABI, relayerWallet);
-            const platformFeeTx = await outputTokenWithRelayer2.transferWithAuthorization(
-              userWallet.address,
-              PLATFORM_WALLET,
-              feeAmount,
-              0,
-              platformFeeValidBefore,
-              platformFeeNonce,
-              platformFeeSig.v,
-              platformFeeSig.r,
-              platformFeeSig.s
-            );
-            await platformFeeTx.wait();
-            platformFeeCollected = parseFloat(ethers.formatUnits(feeAmount, 6));
-            console.log(`✅ Platform fee collected: ${platformFeeCollected} ${outputAsset} (0.8% of net) -> ${PLATFORM_WALLET}\n`);
-          }
+          // Transfer platform fee using standard ERC-20 transfer (relayer pays gas)
+          const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, ERC20_ABI, relayerWallet);
+          const platformFeeTx = await outputTokenWithRelayer.transfer(PLATFORM_WALLET, platformFeeTokensWei);
+          const platformFeeReceipt = await platformFeeTx.wait();
+          console.log(`✅ Platform fee transferred: ${platformFeeReceipt.hash}`);
+          
+          // ===== STEP 8: TRANSFER REMAINING TOKENS TO USER =====
+          console.log(`\n💸 STEP 8: Transferring remaining output to user`);
+          
+          // Calculate remaining tokens for user (gross - relay fee - platform fee)
+          const userTokensWei = relayerOutputBalance - relayFeeTokensWei - platformFeeTokensWei;
+          
+          console.log(`📝 User receives: ${ethers.formatUnits(userTokensWei, 6)} ${outputAsset}`);
+          
+          // Transfer user's net output using standard ERC-20 transfer (relayer pays gas)
+          const userTransferTx = await outputTokenWithRelayer.transfer(userWallet.address, userTokensWei);
+          const userTransferReceipt = await userTransferTx.wait();
+          console.log(`✅ User output transferred: ${userTransferReceipt.hash}\n`);
+          
+          const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, 6));
           
           // ===== STEP 9: MONITOR RELAYER BALANCE =====
           const relayerBalance = await provider.getBalance(relayerWallet.address);
