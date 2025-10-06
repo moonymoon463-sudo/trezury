@@ -111,99 +111,6 @@ function createUserWallet(userId: string): ethers.HDNodeWallet {
   return ethers.Wallet.fromPhrase(mnemonic.phrase);
 }
 
-/**
- * Get user's actual wallet by decrypting private key from database
- */
-async function getDecryptedUserWallet(userId: string): Promise<ethers.Wallet> {
-  const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-  
-  // Fetch encrypted wallet data
-  const { data: encryptedData, error } = await supabaseAdmin
-    .from('encrypted_wallet_keys')
-    .select('encrypted_private_key, encryption_iv, encryption_salt, encryption_method')
-    .eq('user_id', userId)
-    .single();
-  
-  if (error || !encryptedData) {
-    throw new Error(`No encrypted wallet found for user ${userId}`);
-  }
-  
-  console.log(`🔐 Found encrypted wallet for user ${userId} (method: ${encryptedData.encryption_method})`);
-  
-  // Determine decryption password
-  let decryptionPassword: string;
-  if (encryptedData.encryption_method === 'legacy_userid') {
-    decryptionPassword = userId;
-  } else {
-    // password_based but we don't have the password in edge function
-    // Fall back to userId (works for legacy wallets)
-    decryptionPassword = userId;
-  }
-  
-  // Decrypt the private key
-  const privateKey = await decryptPrivateKey(
-    encryptedData.encrypted_private_key,
-    encryptedData.encryption_iv,
-    encryptedData.encryption_salt,
-    decryptionPassword
-  );
-  
-  // Create wallet from decrypted key
-  const wallet = new ethers.Wallet(privateKey, provider);
-  console.log(`✅ Decrypted wallet address: ${wallet.address}`);
-  
-  return wallet;
-}
-
-/**
- * Decrypt private key using AES-256-GCM (matches client-side encryption)
- */
-async function decryptPrivateKey(
-  encryptedKeyBase64: string,
-  ivBase64: string,
-  saltBase64: string,
-  password: string
-): Promise<string> {
-  const KDF_ITERATIONS = 100000;
-  
-  // Decode base64 strings to Uint8Array
-  const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
-  const iv = Uint8Array.from(atob(ivBase64), c => c.charCodeAt(0));
-  const encryptedData = Uint8Array.from(atob(encryptedKeyBase64), c => c.charCodeAt(0));
-  
-  // Derive decryption key from password using PBKDF2
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  );
-  
-  const key = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: salt,
-      iterations: KDF_ITERATIONS,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt']
-  );
-  
-  // Decrypt the private key
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv },
-    key,
-    encryptedData
-  );
-  
-  return new TextDecoder().decode(decrypted);
-}
-
 // Helper function to validate authentication (supports both user JWT and service role)
 async function validateAuth(req: Request): Promise<{ 
   userId: string | null, 
@@ -707,22 +614,15 @@ serve(async (req) => {
             throw new Error('Amount is required for swap execution');
           }
           
-          // Get user's actual wallet by decrypting from database
-          const userWallet = await getDecryptedUserWallet(authenticatedUserId);
-          const userWalletWithProvider = userWallet; // Already connected to provider
-          console.log(`👤 Using actual funded wallet: ${userWallet.address}`);
+          // Create user wallet deterministically
+          const userWallet = createUserWallet(authenticatedUserId);
+          const userWalletWithProvider = userWallet.connect(provider);
+          console.log(`👤 User wallet: ${userWallet.address}`);
           
           // Validate token addresses (checksum corrected)
           const tokenInAddress = getContractAddress(inputAsset);
           const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
-          
-          // Create token contract and verify balance
-          const inputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, provider);
-          const verifyBalance = await inputTokenContract.balanceOf(userWallet.address);
-          console.log(`💰 Wallet ${userWallet.address} has ${ethers.formatUnits(verifyBalance, 6)} ${inputAsset}`);
-          
-          // Continue with existing token contracts
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
