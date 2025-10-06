@@ -432,11 +432,15 @@ serve(async (req) => {
     const body: BlockchainOperationRequest = await req.json();
     console.log(`Processing LIVE blockchain operation: ${body.operation}`, sanitizeBody(body));
     
-    // Validate authentication for all operations except get_rpc_url
+    // Validate authentication for most operations
+    // Read-only operations like get_balance just need an auth header present
     let authenticatedUserId: string | null = null;
     let isServiceRole = false;
     
-    if (body.operation !== 'get_rpc_url') {
+    const readOnlyOps = ['get_rpc_url', 'get_balance', 'get_all_balances'];
+    
+    if (!readOnlyOps.includes(body.operation)) {
+      // Full authentication required for state-modifying operations
       try {
         const authResult = await validateAuth(req);
         authenticatedUserId = authResult.userId;
@@ -454,6 +458,18 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    } else if (body.operation !== 'get_rpc_url') {
+      // For read-only operations, just verify authorization header is present
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) {
+        console.log('❌ Missing authorization header for read-only operation');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Authorization required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log(`✅ Authorization header present for read-only operation: ${body.operation}`);
+    }
       
       // Check transaction velocity for operations that modify state (only for user requests)
       const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'execute_uniswap_swap', 'collect_fee'];

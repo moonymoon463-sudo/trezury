@@ -35,7 +35,7 @@ export function useWalletBalance() {
       setWalletAddress(address);
 
       // Fetch live balances from blockchain via edge function
-      const { data: usdcResult } = await supabase.functions.invoke('blockchain-operations', {
+      const { data: usdcResult, error: usdcError } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'get_balance',
           address: address,
@@ -43,7 +43,7 @@ export function useWalletBalance() {
         }
       });
 
-      const { data: xautResult } = await supabase.functions.invoke('blockchain-operations', {
+      const { data: xautResult, error: xautError } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'get_balance', 
           address: address,
@@ -51,13 +51,18 @@ export function useWalletBalance() {
         }
       });
 
-      const { data: trzryResult } = await supabase.functions.invoke('blockchain-operations', {
+      const { data: trzryResult, error: trzryError } = await supabase.functions.invoke('blockchain-operations', {
         body: {
           operation: 'get_balance', 
           address: address,
           asset: 'TRZRY'
         }
       });
+      
+      // Log any errors for debugging
+      if (usdcError) console.error('USDC balance fetch error:', usdcError);
+      if (xautError) console.error('XAUT balance fetch error:', xautError);
+      if (trzryError) console.error('TRZRY balance fetch error:', trzryError);
       
       const usdcBalance = usdcResult?.success ? usdcResult.balance : 0;
       const xautBalance = xautResult?.success ? xautResult.balance : 0;
