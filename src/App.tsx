@@ -25,6 +25,7 @@ import BuyGoldConfirmation from "./pages/BuyGoldConfirmation";
 import SellGold from "./pages/SellGold";
 import OffRampReturn from "./pages/OffRampReturn";
 import Swap from "./pages/Swap";
+import SwapSuccess from "./pages/SwapSuccess";
 import Wallet from "./pages/Wallet";
 import BuySellHub from "./pages/BuySellHub";
 import Transactions from "./pages/Transactions";
@@ -103,6 +104,7 @@ const AppRoutes = () => {
       <Route path="/sell-gold" element={<ProtectedRoute><SellGold /></ProtectedRoute>} />
       <Route path="/offramp/return" element={<ProtectedRoute><OffRampReturn /></ProtectedRoute>} />
       <Route path="/swap" element={<ProtectedRoute><Swap /></ProtectedRoute>} />
+      <Route path="/swap/success" element={<ProtectedRoute><SwapSuccess /></ProtectedRoute>} />
       <Route path="/ai-chat" element={<ProtectedRoute><AIChat /></ProtectedRoute>} />
       <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />

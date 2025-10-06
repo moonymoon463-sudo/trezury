@@ -1137,6 +1137,31 @@ serve(async (req) => {
               // Don't fail the whole operation, just log
             } else {
               console.log('✅ Transaction recorded in database');
+              
+              // Create notification for successful swap
+              try {
+                const inputAmountFormatted = (parseFloat(requiredAmount.toString()) / 1e6).toFixed(6);
+                const outputAmountFormatted = netAmount.toFixed(6);
+                
+                const { error: notifError } = await supabase.from('notifications').insert({
+                  user_id: userId,
+                  title: 'Swap Complete! 🎉',
+                  body: `Successfully swapped ${inputAmountFormatted} ${inputAsset} → ${outputAmountFormatted} ${outputAsset}`,
+                  kind: 'swap_completed',
+                  read: false,
+                  action_url: `/transactions`,
+                  icon: 'swap',
+                  priority: 'info'
+                });
+                
+                if (notifError) {
+                  console.error('❌ Failed to create notification:', notifError);
+                } else {
+                  console.log('✅ Swap notification created');
+                }
+              } catch (notifErr) {
+                console.error('❌ Notification creation error:', notifErr);
+              }
             }
           } catch (dbError) {
             console.error('❌ Database recording error:', dbError);

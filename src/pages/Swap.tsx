@@ -210,25 +210,28 @@ const Swap = () => {
       if (result.success) {
         console.log('🎉 REAL swap completed successfully!');
         
-        // Enhanced success message with gas info
-        let successDescription = `Successfully swapped ${fromAmount} ${fromAsset} for ${toAsset}`;
-        if (result.gasFeePaidInTokens) {
-          successDescription += ` (Gas paid from ${fromAsset}: ${result.gasFeeInTokens?.toFixed(6)})`;
-        }
-        if (result.hash) {
-          successDescription += `. Tx: ${result.hash.slice(0, 10)}...`;
-        }
-        
         toast({
           title: "Swap Successful!",
-          description: successDescription
+          description: "Your swap has been completed on the blockchain.",
         });
         
-        // Reset form
-        setFromAmount('');
-        setQuote(null);
+        // Navigate to success page with transaction data
+        navigate("/swap/success", {
+          state: {
+            transaction: {
+              tx_hash: result.hash,
+              input_asset: fromAsset,
+              output_asset: toAsset,
+              input_amount: parseFloat(fromAmount),
+              output_amount: quote?.outputAmount || 0,
+              exchange_rate: quote?.exchangeRate || 0,
+              fee_usd: quote?.fee || 0,
+              executed_at: new Date().toISOString()
+            }
+          }
+        });
         
-        // Refresh balances to show real on-chain data
+        // Refresh balances in background
         refreshBalances();
       } else {
         console.error('❌ REAL swap failed:', result.error);

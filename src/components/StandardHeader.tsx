@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import AurumLogo from '@/components/AurumLogo';
 import { ConnectionStatusBadge } from '@/components/ConnectionStatusBadge';
+import NotificationBell from '@/components/NotificationBell';
+import { useAuth } from '@/hooks/useAuth';
 
 interface StandardHeaderProps {
   title?: string;
@@ -29,6 +31,7 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
   rightActions
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleBack = () => {
     if (onBack) {
@@ -78,6 +81,7 @@ const StandardHeader: React.FC<StandardHeaderProps> = ({
               </div>
             ) : (
               <>
+                {user && <NotificationBell />}
                 {showRefreshButton && (
                   <Button 
                     variant="ghost" 

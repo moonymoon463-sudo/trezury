@@ -1033,28 +1033,37 @@ export type Database = {
       }
       notifications: {
         Row: {
+          action_url: string | null
           body: string
           created_at: string
+          icon: string | null
           id: string
           kind: string
+          priority: string | null
           read: boolean | null
           title: string
           user_id: string
         }
         Insert: {
+          action_url?: string | null
           body: string
           created_at?: string
+          icon?: string | null
           id?: string
           kind: string
+          priority?: string | null
           read?: boolean | null
           title: string
           user_id: string
         }
         Update: {
+          action_url?: string | null
           body?: string
           created_at?: string
+          icon?: string | null
           id?: string
           kind?: string
+          priority?: string | null
           read?: boolean | null
           title?: string
           user_id?: string
