@@ -1776,41 +1776,6 @@ serve(async (req) => {
         }
         break;
 
-      case 'get_balance':
-        try {
-          const { address, asset } = body;
-          console.log(`📊 Getting LIVE balance for ${address}, asset: ${asset}`);
-          
-          if (!address || !isValidEthereumAddress(address)) {
-            throw new Error('Invalid Ethereum address');
-          }
-          
-          // Use checksummed contract address
-          const contractAddress = getContractAddress(asset);
-          const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
-          
-          const balance = await contract.balanceOf(address);
-          const decimals = await contract.decimals();
-          const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
-          
-          console.log(`✅ LIVE balance retrieved: ${formattedBalance} ${asset}`);
-          
-          result = {
-            success: true,
-            balance: formattedBalance,
-            asset,
-            address
-          };
-        } catch (error) {
-          console.error('❌ LIVE balance query failed:', error);
-          result = {
-            success: false,
-            error: error instanceof Error ? error.message : 'Balance query failed'
-          };
-        }
-        break;
-
-
       case 'collect_fee':
         try {
           const { userAddress, feeAmount, asset, userId, transactionId, chain = 'ethereum', toAddress } = body;
@@ -2089,13 +2054,12 @@ serve(async (req) => {
         
         console.log(`LIVE transfer completed with hash: ${mockTxHash}`);
         
-        return new Response(JSON.stringify({ 
+        result = { 
           success: true,
           tx_hash: mockTxHash,
           status: 'completed'
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        };
+        break;
 
       default:
         throw new Error(`Unknown operation: ${body.operation}`);
