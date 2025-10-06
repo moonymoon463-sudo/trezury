@@ -217,15 +217,15 @@ async function resolveUserWallet(
 
 // Helper function to decrypt with password using Web Crypto API
 async function decryptWithPassword(
-  encryptedHex: string,
-  ivHex: string,
-  saltHex: string,
+  encryptedBase64: string,
+  ivBase64: string,
+  saltBase64: string,
   password: string
 ): Promise<string> {
-  // Convert hex strings to Uint8Array
-  const encrypted = new Uint8Array(encryptedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const iv = new Uint8Array(ivHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-  const salt = new Uint8Array(saltHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  // Convert base64 strings to Uint8Array (matching frontend implementation)
+  const encrypted = new Uint8Array(atob(encryptedBase64).split('').map(c => c.charCodeAt(0)));
+  const iv = new Uint8Array(atob(ivBase64).split('').map(c => c.charCodeAt(0)));
+  const salt = new Uint8Array(atob(saltBase64).split('').map(c => c.charCodeAt(0)));
   
   // Derive key from password using PBKDF2
   const passwordKey = await crypto.subtle.importKey(
