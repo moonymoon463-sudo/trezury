@@ -890,6 +890,7 @@ serve(async (req) => {
         inputAsset, 
         outputAsset, 
         amountIn, 
+        amount,
         minAmountOut, 
         slippageBps = 50,
         walletPassword,
@@ -899,16 +900,21 @@ serve(async (req) => {
         userId: string;
         inputAsset: string;
         outputAsset: string;
-        amountIn: string;
+        amountIn?: string;
+        amount?: string;
         minAmountOut: string;
         slippageBps?: number;
         walletPassword?: string;
         quoteId?: string;
         intentId?: string;
       };
-          console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${amountIn} ${inputAsset} to ${outputAsset}`);
           
-          if (!amountIn) {
+          // Support both parameter names for backward compatibility
+          const actualAmount = amountIn || amount;
+          
+          console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${actualAmount} ${inputAsset} to ${outputAsset}`);
+          
+          if (!actualAmount) {
             throw new Error('Amount is required for swap execution');
           }
           
@@ -941,7 +947,7 @@ serve(async (req) => {
           const tokenInAddress = getContractAddress(inputAsset);
           const tokenOutAddress = getContractAddress(outputAsset);
           const fee = 3000; // 0.3% pool fee
-          const requiredAmount = ethers.parseUnits(amountIn.toString(), 6);
+          const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
@@ -950,7 +956,7 @@ serve(async (req) => {
           const userBalance = await inputTokenContract.balanceOf(userWallet.address);
           
           if (userBalance < requiredAmount) {
-            throw new Error(`Insufficient ${inputAsset} balance. Required: ${amountIn}, Available: ${ethers.formatUnits(userBalance, 6)}`);
+            throw new Error(`Insufficient ${inputAsset} balance. Required: ${actualAmount}, Available: ${ethers.formatUnits(userBalance, 6)}`);
           }
           console.log(`✅ User has sufficient balance: ${ethers.formatUnits(userBalance, 6)} ${inputAsset}`);
           
@@ -1012,7 +1018,7 @@ serve(async (req) => {
           console.log(`✅ ALL CHECKS PASSED - Safe to pull funds\n`);
           
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
-          console.log(`\n🔐 PHASE 2: Pulling ${amountIn} ${inputAsset} from user to relayer (gasless)`);
+          console.log(`\n🔐 PHASE 2: Pulling ${actualAmount} ${inputAsset} from user to relayer (gasless)`);
           
           if (inputAsset !== 'USDC') {
             throw new Error('Gasless swaps currently only support USDC as input token');
@@ -1077,7 +1083,7 @@ serve(async (req) => {
           );
           const pullReceipt = await pullTx.wait();
           console.log(`✅ Funds pulled successfully: ${pullReceipt.hash}`);
-          console.log(`💸 Amount transferred: ${amountIn} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
+          console.log(`💸 Amount transferred: ${actualAmount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
 
           // 🔒 Update intent status: funds pulled
           if (intentId) {

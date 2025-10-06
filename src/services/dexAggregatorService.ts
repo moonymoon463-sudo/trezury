@@ -220,12 +220,11 @@ export class DexAggregatorService {
           operation: 'execute_uniswap_swap',
           inputAsset: route.inputAsset,
           outputAsset: route.outputAsset,
-          amount: route.inputAmount,
+          amountIn: route.inputAmount,
           slippage: slippage,
           walletPassword: walletPassword,
           quoteId: quoteId,
-          intentId: intentId // Pass intentId for tracking
-          // userAddress is derived from JWT in the edge function
+          intentId: intentId
         }
       });
 

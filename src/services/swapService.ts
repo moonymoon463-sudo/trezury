@@ -250,35 +250,11 @@ class SwapService {
         };
       }
 
-      console.log(`[SwapService] Quote is valid, checking balance...`);
+      console.log(`[SwapService] Quote is valid, proceeding with swap...`);
 
-      // Verify user has sufficient on-chain balance
-      const { data: balanceData, error: balanceError } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'get_balance',
-          address: userWalletAddress,
-          asset: quoteData.input_asset
-        }
-      });
-
-      if (balanceError || !balanceData?.success) {
-        console.error('[SwapService] Failed to verify balance:', balanceError);
-        return {
-          success: false,
-          error: 'Failed to verify wallet balance'
-        };
-      }
-
-      console.log(`[SwapService] Balance check: ${balanceData.balance} ${quoteData.input_asset} available`);
-
-      if (balanceData.balance < quoteData.input_amount) {
-        console.error('[SwapService] Insufficient balance');
-        return {
-          success: false,
-          error: `Insufficient ${quoteData.input_asset} balance. Required: ${quoteData.input_amount}, Available: ${balanceData.balance}`
-        };
-      }
-
+      // Balance check is performed in blockchain-operations edge function
+      // No need to check twice - reduces latency and complexity
+      
       // 🔒 SAFETY: Create transaction intent BEFORE any blockchain interaction
       console.log('[SwapService] Creating swap intent for safety tracking...');
       const intentResult = await safeSwapService.createSwapIntent(
