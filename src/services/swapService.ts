@@ -31,6 +31,7 @@ export interface SwapResult {
   gasFeeInTokens?: number;
   adjustedInputAmount?: number;
   requiresImport?: boolean; // Indicates user needs to import wallet key
+  requiresReconciliation?: boolean; // Indicates on-chain success but DB record failed
 }
 
 class SwapService {
@@ -309,49 +310,108 @@ class SwapService {
         };
       }
 
-      // Create transaction record
+      // Create transaction record with retry logic
       const netOutput = swapResult.netOutputAmount 
         ? parseFloat(swapResult.netOutputAmount) 
         : quoteData.output_amount;
-        
-      const { data: transaction, error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: userId,
-          quote_id: quoteId,
-          type: 'swap',
-          asset: quoteData.output_asset,
-          quantity: netOutput,
-          unit_price_usd: quoteData.unit_price_usd,
-          fee_usd: quoteData.input_amount * (this.FEE_BPS / 10000),
-          status: 'completed',
-          input_asset: quoteData.input_asset,
-          output_asset: quoteData.output_asset,
-          tx_hash: swapResult.txHash,
-          metadata: {
-            swapType: 'dex',
-            protocol: bestRoute.protocol,
-            route: bestRoute.route,
-            priceImpact: bestRoute.priceImpact,
-            gasEstimate: bestRoute.gasEstimate,
-            slippage: this.SLIPPAGE_BPS,
-            platformFee: this.FEE_BPS,
-            gasFeePaidInTokens: swapResult.gasFeePaidInTokens || false,
-            gasFeeInTokens: swapResult.gasFeeInTokens || 0,
-            adjustedInputAmount: swapResult.adjustedInputAmount,
-            gasPaymentMethod: swapResult.gasFeePaidInTokens ? 'tokens' : 'eth',
-            gasFeePaidByRelayer: swapResult.gasFeePaidByRelayer || false,
-            relayFeeInOutputTokens: swapResult.relayFeeInOutputTokens || '0',
-            relayFeeUsd: swapResult.relayFeeUsd || '0',
-            netOutputReceived: swapResult.netOutputAmount || swapResult.outputAmount,
-            relayerAddress: swapResult.relayerAddress || null
-          }
-        })
-        .select()
-        .single();
+      
+      let transaction = null;
+      let retryCount = 0;
+      const MAX_RETRIES = 3;
+      let dbRecordSuccess = false;
 
-      if (txError) {
-        console.error('Failed to create transaction record:', txError);
+      while (retryCount < MAX_RETRIES) {
+        try {
+          const { data, error } = await supabase
+            .from('transactions')
+            .insert({
+              user_id: userId,
+              quote_id: quoteId,
+              type: 'swap',
+              asset: quoteData.output_asset,
+              quantity: netOutput,
+              unit_price_usd: quoteData.unit_price_usd,
+              fee_usd: quoteData.input_amount * (this.FEE_BPS / 10000),
+              status: 'completed',
+              input_asset: quoteData.input_asset,
+              output_asset: quoteData.output_asset,
+              tx_hash: swapResult.txHash,
+              metadata: {
+                swapType: 'dex',
+                protocol: bestRoute.protocol,
+                route: bestRoute.route,
+                priceImpact: bestRoute.priceImpact,
+                gasEstimate: bestRoute.gasEstimate,
+                slippage: this.SLIPPAGE_BPS,
+                platformFee: this.FEE_BPS,
+                gasFeePaidInTokens: swapResult.gasFeePaidInTokens || false,
+                gasFeeInTokens: swapResult.gasFeeInTokens || 0,
+                adjustedInputAmount: swapResult.adjustedInputAmount,
+                gasPaymentMethod: swapResult.gasFeePaidInTokens ? 'tokens' : 'eth',
+                gasFeePaidByRelayer: swapResult.gasFeePaidByRelayer || false,
+                relayFeeInOutputTokens: swapResult.relayFeeInOutputTokens || '0',
+                relayFeeUsd: swapResult.relayFeeUsd || '0',
+                netOutputReceived: swapResult.netOutputAmount || swapResult.outputAmount,
+                relayerAddress: swapResult.relayerAddress || null
+              }
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          if (!data) throw new Error('Transaction insert returned no data');
+          
+          transaction = data;
+          dbRecordSuccess = true;
+          console.log('✅ Transaction record created successfully');
+          break; // Success!
+          
+        } catch (err) {
+          retryCount++;
+          console.error(`⚠️ Transaction record attempt ${retryCount}/${MAX_RETRIES} failed:`, err);
+          
+          if (retryCount >= MAX_RETRIES) {
+            // CRITICAL: Log for manual reconciliation
+            console.error('🚨 CRITICAL: On-chain swap succeeded but DB record failed', {
+              txHash: swapResult.txHash,
+              userId,
+              quoteId,
+              inputAsset: quoteData.input_asset,
+              outputAsset: quoteData.output_asset,
+              inputAmount: quoteData.input_amount,
+              outputAmount: netOutput,
+              error: err instanceof Error ? err.message : String(err)
+            });
+            
+            // Store failed transaction for reconciliation
+            await supabase.from('failed_transaction_records').insert({
+              user_id: userId,
+              tx_hash: swapResult.txHash,
+              quote_id: quoteId,
+              swap_data: {
+                inputAsset: quoteData.input_asset,
+                outputAsset: quoteData.output_asset,
+                inputAmount: quoteData.input_amount,
+                outputAmount: netOutput,
+                exchangeRate: quoteData.unit_price_usd,
+                protocol: bestRoute.protocol,
+                swapResult
+              },
+              error_message: err instanceof Error ? err.message : String(err)
+            });
+            
+            // Return with reconciliation flag
+            return {
+              success: false,
+              error: 'Swap completed on blockchain but failed to record. Your balance will update shortly.',
+              hash: swapResult.txHash,
+              requiresReconciliation: true
+            };
+          }
+          
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+        }
       }
 
       // Calculate and record swap fee
@@ -362,13 +422,29 @@ class SwapService {
       );
 
       // Record fee collection for tracking
+      let feeCollectionSuccess = false;
       if (transaction?.id) {
-        await swapFeeService.recordSwapFeeCollection(
+        const feeResult = await swapFeeService.recordSwapFeeCollection(
           userId,
           transaction.id,
           feeCalculation
         );
+        feeCollectionSuccess = feeResult.success;
       }
+
+      // Record metrics for monitoring
+      await supabase.from('swap_execution_metrics').insert({
+        on_chain_success: true,
+        db_record_success: dbRecordSuccess,
+        fee_collection_success: feeCollectionSuccess,
+        retry_count: retryCount,
+        user_id: userId,
+        metadata: {
+          txHash: swapResult.txHash,
+          inputAsset: quoteData.input_asset,
+          outputAsset: quoteData.output_asset
+        }
+      });
 
       // NOTE: No balance snapshot updates needed since the swap happened on-chain
       // Real balances are now reflected on the blockchain and will be fetched live

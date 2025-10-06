@@ -221,6 +221,25 @@ const Swap = () => {
       } else {
         console.error('❌ REAL swap failed:', result.error);
         
+        // Check for reconciliation requirement
+        if (result.requiresReconciliation && result.hash) {
+          toast({
+            title: "Swap Completed with Delayed Recording",
+            description: (
+              <div className="space-y-2">
+                <p>Your swap completed successfully on the blockchain, but we couldn't record it immediately.</p>
+                <p className="text-xs">Transaction: {result.hash.slice(0, 10)}...{result.hash.slice(-8)}</p>
+                <p className="text-xs">Your balance will update automatically within 5 minutes. You can verify on <a href={`https://etherscan.io/tx/${result.hash}`} target="_blank" rel="noopener noreferrer" className="underline">Etherscan</a></p>
+              </div>
+            ),
+            duration: 10000,
+          });
+          
+          // Refresh balances immediately to fetch on-chain state
+          refreshBalances();
+          return;
+        }
+        
         // Enhanced error messages
         let errorMessage = result.error || "Swap execution failed";
         

@@ -38,10 +38,21 @@ class SwapFeeService {
     userId: string,
     transactionId: string,
     feeCalculation: SwapFeeCalculation
-  ): Promise<void> {
+  ): Promise<{ success: boolean; error?: string }> {
     try {
+      // Validate transaction exists
+      const { data: txExists } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('id', transactionId)
+        .maybeSingle();
+
+      if (!txExists) {
+        return { success: false, error: 'Transaction not found' };
+      }
+
       // Record the fee as a separate balance snapshot for the platform wallet
-      const { error } = await supabase
+      const { error: snapshotError } = await supabase
         .from('balance_snapshots')
         .insert({
           user_id: userId, // Keep user_id for RLS, but mark as platform fee in metadata
@@ -50,12 +61,13 @@ class SwapFeeService {
           snapshot_at: new Date().toISOString(),
         });
 
-      if (error) {
-        console.error('Failed to record swap fee collection:', error);
+      if (snapshotError) {
+        console.error('Failed to record swap fee collection:', snapshotError);
+        return { success: false, error: snapshotError.message };
       }
 
       // Update transaction metadata to include fee information
-      await supabase
+      const { error: updateError } = await supabase
         .from('transactions')
         .update({
           metadata: {
@@ -69,8 +81,19 @@ class SwapFeeService {
         })
         .eq('id', transactionId);
 
+      if (updateError) {
+        console.error('Failed to update transaction metadata:', updateError);
+        return { success: false, error: updateError.message };
+      }
+
+      return { success: true };
+
     } catch (err) {
       console.error('Error recording swap fee collection:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Unknown error'
+      };
     }
   }
 

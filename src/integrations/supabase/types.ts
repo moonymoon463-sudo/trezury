@@ -597,6 +597,57 @@ export type Database = {
         }
         Relationships: []
       }
+      failed_transaction_records: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          quote_id: string | null
+          reconciled: boolean | null
+          reconciled_at: string | null
+          swap_data: Json
+          tx_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          quote_id?: string | null
+          reconciled?: boolean | null
+          reconciled_at?: string | null
+          swap_data: Json
+          tx_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          quote_id?: string | null
+          reconciled?: boolean | null
+          reconciled_at?: string | null
+          swap_data?: Json
+          tx_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "failed_transaction_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "failed_transaction_records_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_profiles_masked"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       faq_categories: {
         Row: {
           created_at: string
@@ -1715,6 +1766,42 @@ export type Database = {
           session_id?: string
           user_agent?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      swap_execution_metrics: {
+        Row: {
+          db_record_success: boolean
+          error_type: string | null
+          fee_collection_success: boolean
+          id: string
+          metadata: Json | null
+          on_chain_success: boolean
+          recorded_at: string | null
+          retry_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          db_record_success: boolean
+          error_type?: string | null
+          fee_collection_success: boolean
+          id?: string
+          metadata?: Json | null
+          on_chain_success: boolean
+          recorded_at?: string | null
+          retry_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          db_record_success?: boolean
+          error_type?: string | null
+          fee_collection_success?: boolean
+          id?: string
+          metadata?: Json | null
+          on_chain_success?: boolean
+          recorded_at?: string | null
+          retry_count?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
