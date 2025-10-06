@@ -2136,6 +2136,95 @@ export type Database = {
           },
         ]
       }
+      transaction_intents: {
+        Row: {
+          blockchain_data: Json | null
+          completed_at: string | null
+          created_at: string
+          disbursement_tx_hash: string | null
+          error_details: Json | null
+          error_message: string | null
+          expected_output_amount: number
+          failed_at: string | null
+          funds_pulled_at: string | null
+          id: string
+          idempotency_key: string
+          input_amount: number
+          input_asset: string
+          output_asset: string
+          pull_tx_hash: string | null
+          quote_id: string | null
+          refund_tx_hash: string | null
+          status: string
+          swap_executed_at: string | null
+          swap_tx_hash: string | null
+          updated_at: string
+          user_id: string
+          validated_at: string | null
+          validation_data: Json | null
+        }
+        Insert: {
+          blockchain_data?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          disbursement_tx_hash?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          expected_output_amount: number
+          failed_at?: string | null
+          funds_pulled_at?: string | null
+          id?: string
+          idempotency_key: string
+          input_amount: number
+          input_asset: string
+          output_asset: string
+          pull_tx_hash?: string | null
+          quote_id?: string | null
+          refund_tx_hash?: string | null
+          status?: string
+          swap_executed_at?: string | null
+          swap_tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+          validated_at?: string | null
+          validation_data?: Json | null
+        }
+        Update: {
+          blockchain_data?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          disbursement_tx_hash?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          expected_output_amount?: number
+          failed_at?: string | null
+          funds_pulled_at?: string | null
+          id?: string
+          idempotency_key?: string
+          input_amount?: number
+          input_asset?: string
+          output_asset?: string
+          pull_tx_hash?: string | null
+          quote_id?: string | null
+          refund_tx_hash?: string | null
+          status?: string
+          swap_executed_at?: string | null
+          swap_tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          validated_at?: string | null
+          validation_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_intents_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           asset: string
