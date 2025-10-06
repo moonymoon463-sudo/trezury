@@ -28,14 +28,11 @@ class WalletService {
    */
   async getWallet(userId: string): Promise<WalletInfo> {
     try {
-      // Get user's unique wallet address
+      // Get user's unique wallet address (read-only, no auto-creation)
       const address = await secureWalletService.getWalletAddress(userId);
       if (!address) {
         throw new Error('No wallet address found for user');
       }
-      
-      // Store wallet address in database if not exists
-      await this.ensureWalletStored(userId, address);
       
       // Get real blockchain balances
       const balances = await this.getWalletBalances(address);
@@ -128,38 +125,6 @@ class WalletService {
     }
   }
 
-  /**
-   * Store wallet address in database
-   */
-  private async ensureWalletStored(userId: string, address: string): Promise<void> {
-    try {
-      const { data: existing } = await supabase
-        .from('onchain_addresses')
-        .select('id')
-        .eq('user_id', userId)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        return; // Already stored
-      }
-
-      const { error } = await supabase
-        .from('onchain_addresses')
-        .insert({
-          user_id: userId,
-          address: address,
-          chain: 'ethereum',
-          asset: 'USDC'
-        });
-
-      if (error && error.code !== '23505') {
-        throw error;
-      }
-    } catch (error) {
-      console.warn('Could not store wallet address:', error);
-      // Continue anyway - not critical
-    }
-  }
 
   /**
    * Get stored wallet address

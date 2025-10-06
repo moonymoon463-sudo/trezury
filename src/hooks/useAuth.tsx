@@ -30,28 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
-        // Create wallet instantly for new sign-ins
-        if (event === 'SIGNED_IN' && session?.user) {
-          setTimeout(async () => {
-            try {
-              // Check if wallet already exists
-              const existingAddress = await secureWalletService.getWalletAddress(session.user.id);
-              
-              if (!existingAddress) {
-                // Create wallet instantly - NO PASSWORD NEEDED
-                await secureWalletService.generateRandomWallet(session.user.id);
-                
-                toast({
-                  title: "Wallet Created",
-                  description: "Your secure wallet has been created automatically",
-                });
-              }
-            } catch (error) {
-              console.error('Failed to create wallet:', error);
-            }
-          }, 1000);
-        }
       }
     );
 
@@ -128,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       toast({
         title: "Check your email",
-        description: "Please check your email for a verification link. Your wallet will be created automatically upon first login.",
+        description: "Please check your email for a verification link.",
       });
 
       // Log successful signup

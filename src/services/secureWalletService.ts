@@ -529,32 +529,38 @@ class SecureWalletService {
    */
   async getWalletAddress(userId: string): Promise<string | null> {
     try {
-      // Check for new encrypted wallet first
-      const { data: encryptedWallet } = await supabase
-        .from('encrypted_wallet_keys')
-        .select('user_id')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // Strategy: Prefer original/imported wallets, then fallback to earliest wallet
+      // This ensures we NEVER lose access to user's original funded wallet
       
-      if (encryptedWallet) {
-        // New system: get address from onchain_addresses
-        const { data: address } = await supabase
-          .from('onchain_addresses')
-          .select('address')
-          .eq('user_id', userId)
-          .maybeSingle();
-        return address?.address || null;
+      // First priority: Get wallets with preferred setup methods (imported, legacy, user_password)
+      const { data: preferredWallets } = await supabase
+        .from('onchain_addresses')
+        .select('address, setup_method, created_at')
+        .eq('user_id', userId)
+        .in('setup_method', ['imported_key', 'legacy', 'user_password'])
+        .order('created_at', { ascending: true });
+      
+      if (preferredWallets && preferredWallets.length > 0) {
+        console.log(`✅ Found ${preferredWallets.length} preferred wallet(s) for user ${userId}, using oldest:`, preferredWallets[0].address);
+        return preferredWallets[0].address;
       }
       
-      // Legacy: old deterministic wallet
-      const { data: legacyWallet } = await supabase
+      // Fallback: Get earliest wallet regardless of setup_method
+      const { data: anyWallet } = await supabase
         .from('onchain_addresses')
-        .select('address, created_with_password')
+        .select('address, setup_method, created_at')
         .eq('user_id', userId)
-        .eq('created_with_password', true)
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle();
       
-      return legacyWallet?.address || null;
+      if (anyWallet) {
+        console.log(`✅ Using earliest wallet for user ${userId}:`, anyWallet.address);
+        return anyWallet.address;
+      }
+      
+      console.warn(`⚠️ No wallet found for user ${userId}`);
+      return null;
     } catch (error) {
       console.error('Failed to get wallet address:', error);
       return null;
