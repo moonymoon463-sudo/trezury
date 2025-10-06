@@ -394,14 +394,21 @@ const Swap = () => {
               </div>
               
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
+                <span className="text-base text-foreground md:text-sm">Gas Fee</span>
+                <span className="text-base text-green-600 md:text-sm font-medium">
+                  ~$1.50 (paid by relay)
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Minimum Received</span>
                 <span className="text-base text-foreground md:text-sm">
                   {quote.minimumReceived.toFixed(6)} {toAsset}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
-                <span className="text-base text-foreground md:text-sm">You'll receive</span>
+              <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg border-2 border-primary md:px-4 md:py-2">
+                <span className="text-base text-foreground font-semibold md:text-sm">You'll receive (net)</span>
                 <span className="text-base text-foreground font-bold md:text-sm">
                   ≈ {quote.outputAmount.toFixed(6)} {toAsset}
                 </span>

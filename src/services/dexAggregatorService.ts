@@ -187,7 +187,21 @@ export class DexAggregatorService {
     userAddress: string,
     slippage: number = 0.5,
     walletPassword?: string
-  ): Promise<{ success: boolean; txHash?: string; error?: string; gasFeePaidInTokens?: boolean; gasFeeInTokens?: number; adjustedInputAmount?: number; requiresImport?: boolean }> {
+  ): Promise<{ 
+    success: boolean; 
+    txHash?: string; 
+    error?: string; 
+    gasFeePaidInTokens?: boolean; 
+    gasFeeInTokens?: number; 
+    adjustedInputAmount?: number; 
+    requiresImport?: boolean;
+    gasFeePaidByRelayer?: boolean;
+    relayFeeInOutputTokens?: string;
+    relayFeeUsd?: string;
+    netOutputAmount?: string;
+    outputAmount?: string;
+    relayerAddress?: string;
+  }> {
     try {
       console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
       console.log(`👤 User wallet: ${userAddress}`);
@@ -222,7 +236,13 @@ export class DexAggregatorService {
         txHash: swapResult.txHash,
         gasFeePaidInTokens: swapResult.gasFeePaidInTokens,
         gasFeeInTokens: swapResult.gasFeeInTokens,
-        adjustedInputAmount: swapResult.adjustedInputAmount
+        adjustedInputAmount: swapResult.adjustedInputAmount,
+        gasFeePaidByRelayer: swapResult.gasFeePaidByRelayer,
+        relayFeeInOutputTokens: swapResult.relayFeeInOutputTokens,
+        relayFeeUsd: swapResult.relayFeeUsd,
+        netOutputAmount: swapResult.netOutputAmount,
+        outputAmount: swapResult.outputAmount,
+        relayerAddress: swapResult.relayerAddress
       };
       
     } catch (error) {

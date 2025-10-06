@@ -279,6 +279,10 @@ class SwapService {
       }
 
       // Create transaction record
+      const netOutput = swapResult.netOutputAmount 
+        ? parseFloat(swapResult.netOutputAmount) 
+        : quoteData.output_amount;
+        
       const { data: transaction, error: txError } = await supabase
         .from('transactions')
         .insert({
@@ -286,7 +290,7 @@ class SwapService {
           quote_id: quoteId,
           type: 'swap',
           asset: quoteData.output_asset,
-          quantity: quoteData.output_amount,
+          quantity: netOutput,
           unit_price_usd: quoteData.unit_price_usd,
           fee_usd: quoteData.input_amount * (this.FEE_BPS / 10000),
           status: 'completed',
@@ -304,7 +308,12 @@ class SwapService {
             gasFeePaidInTokens: swapResult.gasFeePaidInTokens || false,
             gasFeeInTokens: swapResult.gasFeeInTokens || 0,
             adjustedInputAmount: swapResult.adjustedInputAmount,
-            gasPaymentMethod: swapResult.gasFeePaidInTokens ? 'tokens' : 'eth'
+            gasPaymentMethod: swapResult.gasFeePaidInTokens ? 'tokens' : 'eth',
+            gasFeePaidByRelayer: swapResult.gasFeePaidByRelayer || false,
+            relayFeeInOutputTokens: swapResult.relayFeeInOutputTokens || '0',
+            relayFeeUsd: swapResult.relayFeeUsd || '0',
+            netOutputReceived: swapResult.netOutputAmount || swapResult.outputAmount,
+            relayerAddress: swapResult.relayerAddress || null
           }
         })
         .select()
