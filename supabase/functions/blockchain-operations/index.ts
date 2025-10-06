@@ -111,6 +111,14 @@ const ERC20_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 value)"
 ];
 
+// USDC EIP-3009 ABI for gasless transfers
+const USDC_EIP3009_ABI = [
+  "function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s) external",
+  "function TRANSFER_WITH_AUTHORIZATION_TYPEHASH() view returns (bytes32)",
+  "function DOMAIN_SEPARATOR() view returns (bytes32)",
+  "function nonces(address owner) view returns (uint256)"
+];
+
 // Uniswap V3 ABIs
 const QUOTER_ABI = [
   "function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)",
@@ -813,10 +821,14 @@ serve(async (req) => {
           }
 
           const { inputAsset, outputAsset, amount, slippage, walletPassword } = body;
-          console.log(`🔄 Executing REAL Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
+          console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${amount} ${inputAsset} to ${outputAsset}`);
           
           if (!amount) {
             throw new Error('Amount is required for swap execution');
+          }
+          
+          if (!relayerWallet) {
+            throw new Error('Relayer wallet not configured. Please set RELAYER_PRIVATE_KEY and fund it with ETH.');
           }
           
           // Resolve user wallet (NO DATABASE MUTATION)
@@ -835,8 +847,8 @@ serve(async (req) => {
             break;
           }
           
-          const userWalletWithProvider = userWallet.connect(provider);
           console.log(`👤 User wallet: ${userWallet.address}`);
+          console.log(`🔐 Relayer wallet: ${relayerWallet.address}`);
           
           // Validate token addresses (checksum corrected)
           const tokenInAddress = getContractAddress(inputAsset);
@@ -854,17 +866,76 @@ serve(async (req) => {
             throw new Error(`Insufficient ${inputAsset} balance. Required: ${amount}, Available: ${ethers.formatUnits(userBalance, 6)}`);
           }
           
-          // Check allowance for Uniswap router
-          const currentAllowance = await inputTokenContract.allowance(userWallet.address, UNISWAP_V3_ROUTER);
-          if (currentAllowance < requiredAmount) {
-            console.log(`📝 Approving ${inputAsset} for Uniswap router...`);
-            const inputTokenWithSigner = inputTokenContract.connect(userWalletWithProvider);
-            const approveTx = await (inputTokenWithSigner as any).approve(UNISWAP_V3_ROUTER, requiredAmount);
-            await approveTx.wait();
-            console.log(`✅ Approval completed: ${approveTx.hash}`);
+          // ===== STEP 1: GASLESS TOKEN TRANSFER (EIP-3009) =====
+          console.log(`\n🔐 STEP 1: Pulling ${amount} ${inputAsset} from user to relayer (gasless)`);
+          
+          if (inputAsset !== 'USDC') {
+            throw new Error('Gasless swaps currently only support USDC as input token');
           }
           
-          // Get quote first to calculate minimum output
+          // Generate unique nonce for this transfer
+          const nonce = ethers.hexlify(ethers.randomBytes(32));
+          const validAfter = 0;
+          const validBefore = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour
+          
+          // Build EIP-712 domain
+          const usdcContract = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, provider);
+          const domainSeparator = await usdcContract.DOMAIN_SEPARATOR();
+          const transferTypehash = await usdcContract.TRANSFER_WITH_AUTHORIZATION_TYPEHASH();
+          
+          // Build EIP-712 message
+          const domain = {
+            name: 'USD Coin',
+            version: '2',
+            chainId: 1, // Ethereum mainnet
+            verifyingContract: tokenInAddress
+          };
+          
+          const types = {
+            TransferWithAuthorization: [
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'value', type: 'uint256' },
+              { name: 'validAfter', type: 'uint256' },
+              { name: 'validBefore', type: 'uint256' },
+              { name: 'nonce', type: 'bytes32' }
+            ]
+          };
+          
+          const message = {
+            from: userWallet.address,
+            to: relayerWallet.address,
+            value: requiredAmount,
+            validAfter: validAfter,
+            validBefore: validBefore,
+            nonce: nonce
+          };
+          
+          // Sign the authorization with user's wallet
+          const signature = await userWallet.signTypedData(domain, types, message);
+          const sig = ethers.Signature.from(signature);
+          
+          console.log(`✅ Authorization signed by user`);
+          
+          // Relayer submits the transferWithAuthorization transaction
+          const usdcWithRelayer = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, relayerWallet);
+          const pullTx = await usdcWithRelayer.transferWithAuthorization(
+            userWallet.address,
+            relayerWallet.address,
+            requiredAmount,
+            validAfter,
+            validBefore,
+            nonce,
+            sig.v,
+            sig.r,
+            sig.s
+          );
+          const pullReceipt = await pullTx.wait();
+          console.log(`✅ USDC pulled to relayer: ${pullReceipt.hash}`);
+          console.log(`💸 Amount transferred: ${amount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
+          
+          // ===== STEP 2: GET QUOTE =====
+          console.log(`🔍 STEP 2: Getting Uniswap quote`);
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
           
           let amountOut: bigint;
@@ -872,7 +943,6 @@ serve(async (req) => {
           
           try {
             // Try single-hop first
-            console.log(`🔍 Getting single-hop quote for execution`);
             amountOut = await quoterContract.quoteExactInputSingle.staticCall(
               tokenInAddress,
               tokenOutAddress,
@@ -880,9 +950,10 @@ serve(async (req) => {
               requiredAmount,
               0
             );
+            console.log(`✅ Single-hop quote: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
           } catch (quoteError) {
             // Single-hop failed, use multi-hop via WETH
-            console.log(`⚠️ Single-hop quote failed, using multi-hop via WETH`);
+            console.log(`⚠️ Single-hop failed, using multi-hop via WETH`);
             useMultiHop = true;
             
             const path = ethers.solidityPacked(
@@ -891,68 +962,49 @@ serve(async (req) => {
             );
             
             amountOut = await quoterContract.quoteExactInput.staticCall(path, requiredAmount);
+            console.log(`✅ Multi-hop quote: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
           }
           
           // Apply slippage protection
           const slippageBps = Math.floor((slippage || 0.5) * 100);
           const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
           
-          // ERC-2771: Relayer pays gas, user just signs
-          console.log(`🔐 Using gasless swap (relayer pays gas)\n`);
-          
-          if (!relayerWallet) {
-            throw new Error('Relayer wallet not configured. Please set RELAYER_PRIVATE_KEY and fund it with ETH.');
-          }
-          
-          // ===== STEP 1: ESTIMATE GAS BEFORE SWAP =====
+          // ===== STEP 3: ESTIMATE GAS FEE =====
+          console.log(`\n⛽ STEP 3: Estimating gas fee`);
           const gasPrice = await provider.getFeeData();
-          const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000); // Conservative estimate
+          const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000);
           const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
           
-          // Get ETH price from oracle (fallback to hardcoded)
           const ethPriceUsd = await getEthPrice().catch(() => 2500);
           const relayFeeMargin = 1.2; // 20% margin
           const estimatedRelayFeeUsd = parseFloat(ethers.formatEther(estimatedGasCost)) * ethPriceUsd * relayFeeMargin;
           
-          // Get output token price
           const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
           const estimatedRelayFeeInOutputTokens = estimatedRelayFeeUsd / outputTokenPriceUsd;
           
-          console.log(`⛽ Estimated gas: ${ethers.formatEther(estimatedGasCost)} ETH (~$${estimatedRelayFeeUsd.toFixed(2)})`);
-          console.log(`💵 Estimated relay fee: ${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset}\n`);
+          console.log(`✅ Estimated relay fee: $${estimatedRelayFeeUsd.toFixed(2)} (${estimatedRelayFeeInOutputTokens.toFixed(6)} ${outputAsset})\n`);
           
-          // Execute the swap FROM USER'S WALLET
-          const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+          // ===== STEP 4: APPROVE RELAYER'S TOKENS FOR UNISWAP =====
+          console.log(`📝 STEP 4: Approving relayer's ${inputAsset} for Uniswap router`);
+          const relayerInputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, relayerWallet);
+          const currentAllowance = await relayerInputTokenContract.allowance(relayerWallet.address, UNISWAP_V3_ROUTER);
           
-          // Recalculate output amount if we used tokens for gas
-          let finalAmountOutMinimum = amountOutMinimum;
-          if (gasInTokens > 0) {
-            if (useMultiHop) {
-              const path = ethers.solidityPacked(
-                ['address', 'uint24', 'address', 'uint24', 'address'],
-                [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
-              );
-              const adjustedAmountOut = await quoterContract.quoteExactInput.staticCall(path, adjustedAmountIn);
-              finalAmountOutMinimum = adjustedAmountOut * BigInt(10000 - slippageBps) / BigInt(10000);
-            } else {
-              const adjustedAmountOut = await quoterContract.quoteExactInputSingle.staticCall(
-                tokenInAddress,
-                tokenOutAddress,
-                fee,
-                adjustedAmountIn,
-                0
-              );
-              finalAmountOutMinimum = adjustedAmountOut * BigInt(10000 - slippageBps) / BigInt(10000);
-            }
+          if (currentAllowance < requiredAmount) {
+            const approveTx = await relayerInputTokenContract.approve(UNISWAP_V3_ROUTER, requiredAmount);
+            await approveTx.wait();
+            console.log(`✅ Approval completed for Uniswap router\n`);
+          } else {
+            console.log(`✅ Sufficient allowance already exists\n`);
           }
           
-          // Execute swap using relayer wallet (pays gas)
+          // ===== STEP 5: EXECUTE SWAP (RELAYER -> USER) =====
+          console.log(`🔄 STEP 5: Executing Uniswap swap (relayer pays gas, user receives tokens)`);
+          const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+          
           const swapRouter = new ethers.Contract(UNISWAP_V3_ROUTER, SWAP_ROUTER_ABI, relayerWallet);
           let tx, receipt;
           
           if (useMultiHop) {
-            // Execute multi-hop swap
-            console.log(`🔄 Executing multi-hop swap via WETH (relayer pays gas)`);
             const path = ethers.solidityPacked(
               ['address', 'uint24', 'address', 'uint24', 'address'],
               [tokenInAddress, fee, WETH_ADDRESS, fee, tokenOutAddress]
@@ -968,9 +1020,8 @@ serve(async (req) => {
             
             tx = await swapRouter.exactInput(multiHopParams);
             receipt = await tx.wait();
+            console.log(`✅ Multi-hop swap completed: ${receipt.hash}`);
           } else {
-            // Execute single-hop swap
-            console.log(`🔄 Executing single-hop swap (relayer pays gas)`);
             const swapParams = {
               tokenIn: tokenInAddress,
               tokenOut: tokenOutAddress,
@@ -984,55 +1035,144 @@ serve(async (req) => {
             
             tx = await swapRouter.exactInputSingle(swapParams);
             receipt = await tx.wait();
+            console.log(`✅ Single-hop swap completed: ${receipt.hash}`);
           }
           
-          console.log(`🎉 Swap completed: ${receipt.hash}`);
           
-          // ===== STEP 2: CALCULATE ACTUAL RELAY FEE =====
-          const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice.gasPrice || BigInt(0));
+          // ===== STEP 6: CALCULATE ACTUAL RELAY FEE =====
+          console.log(`\n💵 STEP 6: Calculating actual relay fee from gas used`);
+          const gasPrice2 = await provider.getFeeData();
+          const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice2.gasPrice || BigInt(0));
           const actualRelayFeeUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd * relayFeeMargin;
           const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
           
-          console.log(`💵 Actual relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})`);
+          console.log(`✅ Actual relay fee: $${actualRelayFeeUsd.toFixed(2)} (${relayFeeInOutputTokens.toFixed(6)} ${outputAsset})\n`);
           
-          // ===== STEP 3: TRANSFER RELAY FEE TO RELAYER (REIMBURSE GAS) =====
+          // ===== STEP 7: TRANSFER RELAY FEE TO RELAYER (REIMBURSE GAS) =====
+          console.log(`💸 STEP 7: Transferring relay fee from user to relayer`);
           const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
           
           if (relayFeeInOutputTokens > 0) {
             const relayFeeAmountBigInt = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
-            const outputTokenWithUserSigner = outputTokenContract.connect(userWalletWithProvider);
-            const relayFeeTx = await (outputTokenWithUserSigner as any).transfer(
-              relayerWallet!.address,
-              relayFeeAmountBigInt
+            
+            // User must sign this transfer with EIP-3009 (gasless)
+            const relayFeeNonce = ethers.hexlify(ethers.randomBytes(32));
+            const relayFeeValidBefore = Math.floor(Date.now() / 1000) + 3600;
+            
+            const relayFeeDomain = {
+              name: outputAsset === 'USDC' ? 'USD Coin' : outputAsset,
+              version: '2',
+              chainId: 1,
+              verifyingContract: tokenOutAddress
+            };
+            
+            const relayFeeTypes = {
+              TransferWithAuthorization: [
+                { name: 'from', type: 'address' },
+                { name: 'to', type: 'address' },
+                { name: 'value', type: 'uint256' },
+                { name: 'validAfter', type: 'uint256' },
+                { name: 'validBefore', type: 'uint256' },
+                { name: 'nonce', type: 'bytes32' }
+              ]
+            };
+            
+            const relayFeeMessage = {
+              from: userWallet.address,
+              to: relayerWallet.address,
+              value: relayFeeAmountBigInt,
+              validAfter: 0,
+              validBefore: relayFeeValidBefore,
+              nonce: relayFeeNonce
+            };
+            
+            const relayFeeSig = ethers.Signature.from(
+              await userWallet.signTypedData(relayFeeDomain, relayFeeTypes, relayFeeMessage)
+            );
+            
+            const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, USDC_EIP3009_ABI, relayerWallet);
+            const relayFeeTx = await outputTokenWithRelayer.transferWithAuthorization(
+              userWallet.address,
+              relayerWallet.address,
+              relayFeeAmountBigInt,
+              0,
+              relayFeeValidBefore,
+              relayFeeNonce,
+              relayFeeSig.v,
+              relayFeeSig.r,
+              relayFeeSig.s
             );
             await relayFeeTx.wait();
-            console.log(`💸 Relay fee transferred: ${relayFeeInOutputTokens.toFixed(6)} ${outputAsset} -> ${relayerWallet!.address}`);
+            console.log(`✅ Relay fee transferred: ${relayFeeInOutputTokens.toFixed(6)} ${outputAsset} -> ${relayerWallet.address}\n`);
           }
           
-          // ===== STEP 4: CALCULATE PLATFORM FEE FROM NET BALANCE =====
+          // ===== STEP 8: CALCULATE PLATFORM FEE FROM NET BALANCE =====
+          console.log(`💰 STEP 8: Collecting platform fee`);
           const PLATFORM_FEE_BPS = 80; // 0.8%
           const userOutputBalance = await outputTokenContract.balanceOf(userWallet.address);
           
-          // Platform fee is calculated AFTER relay fee is deducted
           const feeAmount = userOutputBalance * BigInt(PLATFORM_FEE_BPS) / BigInt(10000);
           let platformFeeCollected = 0;
           
           if (feeAmount > 0) {
-            // Transfer fee to platform wallet
-            const outputTokenWithUserSigner = outputTokenContract.connect(userWalletWithProvider);
-            const feeTx = await (outputTokenWithUserSigner as any).transfer(PLATFORM_WALLET, feeAmount);
-            await feeTx.wait();
+            const platformFeeNonce = ethers.hexlify(ethers.randomBytes(32));
+            const platformFeeValidBefore = Math.floor(Date.now() / 1000) + 3600;
+            
+            const platformFeeDomain = {
+              name: outputAsset === 'USDC' ? 'USD Coin' : outputAsset,
+              version: '2',
+              chainId: 1,
+              verifyingContract: tokenOutAddress
+            };
+            
+            const platformFeeTypes = {
+              TransferWithAuthorization: [
+                { name: 'from', type: 'address' },
+                { name: 'to', type: 'address' },
+                { name: 'value', type: 'uint256' },
+                { name: 'validAfter', type: 'uint256' },
+                { name: 'validBefore', type: 'uint256' },
+                { name: 'nonce', type: 'bytes32' }
+              ]
+            };
+            
+            const platformFeeMessage = {
+              from: userWallet.address,
+              to: PLATFORM_WALLET,
+              value: feeAmount,
+              validAfter: 0,
+              validBefore: platformFeeValidBefore,
+              nonce: platformFeeNonce
+            };
+            
+            const platformFeeSig = ethers.Signature.from(
+              await userWallet.signTypedData(platformFeeDomain, platformFeeTypes, platformFeeMessage)
+            );
+            
+            const outputTokenWithRelayer2 = new ethers.Contract(tokenOutAddress, USDC_EIP3009_ABI, relayerWallet);
+            const platformFeeTx = await outputTokenWithRelayer2.transferWithAuthorization(
+              userWallet.address,
+              PLATFORM_WALLET,
+              feeAmount,
+              0,
+              platformFeeValidBefore,
+              platformFeeNonce,
+              platformFeeSig.v,
+              platformFeeSig.r,
+              platformFeeSig.s
+            );
+            await platformFeeTx.wait();
             platformFeeCollected = parseFloat(ethers.formatUnits(feeAmount, 6));
-            console.log(`💰 Platform fee collected: ${platformFeeCollected} ${outputAsset} (0.8% of net) -> ${PLATFORM_WALLET}`);
+            console.log(`✅ Platform fee collected: ${platformFeeCollected} ${outputAsset} (0.8% of net) -> ${PLATFORM_WALLET}\n`);
           }
           
-          // ===== STEP 5: MONITOR RELAYER BALANCE =====
-          const relayerBalance = await provider.getBalance(relayerWallet!.address);
+          // ===== STEP 9: MONITOR RELAYER BALANCE =====
+          const relayerBalance = await provider.getBalance(relayerWallet.address);
           const relayerBalanceEth = parseFloat(ethers.formatEther(relayerBalance));
           console.log(`⚡ Relayer balance: ${relayerBalanceEth.toFixed(4)} ETH`);
           
           if (relayerBalanceEth < 0.1) {
-            console.warn(`⚠️ RELAYER BALANCE LOW: ${relayerBalanceEth.toFixed(4)} ETH - Please fund relayer wallet!`);
+            console.warn(`⚠️ RELAYER BALANCE LOW: ${relayerBalanceEth.toFixed(4)} ETH - Please fund relayer wallet!\n`);
           }
           
           result = {
@@ -1050,11 +1190,11 @@ serve(async (req) => {
             estimatedRelayFeeUsd: estimatedRelayFeeUsd.toString(),
             estimatedRelayFeeInOutputTokens: estimatedRelayFeeInOutputTokens.toString(),
             netOutputAmount: (parseFloat(ethers.formatUnits(amountOut, 6)) - relayFeeInOutputTokens - platformFeeCollected).toString(),
-            relayerAddress: relayerWallet!.address,
+            relayerAddress: relayerWallet.address,
             relayerBalanceEth: relayerBalanceEth.toString(),
-            adjustedInputAmount: parseFloat(ethers.formatUnits(adjustedAmountIn, 6)),
             platformFeeCollected: platformFeeCollected,
-            platformFeeAsset: outputAsset
+            platformFeeAsset: outputAsset,
+            pullTxHash: pullReceipt.hash
           };
         } catch (error) {
           console.error('❌ REAL Uniswap swap execution failed:', error);
