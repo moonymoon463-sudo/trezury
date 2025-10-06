@@ -78,7 +78,7 @@ const SWAP_ROUTER_ABI = [
 ];
 
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas' | 'wallet_diagnostics';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -694,6 +694,115 @@ serve(async (req) => {
         break;
 
 
+      case 'wallet_diagnostics':
+        try {
+          if (!authenticatedUserId) {
+            throw new Error('Authentication required');
+          }
+
+          console.log('🔍 Running wallet diagnostics...');
+          
+          // 1. Decrypt user's wallet
+          const userWallet = await getDecryptedUserWallet(authenticatedUserId);
+          const decryptedAddress = userWallet.address;
+          console.log(`✅ Decrypted wallet: ${decryptedAddress}`);
+          
+          // 2. Get saved onchain addresses
+          const { data: onchainAddrs } = await supabase
+            .from('onchain_addresses')
+            .select('address, asset, chain')
+            .eq('user_id', authenticatedUserId);
+          
+          const onchainAddresses = onchainAddrs || [];
+          console.log(`📋 Saved addresses: ${JSON.stringify(onchainAddresses)}`);
+          
+          // 3. Check if any saved address matches token contract constants
+          const tokenContracts = {
+            USDC: getContractAddress('USDC'),
+            XAUT: getContractAddress('XAUT'),
+            TRZRY: getContractAddress('TRZRY')
+          };
+          
+          let mismatch = false;
+          const notes: string[] = [];
+          
+          for (const addr of onchainAddresses) {
+            const normalized = addr.address.toLowerCase();
+            if (Object.values(tokenContracts).some(tc => tc.toLowerCase() === normalized)) {
+              mismatch = true;
+              notes.push(`⚠️ Address ${addr.address} is a token contract, not a wallet!`);
+              
+              // AUTO-CORRECT: Update to decrypted wallet
+              console.log(`🔧 Auto-correcting ${addr.address} to ${decryptedAddress}`);
+              await supabase
+                .from('onchain_addresses')
+                .update({ address: decryptedAddress })
+                .eq('user_id', authenticatedUserId)
+                .eq('address', addr.address);
+              
+              // Log security alert
+              await supabase.from('security_alerts').insert({
+                alert_type: 'wallet_address_autocorrect',
+                severity: 'medium',
+                title: 'Wallet Address Auto-Corrected',
+                description: `Invalid token contract address ${addr.address} replaced with actual wallet ${decryptedAddress}`,
+                user_id: authenticatedUserId,
+                metadata: { old_address: addr.address, new_address: decryptedAddress }
+              });
+            }
+          }
+          
+          // 4. Query balances
+          const usdcContract = new ethers.Contract(getContractAddress('USDC'), ERC20_ABI, provider);
+          const xautContract = new ethers.Contract(getContractAddress('XAUT'), ERC20_ABI, provider);
+          
+          const decryptedUsdcBalance = await usdcContract.balanceOf(decryptedAddress);
+          const decryptedXautBalance = await xautContract.balanceOf(decryptedAddress);
+          
+          const balances: Record<string, any> = {
+            [decryptedAddress]: {
+              USDC: ethers.formatUnits(decryptedUsdcBalance, 6),
+              XAUT: ethers.formatUnits(decryptedXautBalance, 6)
+            }
+          };
+          
+          // Check each saved address balance
+          for (const addr of onchainAddresses) {
+            if (addr.address.toLowerCase() !== decryptedAddress.toLowerCase()) {
+              try {
+                const usdc = await usdcContract.balanceOf(addr.address);
+                const xaut = await xautContract.balanceOf(addr.address);
+                balances[addr.address] = {
+                  USDC: ethers.formatUnits(usdc, 6),
+                  XAUT: ethers.formatUnits(xaut, 6)
+                };
+              } catch (e) {
+                balances[addr.address] = { error: 'Invalid address or query failed' };
+              }
+            }
+          }
+          
+          // 5. Check Uniswap router allowance
+          const allowance = await usdcContract.allowance(decryptedAddress, UNISWAP_V3_ROUTER);
+          
+          result = {
+            success: true,
+            decryptedAddress,
+            onchainAddresses,
+            balances,
+            allowance: ethers.formatUnits(allowance, 6),
+            mismatch,
+            notes,
+            recommendation: mismatch 
+              ? `Fund ${decryptedAddress} to perform swaps. Saved addresses were incorrect and have been auto-corrected.`
+              : `Decrypted wallet matches saved address. Ready for swaps.`
+          };
+        } catch (error) {
+          console.error('Wallet diagnostics failed:', error);
+          throw error;
+        }
+        break;
+
       case 'execute_uniswap_swap':
         try {
           if (!authenticatedUserId) {
@@ -712,6 +821,31 @@ serve(async (req) => {
           const userWalletWithProvider = userWallet.connect(provider);
           console.log(`👤 Using actual funded wallet: ${userWallet.address}`);
           
+          // AUTO-CORRECT onchain_addresses if they match token contracts
+          const { data: savedAddrs } = await supabase
+            .from('onchain_addresses')
+            .select('address')
+            .eq('user_id', authenticatedUserId);
+          
+          if (savedAddrs && savedAddrs.length > 0) {
+            const tokenContracts = [
+              getContractAddress('USDC'),
+              getContractAddress('XAUT'),
+              getContractAddress('TRZRY')
+            ];
+            
+            for (const addr of savedAddrs) {
+              if (tokenContracts.some(tc => tc.toLowerCase() === addr.address.toLowerCase())) {
+                console.log(`🔧 Auto-correcting invalid address ${addr.address} to ${userWallet.address}`);
+                await supabase
+                  .from('onchain_addresses')
+                  .update({ address: userWallet.address })
+                  .eq('user_id', authenticatedUserId)
+                  .eq('address', addr.address);
+              }
+            }
+          }
+          
           // Validate token addresses (checksum corrected)
           const tokenInAddress = getContractAddress(inputAsset);
           const tokenOutAddress = getContractAddress(outputAsset);
@@ -719,13 +853,65 @@ serve(async (req) => {
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
-          // Check user's input token balance
+          // Check user's input token balance on DECRYPTED wallet
           const inputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, provider);
           const userBalance = await inputTokenContract.balanceOf(userWallet.address);
           const requiredAmount = ethers.parseUnits(amount.toString(), 6);
           
           if (userBalance < requiredAmount) {
-            throw new Error(`Insufficient ${inputAsset} balance. Required: ${amount}, Available: ${ethers.formatUnits(userBalance, 6)}`);
+            // Check if any saved onchain address has funds (indicates mismatch)
+            const { data: onchainAddrs } = await supabase
+              .from('onchain_addresses')
+              .select('address')
+              .eq('user_id', authenticatedUserId);
+            
+            const balancesOnSavedAddrs: Record<string, string> = {};
+            let fundedAddress: string | null = null;
+            
+            if (onchainAddrs && onchainAddrs.length > 0) {
+              for (const addr of onchainAddrs) {
+                if (addr.address.toLowerCase() !== userWallet.address.toLowerCase()) {
+                  try {
+                    const bal = await inputTokenContract.balanceOf(addr.address);
+                    const formatted = ethers.formatUnits(bal, 6);
+                    balancesOnSavedAddrs[addr.address] = formatted;
+                    if (bal >= requiredAmount) {
+                      fundedAddress = addr.address;
+                    }
+                  } catch (e) {
+                    // Ignore
+                  }
+                }
+              }
+            }
+            
+            if (fundedAddress) {
+              // WALLET MISMATCH: funds are in saved address, not decrypted wallet
+              const errorData = {
+                code: 'WALLET_MISMATCH',
+                message: 'Your funds are in a different wallet address',
+                decryptedAddress: userWallet.address,
+                fundedAddress,
+                decryptedBalance: ethers.formatUnits(userBalance, 6),
+                savedAddressBalances: balancesOnSavedAddrs,
+                depositAddress: userWallet.address,
+                recommendation: `Transfer ${inputAsset} from ${fundedAddress} to ${userWallet.address}, or import the correct private key`
+              };
+              
+              return new Response(
+                JSON.stringify(errorData),
+                { 
+                  status: 400, 
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+                }
+              );
+            } else {
+              // Standard insufficient balance error
+              throw new Error(
+                `Insufficient ${inputAsset} balance. Required: ${amount}, Available: ${ethers.formatUnits(userBalance, 6)}. ` +
+                `Deposit to ${userWallet.address} to continue.`
+              );
+            }
           }
           
           // Check allowance for Uniswap router
