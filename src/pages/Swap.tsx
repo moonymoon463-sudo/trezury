@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { swapService, SwapQuote } from "@/services/swapService";
 import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
+import { useTransactionMonitor } from "@/hooks/useTransactionMonitor";
 import AppLayout from "@/components/AppLayout";
 
 const Swap = () => {
@@ -27,6 +28,26 @@ const Swap = () => {
   const [loading, setLoading] = useState(false);
   const [autoQuoteLoading, setAutoQuoteLoading] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
+
+  // Monitor transaction status with real-time updates
+  useTransactionMonitor({
+    intentId: activeIntentId,
+    onComplete: () => {
+      // Refresh balances and reset UI after successful swap
+      refreshBalances();
+      setFromAmount('');
+      setQuote(null);
+      setAutoQuote(null);
+      setActiveIntentId(null);
+      setLoading(false);
+    },
+    onFailed: () => {
+      // Reset UI after failed swap
+      setActiveIntentId(null);
+      setLoading(false);
+    }
+  });
 
   // Handle URL parameters and initialize wallet
   useEffect(() => {
@@ -187,52 +208,34 @@ const Swap = () => {
       setLoading(true);
       setShowPasswordPrompt(false);
       
-      // Execute the REAL swap transaction with wallet password
-      console.log('🔄 Executing REAL on-chain swap...');
+      // Execute the swap transaction with wallet password
+      console.log('🔄 Executing swap transaction...');
       const result = await swapService.executeSwap(quote.id, user.id, walletPassword);
       
       if (result.success) {
-        console.log('🎉 REAL swap completed successfully!');
-        
-        // Get fee details from result or quote
-        const platformFee = quote?.fee || 0;
-        const relayFee = result.relayFeeUsd ? parseFloat(result.relayFeeUsd) : 0;
-        const netReceived = result.netOutputAmount ? parseFloat(result.netOutputAmount) : quote?.outputAmount || 0;
-        
-        toast({
-          title: "Swap Successful! 🎉",
-          description: (
-            <div className="space-y-1">
-              <p>Net received: {netReceived.toFixed(6)} {toAsset}</p>
-              <p className="text-xs text-muted-foreground">Platform fee: {platformFee.toFixed(6)} {toAsset}</p>
-              <p className="text-xs text-muted-foreground">Relay fee: ${relayFee.toFixed(2)} (covered)</p>
-            </div>
-          ),
-        });
-        
-        // Navigate to success page with transaction data
-        navigate("/swap/success", {
-          state: {
-            transaction: {
-              tx_hash: result.hash,
-              transaction_id: result.transactionId,
-              input_asset: fromAsset,
-              output_asset: toAsset,
-              input_amount: parseFloat(fromAmount),
-              output_amount: netReceived,
-              platform_fee: platformFee,
-              relay_fee: relayFee,
-              exchange_rate: quote?.exchangeRate || 0,
-              fee_usd: quote?.fee || 0,
-              executed_at: new Date().toISOString()
-            }
-          }
-        });
-        
-        // Refresh balances in background
-        refreshBalances();
+        // Start monitoring transaction status with intentId
+        if (result.intentId) {
+          setActiveIntentId(result.intentId);
+          toast({
+            title: "Swap Initiated",
+            description: "Monitoring transaction status...",
+          });
+          // Keep loading state - will be cleared by transaction monitor
+        } else {
+          // Legacy path - no intent tracking
+          console.log('✅ Swap completed (legacy path)');
+          toast({
+            title: "Swap Successful! 🎉",
+            description: "Transaction completed successfully",
+          });
+          await refreshBalances();
+          setFromAmount('');
+          setQuote(null);
+          setAutoQuote(null);
+          setLoading(false);
+        }
       } else {
-        console.error('❌ REAL swap failed:', result.error);
+        console.error('❌ Swap failed:', result.error);
         
         // Check for reconciliation requirement
         if (result.requiresReconciliation && result.hash) {
@@ -242,7 +245,7 @@ const Swap = () => {
               <div className="space-y-2">
                 <p>✅ Your swap succeeded on the blockchain!</p>
                 <p className="text-xs">Tx: {result.hash.slice(0, 10)}...{result.hash.slice(-8)}</p>
-                <p className="text-xs font-medium">💾 Recording transaction... Your balance will update automatically within 5 minutes.</p>
+                <p className="text-xs font-medium">💾 Recording transaction... Your balance will update automatically.</p>
                 <a 
                   href={`https://etherscan.io/tx/${result.hash}`} 
                   target="_blank" 
@@ -255,16 +258,14 @@ const Swap = () => {
             ),
             duration: 15000,
           });
-          
-          // Refresh balances immediately to fetch on-chain state
           setTimeout(() => refreshBalances(), 2000);
+          setLoading(false);
           return;
         }
         
         // Enhanced error messages
         let errorMessage = result.error || "Swap execution failed";
         
-        // Check for wallet import requirement
         if (result.requiresImport) {
           errorMessage = "Please import your wallet key to sign transactions. Go to Settings > Wallet Management.";
         } else if (errorMessage.includes("password")) {
@@ -282,6 +283,7 @@ const Swap = () => {
           title: "Swap Failed", 
           description: errorMessage
         });
+        setLoading(false);
       }
     } catch (error) {
       console.error('Swap execution error:', error);
@@ -290,7 +292,6 @@ const Swap = () => {
         title: "Swap Error",
         description: "Failed to execute swap"
       });
-    } finally {
       setLoading(false);
     }
   };
