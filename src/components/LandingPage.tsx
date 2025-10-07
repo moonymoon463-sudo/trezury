@@ -1,15 +1,35 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AurumLogo from "@/components/AurumLogo";
 import { usePWA } from "@/hooks/usePWA";
+import { useEnhancedAI } from "@/hooks/useEnhancedAI";
 import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const LandingPage = () => {
   const { isInstallable, installApp, isInstalled } = usePWA();
+  const { searchFAQ } = useEnhancedAI();
   const [isIOS] = useState(/iPad|iPhone|iPod/.test(navigator.userAgent));
   const [isInstalling, setIsInstalling] = useState(false);
+  const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>([]);
+  const [loadingFaqs, setLoadingFaqs] = useState(true);
+
+  useEffect(() => {
+    const loadFaqs = async () => {
+      try {
+        // Fetch FAQs for landing page
+        const faqData = await searchFAQ('gold trading investing security app');
+        setFaqs(faqData.slice(0, 10)); // Show top 10 most relevant
+      } catch (error) {
+        console.error('Failed to load FAQs:', error);
+      } finally {
+        setLoadingFaqs(false);
+      }
+    };
+    loadFaqs();
+  }, []);
 
   const handleInstallApp = async () => {
     if (isIOS) {
@@ -259,6 +279,51 @@ const LandingPage = () => {
               <p className="text-muted-foreground">Your digital gold is backed by physical reserves</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Everything you need to know about digital gold trading
+            </p>
+          </div>
+
+          {loadingFaqs ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-16 bg-surface-elevated/50 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : faqs.length > 0 ? (
+            <Accordion type="single" collapsible className="space-y-4">
+              {faqs.map((faq, index) => (
+                <AccordionItem 
+                  key={faq.id} 
+                  value={`item-${index}`}
+                  className="bg-surface-elevated/50 border border-border/40 rounded-lg px-6 hover:border-aurum-glow/40 transition-colors"
+                >
+                  <AccordionTrigger className="text-left text-foreground hover:text-aurum py-4">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground pb-4">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                Have questions? <Link to="/auth" className="text-aurum hover:underline">Sign up</Link> to access our full knowledge base.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
