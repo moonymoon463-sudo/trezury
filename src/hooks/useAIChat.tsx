@@ -136,23 +136,42 @@ export const useAIChat = () => {
       console.log('📤 Fetching AI response...', {
         url: 'https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat',
         hasAuth: !!session.access_token,
-        bodySize: JSON.stringify(requestBody).length
+        bodySize: JSON.stringify(requestBody).length,
+        isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       });
 
-      const response = await fetch(`https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        body: JSON.stringify(requestBody),
-        signal: abortController.signal,
-        cache: 'no-store',
-        keepalive: true
-      });
+      // Mobile-specific timeout: 10 seconds for initial response
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const timeout = isMobile ? 10000 : 30000;
+      
+      const timeoutId = setTimeout(() => {
+        console.warn('⏱️ Request timeout reached');
+        abortController.abort();
+      }, timeout);
+
+      let response: Response;
+      try {
+        response = await fetch(`https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          body: JSON.stringify(requestBody),
+          signal: abortController.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timeout - network may be slow. Please try again.');
+        }
+        throw fetchError;
+      }
 
       console.log('📥 Response received:', {
         status: response.status,
@@ -225,7 +244,10 @@ export const useAIChat = () => {
       let eventData = '';
       let doneStreaming = false;
 
-      // Throttle UI updates to prevent jank on mobile
+      // Adaptive UI update throttling - faster on desktop, slower on mobile
+      const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const throttleDelay = isMobileDevice ? 150 : 50;
+      
       let pendingFlush = false;
       const flushUI = () => {
         pendingFlush = false;
@@ -236,7 +258,7 @@ export const useAIChat = () => {
       const scheduleFlush = () => {
         if (!pendingFlush) {
           pendingFlush = true;
-          setTimeout(flushUI, 100);
+          setTimeout(flushUI, throttleDelay);
         }
       };
 
@@ -340,7 +362,9 @@ export const useAIChat = () => {
       // Determine user-friendly error message
       let fallbackContent = 'I apologize, but I encountered an error while processing your request. ';
       
-      if (error.message.includes('429')) {
+      if (error.message.includes('timeout')) {
+        fallbackContent += 'The request timed out. This often happens on slower mobile connections. Please try again.';
+      } else if (error.message.includes('429')) {
         fallbackContent += 'The AI service is currently rate limited. Please try again in a moment.';
       } else if (error.message.includes('402')) {
         fallbackContent += 'The AI service requires additional credits. Please contact support.';
