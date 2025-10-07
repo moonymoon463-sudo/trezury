@@ -135,11 +135,11 @@ export default function Support() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/terms')}>
+            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/terms-of-service')}>
               Terms of Service
               <ExternalLink className="h-4 w-4" />
             </Button>
-            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/privacy')}>
+            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/privacy-policy')}>
               Privacy Policy
               <ExternalLink className="h-4 w-4" />
             </Button>
