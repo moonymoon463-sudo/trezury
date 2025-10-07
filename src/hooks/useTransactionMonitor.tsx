@@ -30,6 +30,9 @@ export const useTransactionMonitor = ({
     if (!intentId) return;
 
     console.log('🔔 Setting up realtime monitor for intent:', intentId);
+    
+    // Timeout tracker for stuck validating status
+    let validatingTimeout: NodeJS.Timeout | null = null;
 
     // Subscribe to transaction_intents changes
     const channel = supabase
@@ -48,6 +51,12 @@ export const useTransactionMonitor = ({
           
           setCurrentStatus(newData.status);
           
+          // Clear validating timeout if we move to another status
+          if (newData.status !== 'validating' && validatingTimeout) {
+            clearTimeout(validatingTimeout);
+            validatingTimeout = null;
+          }
+          
           // Update transaction hash if available
           if (newData.tx_hash) {
             setTxHash(newData.tx_hash);
@@ -60,6 +69,20 @@ export const useTransactionMonitor = ({
                 title: "Validating Swap",
                 description: "Checking balances and preparing transaction...",
               });
+              
+              // Set timeout for stuck validating status (30 seconds)
+              if (validatingTimeout) clearTimeout(validatingTimeout);
+              validatingTimeout = setTimeout(() => {
+                console.warn('⏱️ Swap stuck in validating status for >30s');
+                toast({
+                  variant: "destructive",
+                  title: "Swap Taking Too Long ⏱️",
+                  description: "The swap is taking longer than expected. Please try again or contact support.",
+                });
+                if (onFailed) {
+                  onFailed();
+                }
+              }, 30000); // 30 seconds
               break;
 
             case 'funds_pulled':
@@ -88,6 +111,7 @@ export const useTransactionMonitor = ({
               break;
 
             case 'failed':
+            case 'validation_failed':
               toast({
                 variant: "destructive",
                 title: "Swap Failed ❌",
@@ -114,9 +138,12 @@ export const useTransactionMonitor = ({
         console.log('🔔 Subscription status:', status);
       });
 
-    // Cleanup subscription
+    // Cleanup subscription and timeout
     return () => {
       console.log('🔔 Cleaning up transaction monitor');
+      if (validatingTimeout) {
+        clearTimeout(validatingTimeout);
+      }
       supabase.removeChannel(channel);
     };
   }, [intentId, toast, onComplete, onFailed]);

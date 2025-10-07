@@ -1055,21 +1055,59 @@ serve(async (req) => {
           if (idempotencyKey) {
             const { data: existingIntent } = await supabase
               .from('transaction_intents')
-              .select('id, status, swap_tx_hash')
+              .select('id, status, swap_tx_hash, created_at, error_message')
               .eq('idempotency_key', idempotencyKey)
               .maybeSingle();
             
             if (existingIntent) {
+              const intentAgeMinutes = Math.floor((Date.now() - new Date(existingIntent.created_at).getTime()) / 60000);
+              
               console.log(`⚠️ Duplicate swap detected via idempotency key: ${idempotencyKey}`);
-              return new Response(
-                JSON.stringify({ 
-                  success: true,
-                  intentId: existingIntent.id,
-                  hash: existingIntent.swap_tx_hash,
-                  message: 'Swap already processed (idempotent)'
-                }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
+              console.log(`📊 Existing intent: ${existingIntent.id}, status: ${existingIntent.status}, age: ${intentAgeMinutes}m`);
+              
+              // If original intent completed successfully, return it
+              if (existingIntent.status === 'completed') {
+                return new Response(
+                  JSON.stringify({ 
+                    success: true,
+                    intentId: existingIntent.id,
+                    hash: existingIntent.swap_tx_hash,
+                    message: 'Swap already processed successfully (idempotent)'
+                  }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              
+              // If original intent is stuck (validating for >2 min or failed), allow retry
+              if ((existingIntent.status === 'validating' && intentAgeMinutes >= 2) || 
+                  existingIntent.status === 'failed' || 
+                  existingIntent.status === 'validation_failed') {
+                console.log(`✅ Allowing retry: Original intent stuck/failed (${existingIntent.status}, ${intentAgeMinutes}m old)`);
+                
+                // Update old intent to failed state
+                await supabase
+                  .from('transaction_intents')
+                  .update({
+                    status: 'failed',
+                    error_message: `Superseded by retry attempt after being stuck in ${existingIntent.status} for ${intentAgeMinutes}m`,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', existingIntent.id);
+                
+                // Continue with new swap execution (fall through)
+              } else {
+                // Intent is still in progress, reject duplicate
+                return new Response(
+                  JSON.stringify({ 
+                    success: false,
+                    error: `A swap for this quote is already in progress (${existingIntent.status}). Please wait or try again in a few moments.`,
+                    intentId: existingIntent.id,
+                    existingStatus: existingIntent.status,
+                    ageMinutes: intentAgeMinutes
+                  }),
+                  { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
             }
           }
           

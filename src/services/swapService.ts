@@ -255,6 +255,37 @@ class SwapService {
       // Balance check is performed in blockchain-operations edge function
       // No need to check twice - reduces latency and complexity
       
+      // 🔒 STATE MACHINE VALIDATION: Check for existing pending intents with same quote
+      console.log('[SwapService] Checking for existing pending intents...');
+      const { data: existingIntents } = await supabase
+        .from('transaction_intents')
+        .select('id, status, created_at')
+        .eq('quote_id', quoteId)
+        .in('status', ['pending', 'validating', 'funds_pulled', 'swap_executed'])
+        .order('created_at', { ascending: false });
+      
+      if (existingIntents && existingIntents.length > 0) {
+        const latestIntent = existingIntents[0];
+        const ageMinutes = Math.floor((Date.now() - new Date(latestIntent.created_at).getTime()) / 60000);
+        
+        console.warn(`[SwapService] Found existing ${latestIntent.status} intent: ${latestIntent.id} (${ageMinutes}m old)`);
+        
+        // If intent is recent (< 2 minutes), reject duplicate
+        if (ageMinutes < 2) {
+          return {
+            success: false,
+            error: `A swap for this quote is already in progress (${latestIntent.status}). Please wait or generate a new quote.`
+          };
+        }
+        
+        // If intent is old and stuck, fail it before creating new one
+        console.log(`[SwapService] Canceling stuck intent before creating new one...`);
+        await safeSwapService.updateIntentStatus(latestIntent.id, 'failed', {
+          error_message: 'Canceled due to timeout - new swap attempt initiated',
+          error_details: { reason: 'state_machine_cleanup', age_minutes: ageMinutes }
+        });
+      }
+      
       // 🔒 SAFETY: Create transaction intent BEFORE any blockchain interaction
       console.log('[SwapService] Creating swap intent for safety tracking...');
       const intentResult = await safeSwapService.createSwapIntent(
