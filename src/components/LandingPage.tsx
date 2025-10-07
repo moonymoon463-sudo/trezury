@@ -3,14 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AurumLogo from "@/components/AurumLogo";
 import { usePWA } from "@/hooks/usePWA";
-import { useEnhancedAI } from "@/hooks/useEnhancedAI";
+import { supabase } from "@/integrations/supabase/client";
 import { Shield, Smartphone, TrendingUp, Wallet, Zap, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 const LandingPage = () => {
   const { isInstallable, installApp, isInstalled } = usePWA();
-  const { searchFAQ } = useEnhancedAI();
   const [isIOS] = useState(/iPad|iPhone|iPod/.test(navigator.userAgent));
   const [isInstalling, setIsInstalling] = useState(false);
   const [faqs, setFaqs] = useState<Array<{ id: string; question: string; answer: string }>>([]);
@@ -19,9 +18,22 @@ const LandingPage = () => {
   useEffect(() => {
     const loadFaqs = async () => {
       try {
-        // Fetch FAQs for landing page
-        const faqData = await searchFAQ('gold trading investing security app');
-        setFaqs(faqData.slice(0, 10)); // Show top 10 most relevant
+        // Fetch top FAQs by category order
+        const { data, error } = await supabase
+          .from('faq_items')
+          .select(`
+            id,
+            question,
+            answer,
+            faq_categories!inner(display_order)
+          `)
+          .eq('is_active', true)
+          .order('faq_categories(display_order)', { ascending: true })
+          .limit(10);
+        
+        if (error) throw error;
+        
+        setFaqs(data || []);
       } catch (error) {
         console.error('Failed to load FAQs:', error);
       } finally {
