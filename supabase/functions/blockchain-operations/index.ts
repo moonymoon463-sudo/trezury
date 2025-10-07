@@ -684,12 +684,12 @@ serve(async (req) => {
       }
     }
 
-    // Initialize live provider and wallet
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    // Initialize live provider and wallet using failover
+    const provider = await getProviderWithFailover();
     const platformWallet = new ethers.Wallet(PLATFORM_PRIVATE_KEY, provider);
     
     console.log(`Platform wallet address: ${platformWallet.address}`);
-    console.log(`Connected to Ethereum mainnet via Infura`);
+    console.log(`Connected to Ethereum mainnet`);
 
     // Initialize relayer wallet for ERC-2771 meta-transactions
     const relayerWallet = RELAYER_PRIVATE_KEY ? new ethers.Wallet(RELAYER_PRIVATE_KEY, provider) : null;
@@ -709,7 +709,7 @@ serve(async (req) => {
       case 'get_rpc_url':
         result = {
           success: true,
-          rpcUrl: rpcUrl
+          rpcUrl: RPC_ENDPOINTS[currentRpcIndex]
         };
         break;
 
