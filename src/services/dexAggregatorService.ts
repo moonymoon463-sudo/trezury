@@ -224,7 +224,8 @@ export class DexAggregatorService {
           slippage: slippage,
           walletPassword: walletPassword,
           quoteId: quoteId,
-          intentId: intentId
+          intentId: intentId,
+          idempotencyKey: intentId // Use intentId as idempotency key for consistency
         }
       });
 

@@ -277,6 +277,9 @@ class SwapService {
       const { intentId, idempotencyKey } = intentResult;
       console.log(`[SwapService] 🔒 Intent created: ${intentId}`);
 
+      // Pass idempotency key to blockchain operations for server-side duplicate prevention
+      console.log(`[SwapService] Using idempotency key: ${idempotencyKey}`);
+      
       // Update intent to validating status
       await safeSwapService.updateIntentStatus(intentId, 'validating', {
         validation_data: {
@@ -311,14 +314,14 @@ class SwapService {
       const bestRoute = routes[0];
       console.log(`[SwapService] Best route selected: ${bestRoute.protocol}`);
       
-      // Execute swap through DEX aggregator with intent tracking
+      // Execute swap through DEX aggregator with intent tracking and idempotency
       const swapResult = await DexAggregatorService.executeOptimalSwap(
         bestRoute,
         userWalletAddress,
         this.SLIPPAGE_BPS / 100,
         walletPassword,
         quoteId,
-        intentId // Pass intentId for tracking
+        idempotencyKey // F-003: Pass idempotencyKey for server-side duplicate prevention
       );
 
       if (!swapResult.success) {

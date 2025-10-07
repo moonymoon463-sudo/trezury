@@ -30,7 +30,20 @@ export class SafeSwapService {
     expectedOutputAmount: number
   ): Promise<{ intentId: string; idempotencyKey: string } | null> {
     try {
-      const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
+      // F-003 FIX: Generate strong idempotency key using crypto-random UUID
+      const idempotencyKey = `swap_${quoteId}_${crypto.randomUUID()}`;
+
+      // F-003 FIX: Check for existing intent with this idempotency key
+      const { data: existingIntent } = await supabase
+        .from('transaction_intents')
+        .select('id, idempotency_key')
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle();
+
+      if (existingIntent) {
+        console.log(`[SafeSwapService] ⚠️ Intent already exists for key: ${idempotencyKey}`);
+        return { intentId: existingIntent.id, idempotencyKey };
+      }
 
       const { data: intent, error } = await supabase
         .from('transaction_intents')
@@ -52,7 +65,7 @@ export class SafeSwapService {
         return null;
       }
 
-      console.log(`[SafeSwapService] ✅ Intent created: ${intent.id}`);
+      console.log(`[SafeSwapService] ✅ Intent created: ${intent.id} (key: ${idempotencyKey})`);
       return { intentId: intent.id, idempotencyKey };
     } catch (err) {
       console.error('[SafeSwapService] Error creating intent:', err);

@@ -19,10 +19,31 @@ const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const RELAYER_PRIVATE_KEY = Deno.env.get('RELAYER_PRIVATE_KEY');
 const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
 
-// Contract addresses (Ethereum mainnet) - Fixed checksums
-const USDC_CONTRACT_RAW = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC mainnet (corrected)
-const XAUT_CONTRACT_RAW = '0x68749665FF8D2d112Fa859AA293F07A622782F38'; // Tether Gold  
-const TRZRY_CONTRACT_RAW = '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B'; // Trezury token
+// F-002 FIX: Chain ID verification constant
+const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
+
+// F-005 FIX: Server-side slippage cap (2% = 200 bps)
+const MAX_SLIPPAGE_BPS = 200;
+
+// F-004 FIX: Token address allowlist with expected symbols
+const TOKEN_ALLOWLIST = {
+  'USDC': {
+    address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    symbol: 'USDC',
+    decimals: 6
+  },
+  'XAUT': {
+    address: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
+    symbol: 'XAUT',
+    decimals: 6
+  },
+  'TRZRY': {
+    address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
+    symbol: 'TRZRY',
+    decimals: 18
+  }
+} as const;
+
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
 // ===== PRICE ORACLE HELPERS =====
@@ -66,31 +87,41 @@ async function getXautPrice(): Promise<number> {
   }
 }
 
-// Helper function to get checksummed contract address
-function getContractAddress(asset: string | undefined): string {
+// F-004 FIX: Helper function with on-chain token verification
+async function getContractAddress(asset: string | undefined, provider: ethers.JsonRpcProvider): Promise<string> {
   if (!asset) {
     throw new Error('Asset is required');
   }
   
-  // Fixed contract addresses with proper checksums
-  const contracts = {
-    'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC mainnet (corrected)
-    'XAUT': '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold
-    'TRZRY': '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B'  // Trezury token
-  };
-  
-  const contractAddress = contracts[asset as keyof typeof contracts];
-  if (!contractAddress) {
+  const tokenConfig = TOKEN_ALLOWLIST[asset as keyof typeof TOKEN_ALLOWLIST];
+  if (!tokenConfig) {
     throw new Error(`Unsupported asset: ${asset}. Only USDC, XAUT, and TRZRY are supported.`);
   }
   
+  const checksummedAddress = ethers.getAddress(tokenConfig.address);
+  
+  // F-004 FIX: Verify token symbol on-chain to prevent address spoofing
   try {
-    return ethers.getAddress(contractAddress);
+    const tokenContract = new ethers.Contract(
+      checksummedAddress,
+      ['function symbol() view returns (string)'],
+      provider
+    );
+    const onChainSymbol = await tokenContract.symbol();
+    
+    if (onChainSymbol !== tokenConfig.symbol) {
+      throw new Error(
+        `Token address verification failed: Expected ${tokenConfig.symbol}, got ${onChainSymbol} at ${checksummedAddress}`
+      );
+    }
+    
+    console.log(`✅ Token verified: ${asset} at ${checksummedAddress} (symbol: ${onChainSymbol})`);
   } catch (error) {
-    console.error(`Invalid contract address for ${asset}:`, contractAddress);
-    // Return the raw address if checksum fails (for compatibility)
-    return contractAddress;
+    console.error(`❌ Token verification failed for ${asset}:`, error);
+    throw new Error(`Failed to verify token contract for ${asset}: ${error.message}`);
   }
+  
+  return checksummedAddress;
 }
 
 // Uniswap V3 contracts
@@ -609,7 +640,7 @@ serve(async (req) => {
             }
           }
           
-          const contractAddress = getContractAddress(asset);
+          const contractAddress = await getContractAddress(asset, provider);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
           const balance = await contract.balanceOf(address);
@@ -684,7 +715,7 @@ serve(async (req) => {
                 };
               }
               
-              const contractAddress = getContractAddress(asset);
+              const contractAddress = await getContractAddress(asset, provider);
               const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
               
               const balance = await contract.balanceOf(address);
@@ -755,7 +786,7 @@ serve(async (req) => {
           }
           
           // Execute the live blockchain transaction
-          const contractAddress = quote.side === 'buy' ? getContractAddress('XAUT') : getContractAddress('USDC');
+          const contractAddress = quote.side === 'buy' ? await getContractAddress('XAUT', provider) : await getContractAddress('USDC', provider);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
           
           const amount = ethers.parseUnits(
@@ -793,7 +824,7 @@ serve(async (req) => {
             throw new Error('Amount is required');
           }
           
-          const contractAddress = getContractAddress(asset);
+          const contractAddress = await getContractAddress(asset, provider);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, platformWallet);
           
           const transferAmount = ethers.parseUnits(amount.toString(), 6);
@@ -830,7 +861,7 @@ serve(async (req) => {
           }
           
           // Validate platform wallet has sufficient balance for output token
-          const outputContractAddress = getContractAddress(outputAsset);
+          const outputContractAddress = await getContractAddress(outputAsset, provider);
           const outputContract = new ethers.Contract(outputContractAddress, ERC20_ABI, provider);
           const platformBalance = await outputContract.balanceOf(PLATFORM_WALLET);
           const outputDecimals = outputAsset === 'USDC' ? 6 : 6;
@@ -895,7 +926,8 @@ serve(async (req) => {
         slippageBps = 50,
         walletPassword,
         quoteId,
-        intentId
+        intentId,
+        idempotencyKey
       } = body as {
         userId: string;
         inputAsset: string;
@@ -907,12 +939,48 @@ serve(async (req) => {
         walletPassword?: string;
         quoteId?: string;
         intentId?: string;
+        idempotencyKey?: string;
       };
+          
+          // F-003 FIX: Check idempotency key to prevent duplicate swaps
+          if (idempotencyKey) {
+            const { data: existingIntent } = await supabase
+              .from('transaction_intents')
+              .select('id, status, swap_tx_hash')
+              .eq('idempotency_key', idempotencyKey)
+              .maybeSingle();
+            
+            if (existingIntent) {
+              console.log(`⚠️ Duplicate swap detected via idempotency key: ${idempotencyKey}`);
+              return new Response(
+                JSON.stringify({ 
+                  success: true,
+                  intentId: existingIntent.id,
+                  hash: existingIntent.swap_tx_hash,
+                  message: 'Swap already processed (idempotent)'
+                }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+          
+          // F-005 FIX: Enforce server-side slippage cap
+          if (slippageBps > MAX_SLIPPAGE_BPS) {
+            console.error(`❌ Slippage ${slippageBps} bps exceeds maximum ${MAX_SLIPPAGE_BPS} bps`);
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                error: `Slippage tolerance too high. Maximum allowed: ${MAX_SLIPPAGE_BPS / 100}%` 
+              }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
           
           // Support both parameter names for backward compatibility
           const actualAmount = amountIn || amount;
           
           console.log(`🔄 Executing GASLESS Uniswap V3 swap: ${actualAmount} ${inputAsset} to ${outputAsset}`);
+          console.log(`📊 Slippage: ${slippageBps} bps (max: ${MAX_SLIPPAGE_BPS} bps)`);
           
           if (!actualAmount) {
             throw new Error('Amount is required for swap execution');
@@ -944,8 +1012,8 @@ serve(async (req) => {
           // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
           console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
           
-          const tokenInAddress = getContractAddress(inputAsset);
-          const tokenOutAddress = getContractAddress(outputAsset);
+          const tokenInAddress = await getContractAddress(inputAsset, provider);
+          const tokenOutAddress = await getContractAddress(outputAsset, provider);
           const fee = 3000; // 0.3% pool fee
           const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
           
@@ -1029,6 +1097,16 @@ serve(async (req) => {
           const validAfter = 0;
           const validBefore = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour
           
+          // F-002 FIX: Verify chain ID matches expected mainnet
+          const network = await provider.getNetwork();
+          if (Number(network.chainId) !== EXPECTED_CHAIN_ID) {
+            throw new Error(
+              `Chain ID mismatch: Expected ${EXPECTED_CHAIN_ID} (Ethereum mainnet), got ${network.chainId}. ` +
+              `This prevents accidental testnet transactions.`
+            );
+          }
+          console.log(`✅ Chain ID verified: ${network.chainId} (Ethereum mainnet)`);
+          
           // Build EIP-712 domain
           const usdcContract = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, provider);
           const domainSeparator = await usdcContract.DOMAIN_SEPARATOR();
@@ -1038,7 +1116,7 @@ serve(async (req) => {
           const domain = {
             name: 'USD Coin',
             version: '2',
-            chainId: 1, // Ethereum mainnet
+            chainId: EXPECTED_CHAIN_ID,
             verifyingContract: tokenInAddress
           };
           
@@ -1109,7 +1187,18 @@ serve(async (req) => {
           const relayerInputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, relayerWallet);
           const currentAllowance = await relayerInputTokenContract.allowance(relayerWallet.address, UNISWAP_V3_ROUTER);
           
+          // F-001 FIX: Reset allowance to 0 before approving to prevent accumulated attack surface
           if (currentAllowance < requiredAmount) {
+            // First, reset to 0 if there's any existing allowance
+            if (currentAllowance > 0n) {
+              console.log(`🔒 Resetting existing allowance from ${ethers.formatUnits(currentAllowance, TOKEN_ALLOWLIST[inputAsset].decimals)} to 0`);
+              const resetTx = await relayerInputTokenContract.approve(UNISWAP_V3_ROUTER, 0n);
+              await resetTx.wait();
+              console.log(`✅ Allowance reset to 0`);
+            }
+            
+            // Then approve exact amount needed
+            console.log(`📝 Approving exact amount: ${ethers.formatUnits(requiredAmount, TOKEN_ALLOWLIST[inputAsset].decimals)} ${inputAsset}`);
             const approveTx = await relayerInputTokenContract.approve(UNISWAP_V3_ROUTER, requiredAmount);
             await approveTx.wait();
             console.log(`✅ Approval completed for Uniswap router\n`);
@@ -1708,8 +1797,8 @@ serve(async (req) => {
           }
           
           // Use checksummed addresses
-          const tokenInAddress = getContractAddress(inputAsset);
-          const tokenOutAddress = getContractAddress(outputAsset);
+          const tokenInAddress = await getContractAddress(inputAsset, provider);
+          const tokenOutAddress = await getContractAddress(outputAsset, provider);
           const fee = 3000; // 0.3% pool fee
           
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
@@ -1914,7 +2003,7 @@ serve(async (req) => {
           // Get live balances for all addresses
           const balanceChecks = await Promise.all((addresses || []).map(async (addr) => {
             try {
-              const contractAddress = getContractAddress(addr.asset);
+              const contractAddress = await getContractAddress(addr.asset, provider);
               const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
               const balance = await contract.balanceOf(addr.address);
               const decimals = await contract.decimals();
