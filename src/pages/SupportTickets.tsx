@@ -42,7 +42,7 @@ export default function SupportTickets() {
 
   if (loading) {
     return (
-      <AppLayout headerProps={{ title: "My Support Tickets" }}>
+      <AppLayout headerProps={{ title: "My Support Tickets", showBackButton: true, backPath: "/support" }}>
         <div className="container mx-auto px-4 py-6 max-w-4xl space-y-4">
           {[1, 2, 3].map((i) => (
             <Card key={i}>
@@ -62,7 +62,7 @@ export default function SupportTickets() {
   }
 
   return (
-    <AppLayout headerProps={{ title: "My Support Tickets" }}>
+    <AppLayout headerProps={{ title: "My Support Tickets", showBackButton: true, backPath: "/support" }}>
       <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         {/* Create New Ticket Button */}
         <Button
