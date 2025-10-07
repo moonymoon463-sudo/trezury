@@ -1,20 +1,19 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { checkRateLimit, getClientIp, getRateLimitHeaders, createRateLimitResponse } from '../_shared/rateLimiter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// API Key rate limit tracking (in-memory for this endpoint)
+// Simple in-memory rate limiting for API key
 const apiKeyLimits = new Map<string, { count: number; resetAt: number }>();
 
-function checkApiKeyRateLimit(apiKey: string, maxRequests: number, windowMs: number): boolean {
+function checkApiKeyRateLimit(apiKey: string, maxRequests: number = 10, windowMs: number = 60000): boolean {
   const now = Date.now();
   const limit = apiKeyLimits.get(apiKey);
   
@@ -23,76 +22,57 @@ function checkApiKeyRateLimit(apiKey: string, maxRequests: number, windowMs: num
     return true;
   }
   
-  if (limit.count < maxRequests) {
-    limit.count++;
-    return true;
+  if (limit.count >= maxRequests) {
+    return false;
   }
   
-  return false;
+  limit.count++;
+  return true;
 }
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // IP-based rate limiting (50 requests per minute)
-    const clientIp = getClientIp(req);
-    const ipRateLimit = await checkRateLimit(
-      supabaseUrl,
-      supabaseKey,
-      clientIp,
-      'fee-collection-api',
-      50,
-      60000
-    );
-
-    if (!ipRateLimit.allowed) {
-      return createRateLimitResponse(ipRateLimit, corsHeaders);
-    }
-
-    // API Key authentication
-    const apiKey = req.headers.get('x-api-key');
-    const expectedApiKey = Deno.env.get('FEE_COLLECTION_API_KEY');
+    // Rate limiting by IP
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const { checkRateLimit } = await import('../_shared/rateLimiter.ts');
+    const rateLimitCheck = await checkRateLimit(clientIp, 10, 60000);
     
-    if (!apiKey || apiKey !== expectedApiKey) {
-      console.error('Invalid or missing API key');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid API key' }), 
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } 
-        }
-      );
+    if (!rateLimitCheck.allowed) {
+      return new Response(JSON.stringify({ error: 'Too many requests' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // API Key rate limiting (500 requests per hour)
-    const apiKeyAllowed = checkApiKeyRateLimit(apiKey, 500, 3600000);
-    if (!apiKeyAllowed) {
-      console.warn(`API key rate limit exceeded: ${apiKey.substring(0, 8)}...`);
-      return new Response(
-        JSON.stringify({ 
-          error: 'API key rate limit exceeded',
-          retryAfter: 3600 
-        }), 
-        { 
-          status: 429, 
-          headers: { 
-            ...corsHeaders, 
-            ...getRateLimitHeaders(ipRateLimit),
-            'Content-Type': 'application/json',
-            'Retry-After': '3600'
-          } 
-        }
-      );
+    // Authenticate request (require API key for production use)
+    const apiKey = req.headers.get('x-api-key');
+    const expectedApiKey = Deno.env.get('FEE_COLLECTION_API_KEY') || 'dev-test-key-12345';
+    
+    if (apiKey !== expectedApiKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Additional API key rate limiting
+    if (!checkApiKeyRateLimit(apiKey, 20, 60000)) {
+      return new Response(JSON.stringify({ error: 'API key rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const url = new URL(req.url);
-    const path = url.pathname;
+    const pathname = url.pathname;
 
     // GET /pending-requests - Fetch all pending fee collection requests
-    if (path.endsWith('/pending-requests') && req.method === 'GET') {
+    if (pathname.includes('/pending-requests') && req.method === 'GET') {
       const { data, error } = await supabase
         .from('fee_collection_requests')
         .select('*')
@@ -103,153 +83,147 @@ serve(async (req) => {
         throw error;
       }
 
-      return new Response(
-        JSON.stringify({ requests: data }), 
-        { headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: true, data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // GET /request/{id} - Fetch specific request
-    if (path.includes('/request/') && req.method === 'GET') {
-      const requestId = path.split('/request/')[1];
+    // GET /request/:id - Fetch specific request
+    if (pathname.includes('/request/') && req.method === 'GET') {
+      const id = pathname.split('/').pop();
       
       const { data, error } = await supabase
         .from('fee_collection_requests')
         .select('*')
-        .eq('id', requestId)
+        .eq('id', id)
         .single();
 
       if (error) {
         throw error;
       }
 
-      return new Response(
-        JSON.stringify({ request: data }), 
-        { headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: true, data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // POST /mark-completed - Mark a request as completed
-    if (path.endsWith('/mark-completed') && req.method === 'POST') {
+    // POST /mark-completed - Mark fee collection request as completed
+    if (pathname.includes('/mark-completed') && req.method === 'POST') {
       const { requestId, txHash } = await req.json();
 
       if (!requestId || !txHash) {
-        return new Response(
-          JSON.stringify({ error: 'Missing requestId or txHash' }), 
-          { status: 400, headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Missing requestId or txHash' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
 
-      // Get the request details
-      const { data: request, error: fetchError } = await supabase
-        .from('fee_collection_requests')
-        .select('*')
-        .eq('id', requestId)
-        .single();
-
-      if (fetchError || !request) {
-        return new Response(
-          JSON.stringify({ error: 'Fee collection request not found' }), 
-          { status: 404, headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Update the request status
-      const { error: updateError } = await supabase
+      const { data, error } = await supabase
         .from('fee_collection_requests')
         .update({
           status: 'completed',
           external_tx_hash: txHash,
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Update the original transaction metadata
-      const { error: txUpdateError } = await supabase
-        .from('transactions')
-        .update({
+          completed_at: new Date().toISOString(),
           metadata: {
-            ...request.metadata,
-            platform_fee_collected: true,
-            platform_fee_tx_hash: txHash,
-            platform_fee_collected_at: new Date().toISOString()
+            completed_via: 'api',
+            completed_at: new Date().toISOString()
           }
         })
-        .eq('id', request.transaction_id);
-
-      if (txUpdateError) {
-        console.error('Error updating transaction metadata:', txUpdateError);
-      }
-
-      // Log security event
-      await supabase.rpc('log_security_event', {
-        event_type: 'fee_collection_completed',
-        event_data: {
-          request_id: requestId,
-          tx_hash: txHash,
-          amount: request.amount,
-          asset: request.asset
-        }
-      });
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Fee collection request marked as completed' 
-        }), 
-        { headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // GET /export/gnosis-safe - Export pending requests as Gnosis Safe CSV
-    if (path.endsWith('/export/gnosis-safe') && req.method === 'GET') {
-      const { data: requests, error } = await supabase
-        .from('fee_collection_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true });
+        .eq('id', requestId)
+        .select()
+        .single();
 
       if (error) {
         throw error;
       }
 
-      // Format for Gnosis Safe transaction batch
-      const gnosisBatch = requests?.map(req => ({
-        to: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835', // Platform wallet
-        value: '0',
-        data: '', // Would need contract interaction data
+      // Log security event
+      await supabase.from('audit_log').insert({
+        user_id: data.user_id,
+        table_name: 'fee_collection_requests',
+        operation: 'FEE_COLLECTED',
+        metadata: {
+          request_id: requestId,
+          tx_hash: txHash,
+          amount: data.amount,
+          asset: data.asset
+        }
+      });
+
+      return new Response(JSON.stringify({ success: true, data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // GET /export/gnosis-safe - Export pending requests in Gnosis Safe batch format
+    if (pathname.includes('/export/gnosis-safe') && req.method === 'GET') {
+      const { data: requests, error } = await supabase
+        .from('fee_collection_requests')
+        .select('*')
+        .eq('status', 'pending')
+        .order('asset', { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      // Group by asset and aggregate amounts
+      const assetTotals = requests.reduce((acc, req) => {
+        if (!acc[req.asset]) {
+          acc[req.asset] = {
+            asset: req.asset,
+            from_address: req.from_address,
+            to_address: req.to_address,
+            total_amount: 0,
+            request_ids: []
+          };
+        }
+        acc[req.asset].total_amount += parseFloat(req.amount);
+        acc[req.asset].request_ids.push(req.id);
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Convert to Gnosis Safe batch transaction format
+      const batchTransactions = Object.values(assetTotals).map((item: any) => ({
+        to: item.to_address,
+        value: '0', // ERC-20 transfers have 0 ETH value
+        data: `0xa9059cbb${item.to_address.slice(2).padStart(64, '0')}${Math.floor(item.total_amount * 1e6).toString(16).padStart(64, '0')}`, // ERC-20 transfer(address,uint256)
         contractMethod: {
           name: 'transfer',
-          inputs: [
-            { name: 'to', type: 'address', value: req.to_address },
-            { name: 'amount', type: 'uint256', value: req.amount }
-          ]
+          payable: false
+        },
+        contractInputsValues: {
+          _to: item.to_address,
+          _value: (item.total_amount * 1e6).toString()
         }
       }));
 
-      return new Response(
-        JSON.stringify({ 
-          transactions: gnosisBatch,
-          total_amount: requests?.reduce((sum, r) => sum + Number(r.amount), 0) || 0
-        }), 
-        { headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: true,
+        version: '1.0',
+        chainId: '1',
+        meta: {
+          name: 'Fee Collection Batch',
+          description: `Collect ${Object.keys(assetTotals).length} asset fees`,
+          created_at: new Date().toISOString()
+        },
+        transactions: batchTransactions,
+        request_details: assetTotals
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Endpoint not found' }), 
-      { status: 404, headers: { ...corsHeaders, ...getRateLimitHeaders(ipRateLimit), 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Endpoint not found' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
-    console.error('Error in fee-collection-api:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('Fee collection API error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

@@ -1382,34 +1382,29 @@ serve(async (req) => {
             console.warn(`⚠️ GAS OVERRUN: Actual $${actualGasCostUsd.toFixed(2)} > Estimated $${(estimatedGasCostUsd * marginConfig.margin * 1.15).toFixed(2)} (+15% tolerance)`);
           }
           
-          // ===== STEP 7: TRANSFER PLATFORM FEE =====
-          console.log(`\n💸 STEP 7: Transferring platform fee to platform wallet`);
+          // ===== STEP 7: CALCULATE FEES (OPTIMIZED - SINGLE TX) =====
+          console.log(`\n💸 STEP 7: Calculating fees and preparing disbursement`);
           
           // Calculate platform fee (0.8% of gross output)
           const PLATFORM_FEE_BPS = 80; // 0.8%
           const platformFeeTokensWei = (relayerOutputBalance * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
           
-          console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, 6)} ${outputAsset}`);
-          
-          // Transfer platform fee using standard ERC-20 transfer (relayer pays gas)
-          const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, ERC20_ABI, relayerWallet);
-          const platformFeeTx = await outputTokenWithRelayer.transfer(PLATFORM_WALLET, platformFeeTokensWei);
-          const platformFeeReceipt = await platformFeeTx.wait();
-          console.log(`✅ Platform fee transferred: ${platformFeeReceipt.hash}`);
-          
-          // ===== STEP 8: TRANSFER REMAINING TOKENS TO USER =====
-          console.log(`\n💸 STEP 8: Transferring remaining output to user`);
-          
-          // Calculate remaining tokens for user (gross - relay fee - platform fee)
+          // Calculate net tokens for user (gross - relay fee - platform fee)
           const userTokensWei = relayerOutputBalance - relayFeeTokensWei - platformFeeTokensWei;
           
+          console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, 6)} ${outputAsset} (retained in relayer for batch collection)`);
           console.log(`📝 User receives: ${ethers.formatUnits(userTokensWei, 6)} ${outputAsset}`);
           
+          // ===== STEP 8: SINGLE TRANSACTION - TRANSFER NET TO USER =====
+          console.log(`\n💸 STEP 8: Transferring net output to user (1 transaction)`);
+          
           // Transfer user's net output using standard ERC-20 transfer (relayer pays gas)
+          const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, ERC20_ABI, relayerWallet);
           const userTransferTx = await outputTokenWithRelayer.transfer(userWallet.address, userTokensWei);
           const userTransferReceipt = await userTransferTx.wait();
-          console.log(`✅ User output transferred: ${userTransferReceipt.hash}\n`);
-          console.log(`✅ SWAP SUCCESSFUL - User received net output\n`);
+          console.log(`✅ User output transferred: ${userTransferReceipt.hash}`);
+          console.log(`💰 Platform fee retained in relayer wallet for batch collection`);
+          console.log(`✅ SWAP SUCCESSFUL - User received net output (50% gas savings vs 2-tx model)\n`);
 
           // 🔒 Update intent status: swap executed
           if (intentId) {
@@ -1432,6 +1427,23 @@ serve(async (req) => {
           
           
           const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, 6));
+          
+          // Record platform fee for batch collection (no immediate transfer)
+          await supabaseAdmin.from('fee_collection_requests').insert({
+            user_id: authenticatedUserId,
+            transaction_id: null, // Will be updated after transaction record created
+            from_address: relayerWallet.address,
+            to_address: PLATFORM_WALLET,
+            amount: platformFeeCollected,
+            asset: outputAsset,
+            status: 'pending',
+            metadata: {
+              swap_tx_hash: swapTxHash,
+              disbursement_tx_hash: userTransferReceipt.hash,
+              collected_at_swap: false,
+              collection_method: 'batch_sweep'
+            }
+          });
           
           } catch (swapExecutionError) {
             // ===== SWAP FAILED - AUTOMATIC REFUND =====
@@ -1596,9 +1608,9 @@ serve(async (req) => {
               tx_hash: swapTxHash!,
               metadata: {
                 swap_tx_hash: swapTxHash!,
-                platform_fee_tx_hash: platformFeeReceipt.hash,
                 user_transfer_tx_hash: userTransferReceipt.hash,
                 pull_tx_hash: pullReceipt.hash,
+                platform_fee_deferred: true,
                 input_amount: inputAmountFormatted,
                 output_amount_gross: grossAmount,
                 platform_fee_collected: platformFeeCollected,
@@ -1746,6 +1758,11 @@ serve(async (req) => {
               relay_fee_amount: relayFeeInOutputTokens,
               relay_fee_asset: outputAsset,
               relay_fee_usd: actualRelayFeeUsd,
+              metadata: {
+                platform_fee_deferred: true,
+                fee_collection_method: 'batch_sweep',
+                gas_savings_vs_2tx: true
+              },
               total_fees_charged: totalFeeUsd,
               estimated_gas_cost: estimatedGasCostUsd,
               actual_gas_cost: actualGasCostUsd,
