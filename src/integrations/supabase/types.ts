@@ -1895,6 +1895,95 @@ export type Database = {
         }
         Relationships: []
       }
+      support_ticket_replies: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_admin: boolean | null
+          message: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_admin?: boolean | null
+          message: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_admin?: boolean | null
+          message?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_replies_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assigned_to: string | null
+          created_at: string | null
+          description: string
+          id: string
+          issue_type: string
+          priority: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          screenshot_url: string | null
+          status: string
+          subject: string
+          ticket_number: string
+          updated_at: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          issue_type: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          screenshot_url?: string | null
+          status?: string
+          subject: string
+          ticket_number: string
+          updated_at?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          issue_type?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          screenshot_url?: string | null
+          status?: string
+          subject?: string
+          ticket_number?: string
+          updated_at?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       swap_execution_metrics: {
         Row: {
           db_record_success: boolean
@@ -2932,6 +3021,10 @@ export type Database = {
       execute_transaction: {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
+      }
+      generate_ticket_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_balance_verification_cron_status: {
         Args: Record<PropertyKey, never>

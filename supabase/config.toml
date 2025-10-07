@@ -94,6 +94,9 @@ verify_jwt = true
 [functions.reconcile-transactions]
 verify_jwt = false
 
+[functions.send-support-email]
+verify_jwt = true
+
 [studio]
 enabled = true
 port = 54323

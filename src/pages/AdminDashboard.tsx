@@ -15,7 +15,8 @@ import {
   Activity,
   Lock,
   Receipt,
-  Clock
+  Clock,
+  MessageCircle
 } from 'lucide-react';
 import { useAdmin, AdminStats } from '@/hooks/useAdmin';
 import BottomNavigation from '@/components/BottomNavigation';
@@ -198,6 +199,14 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/admin/support')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <MessageCircle className="h-6 w-6" />
+                <span className="text-sm">Support Tickets</span>
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/admin/users')}

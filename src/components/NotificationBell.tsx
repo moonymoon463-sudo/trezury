@@ -30,6 +30,8 @@ const NotificationBell = () => {
         return '✨';
       case 'wallet_setup_complete':
         return '💼';
+      case 'support_update':
+        return '💬';
       case 'kyc_verified':
       case 'kyc_status_update':
         return '✅';

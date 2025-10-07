@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown, Wallet, Copy, Eye, EyeOff, Sparkles } from "lucide-react";
+import { ArrowLeft, User, Shield, CreditCard, Bell, LogOut, CheckCircle, Clock, AlertTriangle, FileText, Crown, Wallet, Copy, Eye, EyeOff, Sparkles, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
@@ -485,6 +485,24 @@ const Settings = () => {
             </Button>
           </div>
         )}
+
+        {/* Support & Help */}
+        <div className="bg-card rounded-xl p-4">
+          <h3 className="text-white text-lg font-bold mb-4 flex items-center gap-2">
+            <MessageCircle size={20} />
+            Support & Help
+          </h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Need assistance? Our support team is here to help
+          </p>
+          <Button
+            onClick={() => navigate('/support')}
+            className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Contact Support
+          </Button>
+        </div>
 
         {/* Payment Methods */}
         <div className="bg-card rounded-xl p-4">

@@ -55,6 +55,9 @@ import TrzryReserves from "./pages/TrzryReserves";
 import TrzryHub from "./pages/TrzryHub";
 import Send from "./pages/Send";
 import Receive from "./pages/Receive";
+import Support from "./pages/Support";
+import SupportTickets from "./pages/SupportTickets";
+import AdminSupport from "./pages/AdminSupport";
 import RealTimeSystemMonitor from "./components/admin/RealTimeSystemMonitor";
 import WebhookMonitoringDashboard from "./components/admin/WebhookMonitoringDashboard";
 import SwapAnalyticsDashboard from "./components/admin/SwapAnalyticsDashboard";
@@ -135,6 +138,9 @@ const AppRoutes = () => {
       <Route path="/trzry-hub" element={<ProtectedRoute><TrzryHub /></ProtectedRoute>} />
       <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
       <Route path="/receive" element={<ProtectedRoute><Receive /></ProtectedRoute>} />
+      <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
+      <Route path="/support/tickets" element={<ProtectedRoute><SupportTickets /></ProtectedRoute>} />
+      <Route path="/admin/support" element={<ProtectedRoute><AdminSupport /></ProtectedRoute>} />
       <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
       <Route path="/moonpay/callback" element={<ProtectedRoute><MoonPayCallback /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />

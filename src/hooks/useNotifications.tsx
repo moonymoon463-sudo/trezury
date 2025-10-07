@@ -36,7 +36,8 @@ export const useNotifications = () => {
           'wallet_setup_complete',
           'kyc_verified',
           'kyc_status_update',
-          'profile_security'
+          'profile_security',
+          'support_update'
         ])
         .order('created_at', { ascending: false })
         .limit(10);
