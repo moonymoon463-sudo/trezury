@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import StandardHeader from '@/components/StandardHeader';
-import BottomNavigation from '@/components/BottomNavigation';
+import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -40,9 +39,7 @@ export default function Support() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <StandardHeader title="Support & Help" />
-
+    <AppLayout headerProps={{ title: "Support & Help" }}>
       <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -151,7 +148,6 @@ export default function Support() {
       </div>
 
       <SupportModal open={modalOpen} onOpenChange={setModalOpen} />
-      <BottomNavigation />
-    </div>
+    </AppLayout>
   );
 }

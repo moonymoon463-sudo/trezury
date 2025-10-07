@@ -1,5 +1,4 @@
-import StandardHeader from '@/components/StandardHeader';
-import BottomNavigation from '@/components/BottomNavigation';
+import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,8 +42,7 @@ export default function SupportTickets() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-20">
-        <StandardHeader title="My Support Tickets" />
+      <AppLayout headerProps={{ title: "My Support Tickets" }}>
         <div className="container mx-auto px-4 py-6 max-w-4xl space-y-4">
           {[1, 2, 3].map((i) => (
             <Card key={i}>
@@ -59,15 +57,12 @@ export default function SupportTickets() {
             </Card>
           ))}
         </div>
-        <BottomNavigation />
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <StandardHeader title="My Support Tickets" />
-
+    <AppLayout headerProps={{ title: "My Support Tickets" }}>
       <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         {/* Create New Ticket Button */}
         <Button
@@ -176,8 +171,6 @@ export default function SupportTickets() {
           )}
         </DialogContent>
       </Dialog>
-
-      <BottomNavigation />
-    </div>
+    </AppLayout>
   );
 }
