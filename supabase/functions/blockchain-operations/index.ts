@@ -1096,16 +1096,18 @@ serve(async (req) => {
                 
                 // Continue with new swap execution (fall through)
               } else {
-                // Intent is still in progress, reject duplicate
+                // Intent is still in progress, return error but with 200 status for proper error handling
+                console.log(`❌ Blocking duplicate - intent in progress (${existingIntent.status}, ${intentAgeMinutes}m old)`);
                 return new Response(
                   JSON.stringify({ 
                     success: false,
                     error: `A swap for this quote is already in progress (${existingIntent.status}). Please wait or try again in a few moments.`,
+                    errorCode: 'DUPLICATE_IN_PROGRESS',
                     intentId: existingIntent.id,
                     existingStatus: existingIntent.status,
                     ageMinutes: intentAgeMinutes
                   }),
-                  { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                 );
               }
             }

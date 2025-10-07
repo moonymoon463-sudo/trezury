@@ -230,10 +230,31 @@ export class DexAggregatorService {
       });
 
       if (swapError || !swapResult?.success) {
-        console.error(`❌ REAL ${route.protocol} swap failed:`, swapError || swapResult?.error);
+        // Extract detailed error message from edge function response
+        let errorMessage = 'Real swap execution failed';
+        
+        // If swapResult has error details (success: false case)
+        if (swapResult?.error) {
+          errorMessage = swapResult.error;
+        }
+        // If swapError has context (non-2xx status case)
+        else if (swapError && typeof swapError === 'object' && 'context' in swapError) {
+          const context = (swapError as any).context;
+          if (context?.error) {
+            errorMessage = context.error;
+          } else if (context) {
+            errorMessage = JSON.stringify(context);
+          }
+        }
+        // Fallback to error message
+        else if (swapError?.message) {
+          errorMessage = swapError.message;
+        }
+        
+        console.error(`❌ REAL ${route.protocol} swap failed:`, errorMessage);
         return {
           success: false,
-          error: swapResult?.error || swapError?.message || 'Real swap execution failed',
+          error: errorMessage,
           requiresImport: swapResult?.requiresImport || false,
           requiresRefund: swapResult?.requiresRefund || false,
           refundTxHash: swapResult?.refundTxHash
