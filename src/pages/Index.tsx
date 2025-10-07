@@ -31,9 +31,9 @@ const Index = () => {
     }
   }, [user, getWalletAddress]);
 
-  // Get real balances
-  const usdcBalance = getBalance('USDC');
-  const goldBalance = getBalance('XAUT');
+  // Get real balances - only use them if not loading or if we have cached values
+  const usdcBalance = balanceLoading && getBalance('USDC') === 0 ? 0 : getBalance('USDC');
+  const goldBalance = balanceLoading && getBalance('XAUT') === 0 ? 0 : getBalance('XAUT');
   
   console.log('💰 Index balances - USDC:', usdcBalance, 'XAUT:', goldBalance, 'Loading:', balanceLoading);
   
@@ -58,15 +58,15 @@ const Index = () => {
     {
       name: "Gold",
       symbol: "GOLD",
-      amount: goldBalance.toFixed(3),
-      value: `$${goldValueUsd.toFixed(2)}`,
+      amount: balanceLoading && goldBalance === 0 ? "..." : goldBalance.toFixed(3),
+      value: balanceLoading && goldValueUsd === 0 ? "..." : `$${goldValueUsd.toFixed(2)}`,
       icon: "🥇"
     },
     {
       name: "USD Coin",
       symbol: "USDC", 
-      amount: usdcBalance.toFixed(2),
-      value: `$${usdcBalance.toFixed(2)}`,
+      amount: balanceLoading && usdcBalance === 0 ? "..." : usdcBalance.toFixed(2),
+      value: balanceLoading && usdcBalance === 0 ? "..." : `$${usdcBalance.toFixed(2)}`,
       icon: "💲"
     }
   ];
