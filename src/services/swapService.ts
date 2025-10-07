@@ -270,18 +270,22 @@ class SwapService {
         
         console.warn(`[SwapService] Found existing ${latestIntent.status} intent: ${latestIntent.id} (${ageMinutes}m old)`);
         
-        // If intent is recent (< 2 minutes), reject duplicate
-        if (ageMinutes < 2) {
+        // Different timeout thresholds based on status
+        const isStuckValidating = latestIntent.status === 'validating' && ageMinutes >= 2;
+        const isStuckOther = latestIntent.status !== 'validating' && ageMinutes >= 10;
+        
+        // If intent is actively progressing (not stuck), reject duplicate
+        if (!isStuckValidating && !isStuckOther) {
           return {
             success: false,
             error: `A swap for this quote is already in progress (${latestIntent.status}). Please wait or generate a new quote.`
           };
         }
         
-        // If intent is old and stuck, fail it before creating new one
-        console.log(`[SwapService] Canceling stuck intent before creating new one...`);
+        // If intent is stuck, fail it before creating new one
+        console.log(`[SwapService] Canceling stuck ${latestIntent.status} intent (${ageMinutes}m old) before creating new one...`);
         await safeSwapService.updateIntentStatus(latestIntent.id, 'failed', {
-          error_message: 'Canceled due to timeout - new swap attempt initiated',
+          error_message: `Stuck in ${latestIntent.status} for ${ageMinutes} minutes - superseded by new swap attempt`,
           error_details: { reason: 'state_machine_cleanup', age_minutes: ageMinutes }
         });
       }
