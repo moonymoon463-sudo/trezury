@@ -140,11 +140,20 @@ export function useOptimizedWalletBalance() {
         setLoading(true);
       }
       
-      // Get user's wallet address
-      const address = await secureWalletService.getWalletAddress(user.id);
+      // Get user's wallet address with retry
+      let address = null;
+      let retries = 3;
+      while (!address && retries > 0) {
+        address = await secureWalletService.getWalletAddress(user.id);
+        if (!address) {
+          retries--;
+          if (retries > 0) await new Promise(r => setTimeout(r, 500));
+        }
+      }
+      
       if (!address) {
-        console.log('No wallet address found for user');
-        setBalances([]);
+        console.log('No wallet address found for user after retries');
+        if (!silent) setLoading(false);
         return;
       }
 
@@ -157,6 +166,7 @@ export function useOptimizedWalletBalance() {
         if (cached && Date.now() - cached.timestamp < BALANCE_CACHE_DURATION) {
           setBalances(cached.balances);
           setLastFetch(cached.timestamp);
+          if (!silent) setLoading(false);
           return;
         }
       }
@@ -175,7 +185,7 @@ export function useOptimizedWalletBalance() {
 
     } catch (error) {
       console.error('Failed to fetch wallet balances:', error);
-      setBalances([]);
+      // Don't clear balances on error, keep last known values
     } finally {
       if (!silent) {
         setLoading(false);
@@ -216,8 +226,10 @@ export function useOptimizedWalletBalance() {
 
   // Initial fetch
   useEffect(() => {
-    fetchBalances();
-  }, [fetchBalances]);
+    if (user?.id) {
+      fetchBalances();
+    }
+  }, [user?.id, fetchBalances]);
 
   // Set up background refresh
   useEffect(() => {

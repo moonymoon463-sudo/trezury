@@ -24,73 +24,67 @@ export function useWalletBalance() {
     try {
       setLoading(true);
       
-      // Get user's unique wallet address
-      const address = await secureWalletService.getWalletAddress(user.id);
+      // Get user's unique wallet address with retry
+      let address = null;
+      let retries = 3;
+      while (!address && retries > 0) {
+        address = await secureWalletService.getWalletAddress(user.id);
+        if (!address) {
+          retries--;
+          if (retries > 0) await new Promise(r => setTimeout(r, 500));
+        }
+      }
+      
       if (!address) {
-        console.log('No wallet address found for user');
+        console.log('No wallet address found for user after retries');
         setBalances([]);
+        setLoading(false);
         return;
       }
 
       setWalletAddress(address);
 
-      // Fetch live balances from blockchain via edge function
-      const { data: usdcResult, error: usdcError } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'get_balance',
-          address: address,
-          asset: 'USDC'
+      // Fetch all balances in parallel with retry logic
+      const fetchWithRetry = async (asset: string, attempts = 3): Promise<number> => {
+        for (let i = 0; i < attempts; i++) {
+          try {
+            const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+              body: {
+                operation: 'get_balance',
+                address: address,
+                asset: asset
+              }
+            });
+            
+            if (error) throw error;
+            if (data?.success) return data.balance || 0;
+          } catch (err) {
+            console.warn(`Attempt ${i + 1}/${attempts} failed for ${asset}:`, err);
+            if (i < attempts - 1) {
+              await new Promise(r => setTimeout(r, 300 * Math.pow(2, i)));
+            }
+          }
         }
-      });
+        return 0;
+      };
 
-      const { data: xautResult, error: xautError } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'get_balance', 
-          address: address,
-          asset: 'XAUT'
-        }
-      });
-
-      const { data: trzryResult, error: trzryError } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'get_balance', 
-          address: address,
-          asset: 'TRZRY'
-        }
-      });
-      
-      // Log any errors for debugging
-      if (usdcError) console.error('USDC balance fetch error:', usdcError);
-      if (xautError) console.error('XAUT balance fetch error:', xautError);
-      if (trzryError) console.error('TRZRY balance fetch error:', trzryError);
-      
-      const usdcBalance = usdcResult?.success ? usdcResult.balance : 0;
-      const xautBalance = xautResult?.success ? xautResult.balance : 0;
-      const trzryBalance = trzryResult?.success ? trzryResult.balance : 0;
+      const [usdcBalance, xautBalance, trzryBalance] = await Promise.all([
+        fetchWithRetry('USDC'),
+        fetchWithRetry('XAUT'),
+        fetchWithRetry('TRZRY')
+      ]);
 
       const newBalances: WalletBalance[] = [
-        {
-          asset: 'USDC',
-          amount: usdcBalance,
-          chain: 'ethereum'
-        },
-        {
-          asset: 'XAUT',
-          amount: xautBalance,
-          chain: 'ethereum'
-        },
-        {
-          asset: 'TRZRY',
-          amount: trzryBalance,
-          chain: 'ethereum'
-        }
+        { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
+        { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
+        { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' }
       ];
 
       console.log('💰 Setting balances:', newBalances);
       setBalances(newBalances);
     } catch (error) {
       console.error('Failed to fetch wallet balances:', error);
-      setBalances([]);
+      // Don't clear balances on error, keep last known values
     } finally {
       setLoading(false);
     }
@@ -113,8 +107,10 @@ export function useWalletBalance() {
   }, 0);
 
   useEffect(() => {
-    fetchBalances();
-  }, [fetchBalances]);
+    if (user?.id) {
+      fetchBalances();
+    }
+  }, [user?.id, fetchBalances]);
 
   return {
     balances,
