@@ -216,6 +216,15 @@ const AdminDashboard = () => {
                 <span className="text-sm">Transactions</span>
               </Button>
               
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/fees?tab=dashboard')}
+                className="h-20 flex flex-col gap-2"
+              >
+                <TrendingUp className="h-6 w-6" />
+                <span className="text-sm">Fee Dashboard</span>
+              </Button>
+              
               <Button
                 variant="outline" 
                 onClick={() => navigate('/admin/fees')}

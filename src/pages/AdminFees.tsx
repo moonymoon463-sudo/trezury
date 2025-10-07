@@ -3,23 +3,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Wallet, DollarSign, TrendingUp, Activity, AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Download, Wallet, DollarSign, TrendingUp, Activity, AlertCircle, Clock, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { feeCollectionService, FeeCollectionSummary, PlatformFeeRecord } from "@/services/feeCollectionService";
 import { blockchainService } from "@/services/blockchainService";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useFeeCollectionDashboard } from "@/hooks/useFeeCollectionDashboard";
 import ChainAnalytics from "@/components/admin/ChainAnalytics";
 import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 
 const AdminFees = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { getFeeAnalytics } = useAdmin();
+  const { stats: dashboardStats, loading: dashboardLoading, refresh: refreshDashboard } = useFeeCollectionDashboard();
   const [summary, setSummary] = useState<FeeCollectionSummary | null>(null);
   const [recentFees, setRecentFees] = useState<PlatformFeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [collectingFees, setCollectingFees] = useState(false);
   const [feeAnalytics, setFeeAnalytics] = useState<any>(null);
+  
+  const defaultTab = searchParams.get('tab') || 'overview';
 
   useEffect(() => {
     loadFeeData();
@@ -103,13 +111,201 @@ const AdminFees = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 pb-6 overflow-y-auto">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue={defaultTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="collection">Collection</TabsTrigger>
             <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard" className="space-y-6 mt-6">
+            {dashboardLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              </div>
+            ) : (
+              <>
+                {/* Real-time Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Pending Fees</CardTitle>
+                      <Clock className="h-4 w-4 text-yellow-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{dashboardStats?.pending_count || 0}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatCurrency(dashboardStats?.pending_amount || 0)} total
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Success Rate (24h)</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold">{dashboardStats?.success_rate_24h?.toFixed(1) || 0}%</div>
+                      <Progress value={dashboardStats?.success_rate_24h || 0} className="mt-2" />
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Last Collection</CardTitle>
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                      {dashboardStats?.last_collection ? (
+                        <>
+                          <div className="text-sm font-medium">
+                            {formatDistanceToNow(new Date(dashboardStats.last_collection.completed_at), { addSuffix: true })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(dashboardStats.last_collection.amount)} {dashboardStats.last_collection.asset}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">No collections yet</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Next Scheduled</CardTitle>
+                      <Clock className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm font-medium">Daily at 2:00 AM UTC</div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mt-2 p-0 h-auto"
+                        onClick={refreshDashboard}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Refresh
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Batch Collection Status Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Batch Collections (Last 7 Days)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {dashboardStats?.batch_history?.length ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Chain</TableHead>
+                            <TableHead>Completed</TableHead>
+                            <TableHead>Failed</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Success Rate</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dashboardStats.batch_history.map((batch, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{new Date(batch.date).toLocaleDateString()}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{batch.chain}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="default" className="bg-green-500">{batch.completed_count}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="destructive">{batch.failed_count}</Badge>
+                              </TableCell>
+                              <TableCell>{formatCurrency(batch.total_amount)}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <span>{batch.success_rate.toFixed(1)}%</span>
+                                  <Progress value={batch.success_rate} className="w-16" />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        No batch collection history available
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Live Pending Requests */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pending Fee Requests</CardTitle>
+                    <CardDescription>Real-time view of uncollected fees (showing up to 20)</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {dashboardStats?.pending_requests?.length ? (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {dashboardStats.pending_requests.map((request) => (
+                          <div key={request.id} className="flex justify-between items-center p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{request.asset}</span>
+                                <Badge variant="outline" className="text-xs">{request.chain}</Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Created {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                              </div>
+                              <div className="text-xs text-muted-foreground font-mono">
+                                {request.from_address.slice(0, 10)}...{request.from_address.slice(-8)}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold">{request.amount.toFixed(6)}</div>
+                              <div className="text-xs text-muted-foreground">{request.asset}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        No pending fee requests
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Asset Breakdown */}
+                {dashboardStats?.asset_breakdown && Object.keys(dashboardStats.asset_breakdown).length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Pending Fees by Asset</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {Object.entries(dashboardStats.asset_breakdown).map(([asset, amount]) => (
+                          <div key={asset} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                            <div className="font-medium">{asset}</div>
+                            <div className="text-right">
+                              <div className="font-bold">{(amount as number).toFixed(6)}</div>
+                              <div className="text-xs text-muted-foreground">{asset}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-6 mt-6">
             {/* Fee Summary Cards */}

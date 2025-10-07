@@ -2830,6 +2830,10 @@ export type Database = {
         Args: { end_date?: string; start_date?: string }
         Returns: Json
       }
+      admin_get_fee_collection_dashboard_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       admin_get_security_overview: {
         Args: Record<PropertyKey, never>
         Returns: Json
