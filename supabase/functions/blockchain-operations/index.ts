@@ -15,9 +15,112 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Blockchain configuration from secrets
 const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY')!;
+const ALCHEMY_API_KEY = Deno.env.get('ALCHEMY_API_KEY');
 const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
 const RELAYER_PRIVATE_KEY = Deno.env.get('RELAYER_PRIVATE_KEY');
-const rpcUrl = `https://mainnet.infura.io/v3/${INFURA_API_KEY}`;
+
+// F-006 FIX: RPC Failover - Multiple providers with automatic fallback
+const RPC_ENDPOINTS = [
+  `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
+  ...(ALCHEMY_API_KEY ? [`https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`] : []),
+  'https://ethereum.publicnode.com',
+  'https://rpc.ankr.com/eth',
+  'https://eth.llamarpc.com'
+];
+
+let currentRpcIndex = 0;
+
+// F-008 FIX: Structured logging utility
+interface LogContext {
+  operation?: string;
+  userId?: string;
+  orderId?: string;
+  txHash?: string;
+  error?: string;
+  [key: string]: any;
+}
+
+function logStructured(level: 'info' | 'warn' | 'error', message: string, context: LogContext = {}) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    service: 'blockchain-operations',
+    ...context
+  };
+  
+  const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+  logFn(JSON.stringify(logEntry));
+}
+
+// F-009 FIX: Alert notification system
+async function sendAlert(severity: 'low' | 'medium' | 'high' | 'critical', title: string, description: string, metadata: Record<string, any> = {}) {
+  try {
+    await supabase.from('security_alerts').insert({
+      alert_type: 'blockchain_operation',
+      severity,
+      title,
+      description,
+      metadata: {
+        ...metadata,
+        timestamp: new Date().toISOString(),
+        service: 'blockchain-operations'
+      }
+    });
+    
+    logStructured('warn', `Alert sent: ${title}`, { severity, ...metadata });
+  } catch (error) {
+    logStructured('error', 'Failed to send alert', { 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      alertTitle: title 
+    });
+  }
+}
+
+// F-006 FIX: RPC Provider with automatic failover
+async function getProviderWithFailover(): Promise<ethers.JsonRpcProvider> {
+  const maxAttempts = RPC_ENDPOINTS.length;
+  let attempts = 0;
+  
+  while (attempts < maxAttempts) {
+    const rpcUrl = RPC_ENDPOINTS[currentRpcIndex];
+    
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      
+      // Test connection with a simple call
+      await provider.getBlockNumber();
+      
+      logStructured('info', 'RPC provider connected', { 
+        rpcUrl: rpcUrl.split('/').slice(0, 3).join('/'),
+        index: currentRpcIndex 
+      });
+      
+      return provider;
+    } catch (error) {
+      logStructured('warn', 'RPC provider failed, trying fallback', {
+        rpcUrl: rpcUrl.split('/').slice(0, 3).join('/'),
+        index: currentRpcIndex,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        attempt: attempts + 1
+      });
+      
+      // Move to next provider
+      currentRpcIndex = (currentRpcIndex + 1) % RPC_ENDPOINTS.length;
+      attempts++;
+      
+      // If this is the last attempt, send critical alert
+      if (attempts === maxAttempts) {
+        await sendAlert('critical', 'All RPC Providers Failed', 
+          'All configured RPC endpoints are unreachable', 
+          { totalEndpoints: RPC_ENDPOINTS.length }
+        );
+      }
+    }
+  }
+  
+  throw new Error('All RPC providers failed after exhausting all endpoints');
+}
 
 // F-002 FIX: Chain ID verification constant
 const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
@@ -25,7 +128,7 @@ const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
 // F-005 FIX: Server-side slippage cap (2% = 200 bps)
 const MAX_SLIPPAGE_BPS = 200;
 
-// F-004 FIX: Token address allowlist with expected symbols
+// F-004 FIX: Token address allowlist with expected symbols (XAUT uses "XAUt" on-chain)
 const TOKEN_ALLOWLIST = {
   'USDC': {
     address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -34,7 +137,7 @@ const TOKEN_ALLOWLIST = {
   },
   'XAUT': {
     address: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
-    symbol: 'XAUT',
+    symbol: 'XAUt', // Note: On-chain symbol is "XAUt", not "XAUT"
     decimals: 6
   },
   'TRZRY': {
@@ -51,16 +154,19 @@ async function getEthPrice(): Promise<number> {
   // Chainlink ETH/USD price feed on mainnet
   const priceFeedAddress = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
   try {
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const provider = await getProviderWithFailover();
     const priceFeed = new ethers.Contract(
       priceFeedAddress,
       ['function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)'],
       provider
     );
     const [, price] = await priceFeed.latestRoundData();
+    logStructured('info', 'ETH price fetched from Chainlink', { price: parseFloat(ethers.formatUnits(price, 8)) });
     return parseFloat(ethers.formatUnits(price, 8));
   } catch (error) {
-    console.warn('⚠️ Failed to get ETH price from Chainlink, using fallback:', error);
+    logStructured('warn', 'Failed to get ETH price from Chainlink, using fallback', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return 2500; // Fallback price
   }
 }
@@ -80,9 +186,12 @@ async function getXautPrice(): Promise<number> {
       .limit(1)
       .single();
     
+    logStructured('info', 'XAUT price fetched from DB', { price: data?.usd_per_oz || 3912 });
     return data?.usd_per_oz || 3912;
   } catch (error) {
-    console.warn('⚠️ Failed to get XAUT price from DB, using fallback:', error);
+    logStructured('warn', 'Failed to get XAUT price from DB, using fallback', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     return 3912; // Fallback price
   }
 }
