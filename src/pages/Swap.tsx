@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ArrowUpDown, Edit, Wallet } from "lucide-react";
-import { useWalletBalances } from "@/hooks/useWalletBalances";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
@@ -15,7 +15,7 @@ import AppLayout from "@/components/AppLayout";
 const Swap = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { getBalance, refreshBalances, walletAddress } = useWalletBalances();
+  const { balances, getBalance, refreshBalances, walletAddress } = useWalletBalance();
   const { user } = useAuth();
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();

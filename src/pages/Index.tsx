@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Send, Download, Wallet, AlertCircle } from "lucide-react";
 import { useGoldPrice } from "@/hooks/useGoldPrice";
-import { useWalletBalances } from "@/hooks/useWalletBalances";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AppLayout from "@/components/AppLayout";
@@ -15,7 +15,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
-  const { balances, totalValueUSD, refreshBalances, loading: balanceLoading, error: balancesError, fromCache, getBalance } = useWalletBalances();
+  const { getBalance, loading: balanceLoading, refreshBalances } = useWalletBalance();
   const { walletAddress, getWalletAddress } = useSecureWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
@@ -84,26 +84,6 @@ const Index = () => {
     >
       
       <div className="flex-1 min-h-0 overflow-y-auto px-1 sm:px-2 md:px-4 space-y-2 sm:space-y-3">
-        {/* Balance Error Banner */}
-        {balancesError && (
-          <Card className="bg-destructive/10 border-destructive/50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle size={16} className="text-destructive mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-foreground mb-2">{balancesError}</p>
-                <Button 
-                  size="sm"
-                  variant="outline"
-                  onClick={refreshBalances}
-                  className="text-xs h-7"
-                >
-                  Retry
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-
         {/* Wallet Creation Banner */}
         {hasWallet === false && (
           <Card className="bg-accent/50 border-primary/50 p-4">
