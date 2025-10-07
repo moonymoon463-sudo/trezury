@@ -21,6 +21,7 @@ import StandardHeader from "@/components/StandardHeader";
 import { useState, useEffect, useRef } from "react";
 import { blockchainMonitoringService } from "@/services/blockchainMonitoringService";
 import { useAuth } from "@/hooks/useAuth";
+import { useWalletBalances } from "@/hooks/useWalletBalances";
 
 export default function Portfolio() {
   const navigate = useNavigate();
@@ -40,6 +41,9 @@ export default function Portfolio() {
     refreshData,
     totalValue
   } = useMobileOptimizedPortfolio();
+
+  // Use robust wallet balances
+  const walletBalances = useWalletBalances();
 
   const {
     insights,
@@ -71,7 +75,11 @@ export default function Portfolio() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([refreshData(), refreshAnalysis()]);
+      await Promise.all([
+        refreshData(), 
+        refreshAnalysis(),
+        walletBalances.refreshBalances()
+      ]);
     } catch (error) {
       console.error('Failed to refresh portfolio data:', error);
     } finally {
@@ -160,6 +168,22 @@ export default function Portfolio() {
           <Alert variant="destructive">
             <AlertDescription>
               {error} {isMobile && "- Using cached data if available"}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Wallet Balance Error */}
+        {walletBalances.error && (
+          <Alert variant="destructive">
+            <AlertDescription className="flex items-center justify-between">
+              <span>Couldn't load balances. {walletBalances.error}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={walletBalances.refreshBalances}
+              >
+                Retry
+              </Button>
             </AlertDescription>
           </Alert>
         )}
