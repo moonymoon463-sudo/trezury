@@ -86,6 +86,7 @@ export function useWalletBalance() {
         }
       ];
 
+      console.log('💰 Setting balances:', newBalances);
       setBalances(newBalances);
     } catch (error) {
       console.error('Failed to fetch wallet balances:', error);
