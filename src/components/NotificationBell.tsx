@@ -24,10 +24,16 @@ const NotificationBell = () => {
 
   const getNotificationIcon = (kind: string) => {
     switch (kind) {
-      case 'swap_completed':
-        return '🔄';
-      case 'deposit_received':
-        return '💰';
+      case 'profile_updated':
+        return '👤';
+      case 'profile_feature':
+        return '✨';
+      case 'wallet_setup_complete':
+        return '💼';
+      case 'kyc_verified':
+      case 'kyc_status_update':
+        return '✅';
+      case 'profile_security':
       case 'security_alert':
         return '🔒';
       default:

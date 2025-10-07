@@ -300,21 +300,7 @@ serve(async (req) => {
           throw transactionError
         }
 
-        // Create notification for user
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: externalCustomerId,
-            title: 'Purchase Completed',
-            body: `Your purchase of $${baseAmount} has been completed. ${amount} USDC has been added to your balance.`,
-            kind: 'transaction_completed',
-            metadata: {
-              transaction_id: id,
-              amount: amount,
-              currency: 'USDC'
-            }
-          })
-          
+        // Transaction completed - no notification (profile-only notifications)
 
         console.log('✅ Successfully processed completed transaction')
       }
@@ -375,28 +361,25 @@ serve(async (req) => {
           throw kycUpdateError
         }
 
-        // Create notification for user
-        const notificationTitle = kycStatus === 'verified' ? 'Identity Verified' : 
-                                 kycStatus === 'rejected' ? 'Identity Verification Failed' : 
-                                 'Identity Verification In Progress'
-        
-        const notificationBody = kycStatus === 'verified' ? 'Congratulations! Your identity has been successfully verified. You\'re all set to start using the app and managing your crypto with ease!' :
-                                kycStatus === 'rejected' ? 'Your identity verification was rejected. Please contact support for assistance.' :
-                                'Your identity verification is being processed. This may take a few minutes.'
+        // Create KYC notification (profile-related)
+        if (kycStatus === 'verified') {
+          const notificationTitle = 'Identity Verified'
+          const notificationBody = 'Congratulations! Your identity has been successfully verified. You\'re all set to start using the app!'
 
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: externalCustomerId,
-            title: notificationTitle,
-            body: notificationBody,
-            kind: 'kyc_status_update',
-            metadata: {
-              kyc_status: kycStatus,
-              moonpay_customer_id: customerId
-            }
-          })
-          
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: externalCustomerId,
+              title: notificationTitle,
+              body: notificationBody,
+              kind: 'kyc_verified',
+              priority: 'info',
+              metadata: {
+                kyc_status: kycStatus,
+                moonpay_customer_id: customerId
+              }
+            })
+        }
 
         console.log(`✅ Successfully updated KYC status to ${kycStatus} for user ${externalCustomerId}`)
       }
@@ -434,20 +417,7 @@ serve(async (req) => {
           })
           
 
-        // Create notification
-        await supabase
-          .from('notifications')
-          .insert({
-            user_id: externalCustomerId,
-            title: 'Refund Processed',
-            body: `Your refund of $${amount} has been processed and will appear in your account within 3-5 business days.`,
-            kind: 'refund_completed',
-            metadata: {
-              refund_id: refundId,
-              amount: amount
-            }
-          })
-          
+        // Refund completed - no notification (profile-only notifications)
       }
     }
 
@@ -483,21 +453,7 @@ serve(async (req) => {
           })
           .eq('moonpay_tx_id', id)
 
-        // Create notification for user
-        if (externalCustomerId) {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: externalCustomerId,
-              title: 'Transaction Failed',
-              body: `Your transaction failed: ${failureReason}. Please try again or contact support.`,
-              kind: 'transaction_failed',
-              metadata: {
-                transaction_id: id,
-                failure_reason: failureReason
-              }
-            })
-        }
+        // Transaction failed - no notification (profile-only notifications)
       }
 
       // Handle recurring transaction events

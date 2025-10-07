@@ -30,6 +30,14 @@ export const useNotifications = () => {
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
+        .in('kind', [
+          'profile_updated',
+          'profile_feature', 
+          'wallet_setup_complete',
+          'kyc_verified',
+          'kyc_status_update',
+          'profile_security'
+        ])
         .order('created_at', { ascending: false })
         .limit(10);
       
