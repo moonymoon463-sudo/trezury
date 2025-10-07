@@ -1,33 +1,11 @@
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import AurumLogo from "@/components/AurumLogo";
+import AppLayout from "@/components/AppLayout";
+import { Card } from "@/components/ui/card";
 
 const TermsOfService = () => {
-  const navigate = useNavigate();
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card p-4 border-b">
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate("/settings")}
-            className="text-foreground hover:bg-muted"
-          >
-            <ArrowLeft size={24} />
-          </Button>
-          <div className="flex-1 flex justify-center pr-12">
-            <AurumLogo compact />
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-card rounded-lg p-6 shadow-sm">
+    <AppLayout headerProps={{ title: "Terms of Service", showBackButton: true, backPath: "/settings" }}>
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <Card className="p-6 md:p-8">
           <h1 className="text-3xl font-bold text-foreground mb-6">Terms of Service</h1>
           <p className="text-muted-foreground mb-6">Last updated: {new Date().toLocaleDateString()}</p>
 
@@ -117,13 +95,15 @@ const TermsOfService = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">8. Contact Information</h2>
               <div className="space-y-3 text-muted-foreground">
                 <p>For questions about these Terms of Service, contact us at:</p>
-                <p>Email: legal@trezury.com</p>
+                <p className="font-medium">
+                  Email: <a href="mailto:support@trezury.app" className="text-primary hover:underline">support@trezury.app</a>
+                </p>
               </div>
             </section>
           </div>
-        </div>
-      </main>
-    </div>
+        </Card>
+      </div>
+    </AppLayout>
   );
 };
 
