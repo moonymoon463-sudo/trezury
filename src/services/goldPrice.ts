@@ -81,14 +81,46 @@ class GoldPriceService {
             const priceTimestamp = new Date(dbPrice.timestamp).getTime();
             const priceAge = Date.now() - priceTimestamp;
             const twoHoursMs = 2 * 60 * 60 * 1000;
+            const twoMinutesMs = 2 * 60 * 1000;
+            
+            // If older than 2 minutes, try to trigger a refresh once and refetch
+            if (priceAge > twoMinutesMs) {
+              try {
+                const refreshTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('collector timeout')), 3000));
+                await Promise.race([
+                  supabase.functions.invoke('gold-price-collector', { body: { reason: 'ui_refresh' } }),
+                  refreshTimeout
+                ]);
+
+                // Refetch the newest price after triggering collector
+                const { data: refreshed, error: refetchErr } = await supabase
+                  .from('gold_prices')
+                  .select('*')
+                  .order('timestamp', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                if (!refetchErr && refreshed) {
+                  // Use refreshed data if newer
+                  const refreshedTs = new Date(refreshed.timestamp).getTime();
+                  if (refreshedTs > priceTimestamp) {
+                    Object.assign(dbPrice, refreshed);
+                  }
+                }
+              } catch (e) {
+                console.warn('⚠️ Collector refresh attempt failed or timed out:', e);
+              }
+            }
+
+            const latestTs = new Date(dbPrice.timestamp).getTime();
+            const latestAge = Date.now() - latestTs;
             
             const goldPrice: GoldPrice = {
               usd_per_oz: Number(dbPrice.usd_per_oz),
               usd_per_gram: Number(dbPrice.usd_per_gram),
               change_24h: Number(dbPrice.change_24h || 0),
               change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-              last_updated: priceTimestamp,
-              isStale: priceAge > twoHoursMs,
+              last_updated: latestTs,
+              isStale: latestAge > twoHoursMs,
             };
             
             this.currentPrice = goldPrice;

@@ -52,7 +52,7 @@ export const useGoldPrice = () => {
     });
 
     // Adjust update frequency based on backend health
-    const updateInterval = isUnhealthy ? 600000 : isDegraded ? 420000 : 300000;
+    const updateInterval = isUnhealthy ? 120000 : isDegraded ? 60000 : 30000;
     goldPriceService.startRealTimeUpdates(updateInterval);
 
     // Load initial price
