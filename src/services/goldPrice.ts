@@ -116,14 +116,6 @@ class GoldPriceService {
               last_updated: priceTimestamp,
               isStale: priceAge > twoHoursMs,
             };
-
-              usd_per_oz: Number(dbPrice.usd_per_oz),
-              usd_per_gram: Number(dbPrice.usd_per_gram),
-              change_24h: Number(dbPrice.change_24h || 0),
-              change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-              last_updated: priceTimestamp,
-              isStale: priceAge > twoHoursMs,
-            };
             
             this.currentPrice = goldPrice;
             this.lastFetchTime = Date.now();
@@ -160,9 +152,6 @@ class GoldPriceService {
       }
     );
   }
-
-  // Removed mock price generation to ensure real data only
-
 
   subscribe(callback: (price: GoldPrice) => void): () => void {
     this.subscribers.add(callback);
@@ -247,7 +236,6 @@ class GoldPriceService {
 
   async getHistoricalData(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistoryEntry[]> {
     // Only DB-backed historical data; if missing, trigger backfill
-    // No synthetic data generation
     console.log(`📊 Getting historical data for timeframe: ${timeframe}`);
     
     // Calculate date range based on timeframe
@@ -322,8 +310,6 @@ class GoldPriceService {
     return result;
   }
 
-  // Removed synthetic historical data generation to ensure accuracy
-
   async getHistoricalPrices(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistory[]> {
     console.log(`📊 Getting historical prices for timeframe: ${timeframe}`);
     
@@ -355,8 +341,6 @@ class GoldPriceService {
       return [];
     }
   }
-
-  // Removed synthetic chart data generation to ensure accuracy
 
   private getMaxPoints(timeframe: string): number {
     const maxPoints = {
