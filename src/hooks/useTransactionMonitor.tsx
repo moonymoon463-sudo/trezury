@@ -9,6 +9,9 @@ interface TransactionIntent {
   error_message?: string;
   output_amount?: number;
   output_asset?: string;
+  refund_tx_hash?: string;
+  swap_tx_hash?: string;
+  disbursement_tx_hash?: string;
 }
 
 interface UseTransactionMonitorProps {
@@ -125,11 +128,29 @@ export const useTransactionMonitor = ({
             case 'refunded':
               toast({
                 title: "Funds Refunded",
-                description: "Your funds have been returned due to swap failure",
+                description: newData.refund_tx_hash ? `Refunded successfully. Refund tx: ${newData.refund_tx_hash}` : "Your funds have been returned due to swap failure",
               });
               if (onFailed) {
                 setTimeout(() => onFailed(), 1000);
               }
+              break;
+
+            case 'requires_reconciliation':
+              toast({
+                variant: "destructive",
+                title: "Swap Needs Reconciliation",
+                description: "Swap executed on-chain but record update failed. We will reconcile shortly.",
+              });
+              if (onFailed) setTimeout(() => onFailed(), 1000);
+              break;
+
+            case 'failed_needs_manual_refund':
+              toast({
+                variant: "destructive",
+                title: "Refund Pending Manual Action",
+                description: "Automatic refund failed. Support has been alerted to return your funds.",
+              });
+              if (onFailed) setTimeout(() => onFailed(), 1000);
               break;
           }
         }

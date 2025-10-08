@@ -1274,6 +1274,7 @@ serve(async (req) => {
         idempotencyKey?: string;
       };
       intentId = bodyIntentId;
+          let disbursementCompleted = false;
           
           // F-003 FIX: Idempotency and intent validation
           // If intentId is provided, this is the first execution for this intent - allow it
@@ -1738,6 +1739,7 @@ serve(async (req) => {
           
           console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, 6)} ${outputAsset} (retained in relayer for batch collection)`);
           console.log(`📝 User receives: ${ethers.formatUnits(userTokensWei, 6)} ${outputAsset}`);
+          const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
           
           // ===== STEP 8: SINGLE TRANSACTION - TRANSFER NET TO USER =====
           console.log(`\n💸 STEP 8: Transferring net output to user (1 transaction)`);
@@ -1746,6 +1748,7 @@ serve(async (req) => {
           const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, ERC20_ABI, relayerWallet);
           const userTransferTx = await outputTokenWithRelayer.transfer(userWallet.address, userTokensWei);
           const userTransferReceipt = await userTransferTx.wait();
+          disbursementCompleted = true;
           console.log(`✅ User output transferred: ${userTransferReceipt.hash}`);
           console.log(`💰 Platform fee retained in relayer wallet for batch collection`);
           console.log(`✅ SWAP SUCCESSFUL - User received net output (50% gas savings vs 2-tx model)\n`);
@@ -1790,6 +1793,47 @@ serve(async (req) => {
           });
           
           } catch (swapExecutionError) {
+            // If disbursement already completed, do NOT refund — mark for reconciliation
+            if (disbursementCompleted) {
+              console.error(`❌ Post-disbursement error:`, swapExecutionError);
+              if (intentId) {
+                try {
+                  await supabaseAdmin.from('transaction_intents').update({
+                    status: 'requires_reconciliation',
+                    swap_tx_hash: swapTxHash || null,
+                    swap_executed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    error_message: 'Swap executed and disbursement sent, but a later step failed. Requires reconciliation.',
+                    error_details: {
+                      swap_error: swapExecutionError instanceof Error ? swapExecutionError.message : String(swapExecutionError),
+                      pull_tx_hash: pullReceipt?.hash,
+                      swap_tx_hash: swapTxHash || null
+                    },
+                    blockchain_data: {
+                      pull_tx_hash: pullReceipt?.hash,
+                      swap_tx_hash: swapTxHash || null,
+                      output_amount: netAmount,
+                      relay_fee_usd: actualRelayFeeUsd
+                    }
+                  }).eq('id', intentId);
+                  console.log(`🔒 Intent ${intentId} updated: requires_reconciliation (post-disbursement)`);
+                } catch (e) {
+                  console.error('⚠️ Failed to update intent to requires_reconciliation:', e);
+                }
+              }
+              return new Response(JSON.stringify({
+                success: false,
+                error: 'Swap sent and funds disbursed, but finalization failed. Our team will reconcile your record shortly.',
+                requiresReconciliation: true,
+                pullTxHash: pullReceipt?.hash,
+                swapTxHash: swapTxHash || null,
+                intentId
+              }), {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+
             // ===== SWAP FAILED - AUTOMATIC REFUND =====
             console.error(`❌ Swap execution failed:`, swapExecutionError);
             console.log(`\n🔄 INITIATING AUTOMATIC REFUND...`);
@@ -1928,7 +1972,6 @@ serve(async (req) => {
           // ===== STEP 10: RECORD TRANSACTION IN DATABASE (ATOMIC) =====
           console.log(`\n💾 STEP 10: Recording transaction in database`);
           
-          const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
           const grossAmount = parseFloat(ethers.formatUnits(relayerOutputBalance, 6));
           const inputAmountFormatted = parseFloat(requiredAmount.toString()) / 1e6;
           const totalFeeUsd = actualRelayFeeUsd + (platformFeeCollected * outputTokenPriceUsd);
