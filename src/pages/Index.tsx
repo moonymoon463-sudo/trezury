@@ -216,7 +216,7 @@ const Index = () => {
           </Button>
         </div>
 
-        {/* Your Assets - Wallet Options */}
+        {/* Your Assets with Allocation Chart */}
         <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-foreground text-base font-bold">Your Assets</h3>
@@ -227,41 +227,24 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <div className="space-y-2">
-            {tokens.map((token, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 ${token.color} rounded-full flex items-center justify-center text-sm`}>
-                    {token.icon}
-                  </div>
-                  <div>
-                    <p className="text-foreground font-medium text-sm">{token.name}</p>
-                    <p className="text-muted-foreground text-xs">{token.symbol}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-foreground font-medium text-sm">{token.amount}</p>
-                  <p className="text-muted-foreground text-xs">{token.value}</p>
-                </div>
-              </div>
-            ))}
+          
+          {/* Asset Allocation Chart */}
+          <div className="bg-background/50 rounded-lg p-3">
+            <AssetAllocationChart 
+              assets={tokens
+                .filter(t => t.valueUsd > 0)
+                .map(t => ({
+                  asset: t.symbol,
+                  name: t.name,
+                  valueUSD: t.valueUsd,
+                  value: t.valueUsd,
+                  balance: parseFloat(t.amount === "..." ? "0" : t.amount),
+                  allocation: (t.valueUsd / totalPortfolioValue) * 100,
+                  apy: 0
+                }))}
+            />
           </div>
         </div>
-
-        {/* Asset Allocation Pie Chart */}
-        <AssetAllocationChart 
-          assets={tokens
-            .filter(t => t.valueUsd > 0)
-            .map(t => ({
-              asset: t.symbol,
-              name: t.name,
-              valueUSD: t.valueUsd,
-              value: t.valueUsd,
-              balance: parseFloat(t.amount === "..." ? "0" : t.amount),
-              allocation: (t.valueUsd / totalPortfolioValue) * 100,
-              apy: 0
-            }))}
-        />
 
         {/* Gold Price Chart */}
         <div className="flex-1 min-h-0">
