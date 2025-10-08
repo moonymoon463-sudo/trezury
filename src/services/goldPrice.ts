@@ -78,11 +78,45 @@ class GoldPriceService {
           if (error) throw error;
 
           if (dbPrice) {
-            const priceTimestamp = new Date(dbPrice.timestamp).getTime();
-            const priceAge = Date.now() - priceTimestamp;
+            let effective = dbPrice as any;
+            let priceTimestamp = new Date(effective.timestamp).getTime();
+            let priceAge = Date.now() - priceTimestamp;
             const twoHoursMs = 2 * 60 * 60 * 1000;
-            
+            const twoMinutesMs = 2 * 60 * 1000;
+
+            // If data is stale, trigger XAUT collector once and refetch latest
+            if (priceAge > twoMinutesMs) {
+              try {
+                const refreshTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('collector timeout')), 3000));
+                await Promise.race([
+                  supabase.functions.invoke('xaut-price-collector', { body: { reason: 'ui_refresh' } }),
+                  refreshTimeout
+                ]);
+                const { data: refreshed } = await supabase
+                  .from('gold_prices')
+                  .select('*')
+                  .order('timestamp', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                if (refreshed) {
+                  effective = refreshed;
+                  priceTimestamp = new Date(effective.timestamp).getTime();
+                  priceAge = Date.now() - priceTimestamp;
+                }
+              } catch (e) {
+                console.warn('⚠️ XAUT collector trigger failed or timed out:', e);
+              }
+            }
+
             const goldPrice: GoldPrice = {
+              usd_per_oz: Number(effective.usd_per_oz),
+              usd_per_gram: Number(effective.usd_per_gram),
+              change_24h: Number(effective.change_24h || 0),
+              change_percent_24h: Number(effective.change_percent_24h || 0),
+              last_updated: priceTimestamp,
+              isStale: priceAge > twoHoursMs,
+            };
+
               usd_per_oz: Number(dbPrice.usd_per_oz),
               usd_per_gram: Number(dbPrice.usd_per_gram),
               change_24h: Number(dbPrice.change_24h || 0),
