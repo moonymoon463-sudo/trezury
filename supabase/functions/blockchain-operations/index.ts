@@ -28,7 +28,13 @@ const RPC_ENDPOINTS = [
   'https://eth.llamarpc.com'
 ];
 
-let currentRpcIndex = 0;
+// Block number cache to reduce RPC calls
+let cachedBlockNumber = 0;
+let cachedBlockTimestamp = 0;
+const BLOCK_CACHE_TTL_MS = 1500; // 1.5 seconds
+
+// Singleton provider instance
+let globalProvider: ethers.FallbackProvider | null = null;
 
 // F-008 FIX: Structured logging utility
 interface LogContext {
@@ -77,49 +83,106 @@ async function sendAlert(severity: 'low' | 'medium' | 'high' | 'critical', title
   }
 }
 
-// F-006 FIX: RPC Provider with automatic failover
-async function getProviderWithFailover(): Promise<ethers.JsonRpcProvider> {
-  const maxAttempts = RPC_ENDPOINTS.length;
-  let attempts = 0;
+// F-006 FIX: Retry wrapper with exponential backoff for rate limits
+async function withRpcRetry<T>(
+  fn: () => Promise<T>,
+  operation: string,
+  attempts = 4
+): Promise<T> {
+  let delay = 250;
   
-  while (attempts < maxAttempts) {
-    const rpcUrl = RPC_ENDPOINTS[currentRpcIndex];
-    
+  for (let i = 0; i < attempts; i++) {
     try {
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      return await fn();
+    } catch (error: any) {
+      const errorMsg = String(error?.message || '');
+      const errorCode = error?.code;
       
-      // Test connection with a simple call
-      await provider.getBlockNumber();
+      // Check if it's a rate limit error
+      const isRateLimit = 
+        errorMsg.includes('Too Many Requests') ||
+        errorMsg.includes('rate') ||
+        errorMsg.includes('throttle') ||
+        errorCode === -32005 ||
+        errorCode === 429;
       
-      logStructured('info', 'RPC provider connected', { 
-        rpcUrl: rpcUrl.split('/').slice(0, 3).join('/'),
-        index: currentRpcIndex 
-      });
-      
-      return provider;
-    } catch (error) {
-      logStructured('warn', 'RPC provider failed, trying fallback', {
-        rpcUrl: rpcUrl.split('/').slice(0, 3).join('/'),
-        index: currentRpcIndex,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        attempt: attempts + 1
-      });
-      
-      // Move to next provider
-      currentRpcIndex = (currentRpcIndex + 1) % RPC_ENDPOINTS.length;
-      attempts++;
-      
-      // If this is the last attempt, send critical alert
-      if (attempts === maxAttempts) {
-        await sendAlert('critical', 'All RPC Providers Failed', 
-          'All configured RPC endpoints are unreachable', 
-          { totalEndpoints: RPC_ENDPOINTS.length }
-        );
+      if (!isRateLimit) {
+        throw error; // Not a rate limit, throw immediately
       }
+      
+      if (i === attempts - 1) {
+        logStructured('error', 'RPC rate limit exhausted retries', {
+          operation,
+          attempts,
+          error: errorMsg
+        });
+        throw new Error(`RPC rate limited after ${attempts} retries: ${errorMsg}`);
+      }
+      
+      // Jittered exponential backoff
+      const jitter = Math.random() * 150;
+      const backoffDelay = delay + jitter;
+      
+      logStructured('warn', 'RPC rate limited, retrying', {
+        operation,
+        attempt: i + 1,
+        delayMs: Math.round(backoffDelay),
+        error: errorMsg
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      delay *= 2; // Exponential backoff
     }
   }
   
-  throw new Error('All RPC providers failed after exhausting all endpoints');
+  throw new Error('Unexpected retry loop exit');
+}
+
+// F-006 FIX: Get cached block number to reduce RPC pressure
+async function getCachedBlockNumber(provider: ethers.FallbackProvider): Promise<number> {
+  const now = Date.now();
+  
+  if (now - cachedBlockTimestamp < BLOCK_CACHE_TTL_MS && cachedBlockNumber) {
+    return cachedBlockNumber;
+  }
+  
+  const blockNumber = await withRpcRetry(
+    () => provider.getBlockNumber(),
+    'getBlockNumber'
+  );
+  
+  cachedBlockNumber = blockNumber;
+  cachedBlockTimestamp = now;
+  
+  return blockNumber;
+}
+
+// F-006 FIX: Singleton FallbackProvider with multiple RPCs
+function getProvider(): ethers.FallbackProvider {
+  if (globalProvider) {
+    return globalProvider;
+  }
+  
+  // Create provider configs with equal weight
+  const providerConfigs = RPC_ENDPOINTS.map((url, index) => {
+    const provider = new ethers.JsonRpcProvider(url);
+    return {
+      provider,
+      priority: index + 1,
+      weight: 1,
+      stallTimeout: 2000
+    };
+  });
+  
+  // FallbackProvider uses first successful response (quorum=1)
+  globalProvider = new ethers.FallbackProvider(providerConfigs, 1);
+  
+  logStructured('info', 'FallbackProvider initialized', {
+    endpoints: RPC_ENDPOINTS.length,
+    quorum: 1
+  });
+  
+  return globalProvider;
 }
 
 // F-002 FIX: Chain ID verification constant
@@ -154,13 +217,16 @@ async function getEthPrice(): Promise<number> {
   // Chainlink ETH/USD price feed on mainnet
   const priceFeedAddress = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
   try {
-    const provider = await getProviderWithFailover();
+    const provider = getProvider();
     const priceFeed = new ethers.Contract(
       priceFeedAddress,
       ['function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)'],
       provider
     );
-    const [, price] = await priceFeed.latestRoundData();
+    const [, price] = await withRpcRetry(
+      () => priceFeed.latestRoundData(),
+      'getEthPrice'
+    );
     logStructured('info', 'ETH price fetched from Chainlink', { price: parseFloat(ethers.formatUnits(price, 8)) });
     return parseFloat(ethers.formatUnits(price, 8));
   } catch (error) {
@@ -197,7 +263,7 @@ async function getXautPrice(): Promise<number> {
 }
 
 // F-004 FIX: Helper function with on-chain token verification
-async function getContractAddress(asset: string | undefined, provider: ethers.JsonRpcProvider): Promise<string> {
+async function getContractAddress(asset: string | undefined, provider: ethers.FallbackProvider): Promise<string> {
   if (!asset) {
     throw new Error('Asset is required');
   }
@@ -216,7 +282,10 @@ async function getContractAddress(asset: string | undefined, provider: ethers.Js
       ['function symbol() view returns (string)'],
       provider
     );
-    const onChainSymbol = await tokenContract.symbol();
+    const onChainSymbol = await withRpcRetry(
+      () => tokenContract.symbol(),
+      'verifyTokenSymbol'
+    );
     
     if (onChainSymbol !== tokenConfig.symbol) {
       throw new Error(
@@ -277,15 +346,15 @@ interface MarginConfig {
   reason: string;
 }
 
-async function calculateDynamicMargin(provider: ethers.JsonRpcProvider): Promise<MarginConfig> {
+async function calculateDynamicMargin(provider: ethers.FallbackProvider): Promise<MarginConfig> {
   try {
-    const currentBlock = await provider.getBlockNumber();
+    const currentBlock = await getCachedBlockNumber(provider);
     const blocksToCheck = 10;
     
     // Get recent blocks to analyze base fee growth
     const blocks = await Promise.all(
       Array.from({ length: blocksToCheck }, (_, i) => 
-        provider.getBlock(currentBlock - i)
+        withRpcRetry(() => provider.getBlock(currentBlock - i), 'getBlock')
       )
     );
     
@@ -684,8 +753,8 @@ serve(async (req) => {
       }
     }
 
-    // Initialize live provider and wallet using failover
-    const provider = await getProviderWithFailover();
+    // Initialize live provider (singleton) and wallet
+    const provider = getProvider();
     const platformWallet = new ethers.Wallet(PLATFORM_PRIVATE_KEY, provider);
     
     console.log(`Platform wallet address: ${platformWallet.address}`);
@@ -695,7 +764,10 @@ serve(async (req) => {
     const relayerWallet = RELAYER_PRIVATE_KEY ? new ethers.Wallet(RELAYER_PRIVATE_KEY, provider) : null;
     if (relayerWallet) {
       console.log(`🔐 Relayer wallet address: ${relayerWallet.address}`);
-      const relayerBalance = await provider.getBalance(relayerWallet.address);
+      const relayerBalance = await withRpcRetry(
+        () => provider.getBalance(relayerWallet.address),
+        'getRelayerBalance'
+      );
       console.log(`⛽ Relayer ETH balance: ${ethers.formatEther(relayerBalance)} ETH\n`);
       
       if (relayerBalance < ethers.parseEther('0.01')) {
@@ -709,7 +781,7 @@ serve(async (req) => {
       case 'get_rpc_url':
         result = {
           success: true,
-          rpcUrl: RPC_ENDPOINTS[currentRpcIndex]
+          rpcUrl: RPC_ENDPOINTS[0]
         };
         break;
 
@@ -752,8 +824,10 @@ serve(async (req) => {
           const contractAddress = await getContractAddress(asset, provider);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
-          const balance = await contract.balanceOf(address);
-          const decimals = await contract.decimals();
+          const [balance, decimals] = await Promise.all([
+            withRpcRetry(() => contract.balanceOf(address), 'balanceOf'),
+            withRpcRetry(() => contract.decimals(), 'decimals')
+          ]);
           const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
           
           console.log(`LIVE balance retrieved: ${formattedBalance} ${asset}`);
@@ -827,8 +901,10 @@ serve(async (req) => {
               const contractAddress = await getContractAddress(asset, provider);
               const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
               
-              const balance = await contract.balanceOf(address);
-              const decimals = await contract.decimals();
+              const [balance, decimals] = await Promise.all([
+                withRpcRetry(() => contract.balanceOf(address), `${asset}_balanceOf`),
+                withRpcRetry(() => contract.decimals(), `${asset}_decimals`)
+              ]);
               const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
               
               return {
@@ -1230,7 +1306,10 @@ serve(async (req) => {
           // 1.4: Estimate gas costs BEFORE pulling funds
           console.log(`⛽ Estimating gas costs...`);
           const marginConfig = await calculateDynamicMargin(provider);
-          const gasPrice = await provider.getFeeData();
+          const gasPrice = await withRpcRetry(
+            () => provider.getFeeData(),
+            'getFeeData_preSwap'
+          );
           const estimatedGas = useMultiHop ? BigInt(300000) : BigInt(200000);
           const estimatedGasCost = estimatedGas * (gasPrice.gasPrice || BigInt(0));
           const ethPriceUsd = await getEthPrice().catch(() => 2500);
@@ -1264,7 +1343,10 @@ serve(async (req) => {
           const validBefore = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour
           
           // F-002 FIX: Verify chain ID matches expected mainnet
-          const network = await provider.getNetwork();
+          const network = await withRpcRetry(
+            () => provider.getNetwork(),
+            'getNetwork'
+          );
           if (Number(network.chainId) !== EXPECTED_CHAIN_ID) {
             throw new Error(
               `Chain ID mismatch: Expected ${EXPECTED_CHAIN_ID} (Ethereum mainnet), got ${network.chainId}. ` +
@@ -1351,7 +1433,10 @@ serve(async (req) => {
             // STEP 3.1: APPROVE RELAYER'S TOKENS FOR UNISWAP
             console.log(`📝 Approving relayer's ${inputAsset} for Uniswap router`);
           const relayerInputTokenContract = new ethers.Contract(tokenInAddress, ERC20_ABI, relayerWallet);
-          const currentAllowance = await relayerInputTokenContract.allowance(relayerWallet.address, UNISWAP_V3_ROUTER);
+          const currentAllowance = await withRpcRetry(
+            () => relayerInputTokenContract.allowance(relayerWallet.address, UNISWAP_V3_ROUTER),
+            'checkAllowance'
+          );
           
           // F-001 FIX: Reset allowance to 0 before approving to prevent accumulated attack surface
           if (currentAllowance < requiredAmount) {
@@ -1424,7 +1509,10 @@ serve(async (req) => {
           console.log(`📊 Relayer received: ${ethers.formatUnits(relayerOutputBalance, 6)} ${outputAsset}`);
           
           // Calculate actual relay fee from gas used
-          const gasPrice2 = await provider.getFeeData();
+          const gasPrice2 = await withRpcRetry(
+            () => provider.getFeeData(),
+            'getFeeData_postSwap'
+          );
           const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice2.gasPrice || BigInt(0));
           const actualGasCostUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd;
           const actualRelayFeeUsd = actualGasCostUsd * marginConfig.margin;
@@ -1598,7 +1686,10 @@ serve(async (req) => {
           }
           
           // ===== STEP 9: MONITOR RELAYER BALANCE WITH DATABASE ALERTS =====
-          const relayerBalance = await provider.getBalance(relayerWallet.address);
+          const relayerBalance = await withRpcRetry(
+            () => provider.getBalance(relayerWallet.address),
+            'getRelayerBalanceMonitor'
+          );
           const relayerBalanceEth = parseFloat(ethers.formatEther(relayerBalance));
           console.log(`⚡ Relayer balance: ${relayerBalanceEth.toFixed(4)} ETH`);
           
@@ -2020,7 +2111,10 @@ serve(async (req) => {
           
           // Estimate gas and relay fee for the quote
           const gasEstimate = routeUsed === 'multi-hop-weth' ? 300000 : 200000;
-          const feeData = await provider.getFeeData();
+          const feeData = await withRpcRetry(
+            () => provider.getFeeData(),
+            'getFeeData_quote'
+          );
           const estimatedGasCost = BigInt(gasEstimate) * (feeData.gasPrice || BigInt(0));
           
           const ethPriceUsd = await getEthPrice().catch(() => 2500);
