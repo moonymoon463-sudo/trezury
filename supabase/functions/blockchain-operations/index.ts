@@ -1628,6 +1628,9 @@ serve(async (req) => {
           
           let swapTxHash: string | null = null;
           let actualOutputAmount: bigint | null = null;
+          let relayerOutputBalance: bigint = 0n;
+          let actualRelayFeeUsd: number = 0;
+          let netAmount: number = 0;
           
           try {
             // STEP 3.1: APPROVE RELAYER'S TOKENS FOR UNISWAP
@@ -1705,7 +1708,7 @@ serve(async (req) => {
           
           // Get relayer's balance of output token after swap
           const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
-          const relayerOutputBalance = await outputTokenContract.balanceOf(relayerWallet.address);
+          relayerOutputBalance = await outputTokenContract.balanceOf(relayerWallet.address);
           console.log(`📊 Relayer received: ${ethers.formatUnits(relayerOutputBalance, 6)} ${outputAsset}`);
           
           // Calculate actual relay fee from gas used
@@ -1715,7 +1718,7 @@ serve(async (req) => {
           );
           const actualGasUsed = receipt.gasUsed * (receipt.gasPrice || gasPrice2.gasPrice || BigInt(0));
           const actualGasCostUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd;
-          const actualRelayFeeUsd = actualGasCostUsd * marginConfig.margin;
+          actualRelayFeeUsd = actualGasCostUsd * marginConfig.margin;
           const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
           const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
           
@@ -1739,7 +1742,7 @@ serve(async (req) => {
           
           console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, 6)} ${outputAsset} (retained in relayer for batch collection)`);
           console.log(`📝 User receives: ${ethers.formatUnits(userTokensWei, 6)} ${outputAsset}`);
-          const netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
+          netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
           
           // ===== STEP 8: SINGLE TRANSACTION - TRANSFER NET TO USER =====
           console.log(`\n💸 STEP 8: Transferring net output to user (1 transaction)`);
