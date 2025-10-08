@@ -374,15 +374,14 @@ const Swap = () => {
                     } rounded-full flex items-center justify-center`}>
                       <span className="text-white text-sm font-bold md:text-xs">{fromAsset}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <span className="text-foreground text-lg font-bold md:text-base">{fromAsset}</span>
-                        <div className="text-sm text-muted-foreground md:text-xs">
-                          {getNetworkForAsset(fromAsset)}
-                        </div>
-                      </div>
-                      <ChevronDown className="text-muted-foreground" size={20} />
-                    </div>
+              <div className="flex items-center gap-2">
+                <div>
+                  <span className="text-foreground text-lg font-bold md:text-base">{fromAsset}</span>
+                  <div className="text-sm text-muted-foreground md:text-xs">
+                    {getNetworkForAsset(fromAsset)}
+                  </div>
+                </div>
+              </div>
                   </div>
                 </SelectTrigger>
                 <SelectContent>
@@ -437,15 +436,14 @@ const Swap = () => {
                     } rounded-full flex items-center justify-center`}>
                       <span className="text-white text-sm font-bold md:text-xs">{toAsset}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <span className="text-foreground text-lg font-bold md:text-base">{toAsset}</span>
-                        <div className="text-sm text-muted-foreground md:text-xs">
-                          {getNetworkForAsset(toAsset)}
-                        </div>
-                      </div>
-                      <ChevronDown className="text-muted-foreground" size={20} />
-                    </div>
+              <div className="flex items-center gap-2">
+                <div>
+                  <span className="text-foreground text-lg font-bold md:text-base">{toAsset}</span>
+                  <div className="text-sm text-muted-foreground md:text-xs">
+                    {getNetworkForAsset(toAsset)}
+                  </div>
+                </div>
+              </div>
                   </div>
                 </SelectTrigger>
                 <SelectContent>
