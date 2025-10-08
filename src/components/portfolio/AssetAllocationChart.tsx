@@ -17,7 +17,7 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
         existing.value += asset.valueUSD;
       } else {
         acc.push({
-          name: asset.asset,
+          name: asset.name,
           value: asset.valueUSD,
           color: getAssetColor(asset.asset)
         });
