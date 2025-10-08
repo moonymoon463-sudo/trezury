@@ -899,7 +899,7 @@ serve(async (req) => {
     }
 
     // Initialize live provider (singleton) and wallet
-    const provider = getProvider();
+    const provider = await getProvider();
     const platformWallet = new ethers.Wallet(PLATFORM_PRIVATE_KEY, provider);
     
     console.log(`Platform wallet address: ${platformWallet.address}`);
