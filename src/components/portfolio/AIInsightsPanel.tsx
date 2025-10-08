@@ -13,14 +13,17 @@ import {
   Sparkles
 } from "lucide-react";
 import { AIInsight } from "@/hooks/useOptimizedPortfolioAI";
+import { AssetAllocationChart } from "./AssetAllocationChart";
+import { PortfolioAsset } from "@/hooks/usePortfolioMonitoring";
 
 interface AIInsightsPanelProps {
   insights: AIInsight[];
   loading: boolean;
   onRefresh: () => void;
+  portfolioAssets: PortfolioAsset[];
 }
 
-export function AIInsightsPanel({ insights, loading, onRefresh }: AIInsightsPanelProps) {
+export function AIInsightsPanel({ insights, loading, onRefresh, portfolioAssets }: AIInsightsPanelProps) {
   const getInsightIcon = (type: AIInsight['type']) => {
     switch (type) {
       case 'allocation': return TrendingUp;
@@ -68,6 +71,11 @@ export function AIInsightsPanel({ insights, loading, onRefresh }: AIInsightsPane
         </div>
       </CardHeader>
       <CardContent>
+        {/* Asset Allocation Chart */}
+        <div className="mb-4">
+          <AssetAllocationChart assets={portfolioAssets} />
+        </div>
+        
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (

@@ -168,14 +168,12 @@ export default function Portfolio() {
         <div className="grid gap-2 sm:gap-4 lg:gap-6 lg:grid-cols-3">
           {/* Left Column - Primary content */}
           <div className="lg:col-span-2 space-y-2 sm:space-y-4 lg:space-y-6">
-            {/* Asset Allocation */}
-            <AssetAllocationChart assets={portfolioAssets} />
-
-            {/* AI Insights Panel */}
+            {/* AI Insights Panel with Asset Allocation */}
             <AIInsightsPanel 
               insights={insights}
               loading={aiLoading}
               onRefresh={refreshAnalysis}
+              portfolioAssets={portfolioAssets}
             />
 
             {/* Performance Analytics */}
