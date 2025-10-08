@@ -14,19 +14,40 @@ const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Blockchain configuration from secrets
-const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY')!;
+const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY');
 const ALCHEMY_API_KEY = Deno.env.get('ALCHEMY_API_KEY');
-const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY')!;
+const PLATFORM_PRIVATE_KEY = Deno.env.get('PLATFORM_PRIVATE_KEY');
 const RELAYER_PRIVATE_KEY = Deno.env.get('RELAYER_PRIVATE_KEY');
+
+// Validate critical secrets
+if (!INFURA_API_KEY || INFURA_API_KEY === 'undefined' || INFURA_API_KEY.length < 10) {
+  console.error('❌ CRITICAL: INFURA_API_KEY is missing or invalid');
+}
+if (!ALCHEMY_API_KEY || ALCHEMY_API_KEY === 'undefined' || ALCHEMY_API_KEY.length < 10) {
+  console.warn('⚠️ ALCHEMY_API_KEY is missing - will rely on free endpoints');
+}
+if (!PLATFORM_PRIVATE_KEY || PLATFORM_PRIVATE_KEY === 'undefined') {
+  console.error('❌ CRITICAL: PLATFORM_PRIVATE_KEY is missing');
+}
 
 // F-006 FIX: RPC Failover - Multiple providers with automatic fallback
 const RPC_ENDPOINTS = [
-  `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
-  ...(ALCHEMY_API_KEY ? [`https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`] : []),
+  // Only include Infura if key is valid
+  ...(INFURA_API_KEY && INFURA_API_KEY !== 'undefined' && INFURA_API_KEY.length >= 10 
+    ? [`https://mainnet.infura.io/v3/${INFURA_API_KEY}`] 
+    : []),
+  // Only include Alchemy if key is valid
+  ...(ALCHEMY_API_KEY && ALCHEMY_API_KEY !== 'undefined' && ALCHEMY_API_KEY.length >= 10
+    ? [`https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`] 
+    : []),
+  // Free public endpoints as fallback
   'https://ethereum.publicnode.com',
   'https://rpc.ankr.com/eth',
-  'https://eth.llamarpc.com'
+  'https://eth.llamarpc.com',
+  'https://cloudflare-eth.com'
 ];
+
+console.log(`🔗 Initialized with ${RPC_ENDPOINTS.length} RPC endpoints`);
 
 // Block number cache to reduce RPC calls
 let cachedBlockNumber = 0;
@@ -170,22 +191,49 @@ function getProvider(): ethers.FallbackProvider {
     return globalProvider;
   }
   
+  if (RPC_ENDPOINTS.length === 0) {
+    throw new Error('No RPC endpoints available - check INFURA_API_KEY and ALCHEMY_API_KEY secrets');
+  }
+  
   // Create provider configs with equal weight
-  const providerConfigs = RPC_ENDPOINTS.map((url, index) => {
-    const provider = new ethers.JsonRpcProvider(url);
-    return {
-      provider,
-      priority: index + 1,
-      weight: 1,
-      stallTimeout: 2000
-    };
-  });
+  const providerConfigs: any[] = [];
+  
+  for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
+    const url = RPC_ENDPOINTS[i];
+    try {
+      const provider = new ethers.JsonRpcProvider(url, undefined, {
+        staticNetwork: ethers.Network.from('mainnet'),
+        batchMaxCount: 1 // Disable batching to reduce issues
+      });
+      
+      providerConfigs.push({
+        provider,
+        priority: i + 1,
+        weight: 1,
+        stallTimeout: 3000
+      });
+      
+      logStructured('info', `Added RPC endpoint ${i + 1}`, { 
+        url: url.includes('infura') ? 'infura' : url.includes('alchemy') ? 'alchemy' : 'public' 
+      });
+    } catch (error) {
+      logStructured('error', `Failed to initialize RPC endpoint ${i + 1}`, {
+        url: url.substring(0, 30) + '...',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+  
+  if (providerConfigs.length === 0) {
+    throw new Error('Failed to initialize any RPC providers - check network connectivity and API keys');
+  }
   
   // FallbackProvider uses first successful response (quorum=1)
   globalProvider = new ethers.FallbackProvider(providerConfigs, 1);
   
   logStructured('info', 'FallbackProvider initialized', {
-    endpoints: RPC_ENDPOINTS.length,
+    total_endpoints: RPC_ENDPOINTS.length,
+    working_endpoints: providerConfigs.length,
     quorum: 1
   });
   
