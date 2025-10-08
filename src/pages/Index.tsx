@@ -9,6 +9,7 @@ import GoldPriceChart from "@/components/GoldPriceChart";
 import AppLayout from "@/components/AppLayout";
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
+import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
 
 
 const Index = () => {
@@ -32,14 +33,18 @@ const Index = () => {
   }, [user, getWalletAddress]);
 
   // Get real balances - only use them if not loading or if we have cached values
+  const ethBalance = balanceLoading && getBalance('ETH') === 0 ? 0 : getBalance('ETH');
   const usdcBalance = balanceLoading && getBalance('USDC') === 0 ? 0 : getBalance('USDC');
   const goldBalance = balanceLoading && getBalance('XAUT') === 0 ? 0 : getBalance('XAUT');
+  const trzryBalance = balanceLoading && getBalance('TRZRY') === 0 ? 0 : getBalance('TRZRY');
   
-  console.log('💰 Index balances - USDC:', usdcBalance, 'XAUT:', goldBalance, 'Loading:', balanceLoading);
+  console.log('💰 Index balances - ETH:', ethBalance, 'USDC:', usdcBalance, 'XAUT:', goldBalance, 'TRZRY:', trzryBalance, 'Loading:', balanceLoading);
   
   // Calculate portfolio values
+  const ethValueUsd = ethBalance * 2800; // ETH price approximation
   const goldValueUsd = goldPrice && goldBalance ? goldBalance * goldPrice.usd_per_oz : 0;
-  const totalPortfolioValue = usdcBalance + goldValueUsd;
+  const trzryValueUsd = trzryBalance * 1.0; // Assuming 1:1 with USD
+  const totalPortfolioValue = ethValueUsd + usdcBalance + goldValueUsd + trzryValueUsd;
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -56,18 +61,40 @@ const Index = () => {
 
   const tokens = [
     {
-      name: "Gold",
-      symbol: "GOLD",
-      amount: balanceLoading && goldBalance === 0 ? "..." : goldBalance.toFixed(3),
-      value: balanceLoading && goldValueUsd === 0 ? "..." : `$${goldValueUsd.toFixed(2)}`,
-      icon: "🥇"
+      name: "Ethereum",
+      symbol: "ETH",
+      amount: balanceLoading && ethBalance === 0 ? "..." : ethBalance.toFixed(6),
+      value: balanceLoading && ethValueUsd === 0 ? "..." : `$${ethValueUsd.toFixed(2)}`,
+      valueUsd: ethValueUsd,
+      icon: "⟠",
+      color: "bg-purple-600"
     },
     {
       name: "USD Coin",
       symbol: "USDC", 
       amount: balanceLoading && usdcBalance === 0 ? "..." : usdcBalance.toFixed(2),
       value: balanceLoading && usdcBalance === 0 ? "..." : `$${usdcBalance.toFixed(2)}`,
-      icon: "💲"
+      valueUsd: usdcBalance,
+      icon: "💲",
+      color: "bg-blue-600"
+    },
+    {
+      name: "Gold",
+      symbol: "XAUT",
+      amount: balanceLoading && goldBalance === 0 ? "..." : goldBalance.toFixed(6),
+      value: balanceLoading && goldValueUsd === 0 ? "..." : `$${goldValueUsd.toFixed(2)}`,
+      valueUsd: goldValueUsd,
+      icon: "🥇",
+      color: "bg-yellow-600"
+    },
+    {
+      name: "Treasury",
+      symbol: "TRZRY",
+      amount: balanceLoading && trzryBalance === 0 ? "..." : trzryBalance.toFixed(2),
+      value: balanceLoading && trzryValueUsd === 0 ? "..." : `$${trzryValueUsd.toFixed(2)}`,
+      valueUsd: trzryValueUsd,
+      icon: "💎",
+      color: "bg-green-600"
     }
   ];
 
@@ -191,12 +218,20 @@ const Index = () => {
 
         {/* Your Assets - Wallet Options */}
         <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
-          <h3 className="text-foreground text-base font-bold mb-3">Your Assets</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-foreground text-base font-bold">Your Assets</h3>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Total Value</p>
+              <p className="text-foreground text-lg font-bold">
+                ${balanceLoading ? "..." : totalPortfolioValue.toFixed(2)}
+              </p>
+            </div>
+          </div>
           <div className="space-y-2">
             {tokens.map((token, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center text-sm">
+                  <div className={`w-8 h-8 ${token.color} rounded-full flex items-center justify-center text-sm`}>
                     {token.icon}
                   </div>
                   <div>
@@ -212,6 +247,21 @@ const Index = () => {
             ))}
           </div>
         </div>
+
+        {/* Asset Allocation Pie Chart */}
+        <AssetAllocationChart 
+          assets={tokens
+            .filter(t => t.valueUsd > 0)
+            .map(t => ({
+              asset: t.symbol,
+              name: t.name,
+              valueUSD: t.valueUsd,
+              value: t.valueUsd,
+              balance: parseFloat(t.amount === "..." ? "0" : t.amount),
+              allocation: (t.valueUsd / totalPortfolioValue) * 100,
+              apy: 0
+            }))}
+        />
 
         {/* Gold Price Chart */}
         <div className="flex-1 min-h-0">

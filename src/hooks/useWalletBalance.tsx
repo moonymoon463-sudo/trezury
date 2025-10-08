@@ -68,13 +68,15 @@ export function useWalletBalance() {
         return 0;
       };
 
-      const [usdcBalance, xautBalance, trzryBalance] = await Promise.all([
+      const [usdcBalance, xautBalance, trzryBalance, ethBalance] = await Promise.all([
         fetchWithRetry('USDC'),
         fetchWithRetry('XAUT'),
-        fetchWithRetry('TRZRY')
+        fetchWithRetry('TRZRY'),
+        fetchWithRetry('ETH')
       ]);
 
       const newBalances: WalletBalance[] = [
+        { asset: 'ETH', amount: ethBalance, chain: 'ethereum' },
         { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
         { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
         { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' }
