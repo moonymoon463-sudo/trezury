@@ -1174,7 +1174,7 @@ serve(async (req) => {
         break;
 
 
-      case 'execute_uniswap_swap':
+      case 'execute_uniswap_swap': {
         try {
           if (!authenticatedUserId) {
             throw new Error('Authentication required for swap execution');
@@ -1330,7 +1330,6 @@ serve(async (req) => {
           console.log(`👤 User wallet: ${userWallet.address}`);
           console.log(`🔐 Relayer wallet: ${relayerWallet.address}`);
           
-          try {
             // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
             console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
           
@@ -2218,6 +2217,7 @@ serve(async (req) => {
             success: false,
             error: error instanceof Error ? error.message : 'Swap execution failed'
           };
+        }
         }
         break;
 
