@@ -61,19 +61,34 @@ class GoldPriceService {
   }
 
   private async fetchPrice(): Promise<GoldPrice> {
-    console.log('💰 Fetching XAUT price from DB');
+    console.log('💰 Fetching XAUT composite price from DB');
     
     // Use circuit breaker with fallback to cached data
     return circuitBreaker.execute(
       'gold-price',
       async () => {
         return trafficShedding.executeOperation('gold-price', async () => {
-          const { data: dbPrice, error } = await supabase
+          // Prioritize XAUT composite source
+          let { data: dbPrice, error } = await supabase
             .from('gold_prices')
             .select('*')
+            .eq('source', 'xaut_composite')
             .order('timestamp', { ascending: false })
             .limit(1)
             .maybeSingle();
+
+          // Fallback to any source if XAUT not available
+          if (!dbPrice && !error) {
+            console.warn('⚠️ No XAUT composite found, falling back to any source');
+            const fallback = await supabase
+              .from('gold_prices')
+              .select('*')
+              .order('timestamp', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            dbPrice = fallback.data;
+            error = fallback.error;
+          }
 
           if (error) throw error;
 
@@ -95,6 +110,7 @@ class GoldPriceService {
                 const { data: refreshed } = await supabase
                   .from('gold_prices')
                   .select('*')
+                  .eq('source', 'xaut_composite')
                   .order('timestamp', { ascending: false })
                   .limit(1)
                   .maybeSingle();
@@ -121,7 +137,7 @@ class GoldPriceService {
             this.lastFetchTime = Date.now();
             this.notifySubscribers(goldPrice);
             
-            console.log('✅ XAUT/Gold price updated:', goldPrice.usd_per_oz, goldPrice.isStale ? '(STALE)' : '');
+            console.log('✅ XAUT price updated:', goldPrice.usd_per_oz, `(${effective.source})`, goldPrice.isStale ? '(STALE)' : '');
             return goldPrice;
           }
 
@@ -197,7 +213,7 @@ class GoldPriceService {
       this.getCurrentPrice();
     }, intervalMs);
 
-    // Subscribe to realtime changes in gold_prices table for instant updates
+    // Subscribe to realtime changes in gold_prices table for instant updates (XAUT only)
     const channel = supabase
       .channel('gold-price-changes')
       .on(
@@ -208,8 +224,13 @@ class GoldPriceService {
           table: 'gold_prices'
         },
         (payload) => {
-          console.log('🔔 New XAUT price via realtime:', payload.new);
           const newPrice = payload.new as any;
+          // Only process XAUT composite updates
+          if (newPrice.source !== 'xaut_composite') {
+            console.log('🔕 Ignoring non-XAUT price update:', newPrice.source);
+            return;
+          }
+          console.log('🔔 New XAUT composite price via realtime:', newPrice);
           const goldPrice: GoldPrice = {
             usd_per_oz: Number(newPrice.usd_per_oz),
             usd_per_gram: Number(newPrice.usd_per_gram),
@@ -232,6 +253,44 @@ class GoldPriceService {
       this.updateInterval = null;
     }
     this.isUpdating = false;
+  }
+
+  private async getIntradaySeries(timeframe: '1h' | '24h' | '7d'): Promise<GoldPriceHistory[]> {
+    console.log(`📊 Getting intraday XAUT series for: ${timeframe}`);
+    
+    let hoursBack = 1;
+    switch (timeframe) {
+      case '1h': hoursBack = 1; break;
+      case '24h': hoursBack = 24; break;
+      case '7d': hoursBack = 24 * 7; break;
+    }
+
+    const startTime = new Date();
+    startTime.setHours(startTime.getHours() - hoursBack);
+
+    const { data } = await supabase
+      .from('gold_prices')
+      .select('timestamp, usd_per_oz')
+      .eq('source', 'xaut_composite')
+      .gte('timestamp', startTime.toISOString())
+      .order('timestamp', { ascending: true });
+
+    if (!data || data.length === 0) {
+      console.warn('⚠️ No intraday XAUT data found');
+      return [];
+    }
+
+    // Downsample to maxPoints for performance
+    const maxPoints = this.getMaxPoints(timeframe);
+    const step = Math.ceil(data.length / maxPoints);
+    const downsampled = data.filter((_, i) => i % step === 0);
+
+    console.log(`📈 Intraday series: ${data.length} points → ${downsampled.length} after downsampling`);
+    
+    return downsampled.map(row => ({
+      timestamp: row.timestamp,
+      price: Number(row.usd_per_oz)
+    }));
   }
 
   async getHistoricalData(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistoryEntry[]> {
@@ -314,6 +373,14 @@ class GoldPriceService {
     console.log(`📊 Getting historical prices for timeframe: ${timeframe}`);
     
     try {
+      // Use intraday XAUT series for short timeframes
+      if (timeframe === '1h' || timeframe === '24h' || timeframe === '7d') {
+        const intradayData = await this.getIntradaySeries(timeframe);
+        console.log(`📊 Returning ${intradayData.length} intraday XAUT points`);
+        return intradayData;
+      }
+
+      // Use daily historical data for longer timeframes
       const historicalData = await this.getHistoricalData(timeframe);
       console.log(`📈 Historical data entries found: ${historicalData.length}`);
 
@@ -322,12 +389,12 @@ class GoldPriceService {
         price: entry.close
       }));
 
-      // Append latest current price as final point if more recent
+      // Append current XAUT price as final point for longer timeframes
       try {
         const current = await this.getCurrentPrice();
         const nowIso = new Date().toISOString();
         chartData.push({ timestamp: nowIso, price: current.usd_per_oz });
-        console.log(`✅ Added current price point: $${current.usd_per_oz}`);
+        console.log(`✅ Added current XAUT price point: $${current.usd_per_oz}`);
       } catch (error) {
         console.warn('⚠️ Could not fetch current price for chart:', error);
       }
