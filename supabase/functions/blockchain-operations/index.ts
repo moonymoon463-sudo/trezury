@@ -1421,35 +1421,6 @@ serve(async (req) => {
             console.log(`🔒 Intent ${intentId} updated: ready_to_pull`);
           }
           
-          } catch (preFlightError: any) {
-            // Pre-flight validation failed - update intent to validation_failed
-            console.error('❌ Pre-flight validation failed:', preFlightError);
-            
-            logStructured('error', 'Pre-flight validation failed', {
-              operation: 'execute_uniswap_swap',
-              userId: authenticatedUserId,
-              error: preFlightError.message,
-              intentId
-            });
-            
-            if (intentId) {
-              await supabase
-                .from('transaction_intents')
-                .update({
-                  status: 'validation_failed',
-                  error_message: preFlightError.message || 'Pre-flight validation failed',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', intentId);
-            }
-            
-            result = {
-              success: false,
-              error: preFlightError.message || 'Pre-flight validation failed'
-            };
-            break;
-          }
-          
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
           console.log(`\n🔐 PHASE 2: Pulling ${actualAmount} ${inputAsset} from user to relayer (gasless)`);
           console.log(`📍 Starting fund pull at ${new Date().toISOString()}`);
