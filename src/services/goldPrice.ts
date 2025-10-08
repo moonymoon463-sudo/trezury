@@ -260,7 +260,7 @@ class GoldPriceService {
     
     let hoursBack = 1;
     switch (timeframe) {
-      case '1h': hoursBack = 1; break;
+      case '1h': hoursBack = 12; break; // Show 12 hours for better visual context
       case '24h': hoursBack = 24; break;
       case '7d': hoursBack = 24 * 7; break;
     }
