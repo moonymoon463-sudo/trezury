@@ -61,7 +61,7 @@ class GoldPriceService {
   }
 
   private async fetchPrice(): Promise<GoldPrice> {
-    console.log('💰 Fetching fresh gold price from DB');
+    console.log('💰 Fetching XAUT price from DB');
     
     // Use circuit breaker with fallback to cached data
     return circuitBreaker.execute(
@@ -81,53 +81,21 @@ class GoldPriceService {
             const priceTimestamp = new Date(dbPrice.timestamp).getTime();
             const priceAge = Date.now() - priceTimestamp;
             const twoHoursMs = 2 * 60 * 60 * 1000;
-            const twoMinutesMs = 2 * 60 * 1000;
-            
-            // If older than 2 minutes, try to trigger a refresh once and refetch
-            if (priceAge > twoMinutesMs) {
-              try {
-                const refreshTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('collector timeout')), 3000));
-                await Promise.race([
-                  supabase.functions.invoke('gold-price-collector', { body: { reason: 'ui_refresh' } }),
-                  refreshTimeout
-                ]);
-
-                // Refetch the newest price after triggering collector
-                const { data: refreshed, error: refetchErr } = await supabase
-                  .from('gold_prices')
-                  .select('*')
-                  .order('timestamp', { ascending: false })
-                  .limit(1)
-                  .maybeSingle();
-                if (!refetchErr && refreshed) {
-                  // Use refreshed data if newer
-                  const refreshedTs = new Date(refreshed.timestamp).getTime();
-                  if (refreshedTs > priceTimestamp) {
-                    Object.assign(dbPrice, refreshed);
-                  }
-                }
-              } catch (e) {
-                console.warn('⚠️ Collector refresh attempt failed or timed out:', e);
-              }
-            }
-
-            const latestTs = new Date(dbPrice.timestamp).getTime();
-            const latestAge = Date.now() - latestTs;
             
             const goldPrice: GoldPrice = {
               usd_per_oz: Number(dbPrice.usd_per_oz),
               usd_per_gram: Number(dbPrice.usd_per_gram),
               change_24h: Number(dbPrice.change_24h || 0),
               change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-              last_updated: latestTs,
-              isStale: latestAge > twoHoursMs,
+              last_updated: priceTimestamp,
+              isStale: priceAge > twoHoursMs,
             };
             
             this.currentPrice = goldPrice;
             this.lastFetchTime = Date.now();
             this.notifySubscribers(goldPrice);
             
-            console.log('✅ Gold price updated:', goldPrice.usd_per_oz, goldPrice.isStale ? '(STALE)' : '');
+            console.log('✅ XAUT/Gold price updated:', goldPrice.usd_per_oz, goldPrice.isStale ? '(STALE)' : '');
             return goldPrice;
           }
 
@@ -205,6 +173,34 @@ class GoldPriceService {
       this.lastFetchTime = 0;
       this.getCurrentPrice();
     }, intervalMs);
+
+    // Subscribe to realtime changes in gold_prices table for instant updates
+    const channel = supabase
+      .channel('gold-price-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'gold_prices'
+        },
+        (payload) => {
+          console.log('🔔 New XAUT price via realtime:', payload.new);
+          const newPrice = payload.new as any;
+          const goldPrice: GoldPrice = {
+            usd_per_oz: Number(newPrice.usd_per_oz),
+            usd_per_gram: Number(newPrice.usd_per_gram),
+            change_24h: Number(newPrice.change_24h || 0),
+            change_percent_24h: Number(newPrice.change_percent_24h || 0),
+            last_updated: new Date(newPrice.timestamp).getTime(),
+            isStale: false,
+          };
+          this.currentPrice = goldPrice;
+          this.lastFetchTime = Date.now();
+          this.notifySubscribers(goldPrice);
+        }
+      )
+      .subscribe();
   }
 
   stopRealTimeUpdates(): void {

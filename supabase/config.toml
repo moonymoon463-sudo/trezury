@@ -3,7 +3,7 @@ project_id = "auntkvllzejtfqmousxg"
 [functions.send-auth-email]
 verify_jwt = false
 
-[functions.gold-price-collector]
+[functions.xaut-price-collector]
 verify_jwt = false
 
 [functions.gold-price-public-api]
