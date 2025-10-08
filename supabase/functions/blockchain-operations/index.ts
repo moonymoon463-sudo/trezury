@@ -1331,14 +1331,12 @@ serve(async (req) => {
           console.log(`🔐 Relayer wallet: ${relayerWallet.address}`);
           
           // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
-          // Wrap in try-catch to ensure intent status updates on early failures
-          try {
-            console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
-            
-            const tokenInAddress = await getContractAddress(inputAsset, provider);
-            const tokenOutAddress = await getContractAddress(outputAsset, provider);
-            const fee = 3000; // 0.3% pool fee
-            const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
+          console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
+          
+          const tokenInAddress = await getContractAddress(inputAsset, provider);
+          const tokenOutAddress = await getContractAddress(outputAsset, provider);
+          const fee = 3000; // 0.3% pool fee
+          const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
@@ -1422,6 +1420,7 @@ serve(async (req) => {
           }
           
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
+          try {
           console.log(`\n🔐 PHASE 2: Pulling ${actualAmount} ${inputAsset} from user to relayer (gasless)`);
           console.log(`📍 Starting fund pull at ${new Date().toISOString()}`);
           
