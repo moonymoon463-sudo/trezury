@@ -294,14 +294,13 @@ class GoldPriceService {
   }
 
   async getHistoricalData(timeframe: '1h' | '24h' | '7d' | '30d' | '3m' = '24h'): Promise<GoldPriceHistoryEntry[]> {
-    // Only DB-backed historical data; if missing, trigger backfill
     console.log(`📊 Getting historical data for timeframe: ${timeframe}`);
     
     // Calculate date range based on timeframe
     let daysBack = 1;
     switch (timeframe) {
       case '1h':
-        daysBack = 2; // get at least 2 days to ensure latest close exists
+        daysBack = 2;
         break;
       case '24h':
         daysBack = 2;
@@ -321,39 +320,54 @@ class GoldPriceService {
     startDate.setDate(startDate.getDate() - daysBack);
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    const fetchFromDb = async () => {
-      console.log(`🔍 Fetching from DB since: ${startDateStr}`);
-      const { data } = await supabase
+    const fetchFromDb = async (preferredSource?: string) => {
+      console.log(`🔍 Fetching from DB since: ${startDateStr}${preferredSource ? ` (source: ${preferredSource})` : ''}`);
+      
+      let query = supabase
         .from('gold_price_history')
         .select('*')
-        .gte('date', startDateStr)
-        .order('date', { ascending: true });
+        .gte('date', startDateStr);
+      
+      if (preferredSource) {
+        query = query.eq('source', preferredSource);
+      }
+      
+      const { data } = await query.order('date', { ascending: true });
       console.log(`📦 DB returned ${data?.length || 0} historical entries`);
       return data || [];
     };
 
-    let historicalData = await fetchFromDb();
+    // Priority 1: Try XAUT historical data first
+    let historicalData = await fetchFromDb('xaut_historical');
 
+    // Priority 2: Fallback to Yahoo Finance if no XAUT data
     if (!historicalData || historicalData.length === 0) {
-      console.log('🔄 No historical data found, triggering backfill...');
+      console.warn('⚠️ No XAUT historical data, falling back to Yahoo Finance');
+      historicalData = await fetchFromDb('yahoo_finance');
+    }
+
+    // Priority 3: If still empty, trigger XAUT backfill
+    if (!historicalData || historicalData.length === 0) {
+      console.log('🔄 No historical data found, triggering XAUT backfill...');
       try {
-        // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Historical backfill timeout')), 10000); // 10 second timeout
+          setTimeout(() => reject(new Error('XAUT backfill timeout')), 15000);
         });
         
-        const backfillPromise = supabase.functions.invoke('gold-price-historical', { 
-          body: { reason: 'backfill', timeframe } 
+        const backfillPromise = supabase.functions.invoke('xaut-historical-backfill', { 
+          body: { days: daysBack } 
         });
         
         await Promise.race([backfillPromise, timeoutPromise]);
-        console.log('✅ Backfill completed, refetching...');
+        console.log('✅ XAUT backfill completed, refetching...');
+        
+        // Refetch XAUT data after backfill
+        historicalData = await fetchFromDb('xaut_historical');
       } catch (e) {
-        console.warn('⚠️ Historical backfill failed or timed out:', e);
-        // Don't throw here, just return empty data to prevent chart from hanging
+        console.warn('⚠️ XAUT backfill failed or timed out:', e);
+        // Final fallback to any available data
+        historicalData = await fetchFromDb();
       }
-      
-      historicalData = await fetchFromDb();
     }
 
     const result = (historicalData || []).map(entry => ({
@@ -365,7 +379,8 @@ class GoldPriceService {
       volume: entry.volume || 0
     }));
     
-    console.log(`📈 Returning ${result.length} historical data entries`);
+    const dataSource = historicalData?.[0]?.source || 'unknown';
+    console.log(`📈 Returning ${result.length} historical entries (source: ${dataSource})`);
     return result;
   }
 
