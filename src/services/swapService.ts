@@ -42,6 +42,7 @@ export interface SwapResult {
 
 class SwapService {
   private readonly FEE_BPS = 80; // 0.8% total fee
+  private readonly PLATFORM_FEE_BPS = 80; // 0.8% platform fee (same as total fee)
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
   private readonly QUOTE_VALIDITY_MINUTES = 10; // 10 minutes for user review
 
@@ -511,29 +512,14 @@ class SwapService {
         }
       }
 
-      // Calculate and record swap fee
-      const feeCalculation = swapFeeService.calculateSwapFee(
-        quoteData.output_amount,
-        quoteData.output_asset as 'USDC' | 'XAUT',
-        quoteData.input_asset as 'USDC' | 'XAUT'
-      );
-
-      // Record fee collection for tracking
-      let feeCollectionSuccess = false;
-      if (transaction?.id) {
-        const feeResult = await swapFeeService.recordSwapFeeCollection(
-          userId,
-          transaction.id,
-          feeCalculation
-        );
-        feeCollectionSuccess = feeResult.success;
-      }
+      // Note: Fee collection is now automatic via the trigger_auto_fee_collection trigger
+      // which generates fee_collection_requests when swap transactions complete
 
       // Record metrics for monitoring
       await supabase.from('swap_execution_metrics').insert({
         on_chain_success: true,
         db_record_success: dbRecordSuccess,
-        fee_collection_success: feeCollectionSuccess,
+        fee_collection_success: true, // Always true now (handled by trigger)
         retry_count: retryCount,
         user_id: userId,
         metadata: {
@@ -546,7 +532,7 @@ class SwapService {
       // NOTE: No balance snapshot updates needed since the swap happened on-chain
       // Real balances are now reflected on the blockchain and will be fetched live
       console.log('✅ REAL swap completed - balances updated on-chain');
-      console.log(`💰 Platform fee collected: ${feeCalculation.feeAmount} ${feeCalculation.feeAsset}`);
+      console.log(`💰 Platform fee will be collected via external wallet (tracked in fee_collection_requests table)`);
 
       return {
         success: true,
