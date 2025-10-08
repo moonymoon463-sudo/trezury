@@ -1420,7 +1420,6 @@ serve(async (req) => {
           }
           
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
-          try {
           console.log(`\n🔐 PHASE 2: Pulling ${actualAmount} ${inputAsset} from user to relayer (gasless)`);
           console.log(`📍 Starting fund pull at ${new Date().toISOString()}`);
           
