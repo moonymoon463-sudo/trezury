@@ -444,7 +444,12 @@ class SwapService {
                 relayFeeInOutputTokens: swapResult.relayFeeInOutputTokens || '0',
                 relayFeeUsd: swapResult.relayFeeUsd || '0',
                 netOutputReceived: swapResult.netOutputAmount || swapResult.outputAmount,
-                relayerAddress: swapResult.relayerAddress || null
+                relayerAddress: swapResult.relayerAddress || null,
+                // Platform fee collection metadata (standardized format)
+                platform_fee_usd: (netOutput * this.PLATFORM_FEE_BPS) / 10000,
+                platform_fee_asset: quoteData.output_asset,
+                platform_fee_collected: false,
+                platform_fee_wallet: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
               }
             })
             .select()
