@@ -7,8 +7,8 @@ import { safeSwapService } from "./safeSwapService";
 
 export interface SwapQuote {
   id: string;
-  inputAsset: 'USDC' | 'XAUT' | 'TRZRY';
-  outputAsset: 'USDC' | 'XAUT' | 'TRZRY';
+  inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
+  outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
   inputAmount: number;
   outputAmount: number;
   exchangeRate: number;
@@ -49,8 +49,8 @@ class SwapService {
    * Generate swap quote between supported assets
    */
   async generateSwapQuote(
-    inputAsset: 'USDC' | 'XAUT' | 'TRZRY',
-    outputAsset: 'USDC' | 'XAUT' | 'TRZRY',
+    inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY',
+    outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY',
     inputAmount: number,
     userId: string
   ): Promise<SwapQuote> {
@@ -61,6 +61,9 @@ class SwapService {
       }
       
       const supportedPairs = [
+        ['ETH', 'USDC'], ['USDC', 'ETH'],
+        ['ETH', 'XAUT'], ['XAUT', 'ETH'],
+        ['ETH', 'TRZRY'], ['TRZRY', 'ETH'],
         ['USDC', 'XAUT'], ['XAUT', 'USDC'],
         ['USDC', 'TRZRY'], ['TRZRY', 'USDC'],
         ['XAUT', 'TRZRY'], ['TRZRY', 'XAUT']
@@ -71,7 +74,7 @@ class SwapService {
       );
       
       if (!pairExists) {
-        throw new Error('Only USDC ⟷ XAUT, USDC ⟷ TRZRY, and XAUT ⟷ TRZRY swaps are supported');
+        throw new Error('Swap pair not supported');
       }
 
       let outputAmount: number;

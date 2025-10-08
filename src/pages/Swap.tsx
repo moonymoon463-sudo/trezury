@@ -20,8 +20,8 @@ const Swap = () => {
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY'>('USDC');
-  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY'>('XAUT');
+  const [fromAsset, setFromAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY'>('USDC');
+  const [toAsset, setToAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -57,8 +57,8 @@ const Swap = () => {
     
     // Handle URL parameters for pre-selecting assets
     const toParam = searchParams.get('to');
-    if (toParam && ['USDC', 'XAUT', 'TRZRY'].includes(toParam)) {
-      setToAsset(toParam as 'USDC' | 'XAUT' | 'TRZRY');
+    if (toParam && ['ETH', 'USDC', 'XAUT', 'TRZRY'].includes(toParam)) {
+      setToAsset(toParam as 'ETH' | 'USDC' | 'XAUT' | 'TRZRY');
       if (toParam === 'TRZRY') {
         setFromAsset('USDC'); // Default to USDC when buying TRZRY
       }
@@ -68,7 +68,7 @@ const Swap = () => {
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY') => {
+  const getNetworkForAsset = (asset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY') => {
     return 'Ethereum'; // All assets on Ethereum mainnet
   };
   
@@ -336,6 +336,7 @@ const Swap = () => {
             <div className="flex items-center gap-4 md:gap-3">
               <div className="flex items-center gap-3 flex-1 md:gap-2">
                 <div className={`w-10 h-10 md:w-8 md:h-8 ${
+                  fromAsset === 'ETH' ? 'bg-purple-600' :
                   fromAsset === 'XAUT' ? 'bg-yellow-600' : 
                   fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
                 } rounded-full flex items-center justify-center`}>
@@ -377,6 +378,7 @@ const Swap = () => {
             <div className="flex items-center gap-4 md:gap-3">
               <div className="flex items-center gap-3 flex-1 md:gap-2">
                 <div className={`w-10 h-10 md:w-8 md:h-8 ${
+                  toAsset === 'ETH' ? 'bg-purple-600' :
                   toAsset === 'XAUT' ? 'bg-yellow-600' : 
                   toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
                 } rounded-full flex items-center justify-center`}>

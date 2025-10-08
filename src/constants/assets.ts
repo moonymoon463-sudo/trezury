@@ -4,6 +4,13 @@
  */
 
 export const ASSETS = {
+  ETH: {
+    symbol: 'ETH',
+    name: 'Ethereum',
+    displayName: 'Ethereum',
+    decimals: 18,
+    native: true,
+  },
   USDC: {
     symbol: 'USDC',
     name: 'USD Coin',

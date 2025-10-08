@@ -311,7 +311,13 @@ const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
 const MAX_SLIPPAGE_BPS = 200;
 
 // F-004 FIX: Token address allowlist with expected symbols (XAUT uses "XAUt" on-chain)
-const TOKEN_ALLOWLIST = {
+const TOKEN_ALLOWLIST: Record<string, { address: string; symbol: string; decimals: number; native?: boolean }> = {
+  'ETH': {
+    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH - Uniswap uses WETH internally
+    symbol: 'WETH',
+    decimals: 18,
+    native: true
+  },
   'USDC': {
     address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     symbol: 'USDC',
