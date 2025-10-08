@@ -2968,6 +2968,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      check_stale_gold_price: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       check_transaction_access_rate_limit: {
         Args: Record<PropertyKey, never>
         Returns: boolean

@@ -8,6 +8,7 @@ export interface GoldPrice {
   change_24h: number;
   change_percent_24h: number;
   last_updated: number;
+  isStale?: boolean; // True if price is more than 2 hours old
 }
 
 export interface GoldPriceHistory {
@@ -77,19 +78,24 @@ class GoldPriceService {
           if (error) throw error;
 
           if (dbPrice) {
+            const priceTimestamp = new Date(dbPrice.timestamp).getTime();
+            const priceAge = Date.now() - priceTimestamp;
+            const twoHoursMs = 2 * 60 * 60 * 1000;
+            
             const goldPrice: GoldPrice = {
               usd_per_oz: Number(dbPrice.usd_per_oz),
               usd_per_gram: Number(dbPrice.usd_per_gram),
               change_24h: Number(dbPrice.change_24h || 0),
               change_percent_24h: Number(dbPrice.change_percent_24h || 0),
-              last_updated: new Date(dbPrice.timestamp).getTime(),
+              last_updated: priceTimestamp,
+              isStale: priceAge > twoHoursMs,
             };
             
             this.currentPrice = goldPrice;
             this.lastFetchTime = Date.now();
             this.notifySubscribers(goldPrice);
             
-            console.log('✅ Gold price updated:', goldPrice.usd_per_oz);
+            console.log('✅ Gold price updated:', goldPrice.usd_per_oz, goldPrice.isStale ? '(STALE)' : '');
             return goldPrice;
           }
 
@@ -110,11 +116,12 @@ class GoldPriceService {
         }
         // Last resort: return a reasonable fallback price
         return {
-          usd_per_oz: 2650,
-          usd_per_gram: 85.19,
+          usd_per_oz: 2850,
+          usd_per_gram: 91.64,
           change_24h: 0,
           change_percent_24h: 0,
           last_updated: Date.now(),
+          isStale: true,
         };
       }
     );

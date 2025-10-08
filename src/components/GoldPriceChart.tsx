@@ -134,9 +134,14 @@ const GoldPriceChart = () => {
         <div className="mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-foreground text-xl font-bold">
-                ${currentPrice.usd_per_oz.toFixed(2)}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-foreground text-xl font-bold">
+                  ${currentPrice.usd_per_oz.toFixed(2)}
+                </p>
+                {currentPrice.isStale && (
+                  <span className="text-xs text-orange-500 font-medium">⚠️ Outdated</span>
+                )}
+              </div>
               <p className="text-muted-foreground text-xs">USD per troy ounce</p>
             </div>
             <div className="flex items-center gap-1">
