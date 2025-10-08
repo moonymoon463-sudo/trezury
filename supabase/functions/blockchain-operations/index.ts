@@ -2218,8 +2218,8 @@ serve(async (req) => {
             error: error instanceof Error ? error.message : 'Swap execution failed'
           };
         }
-        }
         break;
+      }
 
       case 'get_uniswap_quote':
         try {
