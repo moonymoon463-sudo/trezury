@@ -3,6 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ArrowUpDown, Edit, Wallet } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useOptimizedWalletBalance } from "@/hooks/useOptimizedWalletBalance";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +18,13 @@ import { swapService, SwapQuote } from "@/services/swapService";
 import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 import { useTransactionMonitor } from "@/hooks/useTransactionMonitor";
 import AppLayout from "@/components/AppLayout";
+
+const AVAILABLE_ASSETS = [
+  { symbol: 'ETH' as const, name: 'Ethereum', color: 'bg-purple-600' },
+  { symbol: 'USDC' as const, name: 'USD Coin', color: 'bg-blue-600' },
+  { symbol: 'XAUT' as const, name: 'Gold', color: 'bg-yellow-600' },
+  { symbol: 'TRZRY' as const, name: 'Trzry', color: 'bg-green-600' },
+];
 
 const Swap = () => {
   const navigate = useNavigate();
@@ -105,6 +119,24 @@ const Swap = () => {
 
     return () => clearTimeout(timer);
   }, [fromAmount, fromAsset, toAsset, user]);
+
+  const handleFromAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY') => {
+    if (newAsset === toAsset) {
+      setToAsset(fromAsset);
+    }
+    setFromAsset(newAsset);
+    setQuote(null);
+    setAutoQuote(null);
+  };
+
+  const handleToAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY') => {
+    if (newAsset === fromAsset) {
+      setFromAsset(toAsset);
+    }
+    setToAsset(newAsset);
+    setQuote(null);
+    setAutoQuote(null);
+  };
 
   const handleSwapTokens = () => {
     const tempAsset = fromAsset;
@@ -334,20 +366,41 @@ const Swap = () => {
               <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
-              <div className="flex items-center gap-3 flex-1 md:gap-2">
-                <div className={`w-10 h-10 md:w-8 md:h-8 ${
-                  fromAsset === 'ETH' ? 'bg-purple-600' :
-                  fromAsset === 'XAUT' ? 'bg-yellow-600' : 
-                  fromAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
-                } rounded-full flex items-center justify-center`}>
-                  <span className="text-white text-sm font-bold md:text-xs">{fromAsset}</span>
-                </div>
-                <div>
-                  <span className="text-foreground text-lg font-bold md:text-base">{fromAsset}</span>
-                  <div className="text-sm text-muted-foreground md:text-xs">{getNetworkForAsset(fromAsset)}</div>
-                </div>
-                <ChevronDown className="text-muted-foreground" size={20} />
-              </div>
+              <Select value={fromAsset} onValueChange={handleFromAssetChange}>
+                <SelectTrigger className="flex-1 border-none bg-transparent h-auto p-0 hover:bg-transparent">
+                  <div className="flex items-center gap-3 md:gap-2">
+                    <div className={`w-10 h-10 md:w-8 md:h-8 ${
+                      AVAILABLE_ASSETS.find(a => a.symbol === fromAsset)?.color
+                    } rounded-full flex items-center justify-center`}>
+                      <span className="text-white text-sm font-bold md:text-xs">{fromAsset}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <span className="text-foreground text-lg font-bold md:text-base">{fromAsset}</span>
+                        <div className="text-sm text-muted-foreground md:text-xs">
+                          {getNetworkForAsset(fromAsset)}
+                        </div>
+                      </div>
+                      <ChevronDown className="text-muted-foreground" size={20} />
+                    </div>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_ASSETS.map((asset) => (
+                    <SelectItem key={asset.symbol} value={asset.symbol}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 ${asset.color} rounded-full flex items-center justify-center`}>
+                          <span className="text-white text-xs font-bold">{asset.symbol}</span>
+                        </div>
+                        <div>
+                          <div className="font-medium">{asset.symbol}</div>
+                          <div className="text-xs text-muted-foreground">{asset.name}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
                 placeholder="0.00"
@@ -376,20 +429,41 @@ const Swap = () => {
               <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
-              <div className="flex items-center gap-3 flex-1 md:gap-2">
-                <div className={`w-10 h-10 md:w-8 md:h-8 ${
-                  toAsset === 'ETH' ? 'bg-purple-600' :
-                  toAsset === 'XAUT' ? 'bg-yellow-600' : 
-                  toAsset === 'TRZRY' ? 'bg-green-600' : 'bg-blue-600'
-                } rounded-full flex items-center justify-center`}>
-                  <span className="text-white text-sm font-bold md:text-xs">{toAsset}</span>
-                </div>
-                <div>
-                  <span className="text-foreground text-lg font-bold md:text-base">{toAsset}</span>
-                  <div className="text-sm text-muted-foreground md:text-xs">{getNetworkForAsset(toAsset)}</div>
-                </div>
-                <ChevronDown className="text-muted-foreground" size={20} />
-              </div>
+              <Select value={toAsset} onValueChange={handleToAssetChange}>
+                <SelectTrigger className="flex-1 border-none bg-transparent h-auto p-0 hover:bg-transparent">
+                  <div className="flex items-center gap-3 md:gap-2">
+                    <div className={`w-10 h-10 md:w-8 md:h-8 ${
+                      AVAILABLE_ASSETS.find(a => a.symbol === toAsset)?.color
+                    } rounded-full flex items-center justify-center`}>
+                      <span className="text-white text-sm font-bold md:text-xs">{toAsset}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <span className="text-foreground text-lg font-bold md:text-base">{toAsset}</span>
+                        <div className="text-sm text-muted-foreground md:text-xs">
+                          {getNetworkForAsset(toAsset)}
+                        </div>
+                      </div>
+                      <ChevronDown className="text-muted-foreground" size={20} />
+                    </div>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_ASSETS.map((asset) => (
+                    <SelectItem key={asset.symbol} value={asset.symbol}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 ${asset.color} rounded-full flex items-center justify-center`}>
+                          <span className="text-white text-xs font-bold">{asset.symbol}</span>
+                        </div>
+                        <div>
+                          <div className="font-medium">{asset.symbol}</div>
+                          <div className="text-xs text-muted-foreground">{asset.name}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
                 placeholder="0.00"
