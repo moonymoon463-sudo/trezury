@@ -216,9 +216,17 @@ const Swap = () => {
         // Start monitoring transaction status with intentId
         if (result.intentId) {
           setActiveIntentId(result.intentId);
+          
+          const toastTitle = (result as any).requiresMonitoring 
+            ? "Monitoring Existing Swap" 
+            : "Swap Initiated";
+          const toastDescription = (result as any).requiresMonitoring
+            ? "A swap is already in progress, monitoring status..."
+            : "Monitoring transaction status...";
+          
           toast({
-            title: "Swap Initiated",
-            description: "Monitoring transaction status...",
+            title: toastTitle,
+            description: toastDescription,
           });
           // Keep loading state - will be cleared by transaction monitor
         } else {
@@ -276,6 +284,8 @@ const Swap = () => {
           errorMessage = "Price moved too much - try again with higher slippage";
         } else if (errorMessage.includes("gas")) {
           errorMessage = "Gas estimation failed - please try again";
+        } else if (errorMessage.includes("Too Many Requests") || errorMessage.includes("rate") || errorMessage.includes("throttle")) {
+          errorMessage = "Network is busy. Please wait 30 seconds and try again.";
         }
         
         toast({

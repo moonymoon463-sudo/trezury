@@ -19,21 +19,21 @@ serve(async (req) => {
   try {
     console.log(JSON.stringify({ timestamp: new Date().toISOString(), level: 'info', message: 'Starting reconciliation' }));
 
-    // Check for stuck validating intents (2 minutes timeout)
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-    const { data: stuckValidatingIntents } = await supabase
-      .from('transaction_intents')
-      .select('*')
-      .eq('status', 'validating')
-      .lt('created_at', twoMinutesAgo);
+  // Check for stuck validating intents (2 minutes timeout)
+  const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: stuckValidatingIntents } = await supabase
+    .from('transaction_intents')
+    .select('*')
+    .eq('status', 'validating')
+    .lt('created_at', twoMinutesAgo);
 
-    // Check for stuck pending/broadcasting intents (10 minutes timeout)
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: stuckProcessingIntents } = await supabase
-      .from('transaction_intents')
-      .select('*')
-      .in('status', ['pending', 'broadcasting'])
-      .lt('created_at', tenMinutesAgo);
+  // Check for stuck pending/broadcasting intents (10 minutes timeout)
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { data: stuckProcessingIntents } = await supabase
+    .from('transaction_intents')
+    .select('*')
+    .in('status', ['pending', 'broadcasting', 'funds_pulled', 'swap_executed', 'requires_reconciliation'])
+    .lt('created_at', tenMinutesAgo);
 
     const allStuckIntents = [...(stuckValidatingIntents || []), ...(stuckProcessingIntents || [])];
 

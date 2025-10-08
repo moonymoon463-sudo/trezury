@@ -31,7 +31,14 @@ const RPC_ENDPOINTS = [
 // Block number cache to reduce RPC calls
 let cachedBlockNumber = 0;
 let cachedBlockTimestamp = 0;
-const BLOCK_CACHE_TTL_MS = 1500; // 1.5 seconds
+const BLOCK_CACHE_TTL_MS = 4000; // 4 seconds (reduced RPC pressure)
+
+// Token symbol verification cache to reduce RPC calls
+const symbolCache = new Map<string, string>();
+
+// Chainlink price cache to reduce RPC calls
+let cachedChainlinkPrice: { price: number; timestamp: number } | null = null;
+const CHAINLINK_CACHE_TTL_MS = 30000; // 30 second cache for prices
 
 // Singleton provider instance
 let globalProvider: ethers.FallbackProvider | null = null;
@@ -214,6 +221,12 @@ const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
 // ===== PRICE ORACLE HELPERS =====
 async function getEthPrice(): Promise<number> {
+  // Check cache first to reduce RPC pressure
+  if (cachedChainlinkPrice && (Date.now() - cachedChainlinkPrice.timestamp) < CHAINLINK_CACHE_TTL_MS) {
+    logStructured('info', 'Using cached Chainlink ETH/USD price', { price: cachedChainlinkPrice.price });
+    return cachedChainlinkPrice.price;
+  }
+  
   // Chainlink ETH/USD price feed on mainnet
   const priceFeedAddress = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
   try {
@@ -227,8 +240,13 @@ async function getEthPrice(): Promise<number> {
       () => priceFeed.latestRoundData(),
       'getEthPrice'
     );
-    logStructured('info', 'ETH price fetched from Chainlink', { price: parseFloat(ethers.formatUnits(price, 8)) });
-    return parseFloat(ethers.formatUnits(price, 8));
+    const ethPrice = parseFloat(ethers.formatUnits(price, 8));
+    
+    // Cache the result
+    cachedChainlinkPrice = { price: ethPrice, timestamp: Date.now() };
+    
+    logStructured('info', 'ETH price fetched from Chainlink', { price: ethPrice });
+    return ethPrice;
   } catch (error) {
     logStructured('warn', 'Failed to get ETH price from Chainlink, using fallback', {
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -275,6 +293,17 @@ async function getContractAddress(asset: string | undefined, provider: ethers.Fa
   
   const checksummedAddress = ethers.getAddress(tokenConfig.address);
   
+  // Check cache first to reduce RPC pressure
+  const cacheKey = `${checksummedAddress}_${asset}`;
+  if (symbolCache.has(cacheKey)) {
+    const isValid = symbolCache.get(cacheKey) === 'true';
+    if (isValid) {
+      return checksummedAddress;
+    } else {
+      throw new Error(`Token verification failed for ${asset}: Symbol mismatch (cached)`);
+    }
+  }
+  
   // F-004 FIX: Verify token symbol on-chain to prevent address spoofing
   try {
     const tokenContract = new ethers.Contract(
@@ -294,8 +323,13 @@ async function getContractAddress(asset: string | undefined, provider: ethers.Fa
     }
     
     console.log(`✅ Token verified: ${asset} at ${checksummedAddress} (symbol: ${onChainSymbol})`);
+    
+    // Cache the successful verification
+    symbolCache.set(cacheKey, 'true');
   } catch (error) {
     console.error(`❌ Token verification failed for ${asset}:`, error);
+    // Cache the failed verification
+    symbolCache.set(cacheKey, 'false');
     throw new Error(`Failed to verify token contract for ${asset}: ${error.message}`);
   }
   
@@ -349,7 +383,7 @@ interface MarginConfig {
 async function calculateDynamicMargin(provider: ethers.FallbackProvider): Promise<MarginConfig> {
   try {
     const currentBlock = await getCachedBlockNumber(provider);
-    const blocksToCheck = 10;
+    const blocksToCheck = 4; // Reduced from 10 to reduce RPC pressure
     
     // Get recent blocks to analyze base fee growth
     const blocks = await Promise.all(
@@ -1101,7 +1135,7 @@ serve(async (req) => {
             throw new Error('Authentication required for swap execution');
           }
 
-      const { 
+      const {
         userId, 
         inputAsset, 
         outputAsset, 
@@ -1252,12 +1286,14 @@ serve(async (req) => {
           console.log(`🔐 Relayer wallet: ${relayerWallet.address}`);
           
           // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
-          console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
-          
-          const tokenInAddress = await getContractAddress(inputAsset, provider);
-          const tokenOutAddress = await getContractAddress(outputAsset, provider);
-          const fee = 3000; // 0.3% pool fee
-          const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
+          // Wrap in try-catch to ensure intent status updates on early failures
+          try {
+            console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
+            
+            const tokenInAddress = await getContractAddress(inputAsset, provider);
+            const tokenOutAddress = await getContractAddress(outputAsset, provider);
+            const fee = 3000; // 0.3% pool fee
+            const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
@@ -1329,6 +1365,35 @@ serve(async (req) => {
           
           console.log(`✅ Pre-flight validation complete! Relay fee: $${finalRelayFeeUsd.toFixed(2)}`);
           console.log(`✅ ALL CHECKS PASSED - Safe to pull funds\n`);
+          
+          } catch (preFlightError: any) {
+            // Pre-flight validation failed - update intent to validation_failed
+            console.error('❌ Pre-flight validation failed:', preFlightError);
+            
+            logStructured('error', 'Pre-flight validation failed', {
+              operation: 'execute_uniswap_swap',
+              userId: authenticatedUserId,
+              error: preFlightError.message,
+              intentId
+            });
+            
+            if (intentId) {
+              await supabase
+                .from('transaction_intents')
+                .update({
+                  status: 'validation_failed',
+                  error_message: preFlightError.message || 'Pre-flight validation failed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', intentId);
+            }
+            
+            result = {
+              success: false,
+              error: preFlightError.message || 'Pre-flight validation failed'
+            };
+            break;
+          }
           
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
           console.log(`\n🔐 PHASE 2: Pulling ${actualAmount} ${inputAsset} from user to relayer (gasless)`);
@@ -2052,8 +2117,36 @@ serve(async (req) => {
             pullTxHash: pullReceipt.hash,
             intentId
           };
-        } catch (error) {
+        } catch (error: any) {
           console.error('❌ REAL Uniswap swap execution failed:', error);
+          
+          // Log critical error for monitoring
+          logStructured('error', 'Swap execution failed', {
+            operation: 'execute_uniswap_swap',
+            userId: authenticatedUserId,
+            error: error.message,
+            stack: error.stack,
+            intentId
+          });
+          
+          // Check if it's a rate limit error
+          const errorMsg = String(error?.message || '');
+          const isRateLimit = 
+            errorMsg.includes('Too Many Requests') ||
+            errorMsg.includes('rate') ||
+            errorMsg.includes('throttle') ||
+            error?.code === -32005 ||
+            error?.code === 429;
+          
+          if (isRateLimit) {
+            await sendAlert(
+              'high',
+              'RPC Rate Limit During Swap',
+              `Swap execution hit RPC rate limit: ${errorMsg}`,
+              { userId: authenticatedUserId, intentId, error: errorMsg }
+            );
+          }
+          
           result = {
             success: false,
             error: error instanceof Error ? error.message : 'Swap execution failed'
