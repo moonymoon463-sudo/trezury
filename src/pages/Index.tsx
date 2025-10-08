@@ -79,7 +79,7 @@ const Index = () => {
       color: "bg-blue-600"
     },
     {
-      name: "Gold XAUT",
+      name: "GOLD XAUT",
       symbol: "XAUT",
       amount: balanceLoading && goldBalance === 0 ? "..." : goldBalance.toFixed(6),
       value: balanceLoading && goldValueUsd === 0 ? "..." : `$${goldValueUsd.toFixed(2)}`,
