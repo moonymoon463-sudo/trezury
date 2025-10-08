@@ -61,96 +61,62 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
 
   if (data.length === 0) {
     return (
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-2 p-4">
-          <CardTitle className="flex items-center gap-2 text-lg font-medium">
-            <PieChartIcon className="h-3.5 w-3.5 text-primary" />
-            Asset Allocation
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-center h-16 text-muted-foreground text-xs">
-            No assets to display
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-16 text-muted-foreground text-xs">
+        No assets to display
+      </div>
     );
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2 p-4">
-        <CardTitle className="flex items-center gap-2 text-lg font-medium">
-          <PieChartIcon className="h-3.5 w-3.5 text-primary" />
-          Asset Allocation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0 p-4">
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Compact Donut Chart */}
-          <div className="h-24 w-24 mx-auto lg:mx-0 flex-shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={dataWithTotal}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={25}
-                  outerRadius={40}
-                  paddingAngle={1}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {dataWithTotal.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.color}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Compact Legend */}
-          <div className="flex-1 min-w-0">
-            <div className="text-center lg:text-left mb-2">
-              <div className="text-xs text-muted-foreground">Total Value</div>
-              <div className="text-lg font-bold">
-                ${(totalValue || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-              </div>
-            </div>
-            
-            <div className="space-y-1.5">
-              {data.slice(0, 4).map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="font-medium text-foreground truncate">{item.name}</span>
-                  </div>
-                  <div className="text-right flex-shrink-0 ml-1">
-                    <div className="font-medium">
-                      ${(item.value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {((item.value / totalValue) * 100).toFixed(1)}%
-                    </div>
-                  </div>
-                </div>
+    <div className="flex flex-row items-center gap-3">
+      {/* Compact Donut Chart */}
+      <div className="h-16 w-16 flex-shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={dataWithTotal}
+              cx="50%"
+              cy="50%"
+              innerRadius={20}
+              outerRadius={30}
+              paddingAngle={1}
+              dataKey="value"
+              stroke="none"
+            >
+              {dataWithTotal.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.color}
+                />
               ))}
-              {data.length > 4 && (
-                <div className="text-[10px] text-muted-foreground text-center">
-                  +{data.length - 4} more assets
-                </div>
-              )}
+            </Pie>
+            <Tooltip content={<CustomTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Compact Legend */}
+      <div className="flex-1 min-w-0 space-y-1">
+        {data.slice(0, 4).map((item, index) => (
+          <div key={index} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div 
+                className="w-2 h-2 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="font-medium text-foreground truncate">{item.name}</span>
+            </div>
+            <div className="text-right flex-shrink-0 ml-2">
+              <span className="font-medium">
+                ${(item.value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              </span>
+              <span className="text-[10px] text-muted-foreground ml-1">
+                {((item.value / totalValue) * 100).toFixed(0)}%
+              </span>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+    </div>
   );
 }

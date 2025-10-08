@@ -229,7 +229,7 @@ const Index = () => {
           </div>
           
           {/* Asset Allocation Chart */}
-          <div className="bg-background/50 rounded-lg p-3">
+          <div className="bg-background/50 rounded-lg p-2">
             <AssetAllocationChart 
               assets={tokens
                 .filter(t => t.valueUsd > 0)
