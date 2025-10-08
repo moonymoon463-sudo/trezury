@@ -22,6 +22,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Check if we need to backfill historical data
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+    const { data: existingData, error: checkError } = await supabase
+      .from('gold_prices')
+      .select('id')
+      .eq('source', 'xaut_composite')
+      .gte('timestamp', twelveHoursAgo)
+      .limit(1);
+
+    if (!checkError && (!existingData || existingData.length === 0)) {
+      console.log('📊 Insufficient historical data, backfilling 12 hours...');
+      await backfillHistoricalData(supabase);
+    }
+
     console.log('🔄 Fetching XAUT prices from multiple sources...');
 
     const prices = await fetchXAUTPrices();
@@ -178,4 +192,73 @@ async function fetchXAUTPrices(): Promise<XAUTPrice[]> {
   }
 
   return prices;
+}
+
+async function backfillHistoricalData(supabase: any) {
+  try {
+    // Fetch 12 hours of historical XAUT data from CoinGecko
+    const response = await fetch(
+      'https://api.coingecko.com/api/v3/coins/tether-gold/market_chart?vs_currency=usd&days=0.5&interval=minute'
+    );
+    
+    const data = await response.json();
+    
+    if (!data.prices || !Array.isArray(data.prices)) {
+      console.error('❌ No historical data available from CoinGecko');
+      return;
+    }
+
+    console.log(`📥 Fetched ${data.prices.length} historical data points`);
+
+    // Process and insert data points (bucket into 5-minute intervals)
+    const bucketedData: { [key: number]: number[] } = {};
+    const bucketSize = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    for (const [timestamp, price] of data.prices) {
+      const bucketKey = Math.floor(timestamp / bucketSize) * bucketSize;
+      if (!bucketedData[bucketKey]) {
+        bucketedData[bucketKey] = [];
+      }
+      bucketedData[bucketKey].push(price);
+    }
+
+    // Calculate median for each bucket and prepare insert data
+    const insertData = Object.entries(bucketedData).map(([timestamp, prices]) => {
+      const sortedPrices = prices.sort((a, b) => a - b);
+      const medianPrice = sortedPrices[Math.floor(sortedPrices.length / 2)];
+      const usd_per_gram = medianPrice / 31.1035;
+
+      return {
+        source: 'xaut_composite',
+        usd_per_oz: medianPrice,
+        usd_per_gram: usd_per_gram,
+        timestamp: new Date(parseInt(timestamp)).toISOString(),
+        change_24h: 0,
+        change_percent_24h: 0,
+        metadata: {
+          sources: ['coingecko_historical'],
+          backfilled: true
+        }
+      };
+    });
+
+    // Insert in batches of 100
+    const batchSize = 100;
+    for (let i = 0; i < insertData.length; i += batchSize) {
+      const batch = insertData.slice(i, i + batchSize);
+      const { error } = await supabase
+        .from('gold_prices')
+        .insert(batch);
+      
+      if (error) {
+        console.error(`❌ Error inserting batch ${i / batchSize + 1}:`, error);
+      } else {
+        console.log(`✅ Inserted batch ${i / batchSize + 1} (${batch.length} records)`);
+      }
+    }
+
+    console.log(`✅ Backfill complete: ${insertData.length} data points added`);
+  } catch (error) {
+    console.error('❌ Backfill error:', error);
+  }
 }
