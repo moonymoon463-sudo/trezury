@@ -356,7 +356,8 @@ class SwapService {
         this.SLIPPAGE_BPS / 100,
         walletPassword,
         quoteId,
-        idempotencyKey // F-003: Pass idempotencyKey for server-side duplicate prevention
+        intentId, // Pass actual intent row ID
+        idempotencyKey // Pass idempotency key for duplicate detection
       );
 
       if (!swapResult.success) {

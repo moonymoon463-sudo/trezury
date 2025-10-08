@@ -190,7 +190,8 @@ export class DexAggregatorService {
     slippage: number = 0.5,
     walletPassword?: string,
     quoteId?: string,
-    intentId?: string
+    intentId?: string,
+    idempotencyKey?: string
   ): Promise<{ 
     success: boolean; 
     txHash?: string; 
@@ -212,7 +213,7 @@ export class DexAggregatorService {
   }> {
     try {
       console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
-      console.log(`👤 User wallet: ${userAddress}, Quote ID: ${quoteId || 'none'}`);
+      console.log(`👤 User wallet: ${userAddress}, Quote ID: ${quoteId || 'none'}, Intent ID: ${intentId || 'none'}`);
       
       // Execute REAL Uniswap V3 swap through blockchain operations with user's wallet
       const { data: swapResult, error: swapError } = await supabase.functions.invoke('blockchain-operations', {
@@ -224,8 +225,8 @@ export class DexAggregatorService {
           slippage: slippage,
           walletPassword: walletPassword,
           quoteId: quoteId,
-          intentId: intentId,
-          idempotencyKey: intentId // Use intentId as idempotency key for consistency
+          intentId: intentId, // Actual intent row ID
+          idempotencyKey: idempotencyKey // Separate idempotency key for duplicate detection
         }
       });
 
