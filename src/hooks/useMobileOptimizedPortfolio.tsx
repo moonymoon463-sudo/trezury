@@ -230,26 +230,35 @@ export function useMobileOptimizedPortfolio() {
     balances.forEach(balance => {
       let valueUSD = 0;
       let apy = 0;
+      let name = balance.asset;
 
       switch (balance.asset) {
         case 'USDC':
           valueUSD = balance.amount;
           apy = 0;
+          name = 'USD Coin';
           break;
         case 'XAUT':
           valueUSD = balance.amount * effectiveGoldPrice.usd_per_oz;
           apy = 0;
+          name = 'GOLD XAUT';
           break;
         case 'TRZRY':
           valueUSD = balance.amount;
           apy = 5.2;
+          name = 'Treasury';
+          break;
+        case 'ETH':
+          valueUSD = balance.amount * 2800; // Approximate ETH price
+          apy = 0;
+          name = 'Ethereum';
           break;
       }
 
       if (valueUSD > 0 || balance.amount >= 0) {
         assets.push({
           asset: balance.asset,
-          name: balance.asset,
+          name: name,
           value: valueUSD,
           valueUSD: valueUSD,
           balance: balance.amount,
