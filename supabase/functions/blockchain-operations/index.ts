@@ -201,10 +201,7 @@ function getProvider(): ethers.FallbackProvider {
   for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
     const url = RPC_ENDPOINTS[i];
     try {
-      const provider = new ethers.JsonRpcProvider(url, undefined, {
-        staticNetwork: ethers.Network.from('mainnet'),
-        batchMaxCount: 1 // Disable batching to reduce issues
-      });
+      const provider = new ethers.JsonRpcProvider(url, 1); // Pass chainId directly (1 = mainnet)
       
       providerConfigs.push({
         provider,
