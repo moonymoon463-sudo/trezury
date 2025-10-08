@@ -1330,8 +1330,9 @@ serve(async (req) => {
           console.log(`👤 User wallet: ${userWallet.address}`);
           console.log(`🔐 Relayer wallet: ${relayerWallet.address}`);
           
-          // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
-          console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
+          try {
+            // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
+            console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
           
           const tokenInAddress = await getContractAddress(inputAsset, provider);
           const tokenOutAddress = await getContractAddress(outputAsset, provider);
