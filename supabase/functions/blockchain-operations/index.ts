@@ -1411,6 +1411,16 @@ serve(async (req) => {
           console.log(`✅ Pre-flight validation complete! Relay fee: $${finalRelayFeeUsd.toFixed(2)}`);
           console.log(`✅ ALL CHECKS PASSED - Safe to pull funds\n`);
           
+          // Update intent to show we're past validation
+          if (intentId) {
+            await supabaseAdmin.from('transaction_intents').update({
+              status: 'ready_to_pull',
+              validated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }).eq('id', intentId);
+            console.log(`🔒 Intent ${intentId} updated: ready_to_pull`);
+          }
+          
           } catch (preFlightError: any) {
             // Pre-flight validation failed - update intent to validation_failed
             console.error('❌ Pre-flight validation failed:', preFlightError);
@@ -1442,84 +1452,125 @@ serve(async (req) => {
           
           // ===== PHASE 2: PULL FUNDS WITH INTENT TRACKING =====
           console.log(`\n🔐 PHASE 2: Pulling ${actualAmount} ${inputAsset} from user to relayer (gasless)`);
+          console.log(`📍 Starting fund pull at ${new Date().toISOString()}`);
           
           if (inputAsset !== 'USDC') {
             throw new Error('Gasless swaps currently only support USDC as input token');
           }
           
-          // Generate unique nonce for this transfer
-          const nonce = ethers.hexlify(ethers.randomBytes(32));
-          const validAfter = 0;
-          const validBefore = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour
+          let pullReceipt: any;
           
-          // F-002 FIX: Verify chain ID matches expected mainnet
-          const network = await withRpcRetry(
-            () => provider.getNetwork(),
-            'getNetwork'
-          );
-          if (Number(network.chainId) !== EXPECTED_CHAIN_ID) {
-            throw new Error(
-              `Chain ID mismatch: Expected ${EXPECTED_CHAIN_ID} (Ethereum mainnet), got ${network.chainId}. ` +
-              `This prevents accidental testnet transactions.`
+          try {
+            // Log that we're about to attempt fund pulling
+            console.log(`🔑 About to sign EIP-3009 authorization...`);
+            
+            // Generate unique nonce for this transfer
+            const nonce = ethers.hexlify(ethers.randomBytes(32));
+            const validAfter = 0;
+            const validBefore = Math.floor(Date.now() / 1000) + 3600; // Valid for 1 hour
+            
+            // F-002 FIX: Verify chain ID matches expected mainnet
+            const network = await withRpcRetry(
+              () => provider.getNetwork(),
+              'getNetwork'
             );
+            if (Number(network.chainId) !== EXPECTED_CHAIN_ID) {
+              throw new Error(
+                `Chain ID mismatch: Expected ${EXPECTED_CHAIN_ID} (Ethereum mainnet), got ${network.chainId}. ` +
+                `This prevents accidental testnet transactions.`
+              );
+            }
+            console.log(`✅ Chain ID verified: ${network.chainId} (Ethereum mainnet)`);
+            
+            // Build EIP-712 domain
+            const usdcContract = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, provider);
+            const domainSeparator = await usdcContract.DOMAIN_SEPARATOR();
+            const transferTypehash = await usdcContract.TRANSFER_WITH_AUTHORIZATION_TYPEHASH();
+            
+            // Build EIP-712 message
+            const domain = {
+              name: 'USD Coin',
+              version: '2',
+              chainId: EXPECTED_CHAIN_ID,
+              verifyingContract: tokenInAddress
+            };
+            
+            const types = {
+              TransferWithAuthorization: [
+                { name: 'from', type: 'address' },
+                { name: 'to', type: 'address' },
+                { name: 'value', type: 'uint256' },
+                { name: 'validAfter', type: 'uint256' },
+                { name: 'validBefore', type: 'uint256' },
+                { name: 'nonce', type: 'bytes32' }
+              ]
+            };
+            
+            const message = {
+              from: userWallet.address,
+              to: relayerWallet.address,
+              value: requiredAmount,
+              validAfter: validAfter,
+              validBefore: validBefore,
+              nonce: nonce
+            };
+            
+            // Sign the authorization with user's wallet
+            const signature = await userWallet.signTypedData(domain, types, message);
+            const sig = ethers.Signature.from(signature);
+            
+            console.log(`✅ Authorization signed by user`);
+            
+            // Relayer submits the transferWithAuthorization transaction
+            console.log(`📡 Submitting transferWithAuthorization to blockchain...`);
+            const usdcWithRelayer = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, relayerWallet);
+            
+            const pullTx = await usdcWithRelayer.transferWithAuthorization(
+              userWallet.address,
+              relayerWallet.address,
+              requiredAmount,
+              validAfter,
+              validBefore,
+              nonce,
+              sig.v,
+              sig.r,
+              sig.s
+            );
+            console.log(`✅ Transfer transaction submitted: ${pullTx.hash}`);
+            
+            console.log(`⏳ Waiting for transaction confirmation...`);
+            pullReceipt = await pullTx.wait();
+            console.log(`✅ Funds pulled successfully: ${pullReceipt.hash}`);
+            console.log(`💸 Amount transferred: ${actualAmount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
+          } catch (pullError: any) {
+            console.error(`❌ Fund pulling failed:`, pullError);
+            
+            logStructured('error', 'Fund pulling failed', {
+              operation: 'execute_uniswap_swap',
+              userId: authenticatedUserId,
+              error: pullError.message,
+              intentId,
+              phase: 'pull_funds'
+            });
+            
+            // Update intent to failed with detailed error
+            if (intentId) {
+              await supabaseAdmin.from('transaction_intents').update({
+                status: 'pull_failed',
+                error_message: pullError.message || 'Failed to pull funds from user wallet',
+                error_details: { pull_error: pullError.message || String(pullError) },
+                failed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }).eq('id', intentId);
+            }
+            
+            result = {
+              success: false,
+              error: `Failed to pull funds: ${pullError.message || String(pullError)}`,
+              requiresImport: pullError.message?.includes('import')
+            };
+            break;
           }
-          console.log(`✅ Chain ID verified: ${network.chainId} (Ethereum mainnet)`);
-          
-          // Build EIP-712 domain
-          const usdcContract = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, provider);
-          const domainSeparator = await usdcContract.DOMAIN_SEPARATOR();
-          const transferTypehash = await usdcContract.TRANSFER_WITH_AUTHORIZATION_TYPEHASH();
-          
-          // Build EIP-712 message
-          const domain = {
-            name: 'USD Coin',
-            version: '2',
-            chainId: EXPECTED_CHAIN_ID,
-            verifyingContract: tokenInAddress
-          };
-          
-          const types = {
-            TransferWithAuthorization: [
-              { name: 'from', type: 'address' },
-              { name: 'to', type: 'address' },
-              { name: 'value', type: 'uint256' },
-              { name: 'validAfter', type: 'uint256' },
-              { name: 'validBefore', type: 'uint256' },
-              { name: 'nonce', type: 'bytes32' }
-            ]
-          };
-          
-          const message = {
-            from: userWallet.address,
-            to: relayerWallet.address,
-            value: requiredAmount,
-            validAfter: validAfter,
-            validBefore: validBefore,
-            nonce: nonce
-          };
-          
-          // Sign the authorization with user's wallet
-          const signature = await userWallet.signTypedData(domain, types, message);
-          const sig = ethers.Signature.from(signature);
-          
-          console.log(`✅ Authorization signed by user`);
-          
-          // Relayer submits the transferWithAuthorization transaction
-          const usdcWithRelayer = new ethers.Contract(tokenInAddress, USDC_EIP3009_ABI, relayerWallet);
-          const pullTx = await usdcWithRelayer.transferWithAuthorization(
-            userWallet.address,
-            relayerWallet.address,
-            requiredAmount,
-            validAfter,
-            validBefore,
-            nonce,
-            sig.v,
-            sig.r,
-            sig.s
-          );
-          const pullReceipt = await pullTx.wait();
-          console.log(`✅ Funds pulled successfully: ${pullReceipt.hash}`);
-          console.log(`💸 Amount transferred: ${actualAmount} USDC from ${userWallet.address} to ${relayerWallet.address}\n`);
 
           // 🔒 Update intent status: funds pulled
           if (intentId) {
