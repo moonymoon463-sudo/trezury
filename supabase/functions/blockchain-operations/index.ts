@@ -166,6 +166,29 @@ async function withRpcRetry<T>(
   throw new Error('Unexpected retry loop exit');
 }
 
+// Enhanced retry with backoff for rate-limited RPC operations
+async function withBackoff<T>(fn: () => Promise<T>, context = 'operation', attempts = 4): Promise<T> {
+  let delay = 250;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      // Retry only on throttle/rate-limit errors
+      if (!(msg.includes('Too Many Requests') || msg.includes('-32005') || msg.includes('throttle') || msg.includes('rate limit'))) {
+        throw e;
+      }
+      if (i === attempts - 1) throw new Error(`RPC throttled after ${attempts} attempts in ${context}`);
+      
+      const jitter = Math.random() * 150;
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
+      delay *= 2;
+      logStructured('warn', `RPC throttled, retrying ${context}`, { attempt: i + 1, delay });
+    }
+  }
+  throw new Error('RPC throttled after retries');
+}
+
 // F-006 FIX: Get cached block number to reduce RPC pressure
 async function getCachedBlockNumber(provider: ethers.FallbackProvider): Promise<number> {
   const now = Date.now();
@@ -185,56 +208,99 @@ async function getCachedBlockNumber(provider: ethers.FallbackProvider): Promise<
   return blockNumber;
 }
 
-// F-006 FIX: Singleton FallbackProvider with multiple RPCs
-function getProvider(): ethers.FallbackProvider {
-  if (globalProvider) {
-    return globalProvider;
+// F-006 FIX: Singleton FallbackProvider with multiple RPCs with health checks
+type ProviderConfig = { provider: ethers.JsonRpcProvider; priority: number; weight: number; stallTimeout: number };
+
+function makeRpcUrls(): string[] {
+  const urls: string[] = [];
+  const infura = Deno.env.get('INFURA_API_KEY');
+  const alchemy = Deno.env.get('ALCHEMY_API_KEY');
+  
+  if (infura && infura !== 'undefined') {
+    urls.push(`https://mainnet.infura.io/v3/${infura}`);
   }
-  
-  if (RPC_ENDPOINTS.length === 0) {
-    throw new Error('No RPC endpoints available - check INFURA_API_KEY and ALCHEMY_API_KEY secrets');
+  if (alchemy && alchemy !== 'undefined') {
+    urls.push(`https://eth-mainnet.g.alchemy.com/v2/${alchemy}`);
   }
+  // Fallback to public RPC (rate-limited, last resort)
+  urls.push('https://eth.llamarpc.com');
   
-  // Create provider configs with equal weight
-  const providerConfigs: any[] = [];
+  return urls;
+}
+
+async function buildProviderPool(): Promise<ProviderConfig[]> {
+  const rpcUrls = makeRpcUrls();
+  const pool: ProviderConfig[] = [];
   
-  for (let i = 0; i < RPC_ENDPOINTS.length; i++) {
-    const url = RPC_ENDPOINTS[i];
+  for (let i = 0; i < rpcUrls.length; i++) {
+    const url = rpcUrls[i];
     try {
-      const provider = new ethers.JsonRpcProvider(url, 1); // Pass chainId directly (1 = mainnet)
+      // ✅ Explicit network config to skip auto-detection (ethers v6 fix)
+      const provider = new ethers.JsonRpcProvider(url, {
+        name: 'mainnet',
+        chainId: 1,
+        ensAddress: null
+      });
       
-      providerConfigs.push({
+      // ✅ Health check with 3s timeout
+      const network = await Promise.race([
+        provider.getNetwork(),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 3000)
+        )
+      ]);
+      
+      if (Number(network.chainId) !== 1) {
+        throw new Error(`wrong chain: ${String(network.chainId)}`);
+      }
+      
+      pool.push({
         provider,
         priority: i + 1,
         weight: 1,
         stallTimeout: 3000
       });
       
-      logStructured('info', `Added RPC endpoint ${i + 1}`, { 
-        url: url.includes('infura') ? 'infura' : url.includes('alchemy') ? 'alchemy' : 'public' 
-      });
-    } catch (error) {
-      logStructured('error', `Failed to initialize RPC endpoint ${i + 1}`, {
-        url: url.substring(0, 30) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      const label = url.includes('infura') ? 'Infura' : url.includes('alchemy') ? 'Alchemy' : 'Public';
+      logStructured('info', `✅ RPC healthy: ${label}`, { chainId: Number(network.chainId) });
+      
+    } catch (err: any) {
+      const label = url.includes('infura') ? 'Infura' : url.includes('alchemy') ? 'Alchemy' : 'Public';
+      logStructured('warn', `⚠️ RPC unhealthy: ${label}`, { error: err?.message || err });
     }
   }
   
-  if (providerConfigs.length === 0) {
-    throw new Error('Failed to initialize any RPC providers - check network connectivity and API keys');
+  if (pool.length === 0) {
+    throw new Error('No healthy RPC endpoints - check INFURA_API_KEY and ALCHEMY_API_KEY secrets');
   }
   
-  // FallbackProvider uses first successful response (quorum=1)
-  globalProvider = new ethers.FallbackProvider(providerConfigs, 1);
+  return pool;
+}
+
+async function getProvider(): Promise<ethers.FallbackProvider> {
+  if (globalProvider) {
+    return globalProvider;
+  }
   
-  logStructured('info', 'FallbackProvider initialized', {
-    total_endpoints: RPC_ENDPOINTS.length,
-    working_endpoints: providerConfigs.length,
-    quorum: 1
-  });
+  // ⏳ Initialize with 10s timeout to avoid edge function boot loops
+  const initPromise = (async () => {
+    const pool = await buildProviderPool();
+    const fallback = new ethers.FallbackProvider(pool, 1); // quorum=1 (first success wins)
+    globalProvider = fallback;
+    
+    logStructured('info', 'FallbackProvider initialized', {
+      total_providers: pool.length,
+      quorum: 1
+    });
+    
+    return fallback;
+  })();
   
-  return globalProvider;
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Provider init timeout after 10s')), 10000)
+  );
+  
+  return await Promise.race([initPromise, timeout]) as ethers.FallbackProvider;
 }
 
 // F-002 FIX: Chain ID verification constant
@@ -1685,13 +1751,13 @@ serve(async (req) => {
           if (intentId) {
             await supabaseAdmin.from('transaction_intents').update({
               status: 'swap_executed',
-              swap_tx_hash: swapReceipt.hash,
+              swap_tx_hash: receipt.hash,
               disbursement_tx_hash: userTransferReceipt.hash,
               swap_executed_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
               blockchain_data: {
                 pull_tx_hash: pullReceipt.hash,
-                swap_tx_hash: swapReceipt.hash,
+                swap_tx_hash: receipt.hash,
                 disbursement_tx_hash: userTransferReceipt.hash,
                 output_amount: netAmount,
                 relay_fee_usd: actualRelayFeeUsd
@@ -1911,7 +1977,7 @@ serve(async (req) => {
               if (intentId) {
                 await supabaseAdmin.from('transaction_intents').update({
                   status: 'requires_reconciliation',
-                  swap_tx_hash: swapReceipt.hash,
+                  swap_tx_hash: receipt.hash,
                   disbursement_tx_hash: userTransferReceipt.hash,
                   swap_executed_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
@@ -1919,7 +1985,7 @@ serve(async (req) => {
                   error_details: {
                     db_error: txError?.message,
                     pull_tx_hash: pullReceipt.hash,
-                    swap_tx_hash: swapReceipt.hash
+                    swap_tx_hash: receipt.hash
                   },
                   blockchain_data: {
                     pull_tx_hash: pullReceipt.hash,
@@ -1955,7 +2021,7 @@ serve(async (req) => {
               return new Response(JSON.stringify({
                 success: true,
                 requiresReconciliation: true,
-                txHash: swapReceipt.hash,
+                txHash: receipt.hash,
                 userWallet: userWallet.address,
                 relayerAddress: relayerWallet.address,
                 netOutputAmount: netAmount.toString(),
@@ -2058,7 +2124,7 @@ serve(async (req) => {
                 margin_tier: marginConfig.tier,
                 margin_reason: marginConfig.reason,
                 swap_tx_hash: receipt.hash,
-                platform_fee_tx_hash: platformFeeReceipt.hash,
+                platform_fee_tx_hash: null, // Platform fee retained in relayer wallet
                 user_transfer_tx_hash: userTransferReceipt.hash
               }
             });
@@ -2115,7 +2181,7 @@ serve(async (req) => {
                   exchangeRate: outputTokenPriceUsd,
                   swapResult: {
                     txHash: receipt.hash,
-                    platformFeeTxHash: platformFeeReceipt.hash,
+                    platformFeeTxHash: null, // Platform fee retained in relayer wallet
                     userTransferTxHash: userTransferReceipt.hash,
                     pullTxHash: pullReceipt.hash,
                     blockNumber: receipt.blockNumber
