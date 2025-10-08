@@ -12,6 +12,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseAdmin = supabase;
 
 // Blockchain configuration from secrets
 const INFURA_API_KEY = Deno.env.get('INFURA_API_KEY');
@@ -341,7 +342,7 @@ async function getEthPrice(): Promise<number> {
   // Chainlink ETH/USD price feed on mainnet
   const priceFeedAddress = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
   try {
-    const provider = getProvider();
+    const provider = await getProvider();
     const priceFeed = new ethers.Contract(
       priceFeedAddress,
       ['function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)'],
@@ -1241,6 +1242,7 @@ serve(async (req) => {
 
 
       case 'execute_uniswap_swap': {
+        let intentId: string | undefined;
         try {
           if (!authenticatedUserId) {
             throw new Error('Authentication required for swap execution');
@@ -1256,7 +1258,7 @@ serve(async (req) => {
         slippageBps = 50,
         walletPassword,
         quoteId,
-        intentId,
+        intentId: bodyIntentId,
         idempotencyKey
       } = body as {
         userId: string;
@@ -1271,6 +1273,7 @@ serve(async (req) => {
         intentId?: string;
         idempotencyKey?: string;
       };
+      intentId = bodyIntentId;
           
           // F-003 FIX: Idempotency and intent validation
           // If intentId is provided, this is the first execution for this intent - allow it
@@ -2266,8 +2269,8 @@ serve(async (req) => {
             errorMsg.includes('Too Many Requests') ||
             errorMsg.includes('rate') ||
             errorMsg.includes('throttle') ||
-            error?.code === -32005 ||
-            error?.code === 429;
+            (error && error.code === -32005) ||
+            (error && error.code === 429);
           
           if (isRateLimit) {
             await sendAlert(
@@ -2276,6 +2279,21 @@ serve(async (req) => {
               `Swap execution hit RPC rate limit: ${errorMsg}`,
               { userId: authenticatedUserId, intentId, error: errorMsg }
             );
+          }
+
+          // Ensure intent is marked failed on unexpected error
+          if (intentId) {
+            try {
+              await supabaseAdmin.from('transaction_intents').update({
+                status: 'failed',
+                error_message: errorMsg || (error instanceof Error ? error.message : 'Swap execution failed'),
+                error_details: { swap_error: errorMsg || (error instanceof Error ? error.message : 'Swap execution failed') },
+                failed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }).eq('id', intentId);
+            } catch (updateErr) {
+              console.error('⚠️ Failed to update intent to failed:', updateErr);
+            }
           }
           
           result = {
