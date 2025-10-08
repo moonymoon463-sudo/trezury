@@ -296,12 +296,52 @@ class GoldPriceService {
       });
 
       // Calculate average price for each bucket
-      const bucketed = Array.from(buckets.entries())
+      let bucketed = Array.from(buckets.entries())
         .map(([time, prices]) => ({
           timestamp: new Date(time).toISOString(),
           price: prices.reduce((sum, p) => sum + p, 0) / prices.length
         }))
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      // If we don't have enough 5-min points (expect ~144 for 12h), trigger a backfill once
+      if (bucketed.length < 100) {
+        console.log(`🧩 1H data insufficient (${bucketed.length} points). Triggering backfill and refetch...`);
+        try {
+          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('backfill timeout')), 8000));
+          await Promise.race([
+            supabase.functions.invoke('xaut-price-collector', { body: { reason: 'backfill_1h' } }),
+            timeout,
+          ]);
+
+          // Re-fetch after backfill
+          const refetchStart = new Date();
+          refetchStart.setHours(refetchStart.getHours() - hoursBack);
+          const { data: refetched } = await supabase
+            .from('gold_prices')
+            .select('timestamp, usd_per_oz')
+            .eq('source', 'xaut_composite')
+            .gte('timestamp', refetchStart.toISOString())
+            .order('timestamp', { ascending: true });
+
+          if (refetched && refetched.length) {
+            const buckets2 = new Map<number, number[]>();
+            refetched.forEach(row => {
+              const ts = new Date(row.timestamp).getTime();
+              const key = Math.floor(ts / 300000) * 300000;
+              if (!buckets2.has(key)) buckets2.set(key, []);
+              buckets2.get(key)!.push(Number(row.usd_per_oz));
+            });
+            bucketed = Array.from(buckets2.entries())
+              .map(([time, prices]) => ({
+                timestamp: new Date(time).toISOString(),
+                price: prices.reduce((sum, p) => sum + p, 0) / prices.length
+              }))
+              .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          }
+        } catch (e) {
+          console.warn('⚠️ Backfill invoke failed or timed out:', e);
+        }
+      }
 
       console.log(`📈 1H series: ${data.length} points → ${bucketed.length} after 5-min bucketing`);
       return bucketed;

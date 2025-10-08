@@ -24,15 +24,17 @@ serve(async (req) => {
 
     // Check if we need to backfill historical data
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-    const { data: existingData, error: checkError } = await supabase
+    const MIN_POINTS_12H = 100; // Threshold to ensure visually rich 12h chart
+    const { count, error: countError } = await supabase
       .from('gold_prices')
-      .select('id')
+      .select('*', { count: 'exact', head: true })
       .eq('source', 'xaut_composite')
-      .gte('timestamp', twelveHoursAgo)
-      .limit(1);
+      .gte('timestamp', twelveHoursAgo);
 
-    if (!checkError && (!existingData || existingData.length === 0)) {
-      console.log('📊 Insufficient historical data, backfilling 12 hours...');
+    console.log(`📊 Existing 12h XAUT points: ${count ?? 0}`);
+
+    if (!countError && ((count ?? 0) < MIN_POINTS_12H)) {
+      console.log('📊 Insufficient historical data, backfilling last 12 hours...');
       await backfillHistoricalData(supabase);
     }
 
