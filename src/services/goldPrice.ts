@@ -33,7 +33,7 @@ class GoldPriceService {
   private readonly PRICE_CHANGE_THRESHOLD = 0.001; // 0.1% threshold
   private isUpdating = false; // Prevent duplicate intervals
   private inflightFetch: Promise<GoldPrice> | null = null;
-  private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+  private readonly CACHE_TTL = 30 * 1000; // 30 seconds for near real-time
   private lastFetchTime = 0;
 
   async getCurrentPrice(): Promise<GoldPrice> {
@@ -116,8 +116,8 @@ class GoldPriceService {
         }
         // Last resort: return a reasonable fallback price
         return {
-          usd_per_oz: 2850,
-          usd_per_gram: 91.64,
+          usd_per_oz: 3950,
+          usd_per_gram: 127.00,
           change_24h: 0,
           change_percent_24h: 0,
           last_updated: Date.now(),
@@ -152,7 +152,7 @@ class GoldPriceService {
     }
   }
 
-  startRealTimeUpdates(intervalMs: number = 300000): void {
+  startRealTimeUpdates(intervalMs: number = 30000): void {
     // Prevent multiple intervals
     if (this.isUpdating) {
       return;
@@ -167,7 +167,7 @@ class GoldPriceService {
     // Get initial price
     this.getCurrentPrice();
 
-    // Set up periodic updates (default 5 minutes, respects cache)
+    // Set up periodic updates (default 30 seconds for near real-time)
     this.updateInterval = window.setInterval(() => {
       // Force cache invalidation for periodic updates
       this.lastFetchTime = 0;

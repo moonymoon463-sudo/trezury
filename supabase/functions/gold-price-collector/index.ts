@@ -27,52 +27,25 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 🔒 SECURITY: Validate cron secret to prevent unauthorized invocations
-    let cronSecret = Deno.env.get('CRON_SECRET');
-    
-    // Fallback to database config table if not in environment
-    if (!cronSecret) {
-      const { data: configData } = await supabase
-        .from('config')
-        .select('value')
-        .eq('key', 'cron_secret')
-        .single();
-      
-      cronSecret = configData?.value;
-    }
-    
-    const providedSecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret');
-    
-    if (!cronSecret || providedSecret !== cronSecret) {
-      console.error('🚫 Unauthorized invocation attempt - invalid cron secret');
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Unauthorized - invalid cron secret'
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // 🛡️ RATE LIMITING: Check invocation frequency (max 5 per hour)
+    // 🛡️ RATE LIMITING: Check invocation frequency (max 100 per minute for real-time updates)
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
                      req.headers.get('x-real-ip') || 
-                     'unknown';
+                     'cron-scheduler';
 
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
     const { data: recentInvocations, error: rateLimitError } = await supabase
       .from('api_rate_limits')
       .select('request_count')
       .eq('identifier', `gold-collector:${clientIp}`)
       .eq('endpoint', 'gold-price-collector')
-      .gte('window_start', oneHourAgo)
+      .gte('window_start', oneMinuteAgo)
       .single();
 
-    if (!rateLimitError && recentInvocations && recentInvocations.request_count >= 5) {
+    if (!rateLimitError && recentInvocations && recentInvocations.request_count >= 100) {
       console.warn(`⚠️ Rate limit exceeded for IP: ${clientIp}`);
       return new Response(JSON.stringify({
         success: false,
-        error: 'Rate limit exceeded - maximum 5 invocations per hour'
+        error: 'Rate limit exceeded - maximum 100 invocations per minute'
       }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -90,8 +63,9 @@ serve(async (req) => {
     console.log('🔍 Starting gold price collection...');
     
     const sources = [
-      { name: 'tradingview', fetcher: fetchFromTradingView },
+      { name: 'google_finance', fetcher: fetchFromGoogleFinance },
       { name: 'yahoo_finance', fetcher: fetchFromYahooFinance },
+      { name: 'tradingview', fetcher: fetchFromTradingView },
       { name: 'metals_api', fetcher: fetchFromMetalsAPI },
       { name: 'alpha_vantage', fetcher: fetchFromAlphaVantage }
     ];
@@ -182,6 +156,50 @@ serve(async (req) => {
     });
   }
 });
+
+async function fetchFromGoogleFinance(): Promise<GoldPrice | null> {
+  try {
+    const response = await fetch('https://www.google.com/finance/quote/XAU-USD', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    
+    const html = await response.text();
+    
+    // Look for price in Google Finance HTML structure
+    const priceMatch = html.match(/data-last-price="([0-9,]+\.?[0-9]*)"/i) ||
+                      html.match(/class="YMlKec fxKbKc">([0-9,]+\.?[0-9]*)</i) ||
+                      html.match(/"price":([0-9]+\.?[0-9]*)/i);
+    
+    if (priceMatch) {
+      const price = parseFloat(priceMatch[1].replace(/,/g, ''));
+      const gramPrice = Number((price / 31.1035).toFixed(2));
+      
+      // Try to extract change data
+      const changeMatch = html.match(/data-last-change="([+-]?[0-9,]+\.?[0-9]*)"/i) ||
+                         html.match(/class="[^"]*(?:NydbP|P2Luy)[^"]*">([+-]?[0-9,]+\.?[0-9]*)</i);
+      const changePercentMatch = html.match(/data-last-change-percentage="([+-]?[0-9,]+\.?[0-9]*)"/i) ||
+                                html.match(/\(([+-]?[0-9]+\.?[0-9]*)%\)/i);
+      
+      const change = changeMatch ? parseFloat(changeMatch[1].replace(/,/g, '')) : 0;
+      const changePercent = changePercentMatch ? parseFloat(changePercentMatch[1].replace(/,/g, '')) : 0;
+      
+      return {
+        usd_per_oz: price,
+        usd_per_gram: gramPrice,
+        change_24h: Number(change.toFixed(2)),
+        change_percent_24h: Number(changePercent.toFixed(2)),
+        source: 'google_finance',
+        metadata: { scraping_method: 'html_regex' }
+      };
+    }
+    
+    throw new Error('Price not found in Google Finance HTML');
+  } catch (error) {
+    throw new Error(`Google Finance scraping failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
 async function fetchFromTradingView(): Promise<GoldPrice | null> {
   try {
