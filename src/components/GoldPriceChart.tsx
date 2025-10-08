@@ -191,8 +191,10 @@ const GoldPriceChart = () => {
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                interval="preserveStartEnd"
-                height={25}
+                interval={timeframe === '1h' ? 0 : 'preserveStartEnd'}
+                angle={timeframe === '1h' ? -45 : 0}
+                textAnchor={timeframe === '1h' ? 'end' : 'middle'}
+                height={timeframe === '1h' ? 60 : 25}
               />
               <YAxis 
                 domain={['dataMin', 'dataMax']}

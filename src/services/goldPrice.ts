@@ -280,7 +280,34 @@ class GoldPriceService {
       return [];
     }
 
-    // Downsample to maxPoints for performance
+    // For 1h timeframe, use 5-minute buckets for clean timeline alignment
+    if (timeframe === '1h') {
+      const buckets = new Map<number, number[]>();
+      
+      data.forEach(row => {
+        const timestamp = new Date(row.timestamp).getTime();
+        // Round to nearest 5 minutes (300000 ms)
+        const bucketKey = Math.floor(timestamp / 300000) * 300000;
+        
+        if (!buckets.has(bucketKey)) {
+          buckets.set(bucketKey, []);
+        }
+        buckets.get(bucketKey)!.push(Number(row.usd_per_oz));
+      });
+
+      // Calculate average price for each bucket
+      const bucketed = Array.from(buckets.entries())
+        .map(([time, prices]) => ({
+          timestamp: new Date(time).toISOString(),
+          price: prices.reduce((sum, p) => sum + p, 0) / prices.length
+        }))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      console.log(`📈 1H series: ${data.length} points → ${bucketed.length} after 5-min bucketing`);
+      return bucketed;
+    }
+
+    // For other timeframes, downsample to maxPoints for performance
     const maxPoints = this.getMaxPoints(timeframe);
     const step = Math.ceil(data.length / maxPoints);
     const downsampled = data.filter((_, i) => i % step === 0);
