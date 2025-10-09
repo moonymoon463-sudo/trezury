@@ -3183,6 +3183,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      backfill_missing_referral_codes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       can_access_sensitive_pii: {
         Args: { target_user_id: string; user_uuid: string }
         Returns: boolean

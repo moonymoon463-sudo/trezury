@@ -81,7 +81,10 @@ const AdminReferrals = () => {
       .select('user_id, code')
       .limit(50);
 
-    if (!codes) return;
+    if (!codes || codes.length === 0) {
+      setTopReferrers([]);
+      return;
+    }
 
     const referrersWithDetails = await Promise.all(
       codes.map(async (item) => {
@@ -89,13 +92,13 @@ const AdminReferrals = () => {
           .from('profiles')
           .select('email')
           .eq('id', item.user_id)
-          .single();
+          .maybeSingle();
 
         const { data: balance } = await supabase
           .from('referral_point_balances')
           .select('total_points')
           .eq('user_id', item.user_id)
-          .single();
+          .maybeSingle();
 
         const { data: referrals } = await supabase
           .from('referrals')

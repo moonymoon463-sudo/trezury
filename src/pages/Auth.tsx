@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
 import AurumLogo from "@/components/AurumLogo";
 import AppLayout from "@/components/AppLayout";
 
 const Auth = () => {
   const { user, signIn, signUp, signInWithGoogle, loading } = useAuth();
+  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'welcome' | 'signin' | 'signup'>('welcome');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,14 +83,37 @@ const Auth = () => {
     
     // Apply referral code if provided and valid
     if (!error && refCode && referralCodeValid) {
-      // Get current user after signup
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData.user) {
-        await supabase.rpc('apply_referral_code' as any, {
-          p_referee_id: userData.user.id,
-          p_referral_code: refCode.toUpperCase()
-        });
+      try {
+        // Get current user after signup
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          const { error: refError } = await supabase.rpc('validate_and_apply_referral_code', {
+            p_referee_id: userData.user.id,
+            p_referral_code: refCode.toUpperCase()
+          });
+          
+          if (refError) {
+            console.error('Failed to apply referral code:', refError);
+            toast({
+              variant: "destructive",
+              title: "Referral code error",
+              description: "Sign up successful, but referral code could not be applied",
+            });
+          } else {
+            toast({
+              title: "Success!",
+              description: "Account created and referral code applied! Check your email to verify.",
+            });
+          }
+        }
+      } catch (refError) {
+        console.error('Referral code application error:', refError);
       }
+    } else if (!error) {
+      toast({
+        title: "Success!",
+        description: "Please check your email to verify your account",
+      });
     }
     
     if (!error) {

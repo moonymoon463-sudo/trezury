@@ -62,18 +62,18 @@ export function useReferralSystem() {
 
     try {
       // Fetch referral code
-      const { data: codeData } = await supabase
+      const { data: codeData, error: codeError } = await supabase
         .from('referral_codes')
         .select('code')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       // Fetch point balance
-      const { data: balanceData } = await supabase
+      const { data: balanceData, error: balanceError } = await supabase
         .from('referral_point_balances')
         .select('total_points')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       // Fetch referrals
       const { data: referralsData } = await supabase
