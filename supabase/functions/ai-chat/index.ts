@@ -4,8 +4,9 @@ import { checkRateLimit, createRateLimitResponse, getRateLimitHeaders } from '..
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, accept, cache-control, pragma',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, accept, cache-control, pragma, x-requested-with',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400', // 24h preflight cache
 };
 
 interface ChatRequest {
@@ -13,6 +14,7 @@ interface ChatRequest {
   conversationId?: string;
   contextType?: 'general' | 'portfolio' | 'market';
   portfolioData?: any;
+  stream?: boolean; // Allow non-streaming mode
 }
 
 serve(async (req) => {
@@ -21,7 +23,9 @@ serve(async (req) => {
   }
 
   try {
-    const { message, conversationId, contextType = 'general', portfolioData }: ChatRequest = await req.json();
+    const { message, conversationId, contextType = 'general', portfolioData, stream = true }: ChatRequest = await req.json();
+    
+    console.log(`🔍 [AI-CHAT] ${req.method} request - stream=${stream}, context=${contextType}, origin=${req.headers.get('origin')}`);
     
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -560,10 +564,10 @@ When providing advice, consider:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: conversationHistory,
-        stream: true,
-        temperature: 0.7, // Optimal balance for natural, sophisticated responses
-        max_tokens: 2000, // Ample space for detailed, well-articulated analysis
-        top_p: 0.9, // Balance creativity and reliability
+        stream: stream, // Use request's stream preference
+        temperature: 0.7,
+        max_tokens: 2000,
+        top_p: 0.9,
       }),
     });
 
@@ -571,6 +575,33 @@ When providing advice, consider:
       const errorText = await aiResponse.text();
       console.error('AI Gateway error:', aiResponse.status, errorText);
       throw new Error(`AI Gateway error: ${errorText}`);
+    }
+
+    // Non-streaming JSON mode
+    if (!stream) {
+      console.log('📦 [NON-STREAM MODE] Returning JSON response');
+      const aiData = await aiResponse.json();
+      const assistantContent = aiData.choices?.[0]?.message?.content || 'I apologize, but I couldn\'t generate a response. Please try again.';
+      
+      // Save assistant message
+      await supabase.from('chat_messages').insert({
+        conversation_id: currentConversationId,
+        role: 'assistant',
+        content: assistantContent
+      });
+      
+      return new Response(
+        JSON.stringify({
+          message: assistantContent,
+          conversationId: currentConversationId
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
     }
 
     // Set up streaming response with robust SSE parser

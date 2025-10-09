@@ -154,7 +154,9 @@ export const useAIChat = () => {
       }, timeout);
 
       let response: Response;
+      let usedFallback = false;
       try {
+        console.log('🔄 [SSE PATH] Attempting streaming fetch...');
         response = await fetch(`https://auntkvllzejtfqmousxg.supabase.co/functions/v1/ai-chat`, {
           method: 'POST',
           headers: {
@@ -169,16 +171,86 @@ export const useAIChat = () => {
         clearTimeout(timeoutId);
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
+        
+        // If fetch fails with TypeError (common in preview/CORS issues), fall back to JSON mode
+        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
+          console.warn('⚠️ [SSE PATH FAILED] TypeError: Failed to fetch - switching to JSON fallback');
+          console.log('🔄 [JSON FALLBACK] Invoking ai-chat with stream=false...');
+          
+          usedFallback = true;
+          abortControllerRef.current = null; // Clear abort controller
+          
+          // Use Supabase's invoke for reliable JSON response
+          const { data: aiData, error: aiError } = await supabase.functions.invoke('ai-chat', {
+            body: { ...requestBody, stream: false }
+          });
+          
+          if (aiError) {
+            console.error('❌ [JSON FALLBACK ERROR]:', aiError);
+            throw new Error(`AI request failed: ${aiError.message}`);
+          }
+          
+          console.log('✅ [JSON FALLBACK SUCCESS] Received response:', { hasData: !!aiData });
+          
+          // Add assistant response
+          const assistantContent = aiData?.message || 'I received your message but couldn\'t generate a proper response. Please try again.';
+          const assistantMessageObj: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: assistantContent,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, assistantMessageObj]);
+          
+          // Persist conversation and messages client-side
+          let convId = currentConversationId;
+          if (!convId && aiData?.conversationId) {
+            convId = aiData.conversationId;
+            setCurrentConversationId(convId);
+            await loadConversations();
+          } else if (!convId) {
+            // Create conversation
+            const { data: newConv, error: convError } = await supabase
+              .from('chat_conversations')
+              .insert({
+                user_id: session.user.id,
+                title: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+                context_type: contextType,
+                portfolio_snapshot: portfolioData || null
+              })
+              .select()
+              .single();
+            
+            if (!convError && newConv) {
+              convId = newConv.id;
+              setCurrentConversationId(convId);
+              await loadConversations();
+            }
+          }
+          
+          // Persist messages if we have a conversation
+          if (convId) {
+            await supabase.from('chat_messages').insert([
+              { conversation_id: convId, role: 'user', content: userMessage.content },
+              { conversation_id: convId, role: 'assistant', content: assistantContent }
+            ]);
+          }
+          
+          console.log('✅ [JSON FALLBACK COMPLETE] Messages persisted');
+          return; // Exit early - we're done
+        }
+        
         if (fetchError.name === 'AbortError') {
           throw new Error('Request timeout - network may be slow. Please try again.');
         }
         throw fetchError;
       }
 
-      console.log('📥 Response received:', {
+      console.log(`📥 [${usedFallback ? 'JSON FALLBACK' : 'SSE PATH'}] Response received:`, {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
+        contentType: response.headers.get('content-type'),
         headers: Object.fromEntries([...response.headers.entries()])
       });
 
