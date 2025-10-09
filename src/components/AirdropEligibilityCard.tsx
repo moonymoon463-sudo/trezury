@@ -6,6 +6,7 @@ import { useAirdropEligibility } from "@/hooks/useAirdropEligibility";
 
 export function AirdropEligibilityCard() {
   const { eligibility, loading } = useAirdropEligibility();
+  const { stats: referralStats } = useReferralSystem();
 
   if (loading) {
     return (

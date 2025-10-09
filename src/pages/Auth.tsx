@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +11,37 @@ import AppLayout from "@/components/AppLayout";
 
 const Auth = () => {
   const { user, signIn, signUp, signInWithGoogle, loading } = useAuth();
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'welcome' | 'signin' | 'signup'>('welcome');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [riskAccepted, setRiskAccepted] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+
+  // Check for referral code in URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+      validateReferralCode(refCode);
+    }
+  }, [searchParams]);
+
+  const validateReferralCode = async (code: string) => {
+    if (!code) {
+      setReferralCodeValid(null);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('referral_codes')
+      .select('code')
+      .eq('code', code.toUpperCase())
+      .single();
+
+    setReferralCodeValid(!!data);
+  };
 
   // Redirect if already authenticated
   if (user && !loading) {
@@ -39,7 +67,7 @@ const Auth = () => {
     e.preventDefault();
     
     if (!termsAccepted || !riskAccepted) {
-      return; // Don't submit if checkboxes aren't checked
+      return;
     }
     
     setIsSubmitting(true);
@@ -47,8 +75,18 @@ const Auth = () => {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const refCode = formData.get("referral_code") as string;
 
-    const { error } = await signUp(email, password);
+    const { error, data } = await signUp(email, password);
+    
+    // Apply referral code if provided and valid
+    if (!error && data.user && refCode && referralCodeValid) {
+      await supabase.rpc('apply_referral_code', {
+        p_referee_id: data.user.id,
+        p_referral_code: refCode.toUpperCase()
+      });
+    }
+    
     if (!error) {
       setMode('welcome');
     }
@@ -168,6 +206,50 @@ const Auth = () => {
                   required
                   minLength={6}
                 />
+              </div>
+              <div>
+                <Label htmlFor="referral-code" className="sr-only">Referral Code (Optional)</Label>
+                <div className="relative">
+                  <Input
+                    id="referral-code"
+                    name="referral_code"
+                    type="text"
+                    placeholder="Referral Code (Optional)"
+                    value={referralCode}
+                    onChange={(e) => {
+                      const code = e.target.value.toUpperCase();
+                      setReferralCode(code);
+                      if (code.length >= 6) {
+                        validateReferralCode(code);
+                      } else {
+                        setReferralCodeValid(null);
+                      }
+                    }}
+                    className={`form-input w-full rounded-md border-0 bg-[hsl(var(--aurum-dark))] text-white placeholder:text-[hsl(var(--aurum-muted))] focus:ring-2 focus:ring-inset h-14 p-4 pr-10 ${
+                      referralCodeValid === true 
+                        ? 'focus:ring-green-500' 
+                        : referralCodeValid === false 
+                        ? 'focus:ring-red-500' 
+                        : 'focus:ring-[hsl(var(--aurum-gold))]'
+                    }`}
+                    maxLength={12}
+                  />
+                  {referralCodeValid === true && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm">
+                      +2 pts
+                    </span>
+                  )}
+                </div>
+                {referralCodeValid === true && (
+                  <p className="text-xs text-green-500 mt-1">
+                    Valid! You and your referrer will each get 2 bonus points
+                  </p>
+                )}
+                {referralCodeValid === false && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Invalid referral code
+                  </p>
+                )}
               </div>
             </div>
             
