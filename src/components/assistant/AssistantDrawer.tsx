@@ -27,6 +27,11 @@ export const AssistantDrawer = () => {
             isCollapsed={false}
             contextType={currentContext.page as any}
             initialQuickActions={currentContext.quickActions}
+            pageMetadata={{
+              pageTitle: currentContext.pageTitle,
+              helpTopic: currentContext.helpTopic,
+              pagePath: currentContext.page
+            }}
           />
         </div>
       </SheetContent>

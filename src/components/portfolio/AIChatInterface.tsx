@@ -42,6 +42,11 @@ interface AIChatInterfaceProps {
   onToggle?: () => void;
   contextType?: string;
   initialQuickActions?: string[];
+  pageMetadata?: {
+    pageTitle: string;
+    helpTopic: string;
+    pagePath: string;
+  };
 }
 
 const QuickActions = ({ onSend }: { onSend: (message: string) => void }) => {
@@ -131,7 +136,8 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   isCollapsed = false,
   onToggle,
   contextType,
-  initialQuickActions
+  initialQuickActions,
+  pageMetadata
 }) => {
   const [input, setInput] = useState('');
   const [showQuickActions, setShowQuickActions] = useState(true);

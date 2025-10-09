@@ -140,9 +140,13 @@ export const useAIChat = () => {
         isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       });
 
-      // Mobile-specific timeout: 10 seconds for initial response
+      // Adaptive timeout based on device and connection quality
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const timeout = isMobile ? 10000 : 30000;
+      const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+      const isSlowConnection = connection && (connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g');
+      
+      // Aggressive mobile optimization: 8s standard, 15s for very slow connections, 30s desktop
+      const timeout = isSlowConnection ? 15000 : (isMobile ? 8000 : 30000);
       
       const timeoutId = setTimeout(() => {
         console.warn('⏱️ Request timeout reached');
@@ -359,21 +363,21 @@ export const useAIChat = () => {
         stack: error.stack
       });
       
-      // Determine user-friendly error message
-      let fallbackContent = 'I apologize, but I encountered an error while processing your request. ';
+      // Determine user-friendly error message with specific guidance
+      let fallbackContent = 'I apologize for the interruption. ';
       
       if (error.message.includes('timeout')) {
-        fallbackContent += 'The request timed out. This often happens on slower mobile connections. Please try again.';
+        fallbackContent += 'Your request timed out, which typically occurs on slower mobile connections. **Quick fix:** Try connecting to Wi-Fi or moving to an area with stronger signal, then resend your message.';
       } else if (error.message.includes('429')) {
-        fallbackContent += 'The AI service is currently rate limited. Please try again in a moment.';
+        fallbackContent += 'Our AI assistant is experiencing high demand right now. **Please wait 30 seconds** and try again. Your question has been saved.';
       } else if (error.message.includes('402')) {
-        fallbackContent += 'The AI service requires additional credits. Please contact support.';
+        fallbackContent += 'The AI service has reached its usage limit. **Action needed:** Please contact our support team at support@trezury.com to restore service.';
       } else if (error.message.includes('401') || error.message.includes('403')) {
-        fallbackContent += 'Authentication failed. Please try logging out and back in.';
+        fallbackContent += 'Your session has expired for security reasons. **Quick fix:** Log out and log back in to continue our conversation.';
       } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-        fallbackContent += 'Network connection issue. Please check your internet connection and try again.';
+        fallbackContent += 'Unable to reach our servers. **Troubleshooting:** Check your internet connection, disable VPN if active, or try switching between Wi-Fi and mobile data.';
       } else {
-        fallbackContent += 'Please try again or contact support if the issue persists.';
+        fallbackContent += 'An unexpected error occurred. **If this persists:** Contact support@trezury.com with a screenshot and we\'ll resolve this immediately.';
       }
       
       // Add error message or update assistant placeholder if present
