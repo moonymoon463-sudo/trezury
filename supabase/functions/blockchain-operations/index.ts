@@ -337,15 +337,6 @@ const TOKEN_ALLOWLIST: Record<string, { address: string; symbol: string; decimal
 
 const PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
-// Helper to get decimals for an asset
-function getDecimals(asset: string): number {
-  const config = TOKEN_ALLOWLIST[asset];
-  if (!config) {
-    throw new Error(`Unsupported asset: ${asset}`);
-  }
-  return config.decimals;
-}
-
 // ===== PRICE ORACLE HELPERS =====
 async function getEthPrice(): Promise<number> {
   // Check cache first to reduce RPC pressure
@@ -415,18 +406,10 @@ async function getContractAddress(asset: string | undefined, provider: ethers.Fa
   
   const tokenConfig = TOKEN_ALLOWLIST[asset as keyof typeof TOKEN_ALLOWLIST];
   if (!tokenConfig) {
-    throw new Error(`Unsupported asset: ${asset}. Only USDC, XAUT, TRZRY, and ETH are supported.`);
+    throw new Error(`Unsupported asset: ${asset}. Only USDC, XAUT, and TRZRY are supported.`);
   }
   
   const checksummedAddress = ethers.getAddress(tokenConfig.address);
-  
-  // ETH special case: return WETH address directly, skip symbol verification (native ETH has no ERC-20 symbol)
-  if (asset === 'ETH') {
-    const cacheKey = `${checksummedAddress}_${asset}`;
-    symbolCache.set(cacheKey, 'true'); // Mark as verified
-    console.log(`✅ ETH resolved to WETH at ${checksummedAddress} (for Uniswap routing)`);
-    return checksummedAddress;
-  }
   
   // Check cache first to reduce RPC pressure
   const cacheKey = `${checksummedAddress}_${asset}`;
@@ -495,11 +478,6 @@ const USDC_EIP3009_ABI = [
   "function TRANSFER_WITH_AUTHORIZATION_TYPEHASH() view returns (bytes32)",
   "function DOMAIN_SEPARATOR() view returns (bytes32)",
   "function nonces(address owner) view returns (uint256)"
-];
-
-// WETH9 ABI for unwrapping
-const WETH9_ABI = [
-  "function withdraw(uint256) external"
 ];
 
 // Uniswap V3 ABIs
@@ -1445,14 +1423,15 @@ serve(async (req) => {
             // ===== PHASE 1: PRE-FLIGHT VALIDATION (BEFORE PULLING FUNDS) =====
             console.log(`\n🛡️ PHASE 1: Pre-flight validation (NO FUNDS PULLED YET)`);
           
-          // Get per-asset decimals
-          const inDecimals = getDecimals(inputAsset);
-          const outDecimals = getDecimals(outputAsset);
-          console.log(`🔢 Decimals: ${inputAsset}=${inDecimals}, ${outputAsset}=${outDecimals}`);
-          
           const tokenInAddress = await getContractAddress(inputAsset, provider);
           const tokenOutAddress = await getContractAddress(outputAsset, provider);
           const fee = 3000; // 0.3% pool fee
+          
+          // Get correct decimals for each asset
+          const inDecimals = TOKEN_ALLOWLIST[inputAsset].decimals;
+          const outDecimals = TOKEN_ALLOWLIST[outputAsset].decimals;
+          console.log(`🔢 Using decimals for swap: ${inputAsset}=${inDecimals}, ${outputAsset}=${outDecimals}`);
+          
           const requiredAmount = ethers.parseUnits(actualAmount.toString(), inDecimals);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
@@ -1520,7 +1499,8 @@ serve(async (req) => {
           }
           
           const finalRelayFeeUsd = Math.max(estimatedRelayFeeUsd, GAS_FLOOR_USD);
-          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : outputAsset === 'ETH' ? ethPriceUsd : 1;
+          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 
+                                       outputAsset === 'ETH' ? await getEthPrice().catch(() => 2500) : 1;
           const estimatedRelayFeeInOutputTokens = finalRelayFeeUsd / outputTokenPriceUsd;
           
           console.log(`✅ Pre-flight validation complete! Relay fee: $${finalRelayFeeUsd.toFixed(2)}`);
@@ -1756,7 +1736,7 @@ serve(async (req) => {
           // Get relayer's balance of output token after swap
           const outputTokenContract = new ethers.Contract(tokenOutAddress, ERC20_ABI, provider);
           relayerOutputBalance = await outputTokenContract.balanceOf(relayerWallet.address);
-          console.log(`📊 Relayer received: ${ethers.formatUnits(relayerOutputBalance, outDecimals)} ${outputAsset}`);
+          console.log(`📊 Relayer received: ${ethers.formatUnits(relayerOutputBalance, 6)} ${outputAsset}`);
           
           // Calculate actual relay fee from gas used
           const gasPrice2 = await withRpcRetry(
@@ -1767,7 +1747,7 @@ serve(async (req) => {
           const actualGasCostUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd;
           actualRelayFeeUsd = actualGasCostUsd * marginConfig.margin;
           const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
-          const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), outDecimals);
+          const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(outDecimals), outDecimals);
           
           // Check if actual gas exceeded estimate by >15% (after margin)
           const gasOverrun = actualGasCostUsd > (estimatedGasCostUsd * marginConfig.margin * 1.15);
@@ -1787,46 +1767,21 @@ serve(async (req) => {
           // Calculate net tokens for user (gross - relay fee - platform fee)
           const userTokensWei = relayerOutputBalance - relayFeeTokensWei - platformFeeTokensWei;
           
-          console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, outDecimals)} ${outputAsset} (retained in relayer for batch collection)`);
-          console.log(`📝 User receives: ${ethers.formatUnits(userTokensWei, outDecimals)} ${outputAsset}`);
-          netAmount = parseFloat(ethers.formatUnits(userTokensWei, outDecimals));
+          console.log(`📝 Platform fee: ${ethers.formatUnits(platformFeeTokensWei, 6)} ${outputAsset} (retained in relayer for batch collection)`);
+          console.log(`📝 User receives: ${ethers.formatUnits(userTokensWei, 6)} ${outputAsset}`);
+          netAmount = parseFloat(ethers.formatUnits(userTokensWei, 6));
           
-          // ===== STEP 8: DISBURSE FUNDS - ETH OR ERC-20 =====
-          console.log(`\n💸 STEP 8: Disbursing funds to user`);
+          // ===== STEP 8: SINGLE TRANSACTION - TRANSFER NET TO USER =====
+          console.log(`\n💸 STEP 8: Transferring net output to user (1 transaction)`);
           
-          let userTransferReceipt: any;
-          
-          if (outputAsset === 'ETH') {
-            // ETH output: unwrap WETH to native ETH and send to user
-            console.log(`🔓 Unwrapping WETH to native ETH for user...`);
-            const wethContract = new ethers.Contract(tokenOutAddress, WETH9_ABI, relayerWallet);
-            const unwrapTx = await wethContract.withdraw(userTokensWei);
-            await unwrapTx.wait();
-            console.log(`✅ Unwrapped ${netAmount} WETH to native ETH (tx: ${unwrapTx.hash})`);
-            
-            // Send native ETH to user
-            console.log(`📤 Sending ${netAmount} native ETH to user at ${userWallet.address}...`);
-            const ethTransferTx = await relayerWallet.sendTransaction({
-              to: userWallet.address,
-              value: userTokensWei
-            });
-            userTransferReceipt = await ethTransferTx.wait();
-            disbursementCompleted = true;
-            console.log(`✅ User received ${netAmount} native ETH (tx: ${userTransferReceipt.hash})`);
-            
-            // Platform fee stays as WETH in relayer wallet for batch collection
-            console.log(`✅ Platform fee ${parseFloat(ethers.formatUnits(platformFeeTokensWei, outDecimals))} ETH kept as WETH in relayer for collection`);
-          } else {
-            // ERC-20 output: standard transfer
-            const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, ERC20_ABI, relayerWallet);
-            const userTransferTx = await outputTokenWithRelayer.transfer(userWallet.address, userTokensWei);
-            userTransferReceipt = await userTransferTx.wait();
-            disbursementCompleted = true;
-            console.log(`✅ User output transferred: ${userTransferReceipt.hash}`);
-            console.log(`💰 Platform fee retained in relayer wallet for batch collection`);
-          }
-          
-          console.log(`✅ SWAP SUCCESSFUL - User received net output\n`);
+          // Transfer user's net output using standard ERC-20 transfer (relayer pays gas)
+          const outputTokenWithRelayer = new ethers.Contract(tokenOutAddress, ERC20_ABI, relayerWallet);
+          const userTransferTx = await outputTokenWithRelayer.transfer(userWallet.address, userTokensWei);
+          const userTransferReceipt = await userTransferTx.wait();
+          disbursementCompleted = true;
+          console.log(`✅ User output transferred: ${userTransferReceipt.hash}`);
+          console.log(`💰 Platform fee retained in relayer wallet for batch collection`);
+          console.log(`✅ SWAP SUCCESSFUL - User received net output (50% gas savings vs 2-tx model)\n`);
 
           // 🔒 Update intent status: swap executed
           if (intentId) {
@@ -1848,7 +1803,7 @@ serve(async (req) => {
           }
           
           
-          const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, outDecimals));
+          const platformFeeCollected = parseFloat(ethers.formatUnits(platformFeeTokensWei, 6));
           
           // Record platform fee for batch collection (no immediate transfer)
           await supabaseAdmin.from('fee_collection_requests').insert({
@@ -2431,15 +2386,15 @@ serve(async (req) => {
             throw new Error('Amount is required for quote');
           }
           
-          // Get per-asset decimals
-          const inDecimals = getDecimals(inputAsset);
-          const outDecimals = getDecimals(outputAsset);
-          console.log(`🔢 Decimals: ${inputAsset}=${inDecimals}, ${outputAsset}=${outDecimals}`);
-          
           // Use checksummed addresses
           const tokenInAddress = await getContractAddress(inputAsset, provider);
           const tokenOutAddress = await getContractAddress(outputAsset, provider);
           const fee = 3000; // 0.3% pool fee
+          
+          // Get correct decimals for each asset
+          const inDecimals = TOKEN_ALLOWLIST[inputAsset].decimals;
+          const outDecimals = TOKEN_ALLOWLIST[outputAsset].decimals;
+          console.log(`🔢 Using decimals: ${inputAsset}=${inDecimals}, ${outputAsset}=${outDecimals}`);
           
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
           const amountIn = ethers.parseUnits(amount.toString(), inDecimals);
@@ -2472,7 +2427,7 @@ serve(async (req) => {
             amountOut = await quoterContract.quoteExactInput.staticCall(path, amountIn);
           }
           
-          const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
+          const outputAmount = parseFloat(ethers.formatUnits(amountOut, outDecimals));
           const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
           
           // Estimate gas and relay fee for the quote

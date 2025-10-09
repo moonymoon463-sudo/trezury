@@ -70,6 +70,12 @@ const Swap = () => {
       getWalletAddress();
     }
     
+    // Force fresh balance refresh on mount to ensure ETH shows
+    if (user) {
+      console.log('🔄 Forcing balance refresh on Swap page mount');
+      refreshBalances();
+    }
+    
     // Handle URL parameters for pre-selecting assets
     const toParam = searchParams.get('to');
     if (toParam && ['ETH', 'USDC', 'XAUT', 'TRZRY', 'BTC'].includes(toParam)) {
@@ -78,7 +84,7 @@ const Swap = () => {
         setFromAsset('USDC'); // Default to USDC when buying TRZRY or BTC
       }
     }
-  }, [user, secureWalletAddress, getWalletAddress, searchParams]);
+  }, [user, secureWalletAddress, getWalletAddress, searchParams, refreshBalances]);
   
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
@@ -542,7 +548,13 @@ const Swap = () => {
         </div>
 
         {/* Bottom Button */}
-        <div className="pt-3 md:pt-2">
+        <div className="pt-3 md:pt-2 space-y-2">
+          {fromAsset === 'ETH' && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
+              ⚠️ ETH as input is not yet supported (gasless model). Swap USDC → ETH is fully supported.
+            </div>
+          )}
+          
           {!secureWalletAddress ? (
             <Button 
               onClick={() => navigate("/wallet")}
@@ -554,7 +566,7 @@ const Swap = () => {
           ) : (
             <Button 
               onClick={quote ? handleExecuteSwap : handlePreviewSwap}
-              disabled={loading || !fromAmount}
+              disabled={loading || !fromAmount || fromAsset === 'ETH'}
               className="w-full h-14 md:h-12 bg-primary text-primary-foreground font-bold text-lg md:text-base rounded-xl hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}
