@@ -138,10 +138,11 @@ export function useReferralSystem() {
   const copyReferralCode = () => {
     if (!stats?.referral_code) return;
     
-    navigator.clipboard.writeText(stats.referral_code);
+    const shareUrl = `https://trezury.app/auth?ref=${stats.referral_code}`;
+    navigator.clipboard.writeText(shareUrl);
     toast({
       title: "Copied!",
-      description: "Referral code copied to clipboard",
+      description: "Referral link copied to clipboard",
     });
   };
 
