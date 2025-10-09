@@ -264,6 +264,34 @@ export const useAIChat = () => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
+      // Handle JSON responses (non-stream or error payloads)
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        try {
+          const data = await response.json();
+          const assistantText = data?.message || data?.choices?.[0]?.message?.content || data?.error || 'I couldn\'t generate a response. Please try again.';
+
+          // Add assistant message immediately
+          const assistantMessageObj: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: assistantText,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, assistantMessageObj]);
+
+          // Update conversation id if provided by server
+          if (data?.conversationId && !currentConversationId) {
+            setCurrentConversationId(data.conversationId);
+            await loadConversations();
+          }
+
+          return; // Done handling JSON response
+        } catch (e) {
+          console.warn('⚠️ Failed to parse JSON response, falling back to streaming parser.');
+        }
+      }
+
       // Prepare assistant placeholder and attempt streaming
       let assistantContent = '';
       assistantId = crypto.randomUUID();

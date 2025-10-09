@@ -606,7 +606,7 @@ When providing advice, consider:
 
     // Set up streaming response with robust SSE parser
     const encoder = new TextEncoder();
-    const stream = new ReadableStream({
+    const sseStream = new ReadableStream({
       async start(controller) {
         let assistantMessage = '';
         
@@ -727,7 +727,7 @@ When providing advice, consider:
       }
     });
 
-    return new Response(stream, {
+    return new Response(sseStream, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/event-stream; charset=utf-8',
