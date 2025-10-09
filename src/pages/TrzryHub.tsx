@@ -31,9 +31,10 @@ const TrzryHub = () => {
     >
       <div className="flex-1 min-h-0 px-1 sm:px-2 md:px-4 pb-4 mobile-safe-bottom overflow-visible">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="buy">Buy TRZRY</TabsTrigger>
+            <TabsTrigger value="referrals">Referrals</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -201,9 +202,6 @@ const TrzryHub = () => {
               </div>
             </Card>
 
-            {/* Referral Dashboard */}
-            <ReferralDashboard />
-
             {/* CTA Button */}
             <Button
               className="w-full h-12 text-base font-semibold bg-primary text-black hover:bg-primary/90"
@@ -219,6 +217,11 @@ const TrzryHub = () => {
                 💡 <span className="font-medium text-foreground">Tip:</span> TRZRY is designed for long-term growth. The longer you hold, the more you benefit from reserve appreciation.
               </p>
             </Card>
+          </TabsContent>
+
+          {/* Referrals Tab */}
+          <TabsContent value="referrals" className="space-y-4 mt-0">
+            <ReferralDashboard />
           </TabsContent>
         </Tabs>
       </div>
