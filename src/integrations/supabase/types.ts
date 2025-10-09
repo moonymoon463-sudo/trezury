@@ -68,6 +68,92 @@ export type Database = {
         }
         Relationships: []
       }
+      airdrop_allocations: {
+        Row: {
+          airdrop_period_id: string
+          allocation_percentage: number
+          created_at: string
+          distributed_at: string | null
+          id: string
+          points_snapshot: number
+          status: string
+          transaction_hash: string | null
+          trzry_amount: number
+          user_id: string
+        }
+        Insert: {
+          airdrop_period_id: string
+          allocation_percentage: number
+          created_at?: string
+          distributed_at?: string | null
+          id?: string
+          points_snapshot: number
+          status?: string
+          transaction_hash?: string | null
+          trzry_amount: number
+          user_id: string
+        }
+        Update: {
+          airdrop_period_id?: string
+          allocation_percentage?: number
+          created_at?: string
+          distributed_at?: string | null
+          id?: string
+          points_snapshot?: number
+          status?: string
+          transaction_hash?: string | null
+          trzry_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airdrop_allocations_airdrop_period_id_fkey"
+            columns: ["airdrop_period_id"]
+            isOneToOne: false
+            referencedRelation: "airdrop_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      airdrop_periods: {
+        Row: {
+          created_at: string
+          distribution_date: string | null
+          end_date: string
+          id: string
+          metadata: Json | null
+          period_name: string
+          points_multiplier: number
+          start_date: string
+          status: string
+          total_pool_size: number
+        }
+        Insert: {
+          created_at?: string
+          distribution_date?: string | null
+          end_date: string
+          id?: string
+          metadata?: Json | null
+          period_name: string
+          points_multiplier?: number
+          start_date: string
+          status?: string
+          total_pool_size: number
+        }
+        Update: {
+          created_at?: string
+          distribution_date?: string | null
+          end_date?: string
+          id?: string
+          metadata?: Json | null
+          period_name?: string
+          points_multiplier?: number
+          start_date?: string
+          status?: string
+          total_pool_size?: number
+        }
+        Relationships: []
+      }
       api_rate_limits: {
         Row: {
           blocked_until: string | null
@@ -1631,6 +1717,137 @@ export type Database = {
           },
         ]
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referral_point_balances: {
+        Row: {
+          current_tier: string | null
+          last_updated: string
+          lifetime_earned: number
+          points_redeemed: number
+          total_points: number
+          user_id: string
+        }
+        Insert: {
+          current_tier?: string | null
+          last_updated?: string
+          lifetime_earned?: number
+          points_redeemed?: number
+          total_points?: number
+          user_id: string
+        }
+        Update: {
+          current_tier?: string | null
+          last_updated?: string
+          lifetime_earned?: number
+          points_redeemed?: number
+          total_points?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referral_points: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          points: number
+          related_referral_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          points: number
+          related_referral_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          points?: number
+          related_referral_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_points_related_referral_id_fkey"
+            columns: ["related_referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          completed_at: string | null
+          completion_type: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          referee_id: string
+          referral_code: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completion_type?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          referee_id: string
+          referral_code: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completion_type?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          referee_id?: string
+          referral_code?: string
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       relayer_key_metadata: {
         Row: {
           created_at: string
@@ -2944,6 +3161,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      award_referral_points: {
+        Args: {
+          p_description?: string
+          p_event_type: string
+          p_points: number
+          p_referral_id?: string
+          p_referrer_id: string
+        }
+        Returns: undefined
+      }
       can_access_sensitive_pii: {
         Args: { target_user_id: string; user_uuid: string }
         Returns: boolean
@@ -3025,6 +3252,10 @@ export type Database = {
       execute_transaction: {
         Args: { payment_method_param?: string; quote_id_param: string }
         Returns: Json
+      }
+      generate_referral_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       generate_ticket_number: {
         Args: Record<PropertyKey, never>
@@ -3130,6 +3361,10 @@ export type Database = {
       get_user_email: {
         Args: { _user_id: string }
         Returns: string
+      }
+      get_user_referral_stats: {
+        Args: { p_user_id?: string }
+        Returns: Json
       }
       get_verified_pii_field: {
         Args: { field_name: string; target_user_id?: string }
@@ -3326,6 +3561,10 @@ export type Database = {
       user_can_see_sensitive_data: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      validate_and_apply_referral_code: {
+        Args: { p_referee_id: string; p_referral_code: string }
+        Returns: Json
       }
       validate_kyc_document_access: {
         Args: { doc_status: string; doc_user_id: string }
