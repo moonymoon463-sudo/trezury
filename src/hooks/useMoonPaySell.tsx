@@ -47,15 +47,11 @@ export const useMoonPaySell = () => {
     setError(null);
 
     try {
-      console.log('Initiating MoonPay sell with:', { amount, currency, userId: user.id });
-
       // Get user's wallet address for prefilling
       const walletAddress = await secureWalletService.getWalletAddress(user.id);
       if (!walletAddress) {
         throw new Error('Unable to retrieve wallet address. Please ensure your wallet is set up.');
       }
-
-      console.log('Prefilling wallet address for sell:', walletAddress);
 
       const { data, error: functionError } = await supabase.functions.invoke('moonpay-sell', {
         body: {
@@ -69,7 +65,6 @@ export const useMoonPaySell = () => {
       });
 
       if (functionError) {
-        console.error('MoonPay sell function error:', functionError);
         const errorMsg = functionError.message || 'Failed to initiate sell transaction';
         setError(errorMsg);
         toast.error(errorMsg);
@@ -77,14 +72,12 @@ export const useMoonPaySell = () => {
       }
 
       if (!data.success) {
-        console.error('MoonPay sell failed:', data.error);
         const errorMsg = data.error || 'Sell transaction failed';
         setError(errorMsg);
         toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
 
-      console.log('MoonPay sell initiated successfully:', data);
       toast.success('Sell transaction initiated successfully');
 
       return {
@@ -94,7 +87,6 @@ export const useMoonPaySell = () => {
       };
 
     } catch (err) {
-      console.error('Unexpected error during MoonPay sell:', err);
       const errorMsg = 'An unexpected error occurred during sell transaction';
       setError(errorMsg);
       toast.error(errorMsg);

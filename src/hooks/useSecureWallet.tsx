@@ -69,7 +69,6 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
 
       return walletInfo;
     } catch (error) {
-      console.error('Wallet creation failed:', error);
       toast({
         variant: "destructive",
         title: "Wallet Creation Failed",
@@ -133,7 +132,6 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
 
       return signature;
     } catch (error) {
-      console.error('Transaction signing failed:', error);
       toast({
         variant: "destructive",
         title: "Transaction Failed",
@@ -157,7 +155,6 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
       }
       return address;
     } catch (error) {
-      console.error('Error getting wallet address:', error);
       return null;
     }
   }, [user]);
@@ -193,7 +190,6 @@ export const useSecureWallet = (): UseSecureWalletReturn => {
 
       return privateKey;
     } catch (error) {
-      console.error('Failed to reveal private key:', error);
       toast({
         variant: "destructive",
         title: "Failed to Reveal Key",

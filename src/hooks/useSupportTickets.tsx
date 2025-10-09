@@ -40,7 +40,6 @@ export const useSupportTickets = () => {
       if (error) throw error;
       setTickets((data || []) as SupportTicket[]);
     } catch (error: any) {
-      console.error('Error fetching tickets:', error);
       toast.error('Failed to load support tickets');
     } finally {
       setLoading(false);
@@ -62,7 +61,6 @@ export const useSupportTickets = () => {
           filter: `user_id=eq.${user?.id}`
         },
         (payload) => {
-          console.log('Ticket update:', payload);
           fetchTickets();
         }
       )
@@ -126,7 +124,6 @@ export const useSupportTickets = () => {
           }
         });
       } catch (emailError) {
-        console.error('Error sending email notification:', emailError);
         // Don't fail the ticket creation if email fails
       }
 
@@ -134,7 +131,6 @@ export const useSupportTickets = () => {
       fetchTickets();
       return data;
     } catch (error: any) {
-      console.error('Error creating ticket:', error);
       toast.error(error.message || 'Failed to create support ticket');
       return null;
     } finally {
@@ -161,7 +157,6 @@ export const useSupportTickets = () => {
 
       return publicUrl;
     } catch (error: any) {
-      console.error('Error uploading screenshot:', error);
       toast.error('Failed to upload screenshot');
       return null;
     }

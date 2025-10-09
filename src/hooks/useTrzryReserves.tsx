@@ -58,8 +58,6 @@ export function useTrzryReserves() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch TRZRY reserve data:', error);
-      
       // Fallback to mock data if API fails
       const mockValue = 1250000; // $1.25M in reserves
       const mockXautBalance = mockValue / (goldPrice.usd_per_oz || 2000);

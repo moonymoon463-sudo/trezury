@@ -42,13 +42,11 @@ export const useAdmin = () => {
       try {
         const { data, error } = await supabase.rpc('is_admin');
         if (error) {
-          console.error('Error checking admin status:', error);
           setIsAdmin(false);
         } else {
           setIsAdmin(data || false);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
         setIsAdmin(false);
       }
     };
@@ -67,14 +65,12 @@ export const useAdmin = () => {
       const { data, error } = await supabase.rpc('admin_get_dashboard_stats');
       
       if (error) {
-        console.error('Error fetching dashboard stats:', error);
         toast.error('Failed to fetch dashboard statistics');
         return null;
       }
 
       return data as unknown as AdminStats;
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
       toast.error('Failed to fetch dashboard statistics');
       return null;
     } finally {
@@ -93,14 +89,12 @@ export const useAdmin = () => {
       const { data, error } = await supabase.rpc('admin_get_users');
       
       if (error) {
-        console.error('Error fetching users:', error);
         toast.error('Failed to fetch users');
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error fetching users:', error);
       toast.error('Failed to fetch users');
       return [];
     } finally {
@@ -122,7 +116,6 @@ export const useAdmin = () => {
       });
       
       if (error) {
-        console.error('Error assigning role:', error);
         toast.error('Failed to assign role');
         return false;
       }
@@ -130,7 +123,6 @@ export const useAdmin = () => {
       toast.success(`Role ${role} assigned successfully`);
       return true;
     } catch (error) {
-      console.error('Error assigning role:', error);
       toast.error('Failed to assign role');
       return false;
     } finally {
@@ -152,7 +144,6 @@ export const useAdmin = () => {
       });
       
       if (error) {
-        console.error('Error removing role:', error);
         toast.error('Failed to remove role');
         return false;
       }
@@ -160,7 +151,6 @@ export const useAdmin = () => {
       toast.success(`Role ${role} removed successfully`);
       return true;
     } catch (error) {
-      console.error('Error removing role:', error);
       toast.error('Failed to remove role');
       return false;
     } finally {
@@ -186,14 +176,12 @@ export const useAdmin = () => {
         .limit(limit);
       
       if (error) {
-        console.error('Error fetching transactions:', error);
         toast.error('Failed to fetch transactions');
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error fetching transactions:', error);
       toast.error('Failed to fetch transactions');
       return [];
     } finally {
@@ -216,14 +204,12 @@ export const useAdmin = () => {
       });
       
       if (error) {
-        console.error('Error fetching fee analytics:', error);
         toast.error('Failed to fetch fee analytics');
         return null;
       }
 
       return data;
     } catch (error) {
-      console.error('Error fetching fee analytics:', error);
       toast.error('Failed to fetch fee analytics');
       return null;
     } finally {

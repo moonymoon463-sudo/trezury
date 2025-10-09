@@ -32,7 +32,6 @@ export const useTransactions = () => {
     try {
       return await transactionService.getTransaction(transactionId);
     } catch (err) {
-      console.error('Failed to fetch transaction:', err);
       return null;
     }
   };

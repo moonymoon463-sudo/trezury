@@ -25,8 +25,6 @@ const TransactionDetail = () => {
       try {
         const data = await getTransaction(id);
         setTransaction(data);
-      } catch (error) {
-        console.error('Failed to fetch transaction:', error);
       } finally {
         setLoading(false);
       }

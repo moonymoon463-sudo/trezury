@@ -81,7 +81,6 @@ export function useAirdropEligibility() {
         daysRemaining,
       });
     } catch (err) {
-      console.error('Failed to fetch airdrop eligibility:', err);
       setError(err instanceof Error ? err.message : 'Failed to load eligibility data');
     } finally {
       setLoading(false);

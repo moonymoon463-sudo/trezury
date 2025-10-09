@@ -34,7 +34,6 @@ export const useMoonPayBuy = () => {
       setLoading(true);
       setError(null);
 
-      console.log('Initiating secure MoonPay purchase:', { amount, currency, userId: user.id });
       toast.loading('Setting up secure payment...', { id: 'moonpay-setup' });
 
       // Get user's wallet address
@@ -95,7 +94,6 @@ export const useMoonPayBuy = () => {
       };
 
     } catch (err) {
-      console.error('MoonPay proxy error:', err);
       toast.dismiss('moonpay-setup');
       
       let errorMessage = 'Failed to initiate payment';

@@ -28,11 +28,8 @@ export const useGoldPrice = () => {
       } catch (err) {
         if (mounted) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to load gold price';
-          // Only show error if we don't have cached data
           if (!price) {
             setError(errorMessage);
-          } else {
-            console.warn('Using cached gold price due to error:', errorMessage);
           }
         }
       } finally {

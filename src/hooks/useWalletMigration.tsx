@@ -63,7 +63,6 @@ export const useWalletMigration = () => {
       }
 
       if (currentWallet.encryption_method !== 'legacy_userid') {
-        console.log('Wallet already using secure encryption');
         return true;
       }
 
@@ -97,12 +96,10 @@ export const useWalletMigration = () => {
         throw updateError;
       }
 
-      console.log(`Wallet migrated to secure encryption for user ${user.id}`);
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Migration failed';
       setError(errorMessage);
-      console.error('Wallet migration failed:', err);
       return false;
     } finally {
       setLoading(false);
