@@ -112,7 +112,7 @@ export function useWalletBalance() {
     if (user?.id) {
       fetchBalances();
     }
-  }, [user?.id, fetchBalances]);
+  }, [user?.id]);
 
   return {
     balances,

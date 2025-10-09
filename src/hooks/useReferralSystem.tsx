@@ -33,7 +33,83 @@ export function useReferralSystem() {
       return;
     }
 
-    fetchReferralData();
+    const loadData = async () => {
+      if (!user) return;
+
+      try {
+        // Fetch referral code
+        const { data: codeData } = await supabase
+          .from('referral_codes')
+          .select('code')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Fetch point balance
+        const { data: balanceData } = await supabase
+          .from('referral_point_balances')
+          .select('total_points')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Fetch referrals
+        const { data: referralsData } = await supabase
+          .from('referrals')
+          .select('*')
+          .eq('referrer_id', user.id)
+          .order('created_at', { ascending: false });
+
+        // Get points earned from each referral
+        const referralsWithDetails = await Promise.all(
+          (referralsData || []).map(async (ref) => {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('id', ref.referee_id)
+              .single();
+
+            const { data: points } = await supabase
+              .from('referral_points')
+              .select('points')
+              .eq('related_referral_id', ref.id)
+              .eq('user_id', user.id);
+
+            const pointsEarned = points?.reduce((sum, p) => sum + p.points, 0) || 0;
+            
+            return {
+              id: ref.id,
+              referee_email: profile?.email || 'Unknown',
+              status: ref.status,
+              points_awarded: pointsEarned,
+              created_at: ref.created_at,
+              completed_first_trade_at: ref.completed_at
+            };
+          })
+        );
+
+        const totalReferrals = referralsData?.length || 0;
+        const activeReferrals = referralsData?.filter(r => r.status === 'completed').length || 0;
+        const pendingReferrals = referralsData?.filter(r => r.status === 'pending').length || 0;
+        const totalPoints = balanceData?.total_points || 0;
+        const pointsEarned = referralsWithDetails.reduce((sum, r) => sum + r.points_awarded, 0);
+
+        setStats({
+          referral_code: codeData?.code || '',
+          total_points: totalPoints,
+          pending_points: pendingReferrals * 2,
+          total_referrals: totalReferrals,
+          active_referrals: activeReferrals,
+          points_earned: pointsEarned
+        });
+
+        setReferrals(referralsWithDetails);
+      } catch (error) {
+        console.error('Error fetching referral data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
     
     // Subscribe to real-time updates
     const channel = supabase
@@ -47,7 +123,7 @@ export function useReferralSystem() {
           filter: `referrer_id=eq.${user.id}`
         },
         () => {
-          fetchReferralData();
+          loadData();
         }
       )
       .subscribe();
@@ -55,7 +131,7 @@ export function useReferralSystem() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const fetchReferralData = async () => {
     if (!user) return;

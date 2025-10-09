@@ -127,7 +127,38 @@ export const useNotifications = () => {
   useEffect(() => {
     if (!user) return;
 
-    fetchNotifications();
+    const loadNotifications = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .in('kind', [
+            'profile_updated',
+            'profile_feature', 
+            'wallet_setup_complete',
+            'kyc_verified',
+            'kyc_status_update',
+            'profile_security',
+            'support_update'
+          ])
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (error) throw error;
+        
+        setNotifications(data || []);
+        setUnreadCount(data?.filter(n => !n.read).length || 0);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNotifications();
 
     const channel = supabase
       .channel('notifications-changes')
@@ -165,7 +196,7 @@ export const useNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   return {
     notifications,
