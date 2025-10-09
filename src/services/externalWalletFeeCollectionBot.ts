@@ -21,6 +21,7 @@ class ExternalWalletFeeCollectionBot {
   private readonly COLLECTION_INTERVAL_MS = 300000; // 5 minutes
   private readonly PLATFORM_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
   private isRunning = false;
+  private collectionInterval: NodeJS.Timeout | null = null;
 
   /**
    * Start automated fee collection request generation
@@ -37,7 +38,7 @@ class ExternalWalletFeeCollectionBot {
     // Run immediately, then on interval
     this.generateAllPendingFeeRequests();
     
-    setInterval(() => {
+    this.collectionInterval = setInterval(() => {
       this.generateAllPendingFeeRequests();
     }, this.COLLECTION_INTERVAL_MS);
   }
@@ -47,6 +48,10 @@ class ExternalWalletFeeCollectionBot {
    */
   stop(): void {
     this.isRunning = false;
+    if (this.collectionInterval) {
+      clearInterval(this.collectionInterval);
+      this.collectionInterval = null;
+    }
     console.log('External wallet fee collection bot stopped');
   }
 

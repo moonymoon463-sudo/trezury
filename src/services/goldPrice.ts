@@ -39,13 +39,11 @@ class GoldPriceService {
   async getCurrentPrice(): Promise<GoldPrice> {
     // Return cached price if still fresh
     if (this.currentPrice && Date.now() - this.lastFetchTime < this.CACHE_TTL) {
-      console.log('💰 Returning cached gold price');
       return this.currentPrice;
     }
 
     // Deduplicate concurrent requests
     if (this.inflightFetch) {
-      console.log('💰 Awaiting in-flight gold price request');
       return this.inflightFetch;
     }
 
@@ -61,7 +59,6 @@ class GoldPriceService {
   }
 
   private async fetchPrice(): Promise<GoldPrice> {
-    console.log('💰 Fetching XAUT composite price from DB');
     
     // Use circuit breaker with fallback to cached data
     return circuitBreaker.execute(
@@ -79,7 +76,6 @@ class GoldPriceService {
 
           // Fallback to any source if XAUT not available
           if (!dbPrice && !error) {
-            console.warn('⚠️ No XAUT composite found, falling back to any source');
             const fallback = await supabase
               .from('gold_prices')
               .select('*')
@@ -137,13 +133,11 @@ class GoldPriceService {
             this.lastFetchTime = Date.now();
             this.notifySubscribers(goldPrice);
             
-            console.log('✅ XAUT price updated:', goldPrice.usd_per_oz, `(${effective.source})`, goldPrice.isStale ? '(STALE)' : '');
             return goldPrice;
           }
 
           // If no DB data and we have a stale cache, return it
           if (this.currentPrice) {
-            console.warn('⚠️ No fresh gold price, returning stale cache');
             return this.currentPrice;
           }
 
@@ -152,7 +146,6 @@ class GoldPriceService {
       },
       async () => {
         // Fallback: return cached price if available
-        console.warn('⚠️ Using cached gold price (circuit breaker fallback)');
         if (this.currentPrice) {
           return this.currentPrice;
         }
@@ -256,7 +249,6 @@ class GoldPriceService {
   }
 
   private async getIntradaySeries(timeframe: '1h' | '24h' | '7d'): Promise<GoldPriceHistory[]> {
-    console.log(`📊 Getting intraday XAUT series for: ${timeframe}`);
     
     let hoursBack = 1;
     switch (timeframe) {
@@ -276,7 +268,6 @@ class GoldPriceService {
       .order('timestamp', { ascending: true });
 
     if (!data || data.length === 0) {
-      console.warn('⚠️ No intraday XAUT data found');
       return [];
     }
 

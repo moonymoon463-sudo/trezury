@@ -40,6 +40,8 @@ class PerformanceMonitoringService {
   private readonly CLEANUP_INTERVAL_MS = 60000; // 1 minute
   private readonly METRIC_RETENTION_MS = 3600000; // 1 hour
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private memoryCheckInterval: NodeJS.Timeout | null = null;
   
   private thresholds = {
     response_time_ms: { warning: 500, critical: 1000 },
@@ -280,7 +282,7 @@ class PerformanceMonitoringService {
     }
 
     // Periodic system health check
-    setInterval(async () => {
+    this.healthCheckInterval = setInterval(async () => {
       const health = await this.getSystemHealth();
       if (health) {
         this.recordMetric('system_active_users', health.active_users, 'count');
@@ -290,7 +292,7 @@ class PerformanceMonitoringService {
 
     // Monitor browser memory
     if (typeof window !== 'undefined' && (window.performance as any).memory) {
-      setInterval(() => {
+      this.memoryCheckInterval = setInterval(() => {
         const memory = (window.performance as any).memory;
         this.recordMetric('heap_size_mb', memory.usedJSHeapSize / (1024 * 1024), 'MB');
       }, 30000);
@@ -351,6 +353,14 @@ class PerformanceMonitoringService {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
+    }
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+    if (this.memoryCheckInterval) {
+      clearInterval(this.memoryCheckInterval);
+      this.memoryCheckInterval = null;
     }
     this.metrics = [];
     this.alerts = [];

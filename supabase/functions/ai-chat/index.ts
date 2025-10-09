@@ -97,7 +97,7 @@ serve(async (req) => {
       .select('*')
       .order('timestamp', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     // Get recent financial news
     const { data: recentNews } = await supabase
