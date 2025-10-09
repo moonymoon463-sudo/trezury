@@ -121,6 +121,53 @@ export function ReferralDashboard() {
           </ul>
         </div>
 
+        {/* Airdrop Eligibility & Rewards */}
+        <div className="space-y-4 p-4 rounded-lg bg-primary/10 border border-primary/20">
+          <p className="text-sm font-semibold text-primary">Airdrop Eligibility & Rewards</p>
+          
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <div>
+              <p className="font-medium text-foreground mb-1">Eligibility:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>All users who participate in the referral program are eligible for the airdrop</li>
+                <li>Users with accumulated points will receive a larger share compared to those without points</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-foreground mb-1">Airdrop Timing:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>The airdrop will be distributed at the end of the airdrop period</li>
+                <li>The airdrop period is defined on a monthly, quarterly, or suitable timeframe</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-foreground mb-1">Holding Requirement:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>Participants must hold the token for the entire duration of the airdrop period to be eligible</li>
+                <li>Users who do not maintain their holdings until the end may receive a reduced airdrop or become ineligible</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-foreground mb-1">Reward Calculation:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>All eligible users will receive a base amount of tokens</li>
+                <li>Users with accumulated points will receive additional tokens proportional to their points</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-foreground mb-1">Transparency and Tracking:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>Users can view their referral history, points, and airdrop status via this dashboard</li>
+                <li>The entire airdrop process is transparent, ensuring you can track your rewards easily</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         {/* Recent Referrals */}
         {referrals.length > 0 && (
           <div className="space-y-3">
