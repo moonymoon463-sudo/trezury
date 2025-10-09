@@ -3161,6 +3161,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      auto_activate_airdrop_periods: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      award_monthly_active_points: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       award_referral_points: {
         Args: {
           p_description?: string
@@ -3174,6 +3182,10 @@ export type Database = {
       can_access_sensitive_pii: {
         Args: { target_user_id: string; user_uuid: string }
         Returns: boolean
+      }
+      check_180_day_milestones: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       check_balance_verification_status: {
         Args: Record<PropertyKey, never>
