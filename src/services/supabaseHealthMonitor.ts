@@ -52,6 +52,11 @@ class SupabaseHealthMonitor {
     }
   }
 
+  destroy() {
+    this.stopMonitoring();
+    this.subscribers = [];
+  }
+
   private async performHealthCheck() {
     const startTime = Date.now();
 
@@ -71,7 +76,6 @@ class SupabaseHealthMonitor {
 
       this.updateHealthStatus();
     } catch (error) {
-      console.error('[Health Monitor] Check failed:', error);
       this.recordFailure();
       this.updateHealthStatus();
     }
@@ -83,7 +87,6 @@ class SupabaseHealthMonitor {
 
     // Reset circuit breakers on successful health check
     if (this.metrics.status !== 'healthy') {
-      console.log('[Health Monitor] Backend recovered, resetting circuits');
       circuitBreaker.reset('supabase-main');
       circuitBreaker.reset('gold-price');
       circuitBreaker.reset('user-operations');
@@ -114,7 +117,6 @@ class SupabaseHealthMonitor {
     }
 
     if (newStatus !== oldStatus) {
-      console.log(`[Health Monitor] Status changed: ${oldStatus} -> ${newStatus}`);
       this.metrics.status = newStatus;
       this.notifySubscribers(newStatus);
     }

@@ -98,7 +98,7 @@ class RateLimitingService {
     try {
       const { supabase } = await import('@/integrations/supabase/client');
       
-      // Check if admin
+    // Check if admin
       const { data: isAdminData } = await supabase.rpc('is_admin', { _user_id: userId });
       if (isAdminData) return 'admin';
 
@@ -107,7 +107,7 @@ class RateLimitingService {
         .from('v_profiles_masked')
         .select('kyc_status')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       // Premium tier for verified KYC users
       if (profile?.kyc_status === 'verified') {
@@ -116,7 +116,6 @@ class RateLimitingService {
 
       return 'basic';
     } catch (error) {
-      console.error('Error getting user tier:', error);
       return 'basic';
     }
   }
@@ -238,12 +237,6 @@ class RateLimitingService {
       for (let i = 0; i < toRemove; i++) {
         this.buckets.delete(sortedBuckets[i][0]);
       }
-      
-      console.log(`[RateLimit] Enforced bucket limit. Removed ${toRemove} oldest buckets.`);
-    }
-
-    if (keysToDelete.length > 0) {
-      console.log(`[RateLimit] Cleaned up ${keysToDelete.length} expired buckets. Active: ${this.buckets.size}`);
     }
   }
 

@@ -20,7 +20,6 @@ class BlockchainMonitoringService {
     if (this.isMonitoring) return;
     
     this.isMonitoring = true;
-    console.log('Starting blockchain monitoring for addresses:', userWalletAddresses);
 
     // Monitor every 30 seconds
     this.monitoringInterval = setInterval(async () => {
@@ -37,7 +36,10 @@ class BlockchainMonitoringService {
       this.monitoringInterval = null;
     }
     this.isMonitoring = false;
-    console.log('Stopped blockchain monitoring');
+  }
+
+  destroy() {
+    this.stopMonitoring();
   }
 
   private async checkForNewActivity(walletAddresses: string[]) {
@@ -46,7 +48,7 @@ class BlockchainMonitoringService {
         await this.checkAddressActivity(address);
       }
     } catch (error) {
-      console.error('Error checking blockchain activity:', error);
+      // Silent failure
     }
   }
 
@@ -61,16 +63,13 @@ class BlockchainMonitoringService {
         }
       });
 
-      if (error) {
-        console.error('Failed to get transaction history:', error);
-        return;
-      }
+      if (error) return;
 
       if (activity?.transactions) {
         await this.processNewTransactions(address, activity.transactions);
       }
     } catch (error) {
-      console.error('Error checking address activity:', error);
+      // Silent failure
     }
   }
 
@@ -81,7 +80,7 @@ class BlockchainMonitoringService {
         .from('transactions')
         .select('id')
         .eq('tx_hash', tx.hash)
-        .single();
+        .maybeSingle();
 
       if (existingTx) continue; // Already recorded
 
@@ -99,7 +98,7 @@ class BlockchainMonitoringService {
         .from('wallets')
         .select('user_id')
         .eq('address', userAddress)
-        .single();
+        .maybeSingle();
 
       if (!wallet) continue;
 
@@ -134,8 +133,6 @@ class BlockchainMonitoringService {
           amount: isReceive ? quantity : -quantity,
           snapshot_at: new Date(tx.timestamp * 1000).toISOString()
         });
-
-      console.log(`Recorded ${type} transaction: ${quantity} ${tx.asset} (${tx.hash})`);
     }
   }
 
@@ -158,7 +155,6 @@ class BlockchainMonitoringService {
 
       return [...new Set(addresses)]; // Remove duplicates
     } catch (error) {
-      console.error('Error getting user wallet addresses:', error);
       return [];
     }
   }

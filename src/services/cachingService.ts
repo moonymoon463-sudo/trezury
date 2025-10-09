@@ -44,7 +44,6 @@ class CachingService {
   ): Promise<T> {
     // Check in-flight request first
     if (this.inflightRequests.has(key)) {
-      console.log(`[Cache] Awaiting in-flight request: ${key}`);
       return this.inflightRequests.get(key) as Promise<T>;
     }
 
@@ -52,12 +51,10 @@ class CachingService {
     
     if (cached && Date.now() < cached.expiresAt) {
       this.stats.hits++;
-      console.log(`[Cache] HIT: ${key}`);
       
       // Background refresh if nearing expiration (last 20% of TTL)
       const timeToExpire = cached.expiresAt - Date.now();
       if (timeToExpire < ttlMs * 0.2) {
-        console.log(`[Cache] Background refresh for ${key}`);
         this.backgroundRefresh(key, fetcher, ttlMs);
       }
       
@@ -66,7 +63,6 @@ class CachingService {
 
     // Cache miss - fetch new data
     this.stats.misses++;
-    console.log(`[Cache] MISS: ${key}, fetching...`);
     
     // Create and store the in-flight promise
     const fetchPromise = (async () => {
@@ -75,11 +71,8 @@ class CachingService {
         this.set(key, data, ttlMs);
         return data;
       } catch (error) {
-        console.error(`[Cache] Error fetching ${key}:`, error);
-        
         // Return stale data if available as fallback
         if (cached) {
-          console.log(`[Cache] Returning stale data for ${key}`);
           return cached.data as T;
         }
         
@@ -100,9 +93,8 @@ class CachingService {
     try {
       const data = await fetcher();
       this.set(key, data, ttlMs);
-      console.log(`[Cache] Background refresh complete: ${key}`);
     } catch (error) {
-      console.warn(`[Cache] Background refresh failed for ${key}:`, error);
+      // Silent failure for background refresh
     }
   }
 
@@ -133,8 +125,6 @@ class CachingService {
     if (this.PERSISTENT_KEYS.some(persistKey => key.includes(persistKey))) {
       this.saveToLocalStorage(key, data, expiresAt);
     }
-    
-    console.log(`[Cache] SET: ${key}, TTL: ${ttlMs}ms, Size: ${estimatedSize} bytes`);
   }
 
   /**
@@ -160,7 +150,6 @@ class CachingService {
           if (Date.now() < expiresAt) {
             const ttl = expiresAt - Date.now();
             this.set(baseKey, data, ttl);
-            console.log(`[Cache] Restored from localStorage: ${baseKey}`);
           } else {
             localStorage.removeItem(`cache_${baseKey}`);
           }
@@ -317,10 +306,6 @@ class CachingService {
       this.cache.delete(key);
       this.stats.evictions++;
       evicted++;
-    }
-
-    if (evicted > 0) {
-      console.log(`[Cache] Evicted ${evicted} items. Memory: ${this.getMemoryUsageMB().toFixed(2)}MB, Size: ${this.cache.size}`);
     }
   }
 

@@ -220,8 +220,6 @@ class ResourceMonitoringService {
     // Keep only recent alerts
     const oneHourAgo = Date.now() - 3600000;
     this.alerts = this.alerts.filter(a => a.timestamp > oneHourAgo);
-
-    console.warn(`[Resource Alert] ${alert.severity.toUpperCase()}: ${alert.message}`);
   }
 
   /**
