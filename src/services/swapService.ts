@@ -7,8 +7,8 @@ import { safeSwapService } from "./safeSwapService";
 
 export interface SwapQuote {
   id: string;
-  inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
-  outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
+  inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC';
+  outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC';
   inputAmount: number;
   outputAmount: number;
   exchangeRate: number;
@@ -51,8 +51,8 @@ class SwapService {
    * Generate swap quote between supported assets
    */
   async generateSwapQuote(
-    inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY',
-    outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY',
+    inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC',
+    outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC',
     inputAmount: number,
     userId: string
   ): Promise<SwapQuote> {
@@ -68,7 +68,11 @@ class SwapService {
         ['ETH', 'TRZRY'], ['TRZRY', 'ETH'],
         ['USDC', 'XAUT'], ['XAUT', 'USDC'],
         ['USDC', 'TRZRY'], ['TRZRY', 'USDC'],
-        ['XAUT', 'TRZRY'], ['TRZRY', 'XAUT']
+        ['XAUT', 'TRZRY'], ['TRZRY', 'XAUT'],
+        ['BTC', 'ETH'], ['ETH', 'BTC'],
+        ['BTC', 'USDC'], ['USDC', 'BTC'],
+        ['BTC', 'XAUT'], ['XAUT', 'BTC'],
+        ['BTC', 'TRZRY'], ['TRZRY', 'BTC']
       ];
       
       const pairExists = supportedPairs.some(([asset1, asset2]) => 
@@ -83,6 +87,7 @@ class SwapService {
       let exchangeRate: number;
       let provider: 'aurum' | 'dex' = 'aurum';
       let priceSource: any = {};
+      let route: any[] = [];
 
       // Calculate fee from input token BEFORE swap calculations
       const feeCalc = swapFeeService.calculateSwapFee(inputAmount, inputAsset, outputAsset);
@@ -156,6 +161,50 @@ class SwapService {
           outputAmount = netUsdcValue / xautPriceInUSDC;
           exchangeRate = trzryPriceInUSDC / xautPriceInUSDC;
         }
+      } else if (inputAsset === 'BTC' || outputAsset === 'BTC' || inputAsset === 'TRZRY' || outputAsset === 'TRZRY') {
+        // BTC or TRZRY swaps (not covered above) - use DEX aggregator for real-time pricing
+        provider = 'dex';
+        
+        console.log(`🔄 Getting DEX quote for ${inputAsset} → ${outputAsset}`);
+        const dexRoutes = await DexAggregatorService.getBestRoute(
+          inputAsset,
+          outputAsset,
+          netInputAmount,
+          this.SLIPPAGE_BPS / 100
+        );
+
+        if (!dexRoutes || dexRoutes.length === 0) {
+          throw new Error(`No DEX liquidity found for ${inputAsset}/${outputAsset}`);
+        }
+
+        const bestRoute = dexRoutes[0];
+        outputAmount = bestRoute.outputAmount;
+        exchangeRate = outputAmount / netInputAmount;
+        route = bestRoute.route;
+
+        console.log(`✅ DEX quote: ${netInputAmount} ${inputAsset} → ${outputAmount} ${outputAsset} (rate: ${exchangeRate})`);
+      } else if (inputAsset === 'ETH' || outputAsset === 'ETH') {
+        // ETH swaps - use DEX aggregator
+        provider = 'dex';
+        
+        console.log(`🔄 Getting DEX quote for ETH swap: ${inputAsset} → ${outputAsset}`);
+        const dexRoutes = await DexAggregatorService.getBestRoute(
+          inputAsset,
+          outputAsset,
+          netInputAmount,
+          this.SLIPPAGE_BPS / 100
+        );
+
+        if (!dexRoutes || dexRoutes.length === 0) {
+          throw new Error(`No DEX liquidity found for ${inputAsset}/${outputAsset}`);
+        }
+
+        const bestRoute = dexRoutes[0];
+        outputAmount = bestRoute.outputAmount;
+        exchangeRate = outputAmount / netInputAmount;
+        route = bestRoute.route;
+
+        console.log(`✅ DEX quote: ${netInputAmount} ${inputAsset} → ${outputAmount} ${outputAsset}`);
       } else {
         throw new Error('Unsupported asset pair');
       }

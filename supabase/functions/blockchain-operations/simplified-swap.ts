@@ -31,7 +31,8 @@ const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
   'ETH': { address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', symbol: 'WETH', decimals: 18 },
   'USDC': { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', symbol: 'USDC', decimals: 6 },
   'XAUT': { address: '0x68749665FF8D2d112Fa859AA293F07A622782F38', symbol: 'XAUt', decimals: 6 },
-  'TRZRY': { address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B', symbol: 'TRZRY', decimals: 18 }
+  'TRZRY': { address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B', symbol: 'TRZRY', decimals: 18 },
+  'BTC': { address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', symbol: 'WBTC', decimals: 8 }
 };
 
 /**

@@ -31,6 +31,12 @@ export const ASSETS = {
     displayName: 'Trzry',
     decimals: 6,
   },
+  BTC: {
+    symbol: 'BTC',
+    name: 'Wrapped Bitcoin',
+    displayName: 'Bitcoin',
+    decimals: 8,
+  },
 } as const;
 
 export type AssetSymbol = keyof typeof ASSETS;

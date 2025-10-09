@@ -37,7 +37,7 @@ export interface PaymentMethod {
 export type DepositStatus = 'pending' | 'confirmed' | 'failed';
 export type PaymentMethodType = 'card' | 'bank_account';
 export type SupportedChain = 'base' | 'ethereum';
-export type SupportedAsset = 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
+export type SupportedAsset = 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC';
 
 export interface NetworkConfig {
   chain: SupportedChain;
@@ -55,7 +55,7 @@ export const NETWORK_CONFIGS: Record<SupportedChain, NetworkConfig> = {
   },
   ethereum: {
     chain: 'ethereum', 
-    nativeAssets: ['ETH', 'USDC', 'XAUT', 'TRZRY'], // ETH is native, XAUT is Tether Gold (1 token = 1 oz), TRZRY is treasury token
+    nativeAssets: ['ETH', 'USDC', 'XAUT', 'TRZRY', 'BTC'], // ETH is native, XAUT is Tether Gold (1 token = 1 oz), TRZRY is treasury token, BTC is WBTC
     rpcUrl: 'https://mainnet.infura.io',
     blockExplorer: 'https://etherscan.io'
   }

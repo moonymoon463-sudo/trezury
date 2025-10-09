@@ -24,6 +24,7 @@ const AVAILABLE_ASSETS = [
   { symbol: 'USDC' as const, name: 'USD Coin', color: 'bg-blue-600' },
   { symbol: 'XAUT' as const, name: 'Gold', color: 'bg-yellow-600' },
   { symbol: 'TRZRY' as const, name: 'Trzry', color: 'bg-green-600' },
+  { symbol: 'BTC' as const, name: 'Bitcoin', color: 'bg-orange-600' },
 ];
 
 const Swap = () => {
@@ -34,8 +35,8 @@ const Swap = () => {
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
-  const [fromAsset, setFromAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY'>('USDC');
-  const [toAsset, setToAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY'>('XAUT');
+  const [fromAsset, setFromAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'>('USDC');
+  const [toAsset, setToAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -71,10 +72,10 @@ const Swap = () => {
     
     // Handle URL parameters for pre-selecting assets
     const toParam = searchParams.get('to');
-    if (toParam && ['ETH', 'USDC', 'XAUT', 'TRZRY'].includes(toParam)) {
-      setToAsset(toParam as 'ETH' | 'USDC' | 'XAUT' | 'TRZRY');
-      if (toParam === 'TRZRY') {
-        setFromAsset('USDC'); // Default to USDC when buying TRZRY
+    if (toParam && ['ETH', 'USDC', 'XAUT', 'TRZRY', 'BTC'].includes(toParam)) {
+      setToAsset(toParam as 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC');
+      if (toParam === 'TRZRY' || toParam === 'BTC') {
+        setFromAsset('USDC'); // Default to USDC when buying TRZRY or BTC
       }
     }
   }, [user, secureWalletAddress, getWalletAddress, searchParams]);
@@ -82,7 +83,7 @@ const Swap = () => {
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY') => {
+  const getNetworkForAsset = (asset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
     return 'Ethereum'; // All assets on Ethereum mainnet
   };
   
@@ -120,7 +121,7 @@ const Swap = () => {
     return () => clearTimeout(timer);
   }, [fromAmount, fromAsset, toAsset, user]);
 
-  const handleFromAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY') => {
+  const handleFromAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
     if (newAsset === toAsset) {
       setToAsset(fromAsset);
     }
@@ -129,7 +130,7 @@ const Swap = () => {
     setAutoQuote(null);
   };
 
-  const handleToAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY') => {
+  const handleToAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
     if (newAsset === fromAsset) {
       setFromAsset(toAsset);
     }

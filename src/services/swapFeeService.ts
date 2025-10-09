@@ -2,14 +2,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SwapFeeCalculation {
   feeAmount: number;
-  feeAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
+  feeAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC';
   platformFeeWallet: string;
   remainingAmount: number;
 }
 
 class SwapFeeService {
   private readonly PLATFORM_FEE_BPS = 80; // Standardized 0.8% platform fee
-  private readonly ELIGIBLE_TOKENS = ['ETH', 'USDC', 'XAUT', 'TRZRY'];
+  private readonly ELIGIBLE_TOKENS = ['ETH', 'USDC', 'XAUT', 'TRZRY', 'BTC'];
   
   private getPlatformFeeWallet(): string {
     return import.meta.env.VITE_PLATFORM_FEE_WALLET || '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
@@ -28,8 +28,8 @@ class SwapFeeService {
    */
   calculateSwapFee(
     inputAmount: number,
-    inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY',
-    outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY'
+    inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC',
+    outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'
   ): SwapFeeCalculation {
     if (!this.shouldApplyFee(inputAsset, outputAsset)) {
       return {

@@ -37,7 +37,8 @@ export class DexAggregatorService {
   private static readonly TOKEN_ADDRESSES = {
     USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC mainnet (corrected)
     XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold mainnet
-    TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B' // TRZRY Token
+    TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B', // TRZRY Token
+    BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' // WBTC mainnet
   };
   
   private static readonly POOL_FEES = {
@@ -46,7 +47,15 @@ export class DexAggregatorService {
     'USDC-TRZRY': 3000, // 0.3%
     'TRZRY-USDC': 3000, // 0.3%
     'XAUT-TRZRY': 3000, // 0.3%
-    'TRZRY-XAUT': 3000  // 0.3%
+    'TRZRY-XAUT': 3000, // 0.3%
+    'BTC-ETH': 3000, // 0.3%
+    'ETH-BTC': 3000, // 0.3%
+    'BTC-USDC': 3000, // 0.3%
+    'USDC-BTC': 3000, // 0.3%
+    'BTC-XAUT': 10000, // 1.0% for less common pairs
+    'XAUT-BTC': 10000, // 1.0%
+    'BTC-TRZRY': 10000, // 1.0%
+    'TRZRY-BTC': 10000 // 1.0%
   };
 
   static async getBestRoute(
