@@ -56,7 +56,7 @@ export const useWalletMigration = () => {
         .from('encrypted_wallet_keys')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (fetchError || !currentWallet) {
         throw new Error('Wallet not found');

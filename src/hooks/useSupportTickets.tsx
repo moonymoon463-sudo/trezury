@@ -92,7 +92,7 @@ export const useSupportTickets = () => {
         .from('profiles')
         .select('email')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.email) {
         throw new Error('User email not found');
@@ -113,7 +113,7 @@ export const useSupportTickets = () => {
           status: 'open'
         }])
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
