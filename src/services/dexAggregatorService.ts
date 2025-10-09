@@ -35,7 +35,6 @@ export class DexAggregatorService {
   private static readonly UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
   
   private static readonly TOKEN_ADDRESSES = {
-    ETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH mainnet
     USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC mainnet (corrected)
     XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold mainnet
     TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B', // TRZRY Token
@@ -43,8 +42,6 @@ export class DexAggregatorService {
   };
   
   private static readonly POOL_FEES = {
-    'USDC-ETH': 3000, // 0.3%
-    'ETH-USDC': 3000, // 0.3%
     'USDC-XAUT': 3000, // 0.3%
     'XAUT-USDC': 3000, // 0.3%
     'USDC-TRZRY': 3000, // 0.3%

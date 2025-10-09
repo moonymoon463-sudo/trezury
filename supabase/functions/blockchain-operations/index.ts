@@ -1426,13 +1426,7 @@ serve(async (req) => {
           const tokenInAddress = await getContractAddress(inputAsset, provider);
           const tokenOutAddress = await getContractAddress(outputAsset, provider);
           const fee = 3000; // 0.3% pool fee
-          
-          // Get correct decimals for each asset
-          const inDecimals = TOKEN_ALLOWLIST[inputAsset].decimals;
-          const outDecimals = TOKEN_ALLOWLIST[outputAsset].decimals;
-          console.log(`🔢 Using decimals for swap: ${inputAsset}=${inDecimals}, ${outputAsset}=${outDecimals}`);
-          
-          const requiredAmount = ethers.parseUnits(actualAmount.toString(), inDecimals);
+          const requiredAmount = ethers.parseUnits(actualAmount.toString(), 6);
           
           console.log(`💰 Token addresses: ${tokenInAddress} -> ${tokenOutAddress}`);
           
@@ -1441,9 +1435,9 @@ serve(async (req) => {
           const userBalance = await inputTokenContract.balanceOf(userWallet.address);
           
           if (userBalance < requiredAmount) {
-            throw new Error(`Insufficient ${inputAsset} balance. Required: ${actualAmount}, Available: ${ethers.formatUnits(userBalance, inDecimals)}`);
+            throw new Error(`Insufficient ${inputAsset} balance. Required: ${actualAmount}, Available: ${ethers.formatUnits(userBalance, 6)}`);
           }
-          console.log(`✅ User has sufficient balance: ${ethers.formatUnits(userBalance, inDecimals)} ${inputAsset}`);
+          console.log(`✅ User has sufficient balance: ${ethers.formatUnits(userBalance, 6)} ${inputAsset}`);
           
           // 1.2: Get Uniswap quote BEFORE pulling funds
           console.log(`🔍 Getting Uniswap quote (validating liquidity)...`);
@@ -1460,7 +1454,7 @@ serve(async (req) => {
               requiredAmount,
               0
             );
-            console.log(`✅ Single-hop quote validated: ${ethers.formatUnits(amountOut, outDecimals)} ${outputAsset}`);
+            console.log(`✅ Single-hop quote validated: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
           } catch (quoteError) {
             console.log(`⚠️ Single-hop not available, trying multi-hop via WETH`);
             useMultiHop = true;
@@ -1471,12 +1465,12 @@ serve(async (req) => {
             );
             
             amountOut = await quoterContract.quoteExactInput.staticCall(path, requiredAmount);
-            console.log(`✅ Multi-hop quote validated: ${ethers.formatUnits(amountOut, outDecimals)} ${outputAsset}`);
+            console.log(`✅ Multi-hop quote validated: ${ethers.formatUnits(amountOut, 6)} ${outputAsset}`);
           }
           
           // 1.3: Apply slippage and validate minimum output
           const amountOutMinimum = amountOut * BigInt(10000 - slippageBps) / BigInt(10000);
-          console.log(`✅ Minimum output with slippage: ${ethers.formatUnits(amountOutMinimum, outDecimals)} ${outputAsset}`);
+          console.log(`✅ Minimum output with slippage: ${ethers.formatUnits(amountOutMinimum, 6)} ${outputAsset}`);
           
           // 1.4: Estimate gas costs BEFORE pulling funds
           console.log(`⛽ Estimating gas costs...`);
@@ -1499,8 +1493,7 @@ serve(async (req) => {
           }
           
           const finalRelayFeeUsd = Math.max(estimatedRelayFeeUsd, GAS_FLOOR_USD);
-          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 
-                                       outputAsset === 'ETH' ? await getEthPrice().catch(() => 2500) : 1;
+          const outputTokenPriceUsd = outputAsset === 'XAUT' ? await getXautPrice().catch(() => 3912) : 1;
           const estimatedRelayFeeInOutputTokens = finalRelayFeeUsd / outputTokenPriceUsd;
           
           console.log(`✅ Pre-flight validation complete! Relay fee: $${finalRelayFeeUsd.toFixed(2)}`);
@@ -1747,7 +1740,7 @@ serve(async (req) => {
           const actualGasCostUsd = parseFloat(ethers.formatEther(actualGasUsed)) * ethPriceUsd;
           actualRelayFeeUsd = actualGasCostUsd * marginConfig.margin;
           const relayFeeInOutputTokens = actualRelayFeeUsd / outputTokenPriceUsd;
-          const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(outDecimals), outDecimals);
+          const relayFeeTokensWei = ethers.parseUnits(relayFeeInOutputTokens.toFixed(6), 6);
           
           // Check if actual gas exceeded estimate by >15% (after margin)
           const gasOverrun = actualGasCostUsd > (estimatedGasCostUsd * marginConfig.margin * 1.15);
@@ -2002,8 +1995,8 @@ serve(async (req) => {
           // ===== STEP 10: RECORD TRANSACTION IN DATABASE (ATOMIC) =====
           console.log(`\n💾 STEP 10: Recording transaction in database`);
           
-          const grossAmount = parseFloat(ethers.formatUnits(relayerOutputBalance, outDecimals));
-          const inputAmountFormatted = parseFloat(ethers.formatUnits(requiredAmount, inDecimals));
+          const grossAmount = parseFloat(ethers.formatUnits(relayerOutputBalance, 6));
+          const inputAmountFormatted = parseFloat(requiredAmount.toString()) / 1e6;
           const totalFeeUsd = actualRelayFeeUsd + (platformFeeCollected * outputTokenPriceUsd);
           
           // Guardrail: Abort if net output is negative or zero
@@ -2391,13 +2384,8 @@ serve(async (req) => {
           const tokenOutAddress = await getContractAddress(outputAsset, provider);
           const fee = 3000; // 0.3% pool fee
           
-          // Get correct decimals for each asset
-          const inDecimals = TOKEN_ALLOWLIST[inputAsset].decimals;
-          const outDecimals = TOKEN_ALLOWLIST[outputAsset].decimals;
-          console.log(`🔢 Using decimals: ${inputAsset}=${inDecimals}, ${outputAsset}=${outDecimals}`);
-          
           const quoterContract = new ethers.Contract(UNISWAP_V3_QUOTER, QUOTER_ABI, provider);
-          const amountIn = ethers.parseUnits(amount.toString(), inDecimals);
+          const amountIn = ethers.parseUnits(amount.toString(), 6); // Both USDC and XAUT have 6 decimals
           
           let amountOut: bigint;
           let routeUsed = 'single-hop';
@@ -2427,7 +2415,7 @@ serve(async (req) => {
             amountOut = await quoterContract.quoteExactInput.staticCall(path, amountIn);
           }
           
-          const outputAmount = parseFloat(ethers.formatUnits(amountOut, outDecimals));
+          const outputAmount = parseFloat(ethers.formatUnits(amountOut, 6));
           const priceImpact = Math.abs((outputAmount - amount) / amount) * 100;
           
           // Estimate gas and relay fee for the quote
