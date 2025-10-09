@@ -10,6 +10,7 @@ import AppLayout from "@/components/AppLayout";
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
+import { AirdropEligibilityCard } from "@/components/AirdropEligibilityCard";
 
 
 const Index = () => {
@@ -243,6 +244,11 @@ const Index = () => {
                   apy: 0
                 }))}
             />
+          </div>
+          
+          {/* Airdrop Eligibility */}
+          <div className="mt-3">
+            <AirdropEligibilityCard />
           </div>
         </div>
 
