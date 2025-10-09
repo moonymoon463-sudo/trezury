@@ -9,6 +9,7 @@ import { useTrzryReserves } from "@/hooks/useTrzryReserves";
 import { TrendingUp, Shield, BarChart3, ArrowRight, Coins } from "lucide-react";
 import TrzryReserveChart from "@/components/TrzryReserveChart";
 import { AirdropEligibilityCard } from "@/components/AirdropEligibilityCard";
+import { ReferralDashboard } from "@/components/ReferralDashboard";
 
 const TrzryHub = () => {
   const navigate = useNavigate();
@@ -199,6 +200,9 @@ const TrzryHub = () => {
                 </div>
               </div>
             </Card>
+
+            {/* Referral Dashboard */}
+            <ReferralDashboard />
 
             {/* CTA Button */}
             <Button

@@ -77,14 +77,18 @@ const Auth = () => {
     const password = formData.get("password") as string;
     const refCode = formData.get("referral_code") as string;
 
-    const { error, data } = await signUp(email, password);
+    const { error } = await signUp(email, password);
     
     // Apply referral code if provided and valid
-    if (!error && data.user && refCode && referralCodeValid) {
-      await supabase.rpc('apply_referral_code', {
-        p_referee_id: data.user.id,
-        p_referral_code: refCode.toUpperCase()
-      });
+    if (!error && refCode && referralCodeValid) {
+      // Get current user after signup
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        await supabase.rpc('apply_referral_code' as any, {
+          p_referee_id: userData.user.id,
+          p_referral_code: refCode.toUpperCase()
+        });
+      }
     }
     
     if (!error) {

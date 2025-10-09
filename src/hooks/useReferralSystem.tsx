@@ -75,32 +75,38 @@ export function useReferralSystem() {
         .eq('user_id', user.id)
         .single();
 
-      // Fetch referrals with referee emails
+      // Fetch referrals
       const { data: referralsData } = await supabase
         .from('referrals')
-        .select(`
-          id,
-          status,
-          points_awarded,
-          created_at,
-          completed_first_trade_at,
-          referee_id
-        `)
+        .select('*')
         .eq('referrer_id', user.id)
         .order('created_at', { ascending: false });
 
-      // Get referee emails
-      const referralsWithEmails = await Promise.all(
+      // Get points earned from each referral
+      const referralsWithDetails = await Promise.all(
         (referralsData || []).map(async (ref) => {
           const { data: profile } = await supabase
             .from('profiles')
             .select('email')
             .eq('id', ref.referee_id)
             .single();
+
+          // Get points earned from this referral
+          const { data: points } = await supabase
+            .from('referral_points')
+            .select('points')
+            .eq('related_referral_id', ref.id)
+            .eq('user_id', user.id);
+
+          const pointsEarned = points?.reduce((sum, p) => sum + p.points, 0) || 0;
           
           return {
-            ...ref,
-            referee_email: profile?.email || 'Unknown'
+            id: ref.id,
+            referee_email: profile?.email || 'Unknown',
+            status: ref.status,
+            points_awarded: pointsEarned,
+            created_at: ref.created_at,
+            completed_first_trade_at: ref.completed_at
           };
         })
       );
@@ -110,7 +116,7 @@ export function useReferralSystem() {
       const activeReferrals = referralsData?.filter(r => r.status === 'completed').length || 0;
       const pendingReferrals = referralsData?.filter(r => r.status === 'pending').length || 0;
       const totalPoints = balanceData?.total_points || 0;
-      const pointsEarned = referralsData?.reduce((sum, r) => sum + (r.points_awarded || 0), 0) || 0;
+      const pointsEarned = referralsWithDetails.reduce((sum, r) => sum + r.points_awarded, 0);
 
       setStats({
         referral_code: codeData?.code || '',
@@ -121,7 +127,7 @@ export function useReferralSystem() {
         points_earned: pointsEarned
       });
 
-      setReferrals(referralsWithEmails);
+      setReferrals(referralsWithDetails);
     } catch (error) {
       console.error('Error fetching referral data:', error);
     } finally {

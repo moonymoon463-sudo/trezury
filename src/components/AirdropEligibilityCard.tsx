@@ -1,8 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Calendar, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Gift, Calendar, TrendingUp, CheckCircle2, Users } from "lucide-react";
 import { useAirdropEligibility } from "@/hooks/useAirdropEligibility";
+import { useReferralSystem } from "@/hooks/useReferralSystem";
 
 export function AirdropEligibilityCard() {
   const { eligibility, loading } = useAirdropEligibility();
@@ -114,6 +115,24 @@ export function AirdropEligibilityCard() {
         <div className="mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
           <p className="text-xs text-center text-green-700 dark:text-green-400 font-medium">
             🎁 You've held TRZRY for {monthsHeld}+ months and qualify for airdrops!
+          </p>
+        </div>
+      )}
+
+      {/* Referral Points Section */}
+      {referralStats && referralStats.total_points > 0 && (
+        <div className="mt-3 p-3 bg-primary/10 rounded-lg border border-primary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              <p className="text-xs font-medium">Referral Bonus</p>
+            </div>
+            <Badge variant="secondary" className="font-semibold">
+              +{referralStats.total_points} pts
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Referral points boost your airdrop eligibility each month
           </p>
         </div>
       )}

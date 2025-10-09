@@ -3161,6 +3161,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      apply_referral_code: {
+        Args: { p_referee_id: string; p_referral_code: string }
+        Returns: Json
+      }
       auto_activate_airdrop_periods: {
         Args: Record<PropertyKey, never>
         Returns: Json

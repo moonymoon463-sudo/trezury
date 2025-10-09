@@ -61,7 +61,7 @@ const AdminReferrals = () => {
 
     const { data: referrals } = await supabase
       .from('referrals')
-      .select('status, points_awarded');
+      .select('*');
 
     const { data: balances } = await supabase
       .from('referral_point_balances')
@@ -76,19 +76,15 @@ const AdminReferrals = () => {
   };
 
   const fetchTopReferrers = async () => {
-    const { data } = await supabase
+    const { data: codes } = await supabase
       .from('referral_codes')
-      .select(`
-        user_id,
-        code,
-        referrals:referrals(count, status)
-      `)
-      .limit(10);
+      .select('user_id, code')
+      .limit(50);
 
-    if (!data) return;
+    if (!codes) return;
 
     const referrersWithDetails = await Promise.all(
-      data.map(async (item) => {
+      codes.map(async (item) => {
         const { data: profile } = await supabase
           .from('profiles')
           .select('email')
@@ -101,8 +97,13 @@ const AdminReferrals = () => {
           .eq('user_id', item.user_id)
           .single();
 
-        const totalReferrals = item.referrals?.length || 0;
-        const activeReferrals = item.referrals?.filter((r: any) => r.status === 'completed').length || 0;
+        const { data: referrals } = await supabase
+          .from('referrals')
+          .select('status')
+          .eq('referrer_id', item.user_id);
+
+        const totalReferrals = referrals?.length || 0;
+        const activeReferrals = referrals?.filter((r) => r.status === 'completed').length || 0;
 
         return {
           user_id: item.user_id,
@@ -116,7 +117,7 @@ const AdminReferrals = () => {
     );
 
     setTopReferrers(
-      referrersWithDetails.sort((a, b) => b.total_referrals - a.total_referrals)
+      referrersWithDetails.sort((a, b) => b.total_referrals - a.total_referrals).slice(0, 10)
     );
   };
 
@@ -192,6 +193,7 @@ const AdminReferrals = () => {
         user_id: searchResult.id,
         points: points,
         source: 'admin_manual',
+        event_type: 'admin_adjustment',
         description: manualReason
       });
 

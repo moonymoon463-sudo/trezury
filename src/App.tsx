@@ -58,6 +58,8 @@ import Receive from "./pages/Receive";
 import Support from "./pages/Support";
 import SupportTickets from "./pages/SupportTickets";
 import AdminSupport from "./pages/AdminSupport";
+import AdminReferrals from "./pages/AdminReferrals";
+import AdminAirdrops from "./pages/AdminAirdrops";
 import RealTimeSystemMonitor from "./components/admin/RealTimeSystemMonitor";
 import WebhookMonitoringDashboard from "./components/admin/WebhookMonitoringDashboard";
 import SwapAnalyticsDashboard from "./components/admin/SwapAnalyticsDashboard";
@@ -141,6 +143,8 @@ const AppRoutes = () => {
       <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
       <Route path="/support/tickets" element={<ProtectedRoute><SupportTickets /></ProtectedRoute>} />
       <Route path="/admin/support" element={<ProtectedRoute><AdminSupport /></ProtectedRoute>} />
+      <Route path="/admin/referrals" element={<ProtectedRoute><AdminReferrals /></ProtectedRoute>} />
+      <Route path="/admin/airdrops" element={<ProtectedRoute><AdminAirdrops /></ProtectedRoute>} />
       <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
       <Route path="/moonpay/callback" element={<ProtectedRoute><MoonPayCallback /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
