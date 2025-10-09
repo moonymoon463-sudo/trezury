@@ -105,6 +105,7 @@ export function useWalletBalance() {
     // Simplified USD value calculation
     if (balance.asset === 'USDC') return total + balance.amount;
     if (balance.asset === 'XAUT') return total + (balance.amount * 2000); // Rough gold price
+    if (balance.asset === 'ETH') return total + (balance.amount * 2500); // Rough ETH price
     return total;
   }, 0);
 

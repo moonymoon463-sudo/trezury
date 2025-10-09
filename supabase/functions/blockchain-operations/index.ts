@@ -1038,9 +1038,23 @@ serve(async (req) => {
             }
           }
           
-          const assets = ['USDC', 'XAUT', 'TRZRY'];
+          const assets = ['ETH', 'USDC', 'XAUT', 'TRZRY'];
           const balancePromises = assets.map(async (asset) => {
             try {
+              // Special handling for ETH - native balance (not ERC-20)
+              if (asset === 'ETH') {
+                const ethBalance = await withRpcRetry(
+                  () => provider.getBalance(address), 
+                  'ETH_getBalance'
+                );
+                const formattedBalance = parseFloat(ethers.formatEther(ethBalance));
+                return {
+                  asset,
+                  balance: formattedBalance,
+                  success: true
+                };
+              }
+              
               // Special handling for TRZRY - return mock balance to avoid chain errors
               if (asset === 'TRZRY') {
                 return {

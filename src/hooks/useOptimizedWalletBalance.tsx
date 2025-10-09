@@ -65,7 +65,14 @@ class BatchBalanceManager {
 
       // Fallback to individual calls if batch fails
       console.warn('Batch balance fetch failed, falling back to individual calls');
-      const [usdcResult, xautResult, trzryResult] = await Promise.allSettled([
+      const [ethResult, usdcResult, xautResult, trzryResult] = await Promise.allSettled([
+        supabase.functions.invoke('blockchain-operations', {
+          body: {
+            operation: 'get_balance',
+            address: address,
+            asset: 'ETH'
+          }
+        }),
         supabase.functions.invoke('blockchain-operations', {
           body: {
             operation: 'get_balance',
@@ -89,6 +96,8 @@ class BatchBalanceManager {
         })
       ]);
 
+      const ethBalance = ethResult.status === 'fulfilled' && ethResult.value.data?.success 
+        ? ethResult.value.data.balance : 0;
       const usdcBalance = usdcResult.status === 'fulfilled' && usdcResult.value.data?.success 
         ? usdcResult.value.data.balance : 0;
       const xautBalance = xautResult.status === 'fulfilled' && xautResult.value.data?.success 
@@ -97,6 +106,7 @@ class BatchBalanceManager {
         ? trzryResult.value.data.balance : 0;
 
       return [
+        { asset: 'ETH', amount: ethBalance, chain: 'ethereum' },
         { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
         { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
         { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' }
@@ -104,6 +114,7 @@ class BatchBalanceManager {
     } catch (error) {
       console.error('Batch balance fetch failed:', error);
       return [
+        { asset: 'ETH', amount: 0, chain: 'ethereum' },
         { asset: 'USDC', amount: 0, chain: 'ethereum' },
         { asset: 'XAUT', amount: 0, chain: 'ethereum' },
         { asset: 'TRZRY', amount: 0, chain: 'ethereum' }
@@ -220,6 +231,7 @@ export function useOptimizedWalletBalance() {
     return balances.reduce((total, balance) => {
       if (balance.asset === 'USDC') return total + balance.amount;
       if (balance.asset === 'XAUT') return total + (balance.amount * 2000); // Rough gold price
+      if (balance.asset === 'ETH') return total + (balance.amount * 2500); // Rough ETH price
       return total;
     }, 0);
   }, [balances]);
