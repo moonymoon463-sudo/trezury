@@ -148,13 +148,13 @@ export function useReferralSystem() {
   const shareReferralLink = async () => {
     if (!stats?.referral_code) return;
 
-    const shareUrl = `${window.location.origin}/auth?ref=${stats.referral_code}`;
-    const shareText = `Join Aurum and get 2 bonus points! Use my referral code: ${stats.referral_code}`;
+    const shareUrl = `https://trezury.app/auth?ref=${stats.referral_code}`;
+    const shareText = `Join Trezury and get 2 bonus points! Use my referral code: ${stats.referral_code}`;
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Join Aurum',
+          title: 'Join Trezury',
           text: shareText,
           url: shareUrl,
         });
