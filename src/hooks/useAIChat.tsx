@@ -160,9 +160,7 @@ export const useAIChat = () => {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json',
-            'Accept': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+            'Accept': 'text/event-stream'
           },
           body: JSON.stringify(requestBody),
           signal: abortController.signal,
