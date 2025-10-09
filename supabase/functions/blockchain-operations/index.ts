@@ -2723,6 +2723,31 @@ serve(async (req) => {
         };
         break;
 
+      case 'execute_swap_simple':
+        console.log('📝 Executing simplified swap with input token fee');
+        
+        // Import the simplified swap handler
+        const { executeSimplifiedSwap } = await import('./simplified-swap.ts');
+        
+        // Get user wallet
+        const provider = await getProvider();
+        const { wallet: userWallet, error: walletError } = await resolveUserWallet(
+          body.userId,
+          body.walletPassword
+        );
+        
+        if (!userWallet || walletError) {
+          result = {
+            success: false,
+            error: walletError || 'Failed to resolve user wallet'
+          };
+          break;
+        }
+        
+        // Execute the simplified swap
+        result = await executeSimplifiedSwap(body, userWallet, provider);
+        break;
+
       default:
         throw new Error(`Unknown operation: ${body.operation}`);
     }

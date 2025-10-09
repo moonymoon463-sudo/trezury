@@ -2,31 +2,52 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface SwapFeeCalculation {
   feeAmount: number;
-  feeAsset: 'USDC' | 'XAUT';
+  feeAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY';
   platformFeeWallet: string;
   remainingAmount: number;
 }
 
 class SwapFeeService {
   private readonly PLATFORM_FEE_BPS = 80; // Standardized 0.8% platform fee
-  private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+  private readonly ELIGIBLE_TOKENS = ['ETH', 'USDC', 'XAUT', 'TRZRY'];
+  
+  private getPlatformFeeWallet(): string {
+    return import.meta.env.VITE_PLATFORM_FEE_WALLET || '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+  }
 
   /**
-   * Calculate swap fee in the output token (XAUT or USDC) instead of ETH
+   * Check if fee should be applied (only for eligible token pairs)
+   */
+  shouldApplyFee(inputAsset: string, outputAsset: string): boolean {
+    return this.ELIGIBLE_TOKENS.includes(inputAsset) && 
+           this.ELIGIBLE_TOKENS.includes(outputAsset);
+  }
+
+  /**
+   * Calculate swap fee from the INPUT token (deducted before swap)
    */
   calculateSwapFee(
-    outputAmount: number, 
-    outputAsset: 'USDC' | 'XAUT',
-    inputAsset: 'USDC' | 'XAUT'
+    inputAmount: number,
+    inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY',
+    outputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY'
   ): SwapFeeCalculation {
-    // Take fee from the output token to avoid ETH gas fees
-    const feeAmount = (outputAmount * this.PLATFORM_FEE_BPS) / 10000;
-    const remainingAmount = outputAmount - feeAmount;
+    if (!this.shouldApplyFee(inputAsset, outputAsset)) {
+      return {
+        feeAmount: 0,
+        feeAsset: inputAsset,
+        platformFeeWallet: this.getPlatformFeeWallet(),
+        remainingAmount: inputAmount
+      };
+    }
+    
+    // Take fee from INPUT token before swap
+    const feeAmount = (inputAmount * this.PLATFORM_FEE_BPS) / 10000;
+    const remainingAmount = inputAmount - feeAmount;
 
     return {
       feeAmount: Number(feeAmount.toFixed(6)),
-      feeAsset: outputAsset,
-      platformFeeWallet: this.PLATFORM_FEE_WALLET,
+      feeAsset: inputAsset,
+      platformFeeWallet: this.getPlatformFeeWallet(),
       remainingAmount: Number(remainingAmount.toFixed(6))
     };
   }
@@ -100,8 +121,8 @@ class SwapFeeService {
   /**
    * Get platform fee wallet address
    */
-  getPlatformFeeWallet(): string {
-    return this.PLATFORM_FEE_WALLET;
+  getWalletAddress(): string {
+    return this.getPlatformFeeWallet();
   }
 
   /**
