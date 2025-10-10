@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { secureWalletService } from '@/services/secureWalletService';
 import { supabase } from '@/integrations/supabase/client';
+import { useCryptoPrices } from './useCryptoPrices';
+import { useGoldPrice } from './useGoldPrice';
 
 export interface WalletBalance {
   asset: string;
@@ -126,6 +128,8 @@ class BatchBalanceManager {
 export function useOptimizedWalletBalance() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const { price: goldPrice } = useGoldPrice();
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -226,15 +230,17 @@ export function useOptimizedWalletBalance() {
     return balance?.amount || 0;
   }, [balances]);
 
-  // Memoized total value calculation
+  // Memoized total value calculation with real-time prices
   const totalValue = useMemo(() => {
     return balances.reduce((total, balance) => {
       if (balance.asset === 'USDC') return total + balance.amount;
-      if (balance.asset === 'XAUT') return total + (balance.amount * 2000); // Rough gold price
-      if (balance.asset === 'ETH') return total + (balance.amount * 2500); // Rough ETH price
+      if (balance.asset === 'XAUT') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
+      if (balance.asset === 'ETH') return total + (balance.amount * (cryptoPrices?.ETH || 0));
+      if (balance.asset === 'BTC') return total + (balance.amount * (cryptoPrices?.BTC || 0));
+      if (balance.asset === 'TRZRY') return total + balance.amount;
       return total;
     }, 0);
-  }, [balances]);
+  }, [balances, cryptoPrices, goldPrice]);
 
   // Initial fetch
   useEffect(() => {

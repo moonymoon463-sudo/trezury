@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWalletBalance } from './useWalletBalance';
 import { useGoldPrice } from './useGoldPrice';
+import { useCryptoPrices } from './useCryptoPrices';
 
 export interface PortfolioAsset {
   name: string;
@@ -45,10 +46,12 @@ export function usePortfolioMonitoring() {
   
   const { balances, loading: walletLoading, totalValue } = useWalletBalance();
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
+  const { prices: cryptoPrices, loading: cryptoPricesLoading } = useCryptoPrices();
   
   console.log('usePortfolioMonitoring: Hook dependencies loaded', {
     balances: balances?.length || 0,
-    goldPrice: goldPrice?.usd_per_oz || 'loading'
+    goldPrice: goldPrice?.usd_per_oz || 'loading',
+    cryptoPrices: cryptoPrices || 'loading'
   });
   
   const [loading, setLoading] = useState(true);
@@ -64,7 +67,7 @@ export function usePortfolioMonitoring() {
 
       switch (balance.asset) {
         case 'ETH':
-          valueUSD = balance.amount * 2800; // ETH price estimate (matching portfolio)
+          valueUSD = cryptoPrices?.ETH ? balance.amount * cryptoPrices.ETH : 0;
           apy = 0;
           break;
         case 'USDC':
@@ -73,16 +76,15 @@ export function usePortfolioMonitoring() {
           break;
         case 'XAUT':
           valueUSD = goldPrice ? balance.amount * goldPrice.usd_per_oz : 0;
-          apy = 0; // Gold doesn't yield
+          apy = 0;
           break;
         case 'BTC':
-          valueUSD = balance.amount * 43000; // BTC price estimate
+          valueUSD = cryptoPrices?.BTC ? balance.amount * cryptoPrices.BTC : 0;
           apy = 0;
           break;
         case 'TRZRY':
-          // Match portfolio calculation: 1:1 with USD
-          valueUSD = balance.amount;
-          apy = 5.2; // APY matching portfolio
+          valueUSD = balance.amount; // 1:1 with USD
+          apy = 5.2;
           break;
         default:
           valueUSD = 0;
@@ -109,7 +111,7 @@ export function usePortfolioMonitoring() {
         isCollateral: false
       };
     }).filter(asset => asset.valueUSD > 0);
-  }, [balances, goldPrice]);
+  }, [balances, goldPrice, cryptoPrices]);
 
   // Calculate allocations
   const portfolioAssetsWithAllocations = useMemo(() => {
@@ -186,8 +188,8 @@ export function usePortfolioMonitoring() {
 
   // Update loading state based on dependencies
   useEffect(() => {
-    setLoading(walletLoading || priceLoading);
-  }, [walletLoading, priceLoading]);
+    setLoading(walletLoading || priceLoading || cryptoPricesLoading);
+  }, [walletLoading, priceLoading, cryptoPricesLoading]);
 
   // Initialize previous value on first load
   useEffect(() => {

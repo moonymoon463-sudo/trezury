@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { useGoldPrice } from './useGoldPrice';
+import { useCryptoPrices } from './useCryptoPrices';
 import { useIsMobile } from './use-mobile';
 import { secureWalletService } from '@/services/secureWalletService';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,6 +48,7 @@ const pendingRequests = new Map<string, Promise<any>>();
 export function useMobileOptimizedPortfolio() {
   const { user } = useAuth();
   const { price: goldPrice, loading: goldPriceLoading } = useGoldPrice();
+  const { prices: cryptoPrices } = useCryptoPrices();
   const isMobile = useIsMobile();
   
   const [balances, setBalances] = useState<WalletBalance[]>([]);
@@ -209,7 +211,7 @@ export function useMobileOptimizedPortfolio() {
   }, [user?.id, isMobile, getCachedData, setCachedData]);
 
   // Extract portfolio calculation logic for reuse with seamless mobile fallback
-  const calculatePortfolioAssets = useCallback((balances: WalletBalance[], goldPrice: any): PortfolioAsset[] => {
+  const calculatePortfolioAssets = useCallback((balances: WalletBalance[], goldPrice: any, cryptoPrices: any): PortfolioAsset[] => {
     if (!balances.length) return lastKnownAssets.current;
 
     // Use current gold price or fallback to last known price for seamless mobile experience
@@ -249,9 +251,14 @@ export function useMobileOptimizedPortfolio() {
           name = 'Treasury';
           break;
         case 'ETH':
-          valueUSD = balance.amount * 2800; // Approximate ETH price
+          valueUSD = cryptoPrices?.ETH ? balance.amount * cryptoPrices.ETH : 0;
           apy = 0;
           name = 'Ethereum';
+          break;
+        case 'BTC':
+          valueUSD = cryptoPrices?.BTC ? balance.amount * cryptoPrices.BTC : 0;
+          apy = 0;
+          name = 'Bitcoin';
           break;
       }
 
@@ -282,12 +289,12 @@ export function useMobileOptimizedPortfolio() {
     }
 
     return calculatedAssets;
-  }, []);
+  }, [cryptoPrices]);
 
   // Calculate portfolio assets with mobile optimization
   const portfolioAssets = useMemo((): PortfolioAsset[] => {
-    return calculatePortfolioAssets(balances, goldPrice);
-  }, [balances, goldPrice, calculatePortfolioAssets]);
+    return calculatePortfolioAssets(balances, goldPrice, cryptoPrices);
+  }, [balances, goldPrice, cryptoPrices, calculatePortfolioAssets]);
 
   // Calculate portfolio summary
   const calculateSummary = useCallback((assets: PortfolioAsset[]): PortfolioSummary => {
@@ -319,7 +326,7 @@ export function useMobileOptimizedPortfolio() {
       setBalances(newBalances);
 
       // Calculate assets directly to avoid race condition with useMemo
-      const freshAssets = calculatePortfolioAssets(newBalances, goldPrice);
+      const freshAssets = calculatePortfolioAssets(newBalances, goldPrice, cryptoPrices);
       const summary = calculateSummary(freshAssets);
       setPortfolioSummary(summary);
 
@@ -330,7 +337,7 @@ export function useMobileOptimizedPortfolio() {
       console.error('❌ Background refresh failed:', err);
       // Don't show error for background refresh
     }
-  }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary]);
+  }, [user?.id, fetchBalances, goldPrice, cryptoPrices, calculatePortfolioAssets, calculateSummary]);
 
   // Fast initial load with 2-second timeout guarantee
   useEffect(() => {
@@ -347,7 +354,7 @@ export function useMobileOptimizedPortfolio() {
       fetchBalances()
         .then((balances) => {
           setBalances(balances);
-          const assets = calculatePortfolioAssets(balances, goldPrice);
+          const assets = calculatePortfolioAssets(balances, goldPrice, cryptoPrices);
           const summary = calculateSummary(assets);
           setPortfolioSummary(summary);
           hasInitialLoad.current = true;
@@ -371,7 +378,7 @@ export function useMobileOptimizedPortfolio() {
         if (timeoutId) clearTimeout(timeoutId);
       };
     }
-  }, [user?.id, fetchBalances, goldPrice, calculatePortfolioAssets, calculateSummary, refreshData]);
+  }, [user?.id, fetchBalances, goldPrice, cryptoPrices, calculatePortfolioAssets, calculateSummary, refreshData]);
 
   // Network status monitoring for mobile
   useEffect(() => {

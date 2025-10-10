@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { secureWalletService } from '@/services/secureWalletService';
 import { supabase } from '@/integrations/supabase/client';
+import { useCryptoPrices } from './useCryptoPrices';
+import { useGoldPrice } from './useGoldPrice';
 
 export interface WalletBalance {
   asset: string;
@@ -11,6 +13,8 @@ export interface WalletBalance {
 
 export function useWalletBalance() {
   const { user } = useAuth();
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const { price: goldPrice } = useGoldPrice();
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -110,10 +114,10 @@ export function useWalletBalance() {
   }, [balances]);
 
   const totalValue = balances.reduce((total, balance) => {
-    // Use same prices as portfolio calculations for consistency
     if (balance.asset === 'USDC') return total + balance.amount;
-    if (balance.asset === 'XAUT') return total + (balance.amount * 3981); // Current gold price
-    if (balance.asset === 'ETH') return total + (balance.amount * 2800); // ETH price matching portfolio
+    if (balance.asset === 'XAUT') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
+    if (balance.asset === 'ETH') return total + (balance.amount * (cryptoPrices?.ETH || 0));
+    if (balance.asset === 'BTC') return total + (balance.amount * (cryptoPrices?.BTC || 0));
     if (balance.asset === 'TRZRY') return total + balance.amount; // 1:1 with USD
     return total;
   }, 0);
