@@ -5,6 +5,7 @@ import { TrendingUp, ShoppingCart, DollarSign, ArrowRightLeft, Send, Download, W
 import { useGoldPrice } from "@/hooks/useGoldPrice";
 import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
+import { usePortfolioMonitoring } from "@/hooks/usePortfolioMonitoring";
 import GoldPriceChart from "@/components/GoldPriceChart";
 import AppLayout from "@/components/AppLayout";
 import { useState, useEffect } from "react";
@@ -19,6 +20,7 @@ const Index = () => {
   const { price: goldPrice, loading: priceLoading, refreshPrice } = useGoldPrice();
   const { getBalance, loading: balanceLoading, refreshBalances } = useWalletBalance();
   const { walletAddress, getWalletAddress } = useSecureWallet();
+  const { portfolioAssets, portfolioSummary, loading: portfolioLoading, refreshData } = usePortfolioMonitoring();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
 
@@ -53,7 +55,8 @@ const Index = () => {
     try {
       await Promise.all([
         refreshPrice(),
-        refreshBalances()
+        refreshBalances(),
+        refreshData()
       ]);
     } finally {
       setIsRefreshing(false);
@@ -232,17 +235,8 @@ const Index = () => {
           {/* Asset Allocation Chart */}
           <div className="bg-background/50 rounded-lg p-2">
             <AssetAllocationChart 
-              assets={tokens
-                .filter(t => t.valueUsd > 0)
-                .map(t => ({
-                  asset: t.symbol,
-                  name: t.name,
-                  valueUSD: t.valueUsd,
-                  value: t.valueUsd,
-                  balance: parseFloat(t.amount === "..." ? "0" : t.amount),
-                  allocation: (t.valueUsd / totalPortfolioValue) * 100,
-                  apy: 0
-                }))}
+              assets={portfolioAssets}
+              loading={portfolioLoading || balanceLoading}
             />
           </div>
           

@@ -5,9 +5,24 @@ import { PieChart as PieChartIcon } from "lucide-react";
 
 interface AssetAllocationChartProps {
   assets: PortfolioAsset[];
+  loading?: boolean;
 }
 
-export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
+export function AssetAllocationChart({ assets, loading = false }: AssetAllocationChartProps) {
+  // Show loading skeleton while fetching balances
+  if (loading) {
+    return (
+      <div className="flex flex-row items-center gap-3 animate-pulse">
+        <div className="h-16 w-16 flex-shrink-0 bg-muted rounded-full" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 bg-muted rounded w-full" />
+          <div className="h-3 bg-muted rounded w-3/4" />
+          <div className="h-3 bg-muted rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
   // Group assets by type and calculate totals
   const data = assets
     .filter(asset => asset.valueUSD > 0) // Only positive values for pie chart
@@ -62,7 +77,10 @@ export function AssetAllocationChart({ assets }: AssetAllocationChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-16 text-muted-foreground text-xs">
-        No assets to display
+        <div className="text-center">
+          <p>No assets yet</p>
+          <p className="text-[10px] mt-1">Buy or receive tokens to get started</p>
+        </div>
       </div>
     );
   }
