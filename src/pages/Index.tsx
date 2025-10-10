@@ -35,19 +35,8 @@ const Index = () => {
     }
   }, [user, getWalletAddress]);
 
-  // Get real balances - only use them if not loading or if we have cached values
-  const ethBalance = balanceLoading && getBalance('ETH') === 0 ? 0 : getBalance('ETH');
-  const usdcBalance = balanceLoading && getBalance('USDC') === 0 ? 0 : getBalance('USDC');
-  const goldBalance = balanceLoading && getBalance('XAUT') === 0 ? 0 : getBalance('XAUT');
-  const trzryBalance = balanceLoading && getBalance('TRZRY') === 0 ? 0 : getBalance('TRZRY');
-  
-  console.log('💰 Index balances - ETH:', ethBalance, 'USDC:', usdcBalance, 'XAUT:', goldBalance, 'TRZRY:', trzryBalance, 'Loading:', balanceLoading);
-  
-  // Calculate portfolio values
-  const ethValueUsd = ethBalance * 2800; // ETH price approximation
-  const goldValueUsd = goldPrice && goldBalance ? goldBalance * goldPrice.usd_per_oz : 0;
-  const trzryValueUsd = trzryBalance * 1.0; // Assuming 1:1 with USD
-  const totalPortfolioValue = ethValueUsd + usdcBalance + goldValueUsd + trzryValueUsd;
+  // Use portfolio summary for total value (includes all assets: ETH, USDC, XAUT, BTC, TRZRY)
+  const totalPortfolioValue = portfolioSummary?.totalValue || 0;
 
   // Handle refresh
   const handleRefresh = async () => {
@@ -62,45 +51,6 @@ const Index = () => {
       setIsRefreshing(false);
     }
   };
-
-  const tokens = [
-    {
-      name: "Ethereum",
-      symbol: "ETH",
-      amount: balanceLoading && ethBalance === 0 ? "..." : ethBalance.toFixed(6),
-      value: balanceLoading && ethValueUsd === 0 ? "..." : `$${ethValueUsd.toFixed(2)}`,
-      valueUsd: ethValueUsd,
-      icon: "⟠",
-      color: "bg-purple-600"
-    },
-    {
-      name: "USD Coin",
-      symbol: "USDC", 
-      amount: balanceLoading && usdcBalance === 0 ? "..." : usdcBalance.toFixed(2),
-      value: balanceLoading && usdcBalance === 0 ? "..." : `$${usdcBalance.toFixed(2)}`,
-      valueUsd: usdcBalance,
-      icon: "💲",
-      color: "bg-blue-600"
-    },
-    {
-      name: "GOLD XAUT",
-      symbol: "XAUT",
-      amount: balanceLoading && goldBalance === 0 ? "..." : goldBalance.toFixed(6),
-      value: balanceLoading && goldValueUsd === 0 ? "..." : `$${goldValueUsd.toFixed(2)}`,
-      valueUsd: goldValueUsd,
-      icon: "🥇",
-      color: "bg-yellow-600"
-    },
-    {
-      name: "Treasury",
-      symbol: "TRZRY",
-      amount: balanceLoading && trzryBalance === 0 ? "..." : trzryBalance.toFixed(2),
-      value: balanceLoading && trzryValueUsd === 0 ? "..." : `$${trzryValueUsd.toFixed(2)}`,
-      valueUsd: trzryValueUsd,
-      icon: "💎",
-      color: "bg-green-600"
-    }
-  ];
 
   return (
     <AppLayout
