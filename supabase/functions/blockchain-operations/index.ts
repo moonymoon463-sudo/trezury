@@ -3,6 +3,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import { ethers } from "https://esm.sh/ethers@6.13.2";
 
+// Import TrezuryVault utilities
+import { 
+  deployVault, 
+  getVaultContract, 
+  checkVaultHealth,
+  VAULT_ABI 
+} from './vault-deployment.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -461,6 +469,23 @@ const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'; // Wrapped ET
 
 // ERC-2771 Forwarder (TODO: Deploy this contract and update address)
 const FORWARDER_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+// Platform fee wallet (fallback for non-vault operations)
+const PLATFORM_WALLET = Deno.env.get('PLATFORM_FEE_WALLET') || '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+
+// TrezuryVault address (loaded from config)
+let VAULT_ADDRESS: string | null = null;
+
+// Load vault address from database
+async function loadVaultAddress(): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('config')
+    .select('value')
+    .eq('key', 'trezury_vault_address')
+    .single();
+  
+  return data?.value || null;
+}
 
 // ERC20 ABI for basic operations
 const ERC20_ABI = [
@@ -2372,6 +2397,353 @@ serve(async (req) => {
           result = {
             success: false,
             error: error instanceof Error ? error.message : 'Swap execution failed'
+          };
+        }
+        break;
+      }
+      
+      // ============================================
+      // TREZURY VAULT OPERATIONS
+      // ============================================
+      
+      case 'deploy_vault': {
+        // Admin-only operation
+        if (!authenticatedUserId || !await isAdmin(authenticatedUserId)) {
+          result = { success: false, error: 'Admin access required' };
+          break;
+        }
+        
+        try {
+          console.log('🏗️ Deploying TrezuryVault...');
+          
+          const relayerWallet = new ethers.Wallet(RELAYER_PRIVATE_KEY!, provider);
+          
+          const { address, txHash } = await deployVault(relayerWallet, provider);
+          
+          // Store vault address in config
+          await supabaseAdmin.from('config').upsert({
+            key: 'trezury_vault_address',
+            value: address
+          });
+          
+          // Update global variable
+          VAULT_ADDRESS = address;
+          
+          // Store deployment record
+          await supabaseAdmin.from('deployed_contracts').insert({
+            chain: 'ethereum',
+            deployer_address: relayerWallet.address,
+            contracts: {
+              trezury_vault: {
+                address: address,
+                deploy_tx: txHash,
+                owner: relayerWallet.address
+              }
+            },
+            verified: false,
+            metadata: {
+              deployed_by: 'blockchain-operations',
+              initial_deposit: '1 ETH',
+              platform_fee_bps: 80,
+              approved_tokens: ['USDC', 'XAUT', 'WETH', 'TRZRY']
+            }
+          });
+          
+          result = {
+            success: true,
+            vaultAddress: address,
+            deployTxHash: txHash,
+            owner: relayerWallet.address,
+            message: 'TrezuryVault deployed successfully'
+          };
+        } catch (error) {
+          console.error('Vault deployment failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Deployment failed'
+          };
+        }
+        break;
+      }
+      
+      case 'vault_swap_eip3009': {
+        // Execute swap through vault using EIP-3009 (USDC)
+        try {
+          if (!VAULT_ADDRESS) {
+            VAULT_ADDRESS = await loadVaultAddress();
+            if (!VAULT_ADDRESS) {
+              result = { success: false, error: 'Vault not deployed' };
+              break;
+            }
+          }
+          
+          const {
+            from,
+            value,
+            validAfter,
+            validBefore,
+            nonce,
+            v, r, s,
+            tokenIn,
+            tokenOut,
+            fee,
+            amountOutMinimum
+          } = body;
+          
+          console.log(`🔄 Executing vault swap (EIP-3009)...`);
+          console.log(`   From: ${from}`);
+          console.log(`   Amount: ${value}`);
+          console.log(`   ${tokenIn} → ${tokenOut}`);
+          
+          const relayerWallet = new ethers.Wallet(RELAYER_PRIVATE_KEY!, provider);
+          const vault = getVaultContract(VAULT_ADDRESS, relayerWallet);
+          
+          // Execute swap through vault
+          const tx = await vault.executeSwapWithEIP3009(
+            from,
+            value,
+            validAfter,
+            validBefore,
+            nonce,
+            v, r, s,
+            tokenIn,
+            tokenOut,
+            fee,
+            amountOutMinimum
+          );
+          
+          const receipt = await tx.wait();
+          
+          // Parse swap event
+          const swapEvent = receipt.logs.find((log: any) => {
+            try {
+              const parsed = vault.interface.parseLog(log);
+              return parsed?.name === 'SwapExecuted';
+            } catch {
+              return false;
+            }
+          });
+          
+          let amountOut = 0;
+          let platformFee = 0;
+          
+          if (swapEvent) {
+            const parsed = vault.interface.parseLog(swapEvent);
+            amountOut = Number(ethers.formatUnits(parsed?.args.amountOut, 6));
+            platformFee = Number(ethers.formatUnits(parsed?.args.platformFee, 6));
+          }
+          
+          result = {
+            success: true,
+            txHash: receipt.hash,
+            amountOut,
+            platformFee,
+            gasUsed: receipt.gasUsed.toString(),
+            effectiveGasPrice: receipt.gasPrice?.toString(),
+            vaultAddress: VAULT_ADDRESS
+          };
+        } catch (error) {
+          console.error('Vault swap failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Swap failed'
+          };
+        }
+        break;
+      }
+      
+      case 'vault_swap_permit': {
+        // Execute swap through vault using EIP-2612 Permit
+        try {
+          if (!VAULT_ADDRESS) {
+            VAULT_ADDRESS = await loadVaultAddress();
+            if (!VAULT_ADDRESS) {
+              result = { success: false, error: 'Vault not deployed' };
+              break;
+            }
+          }
+          
+          const {
+            from,
+            value,
+            deadline,
+            v, r, s,
+            tokenIn,
+            tokenOut,
+            fee,
+            amountOutMinimum
+          } = body;
+          
+          console.log(`🔄 Executing vault swap (EIP-2612 Permit)...`);
+          console.log(`   From: ${from}`);
+          console.log(`   Amount: ${value}`);
+          console.log(`   ${tokenIn} → ${tokenOut}`);
+          
+          const relayerWallet = new ethers.Wallet(RELAYER_PRIVATE_KEY!, provider);
+          const vault = getVaultContract(VAULT_ADDRESS, relayerWallet);
+          
+          // Execute swap through vault
+          const tx = await vault.executeSwapWithPermit(
+            from,
+            value,
+            deadline,
+            v, r, s,
+            tokenIn,
+            tokenOut,
+            fee,
+            amountOutMinimum
+          );
+          
+          const receipt = await tx.wait();
+          
+          // Parse swap event
+          const swapEvent = receipt.logs.find((log: any) => {
+            try {
+              const parsed = vault.interface.parseLog(log);
+              return parsed?.name === 'SwapExecuted';
+            } catch {
+              return false;
+            }
+          });
+          
+          let amountOut = 0;
+          let platformFee = 0;
+          
+          if (swapEvent) {
+            const parsed = vault.interface.parseLog(swapEvent);
+            amountOut = Number(ethers.formatUnits(parsed?.args.amountOut, 6));
+            platformFee = Number(ethers.formatUnits(parsed?.args.platformFee, 6));
+          }
+          
+          result = {
+            success: true,
+            txHash: receipt.hash,
+            amountOut,
+            platformFee,
+            gasUsed: receipt.gasUsed.toString(),
+            effectiveGasPrice: receipt.gasPrice?.toString(),
+            vaultAddress: VAULT_ADDRESS
+          };
+        } catch (error) {
+          console.error('Vault swap failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Swap failed'
+          };
+        }
+        break;
+      }
+      
+      case 'check_vault_health': {
+        try {
+          if (!VAULT_ADDRESS) {
+            VAULT_ADDRESS = await loadVaultAddress();
+            if (!VAULT_ADDRESS) {
+              result = { success: false, error: 'Vault not deployed' };
+              break;
+            }
+          }
+          
+          const health = await checkVaultHealth(VAULT_ADDRESS, provider);
+          
+          result = {
+            success: true,
+            vault: {
+              address: VAULT_ADDRESS,
+              ...health,
+              warning: !health.isHealthy ? 'Low ETH balance - please refill' : null
+            }
+          };
+        } catch (error) {
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Health check failed'
+          };
+        }
+        break;
+      }
+      
+      case 'refill_vault': {
+        // Admin-only operation
+        if (!authenticatedUserId || !await isAdmin(authenticatedUserId)) {
+          result = { success: false, error: 'Admin access required' };
+          break;
+        }
+        
+        try {
+          if (!VAULT_ADDRESS) {
+            VAULT_ADDRESS = await loadVaultAddress();
+          }
+          
+          const amountETH = body.amount || '0.5';
+          
+          const relayerWallet = new ethers.Wallet(RELAYER_PRIVATE_KEY!, provider);
+          
+          console.log(`💰 Refilling vault with ${amountETH} ETH...`);
+          
+          const tx = await relayerWallet.sendTransaction({
+            to: VAULT_ADDRESS,
+            value: ethers.parseEther(amountETH)
+          });
+          
+          await tx.wait();
+          
+          result = {
+            success: true,
+            txHash: tx.hash,
+            amountETH,
+            vaultAddress: VAULT_ADDRESS
+          };
+        } catch (error) {
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Refill failed'
+          };
+        }
+        break;
+      }
+      
+      case 'withdraw_vault_fees': {
+        // Admin-only operation
+        if (!authenticatedUserId || !await isAdmin(authenticatedUserId)) {
+          result = { success: false, error: 'Admin access required' };
+          break;
+        }
+        
+        try {
+          if (!VAULT_ADDRESS) {
+            VAULT_ADDRESS = await loadVaultAddress();
+          }
+          
+          const { token, recipient } = body;
+          const withdrawAll = body.withdrawAll || false;
+          
+          const relayerWallet = new ethers.Wallet(RELAYER_PRIVATE_KEY!, provider);
+          const vault = getVaultContract(VAULT_ADDRESS, relayerWallet);
+          
+          let tx;
+          
+          if (withdrawAll) {
+            console.log(`💸 Withdrawing all ${token} fees...`);
+            tx = await vault.withdrawAllFees(token, recipient || relayerWallet.address);
+          } else {
+            const amount = body.amount;
+            console.log(`💸 Withdrawing ${amount} ${token} fees...`);
+            tx = await vault.withdrawFees(token, amount, recipient || relayerWallet.address);
+          }
+          
+          const receipt = await tx.wait();
+          
+          result = {
+            success: true,
+            txHash: receipt.hash,
+            token,
+            recipient: recipient || relayerWallet.address
+          };
+        } catch (error) {
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Fee withdrawal failed'
           };
         }
         break;
