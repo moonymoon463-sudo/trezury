@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWalletBalance } from './useWalletBalance';
 import { useGoldPrice } from './useGoldPrice';
-import { useTrzryReserves } from './useTrzryReserves';
 
 export interface PortfolioAsset {
   name: string;
@@ -46,13 +45,10 @@ export function usePortfolioMonitoring() {
   
   const { balances, loading: walletLoading, totalValue } = useWalletBalance();
   const { price: goldPrice, loading: priceLoading } = useGoldPrice();
-  const { reserveValue, totalXautBalance, loading: trzryLoading } = useTrzryReserves();
   
   console.log('usePortfolioMonitoring: Hook dependencies loaded', {
     balances: balances?.length || 0,
-    goldPrice: goldPrice?.usd_per_oz || 'loading',
-    reserveValue,
-    totalXautBalance
+    goldPrice: goldPrice?.usd_per_oz || 'loading'
   });
   
   const [loading, setLoading] = useState(true);
@@ -68,12 +64,12 @@ export function usePortfolioMonitoring() {
 
       switch (balance.asset) {
         case 'ETH':
-          valueUSD = balance.amount * 2500; // ETH price estimate
+          valueUSD = balance.amount * 2800; // ETH price estimate (matching portfolio)
           apy = 0;
           break;
         case 'USDC':
           valueUSD = balance.amount;
-          apy = 0.05; // 5% savings APY
+          apy = 0;
           break;
         case 'XAUT':
           valueUSD = goldPrice ? balance.amount * goldPrice.usd_per_oz : 0;
@@ -84,12 +80,9 @@ export function usePortfolioMonitoring() {
           apy = 0;
           break;
         case 'TRZRY':
-          // Use reserve data for TRZRY valuation
-          const reserveRatio = reserveValue > 0 
-            ? reserveValue / Math.max(totalXautBalance, 1)
-            : 1;
-          valueUSD = balance.amount * reserveRatio;
-          apy = 0.12; // 12% estimated APY for TRZRY
+          // Match portfolio calculation: 1:1 with USD
+          valueUSD = balance.amount;
+          apy = 5.2; // APY matching portfolio
           break;
         default:
           valueUSD = 0;
@@ -116,7 +109,7 @@ export function usePortfolioMonitoring() {
         isCollateral: false
       };
     }).filter(asset => asset.valueUSD > 0);
-  }, [balances, goldPrice, reserveValue, totalXautBalance]);
+  }, [balances, goldPrice]);
 
   // Calculate allocations
   const portfolioAssetsWithAllocations = useMemo(() => {
@@ -193,8 +186,8 @@ export function usePortfolioMonitoring() {
 
   // Update loading state based on dependencies
   useEffect(() => {
-    setLoading(walletLoading || priceLoading || trzryLoading);
-  }, [walletLoading, priceLoading, trzryLoading]);
+    setLoading(walletLoading || priceLoading);
+  }, [walletLoading, priceLoading]);
 
   // Initialize previous value on first load
   useEffect(() => {

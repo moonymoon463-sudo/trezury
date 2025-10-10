@@ -110,10 +110,11 @@ export function useWalletBalance() {
   }, [balances]);
 
   const totalValue = balances.reduce((total, balance) => {
-    // Simplified USD value calculation
+    // Use same prices as portfolio calculations for consistency
     if (balance.asset === 'USDC') return total + balance.amount;
-    if (balance.asset === 'XAUT') return total + (balance.amount * 2000); // Rough gold price
-    if (balance.asset === 'ETH') return total + (balance.amount * 2500); // Rough ETH price
+    if (balance.asset === 'XAUT') return total + (balance.amount * 3981); // Current gold price
+    if (balance.asset === 'ETH') return total + (balance.amount * 2800); // ETH price matching portfolio
+    if (balance.asset === 'TRZRY') return total + balance.amount; // 1:1 with USD
     return total;
   }, 0);
 
