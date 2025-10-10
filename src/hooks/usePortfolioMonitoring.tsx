@@ -67,6 +67,10 @@ export function usePortfolioMonitoring() {
       let apy = 0;
 
       switch (balance.asset) {
+        case 'ETH':
+          valueUSD = balance.amount * 2500; // ETH price estimate
+          apy = 0;
+          break;
         case 'USDC':
           valueUSD = balance.amount;
           apy = 0.05; // 5% savings APY
@@ -74,6 +78,10 @@ export function usePortfolioMonitoring() {
         case 'XAUT':
           valueUSD = balance.amount * goldPrice.usd_per_oz;
           apy = 0; // Gold doesn't yield
+          break;
+        case 'BTC':
+          valueUSD = balance.amount * 43000; // BTC price estimate
+          apy = 0;
           break;
         case 'TRZRY':
           // Use reserve data for TRZRY valuation
@@ -87,8 +95,16 @@ export function usePortfolioMonitoring() {
           valueUSD = 0;
       }
 
+      const assetNames: Record<string, string> = {
+        'ETH': 'Ethereum',
+        'USDC': 'USD Coin',
+        'XAUT': 'Gold',
+        'BTC': 'Bitcoin',
+        'TRZRY': 'Trzry'
+      };
+
       return {
-        name: balance.asset,
+        name: assetNames[balance.asset] || balance.asset,
         asset: balance.asset,
         value: balance.amount,
         valueUSD,
