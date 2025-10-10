@@ -2,9 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Wallet2, DollarSign, ChevronRight, Shield } from "lucide-react";
 import AurumLogo from "@/components/AurumLogo";
+import { useWalletBalance } from "@/hooks/useWalletBalance";
 
 const Wallet = () => {
   const navigate = useNavigate();
+  const { getBalance, loading } = useWalletBalance();
+  
+  const usdcBalance = getBalance('USDC');
+  const goldBalance = getBalance('XAUT');
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -55,7 +60,9 @@ const Wallet = () => {
                 </div>
                 <div className="flex-1">
                   <p className="text-muted-foreground text-sm">USD</p>
-                  <p className="text-foreground text-xl font-bold">$1,234.56</p>
+                  <p className="text-foreground text-xl font-bold">
+                    {loading ? "Loading..." : `$${usdcBalance.toFixed(2)}`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -69,8 +76,10 @@ const Wallet = () => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <p className="text-muted-foreground text-sm">Gold</p>
-                  <p className="text-foreground text-xl font-bold">1.23456 oz</p>
+                  <p className="text-muted-foreground text-sm">Gold (XAUT)</p>
+                  <p className="text-foreground text-xl font-bold">
+                    {loading ? "Loading..." : `${goldBalance.toFixed(6)} oz`}
+                  </p>
                 </div>
               </div>
             </div>

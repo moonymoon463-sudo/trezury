@@ -470,9 +470,6 @@ const WETH_ADDRESS = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'; // Wrapped ET
 // ERC-2771 Forwarder (TODO: Deploy this contract and update address)
 const FORWARDER_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-// Platform fee wallet (fallback for non-vault operations)
-const PLATFORM_WALLET = Deno.env.get('PLATFORM_FEE_WALLET') || '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
-
 // TrezuryVault address (loaded from config)
 let VAULT_ADDRESS: string | null = null;
 
@@ -1331,9 +1328,42 @@ serve(async (req) => {
 
           const provider = await getProvider();
 
+          // Get token decimals for balance check
+          const TOKEN_DECIMALS: Record<string, number> = {
+            'ETH': 18,
+            'USDC': 6,
+            'XAUT': 6,
+            'TRZRY': 18,
+            'BTC': 8
+          };
+          const sellDecimals = TOKEN_DECIMALS[sellToken] || 18;
+          const buyDecimals = TOKEN_DECIMALS[buyToken] || 18;
+
+          // Check user balance before swap
+          if (sellToken === 'ETH') {
+            const ethBalance = await provider.getBalance(userAddress);
+            if (ethBalance < BigInt(quote.sellAmount)) {
+              throw new Error(`Insufficient ETH balance. Required: ${ethers.formatEther(quote.sellAmount)}, Available: ${ethers.formatEther(ethBalance)}`);
+            }
+          } else {
+            const sellTokenAddress = quote.sellTokenAddress;
+            const tokenContract = new ethers.Contract(
+              sellTokenAddress,
+              ['function balanceOf(address) view returns (uint256)', 'function allowance(address owner, address spender) view returns (uint256)', 'function approve(address spender, uint256 amount) returns (bool)'],
+              provider
+            );
+
+            const userBalance = await tokenContract.balanceOf(userAddress);
+            if (userBalance < BigInt(quote.sellAmount)) {
+              throw new Error(`Insufficient ${sellToken} balance. Required: ${ethers.formatUnits(quote.sellAmount, sellDecimals)}, Available: ${ethers.formatUnits(userBalance, sellDecimals)}`);
+            }
+          }
+
+          console.log('✅ Balance check passed');
+
           // Check if approval is needed
           let approvalTxHash: string | undefined;
-          if (quote.allowanceTarget !== '0x0000000000000000000000000000000000000000') {
+          if (sellToken !== 'ETH' && quote.allowanceTarget !== '0x0000000000000000000000000000000000000000') {
             const sellTokenAddress = quote.sellTokenAddress;
             const tokenContract = new ethers.Contract(
               sellTokenAddress,
@@ -1375,6 +1405,31 @@ serve(async (req) => {
           const swapReceipt = await swapTx.wait();
           console.log('✅ 0x swap confirmed:', swapReceipt.hash);
 
+          // Calculate gas costs
+          const gasUsed = BigInt(swapReceipt.gasUsed);
+          const gasPrice = swapReceipt.gasPrice || swapTx.gasPrice;
+          const gasCostWei = gasUsed * gasPrice;
+          const gasCostEth = parseFloat(ethers.formatEther(gasCostWei));
+          const ethPrice = await getEthPrice();
+          const gasCostUsd = gasCostEth * ethPrice;
+
+          console.log('⛽ Gas costs:', {
+            gasUsed: gasUsed.toString(),
+            gasPriceGwei: parseFloat(ethers.formatUnits(gasPrice, 'gwei')),
+            gasCostEth,
+            gasCostUsd
+          });
+
+          // Get token decimals
+          const TOKEN_DECIMALS: Record<string, number> = {
+            'ETH': 18,
+            'USDC': 6,
+            'XAUT': 6,
+            'TRZRY': 18,
+            'BTC': 8
+          };
+          const sellDecimals = TOKEN_DECIMALS[sellToken] || 18;
+
           // Create transaction record
           const { data: txData, error: txError } = await supabase
             .from('transactions')
@@ -1383,7 +1438,7 @@ serve(async (req) => {
               quote_id: quoteId,
               type: 'swap',
               asset: sellToken,
-              quantity: parseFloat(ethers.formatUnits(quote.sellAmount, TOKEN_ALLOWLIST[sellToken]?.decimals || 18)),
+              quantity: parseFloat(ethers.formatUnits(quote.sellAmount, sellDecimals)),
               unit_price_usd: 0,
               fee_usd: 0,
               status: 'completed',
@@ -1395,7 +1450,13 @@ serve(async (req) => {
                 approval_hash: approvalTxHash,
                 swap_hash: swapReceipt.hash,
                 platform_fee_bps: 80,
-                sources: quote.sources
+                sources: quote.sources,
+                gas_used: gasUsed.toString(),
+                gas_price_gwei: parseFloat(ethers.formatUnits(gasPrice, 'gwei')),
+                gas_cost_eth: gasCostEth,
+                gas_cost_usd: gasCostUsd,
+                sell_amount: ethers.formatUnits(quote.sellAmount, sellDecimals),
+                buy_amount: ethers.formatUnits(quote.buyAmount, TOKEN_DECIMALS[buyToken] || 18)
               }
             })
             .select()
