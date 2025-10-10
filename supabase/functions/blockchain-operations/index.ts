@@ -1420,15 +1420,7 @@ serve(async (req) => {
             gasCostUsd
           });
 
-          // Get token decimals
-          const TOKEN_DECIMALS: Record<string, number> = {
-            'ETH': 18,
-            'USDC': 6,
-            'XAUT': 6,
-            'TRZRY': 18,
-            'BTC': 8
-          };
-          const sellDecimals = TOKEN_DECIMALS[sellToken] || 18;
+          // Using previously defined TOKEN_DECIMALS and sellDecimals for formatting
 
           // Create transaction record
           const { data: txData, error: txError } = await supabase
