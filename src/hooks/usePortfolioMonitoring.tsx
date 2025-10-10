@@ -60,7 +60,7 @@ export function usePortfolioMonitoring() {
 
   // Calculate real portfolio assets from wallet balances
   const portfolioAssets = useMemo((): PortfolioAsset[] => {
-    if (!balances.length || !goldPrice) return [];
+    if (!balances.length) return [];
 
     return balances.map(balance => {
       let valueUSD = 0;
@@ -76,7 +76,7 @@ export function usePortfolioMonitoring() {
           apy = 0.05; // 5% savings APY
           break;
         case 'XAUT':
-          valueUSD = balance.amount * goldPrice.usd_per_oz;
+          valueUSD = goldPrice ? balance.amount * goldPrice.usd_per_oz : 0;
           apy = 0; // Gold doesn't yield
           break;
         case 'BTC':

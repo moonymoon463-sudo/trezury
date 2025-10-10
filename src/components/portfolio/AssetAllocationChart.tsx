@@ -43,6 +43,8 @@ export function AssetAllocationChart({ assets, loading = false }: AssetAllocatio
 
   function getAssetColor(asset: string): string {
     const colors: Record<string, string> = {
+      ETH: 'hsl(260, 83%, 66%)', // Purple
+      BTC: 'hsl(36, 100%, 50%)', // Orange
       USDC: 'hsl(213, 94%, 68%)', // Blue
       USDT: 'hsl(142, 76%, 36%)', // Green  
       DAI: 'hsl(45, 93%, 58%)', // Yellow

@@ -44,42 +44,50 @@ export function useWalletBalance() {
 
       setWalletAddress(address);
 
-      // Fetch all balances in parallel with retry logic
-      const fetchWithRetry = async (asset: string, attempts = 3): Promise<number> => {
-        for (let i = 0; i < attempts; i++) {
-          try {
-            const { data, error } = await supabase.functions.invoke('blockchain-operations', {
-              body: {
-                operation: 'get_balance',
-                address: address,
-                asset: asset
-              }
-            });
-            
-            if (error) throw error;
-            if (data?.success) return data.balance || 0;
-          } catch (err) {
-            console.warn(`Attempt ${i + 1}/${attempts} failed for ${asset}:`, err);
-            if (i < attempts - 1) {
-              await new Promise(r => setTimeout(r, 300 * Math.pow(2, i)));
+      // Fetch all balances in one call with retry logic
+      let allBalancesData = null;
+      retries = 3;
+      for (let i = 0; i < retries; i++) {
+        try {
+          const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+            body: { 
+              operation: 'get_all_balances', 
+              address
             }
-          }
-        }
-        return 0;
-      };
+          });
 
-      const [usdcBalance, xautBalance, trzryBalance, ethBalance] = await Promise.all([
-        fetchWithRetry('USDC'),
-        fetchWithRetry('XAUT'),
-        fetchWithRetry('TRZRY'),
-        fetchWithRetry('ETH')
-      ]);
+          if (error) throw error;
+          
+          if (!data?.success) {
+            throw new Error('Failed to fetch balances');
+          }
+
+          allBalancesData = data;
+          break; // Success, exit retry loop
+        } catch (err) {
+          console.warn(`Retry ${i + 1}/${retries} failed:`, err);
+          if (i === retries - 1) throw err;
+          await new Promise(resolve => setTimeout(resolve, 300 * Math.pow(2, i))); // Exponential backoff
+        }
+      }
+
+      if (!allBalancesData) {
+        console.error('Failed to fetch balances after retries');
+        setBalances([]);
+        setLoading(false);
+        return;
+      }
+
+      // Map the response to our balance format
+      const balancesMap = new Map(
+        allBalancesData.balances?.map((b: any) => [b.asset, b.balance]) || []
+      );
 
       const newBalances: WalletBalance[] = [
-        { asset: 'ETH', amount: ethBalance, chain: 'ethereum' },
-        { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
-        { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
-        { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' }
+        { asset: 'ETH', amount: Number(balancesMap.get('ETH') || 0), chain: 'ethereum' },
+        { asset: 'USDC', amount: Number(balancesMap.get('USDC') || 0), chain: 'ethereum' },
+        { asset: 'XAUT', amount: Number(balancesMap.get('XAUT') || 0), chain: 'ethereum' },
+        { asset: 'TRZRY', amount: Number(balancesMap.get('TRZRY') || 0), chain: 'ethereum' }
       ];
 
       console.log('💰 Setting balances:', newBalances);

@@ -995,6 +995,25 @@ serve(async (req) => {
             }
           }
           
+          // Special handling for ETH - native balance (not ERC-20)
+          if (asset === 'ETH') {
+            const ethBalance = await withRpcRetry(
+              () => provider.getBalance(address),
+              'ETH_getBalance'
+            );
+            const formattedBalance = parseFloat(ethers.formatEther(ethBalance));
+            
+            console.log(`LIVE ETH balance retrieved: ${formattedBalance} ETH`);
+            
+            result = {
+              success: true,
+              balance: formattedBalance,
+              asset,
+              address
+            };
+            break;
+          }
+          
           const contractAddress = await getContractAddress(asset, provider);
           const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
           
