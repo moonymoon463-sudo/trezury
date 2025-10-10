@@ -1285,6 +1285,170 @@ serve(async (req) => {
         }
         break;
 
+      case 'execute_0x_swap': {
+        let intentId: string | undefined;
+        try {
+          if (!authenticatedUserId) {
+            throw new Error('Authentication required for 0x swap execution');
+          }
+
+          const {
+            quote,
+            sellToken,
+            buyToken,
+            userAddress,
+            walletPassword,
+            quoteId,
+            intentId: bodyIntentId
+          } = body;
+
+          intentId = bodyIntentId;
+
+          console.log('🔄 Executing 0x swap:', {
+            sellToken,
+            buyToken,
+            userAddress,
+            intentId
+          });
+
+          // Update intent to validating
+          if (intentId) {
+            await supabase
+              .from('transaction_intents')
+              .update({ status: 'validating' })
+              .eq('id', intentId);
+          }
+
+          // Decrypt user's wallet
+          const { wallet: userWallet, error: walletError } = await resolveUserWallet(
+            authenticatedUserId,
+            walletPassword
+          );
+
+          if (!userWallet || walletError) {
+            throw new Error('Failed to decrypt wallet');
+          }
+
+          const provider = await getProvider();
+
+          // Check if approval is needed
+          let approvalTxHash: string | undefined;
+          if (quote.allowanceTarget !== '0x0000000000000000000000000000000000000000') {
+            const sellTokenAddress = quote.sellTokenAddress;
+            const tokenContract = new ethers.Contract(
+              sellTokenAddress,
+              ['function allowance(address owner, address spender) view returns (uint256)', 'function approve(address spender, uint256 amount) returns (bool)'],
+              userWallet
+            );
+
+            const currentAllowance = await tokenContract.allowance(userAddress, quote.allowanceTarget);
+            
+            if (currentAllowance < BigInt(quote.sellAmount)) {
+              console.log('📝 Approving 0x to spend tokens');
+              const approveTx = await tokenContract.approve(quote.allowanceTarget, quote.sellAmount);
+              const approvalReceipt = await approveTx.wait();
+              approvalTxHash = approvalReceipt.hash;
+              console.log('✅ Approval complete:', approvalTxHash);
+            }
+          }
+
+          // Update intent to swap_executing
+          if (intentId) {
+            await supabase
+              .from('transaction_intents')
+              .update({ 
+                status: 'swap_executing',
+                pull_tx_hash: approvalTxHash
+              })
+              .eq('id', intentId);
+          }
+
+          // Execute the 0x swap transaction
+          const swapTx = await userWallet.sendTransaction({
+            to: quote.to,
+            data: quote.data,
+            value: sellToken === 'ETH' ? quote.sellAmount : '0',
+            gasLimit: BigInt(quote.estimatedGas) * 120n / 100n // 20% buffer
+          });
+
+          console.log('⏳ Waiting for 0x swap confirmation:', swapTx.hash);
+          const swapReceipt = await swapTx.wait();
+          console.log('✅ 0x swap confirmed:', swapReceipt.hash);
+
+          // Create transaction record
+          const { data: txData, error: txError } = await supabase
+            .from('transactions')
+            .insert({
+              user_id: authenticatedUserId,
+              quote_id: quoteId,
+              type: 'swap',
+              asset: sellToken,
+              quantity: parseFloat(ethers.formatUnits(quote.sellAmount, TOKEN_ALLOWLIST[sellToken]?.decimals || 18)),
+              unit_price_usd: 0,
+              fee_usd: 0,
+              status: 'completed',
+              input_asset: sellToken,
+              output_asset: buyToken,
+              tx_hash: swapReceipt.hash,
+              metadata: {
+                provider: '0x',
+                approval_hash: approvalTxHash,
+                swap_hash: swapReceipt.hash,
+                platform_fee_bps: 80,
+                sources: quote.sources
+              }
+            })
+            .select()
+            .single();
+
+          if (txError) {
+            console.error('❌ Failed to create transaction record:', txError);
+          }
+
+          // Update intent to completed
+          if (intentId) {
+            await supabase
+              .from('transaction_intents')
+              .update({ 
+                status: 'completed',
+                swap_tx_hash: swapReceipt.hash,
+                disbursement_tx_hash: swapReceipt.hash
+              })
+              .eq('id', intentId);
+          }
+
+          result = {
+            success: true,
+            txHash: swapReceipt.hash,
+            transactionId: txData?.id,
+            intentId,
+            approvalTxHash,
+            provider: '0x',
+            sources: quote.sources
+          };
+
+        } catch (error) {
+          console.error('❌ 0x swap failed:', error);
+          
+          if (intentId) {
+            await supabase
+              .from('transaction_intents')
+              .update({ 
+                status: 'failed',
+                error_message: error instanceof Error ? error.message : 'Unknown error',
+                error_details: { error: String(error) }
+              })
+              .eq('id', intentId);
+          }
+
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Swap execution failed',
+            intentId
+          };
+        }
+        break;
+      }
 
       case 'execute_uniswap_swap': {
         let intentId: string | undefined;

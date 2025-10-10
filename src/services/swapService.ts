@@ -4,6 +4,8 @@ import { DexAggregatorService } from "./dexAggregatorService";
 import { secureWalletService } from "./secureWalletService";
 import { swapFeeService } from "./swapFeeService";
 import { safeSwapService } from "./safeSwapService";
+import { zeroXSwapService } from "./zeroXSwapService";
+import { ethers } from "ethers";
 
 export interface SwapQuote {
   id: string;
@@ -16,10 +18,12 @@ export interface SwapQuote {
   minimumReceived: number;
   expiresAt: string;
   route: {
-    provider: 'aurum' | 'dex';
+    provider: 'aurum' | 'dex' | '0x';
     goldPrice?: number;
     trzryPrice?: number;
     timestamp: string;
+    zeroXQuote?: any;
+    sources?: Array<{ name: string; proportion: string }>;
   };
 }
 
@@ -48,7 +52,7 @@ class SwapService {
   private readonly QUOTE_VALIDITY_MINUTES = 10; // 10 minutes for user review
 
   /**
-   * Generate swap quote between supported assets
+   * Generate swap quote between supported assets using 0x
    */
   async generateSwapQuote(
     inputAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC',
@@ -83,134 +87,40 @@ class SwapService {
         throw new Error('Swap pair not supported');
       }
 
-      let outputAmount: number;
-      let exchangeRate: number;
-      let provider: 'aurum' | 'dex' = 'aurum';
-      let priceSource: any = {};
-      let route: any[] = [];
-
-      // Calculate fee from input token BEFORE swap calculations
-      const feeCalc = swapFeeService.calculateSwapFee(inputAmount, inputAsset, outputAsset);
-      const netInputAmount = feeCalc.remainingAmount;
-
-      if ((inputAsset === 'USDC' && outputAsset === 'XAUT') || (inputAsset === 'XAUT' && outputAsset === 'USDC')) {
-        // Gold swaps - use existing gold price logic
-        const goldPrice = await goldPriceService.getCurrentPrice();
-        const goldPriceUsd = goldPrice.usd_per_gram;
-        priceSource.goldPrice = goldPriceUsd;
-        priceSource.timestamp = new Date(goldPrice.last_updated).toISOString();
-
-        if (inputAsset === 'USDC' && outputAsset === 'XAUT') {
-          // Buying gold with USDC (using net input after fee)
-          const goldPricePerOz = goldPriceUsd * 31.1035;
-          outputAmount = netInputAmount / goldPricePerOz;
-          exchangeRate = goldPricePerOz;
-        } else {
-          // Selling gold for USDC
-          const goldPricePerOz = goldPriceUsd * 31.1035;
-          const grossUsdAmount = inputAmount * goldPricePerOz;
-          const feeAmount = (grossUsdAmount * this.FEE_BPS) / 10000;
-          outputAmount = grossUsdAmount - feeAmount;
-          exchangeRate = goldPricePerOz;
-        }
-      } else if ((inputAsset === 'USDC' && outputAsset === 'TRZRY') || (inputAsset === 'TRZRY' && outputAsset === 'USDC')) {
-        // TRZRY swaps - use live market price from Uniswap V3
-        provider = 'dex';
-        const trzryPrice = await this.getTRZRYPrice();
-        priceSource.trzryPrice = trzryPrice;
-        priceSource.timestamp = new Date().toISOString();
-
-        if (inputAsset === 'USDC' && outputAsset === 'TRZRY') {
-          const feeAmount = (inputAmount * this.FEE_BPS) / 10000;
-          const netUsdAmount = inputAmount - feeAmount;
-          outputAmount = netUsdAmount / trzryPrice;
-          exchangeRate = trzryPrice;
-        } else {
-          const grossUsdAmount = inputAmount * trzryPrice;
-          const feeAmount = (grossUsdAmount * this.FEE_BPS) / 10000;
-          outputAmount = grossUsdAmount - feeAmount;
-          exchangeRate = trzryPrice;
-        }
-      } else if ((inputAsset === 'XAUT' && outputAsset === 'TRZRY') || (inputAsset === 'TRZRY' && outputAsset === 'XAUT')) {
-        // XAUT ↔ TRZRY direct swap
-        provider = 'dex';
-        
-        // Get live TRZRY price from Uniswap V3
-        const trzryPriceInUSDC = await this.getTRZRYPrice();
-        
-        // Get live XAUT price (gold price)
-        const goldPrice = await goldPriceService.getCurrentPrice();
-        const xautPriceInUSDC = goldPrice.usd_per_gram * 31.1035; // per oz
-        
-        priceSource.trzryPrice = trzryPriceInUSDC;
-        priceSource.xautPrice = xautPriceInUSDC;
-        priceSource.timestamp = new Date().toISOString();
-        
-        if (inputAsset === 'XAUT' && outputAsset === 'TRZRY') {
-          // XAUT → TRZRY: Calculate via USDC equivalent
-          const usdcValue = inputAmount * xautPriceInUSDC;
-          const feeAmount = (usdcValue * this.FEE_BPS) / 10000;
-          const netUsdcValue = usdcValue - feeAmount;
-          outputAmount = netUsdcValue / trzryPriceInUSDC;
-          exchangeRate = xautPriceInUSDC / trzryPriceInUSDC;
-        } else {
-          // TRZRY → XAUT: Calculate via USDC equivalent
-          const usdcValue = inputAmount * trzryPriceInUSDC;
-          const feeAmount = (usdcValue * this.FEE_BPS) / 10000;
-          const netUsdcValue = usdcValue - feeAmount;
-          outputAmount = netUsdcValue / xautPriceInUSDC;
-          exchangeRate = trzryPriceInUSDC / xautPriceInUSDC;
-        }
-      } else if (inputAsset === 'BTC' || outputAsset === 'BTC' || inputAsset === 'TRZRY' || outputAsset === 'TRZRY') {
-        // BTC or TRZRY swaps (not covered above) - use DEX aggregator for real-time pricing
-        provider = 'dex';
-        
-        console.log(`🔄 Getting DEX quote for ${inputAsset} → ${outputAsset}`);
-        const dexRoutes = await DexAggregatorService.getBestRoute(
-          inputAsset,
-          outputAsset,
-          netInputAmount,
-          this.SLIPPAGE_BPS / 100
-        );
-
-        if (!dexRoutes || dexRoutes.length === 0) {
-          throw new Error(`No DEX liquidity found for ${inputAsset}/${outputAsset}`);
-        }
-
-        const bestRoute = dexRoutes[0];
-        outputAmount = bestRoute.outputAmount;
-        exchangeRate = outputAmount / netInputAmount;
-        route = bestRoute.route;
-
-        console.log(`✅ DEX quote: ${netInputAmount} ${inputAsset} → ${outputAmount} ${outputAsset} (rate: ${exchangeRate})`);
-      } else if (inputAsset === 'ETH' || outputAsset === 'ETH') {
-        // ETH swaps - use DEX aggregator
-        provider = 'dex';
-        
-        console.log(`🔄 Getting DEX quote for ETH swap: ${inputAsset} → ${outputAsset}`);
-        const dexRoutes = await DexAggregatorService.getBestRoute(
-          inputAsset,
-          outputAsset,
-          netInputAmount,
-          this.SLIPPAGE_BPS / 100
-        );
-
-        if (!dexRoutes || dexRoutes.length === 0) {
-          throw new Error(`No DEX liquidity found for ${inputAsset}/${outputAsset}`);
-        }
-
-        const bestRoute = dexRoutes[0];
-        outputAmount = bestRoute.outputAmount;
-        exchangeRate = outputAmount / netInputAmount;
-        route = bestRoute.route;
-
-        console.log(`✅ DEX quote: ${netInputAmount} ${inputAsset} → ${outputAmount} ${outputAsset}`);
-      } else {
-        throw new Error('Unsupported asset pair');
+      // Get user wallet address for 0x quote
+      const userWalletAddress = await secureWalletService.getWalletAddress(userId);
+      if (!userWalletAddress) {
+        throw new Error('User wallet not found');
       }
 
-      const fee = feeCalc.feeAmount;
-      const minimumReceived = outputAmount * (1 - this.SLIPPAGE_BPS / 10000);
+      // Use 0x for all swaps - provides best pricing across 100+ DEXs
+      console.log('[SwapService] Getting 0x quote for swap:', { inputAsset, outputAsset, inputAmount });
+
+      const inputDecimals = zeroXSwapService.getTokenDecimals(inputAsset);
+      const outputDecimals = zeroXSwapService.getTokenDecimals(outputAsset);
+      const sellAmount = ethers.parseUnits(inputAmount.toString(), inputDecimals).toString();
+
+      const zeroXQuote = await zeroXSwapService.getQuote(
+        inputAsset,
+        outputAsset,
+        sellAmount,
+        userWalletAddress
+      );
+
+      const outputAmount = parseFloat(ethers.formatUnits(zeroXQuote.buyAmount, outputDecimals));
+      const exchangeRate = outputAmount / inputAmount;
+
+      console.log('[SwapService] 0x quote received:', {
+        outputAmount,
+        exchangeRate,
+        sources: zeroXQuote.sources
+      });
+
+      // Calculate fee (0.8% already included in 0x quote via buyTokenPercentageFee)
+      const fee = inputAmount * (this.FEE_BPS / 10000);
+
+      // 0x guaranteedPrice already includes slippage protection
+      const minimumReceived = parseFloat(ethers.formatUnits(zeroXQuote.guaranteedPrice, outputDecimals)) * inputAmount;
 
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + this.QUOTE_VALIDITY_MINUTES);
@@ -226,12 +136,14 @@ class SwapService {
         minimumReceived: Number(minimumReceived.toFixed(6)),
         expiresAt: expiresAt.toISOString(),
         route: {
-          provider,
-          ...priceSource
+          provider: '0x',
+          timestamp: new Date().toISOString(),
+          zeroXQuote,
+          sources: zeroXQuote.sources
         }
       };
 
-      // Store quote in the quotes table (reuse existing structure)
+      // Store quote in the quotes table
       await this.saveSwapQuote(quote, userId);
       
       return quote;
@@ -376,92 +288,48 @@ class SwapService {
       const { intentId, idempotencyKey } = intentResult;
       console.log(`[SwapService] 🔒 Intent created: ${intentId}`);
 
-      // Pass idempotency key to blockchain operations for server-side duplicate prevention
-      console.log(`[SwapService] Using idempotency key: ${idempotencyKey}`);
-      
-      // Update intent to validating status
-      await safeSwapService.updateIntentStatus(intentId, 'validating', {
-        validation_data: {
-          balance_checked: true,
-          quote_valid: true,
-          wallet_ready: true
-        }
-      });
-
-      // Get optimal DEX route with user's wallet address
-      console.log(`[SwapService] Finding best DEX route...`);
-      const routes = await DexAggregatorService.getBestRoute(
-        quoteData.input_asset,
-        quoteData.output_asset,
-        quoteData.input_amount,
-        this.SLIPPAGE_BPS / 100,
-        userWalletAddress
-      );
-
-      if (!routes || routes.length === 0) {
-        console.error('[SwapService] No swap routes available');
+      // Get 0x quote from saved quote data
+      const route = quoteData.route as any;
+      const zeroXQuote = route?.zeroXQuote;
+      if (!zeroXQuote) {
+        console.error('[SwapService] Missing 0x quote data');
         await safeSwapService.updateIntentStatus(intentId, 'validation_failed', {
-          error_message: 'No trading routes available',
-          error_details: { reason: 'no_routes_found' }
+          error_message: 'Missing 0x quote data',
+          error_details: { reason: 'invalid_quote' }
         });
         return {
           success: false,
-          error: 'No available swap routes found'
+          error: 'Invalid quote data. Please generate a new quote.'
         };
       }
 
-      const bestRoute = routes[0];
-      console.log(`[SwapService] Best route selected: ${bestRoute.protocol}`);
-      
-      // Execute swap through DEX aggregator with intent tracking and idempotency
-      const swapResult = await DexAggregatorService.executeOptimalSwap(
-        bestRoute,
+      // Execute swap through 0x
+      console.log('[SwapService] Executing swap via 0x...');
+      const swapResult = await zeroXSwapService.executeSwap(
+        zeroXQuote,
+        quoteData.input_asset,
+        quoteData.output_asset,
         userWalletAddress,
-        this.SLIPPAGE_BPS / 100,
         walletPassword,
         quoteId,
-        intentId, // Pass actual intent row ID
-        idempotencyKey // Pass idempotency key for duplicate detection
+        intentId
       );
 
       if (!swapResult.success) {
-        console.error('[SwapService] Swap execution failed:', swapResult.error);
-        // Intent status already updated by blockchain-operations
+        console.error('[SwapService] 0x swap execution failed:', swapResult.error);
         return {
           success: false,
-          error: swapResult.error || 'DEX swap execution failed',
-          requiresImport: swapResult.requiresImport,
-          requiresReconciliation: swapResult.requiresReconciliation,
-          requiresRefund: swapResult.requiresRefund,
-          refundTxHash: swapResult.refundTxHash,
-          hash: swapResult.txHash,
+          error: swapResult.error || 'Swap execution failed',
           intentId
         };
       }
-      
-      console.log('[SwapService] ✅ Swap executed successfully');
-      
-      // If reconciliation is required, return immediately (on-chain swap succeeded but DB write failed)
-      if (swapResult.requiresReconciliation) {
-        console.log('[SwapService] Swap succeeded on-chain but requires reconciliation');
-        return {
-          success: true,
-          requiresReconciliation: true,
-          hash: swapResult.txHash,
-          intentId,
-          transactionId: null // No DB record yet
-        };
-      }
 
-      // Intent status already updated to 'completed' by blockchain-operations
-      console.log('[SwapService] Returning success result');
+      console.log('[SwapService] ✅ 0x swap executed successfully');
       return {
         success: true,
-        transactionId: swapResult.transactionId,
+        transactionId: swapResult.txHash,
         hash: swapResult.txHash,
-        intentId,
-        netOutputAmount: swapResult.netOutputAmount,
-        relayFeeUsd: swapResult.relayFeeUsd
+        intentId
       };
     } catch (err) {
       console.error('Swap execution error:', err);
