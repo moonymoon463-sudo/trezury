@@ -174,6 +174,7 @@ export default function Portfolio() {
               loading={aiLoading}
               onRefresh={refreshAnalysis}
               portfolioAssets={portfolioAssets}
+              totalValue={totalValue}
             />
 
             {/* Performance Analytics */}

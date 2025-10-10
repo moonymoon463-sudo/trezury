@@ -21,9 +21,10 @@ interface AIInsightsPanelProps {
   loading: boolean;
   onRefresh: () => void;
   portfolioAssets: PortfolioAsset[];
+  totalValue?: number;
 }
 
-export function AIInsightsPanel({ insights, loading, onRefresh, portfolioAssets }: AIInsightsPanelProps) {
+export function AIInsightsPanel({ insights, loading, onRefresh, portfolioAssets, totalValue = 0 }: AIInsightsPanelProps) {
   const getInsightIcon = (type: AIInsight['type']) => {
     switch (type) {
       case 'allocation': return TrendingUp;
@@ -54,11 +55,18 @@ export function AIInsightsPanel({ insights, loading, onRefresh, portfolioAssets 
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Brain className="h-4 w-4 text-primary" />
-            AI Portfolio Insights
-            <Sparkles className="h-3 w-3 text-primary animate-pulse" />
-          </CardTitle>
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Brain className="h-4 w-4 text-primary" />
+              AI Portfolio Insights
+              <Sparkles className="h-3 w-3 text-primary animate-pulse" />
+            </CardTitle>
+            {totalValue > 0 && (
+              <p className="text-2xl font-bold mt-1">
+                ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="sm"
