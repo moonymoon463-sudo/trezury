@@ -23,12 +23,12 @@ type Chain = 'ethereum' | 'arbitrum';
 
 const AVAILABLE_ASSETS = [
   // Ethereum assets
-  { symbol: 'USDC' as const, name: 'USD Coin', color: 'bg-blue-600', chain: 'ethereum' as Chain },
-  { symbol: 'TRZRY' as const, name: 'Trezury', color: 'bg-green-600', chain: 'ethereum' as Chain },
+  { symbol: 'USDC' as const, name: 'USDC', color: 'bg-blue-600', chain: 'ethereum' as Chain },
+  { symbol: 'TRZRY' as const, name: 'TRZRY', color: 'bg-green-600', chain: 'ethereum' as Chain },
   
   // Arbitrum assets
-  { symbol: 'USDC_ARB' as const, name: 'USD Coin', color: 'bg-blue-600', chain: 'arbitrum' as Chain },
-  { symbol: 'XAUT_ARB' as const, name: 'Gold (XAUT)', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
+  { symbol: 'USDC_ARB' as const, name: 'USDC', color: 'bg-blue-600', chain: 'arbitrum' as Chain },
+  { symbol: 'XAUT_ARB' as const, name: 'XAUT', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
 ];
 
 const Swap = () => {
