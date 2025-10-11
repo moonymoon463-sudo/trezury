@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getTokenAddress } from "@/config/tokenAddresses";
+import { getTokenAddress, getTokenChainId } from "@/config/tokenAddresses";
 
 export interface GaslessQuote {
   chainId: number;
@@ -73,15 +73,18 @@ class ZeroXGaslessService {
   private readonly ZERO_X_API_URL = 'https://api.0x.org';
 
   /**
-   * Get the appropriate chain ID based on the asset
+   * Get the appropriate chain ID based on both assets
+   * Both assets must be on the same chain
    */
-  private getChainId(asset: string): number {
-    // Arbitrum for XAUT (and future Arbitrum assets)
-    if (asset === 'XAUT') {
-      return 42161; // Arbitrum One
+  private getChainId(sellToken: string, buyToken: string): number {
+    const sellChainId = getTokenChainId(sellToken);
+    const buyChainId = getTokenChainId(buyToken);
+    
+    if (sellChainId !== buyChainId) {
+      throw new Error(`Cross-chain swaps not supported: ${sellToken} (chain ${sellChainId}) -> ${buyToken} (chain ${buyChainId})`);
     }
-    // Ethereum for everything else (TRZRY, USDC, ETH)
-    return 1; // Ethereum Mainnet
+    
+    return sellChainId;
   }
 
   /**
@@ -93,23 +96,9 @@ class ZeroXGaslessService {
     sellAmount: string,
     userAddress: string
   ): Promise<GaslessQuote> {
-    const sellTokenAddress = getTokenAddress(sellToken);
-    const buyTokenAddress = getTokenAddress(buyToken);
-    const chainId = this.getChainId(sellToken);
+    const chainId = this.getChainId(sellToken, buyToken);
 
-    const params = new URLSearchParams({
-      chainId: chainId.toString(),
-      sellToken: sellTokenAddress,
-      buyToken: buyTokenAddress,
-      sellAmount: sellAmount,
-      taker: userAddress,
-      swapFeeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
-      swapFeeBps: '80', // 0.8% platform fee
-      swapFeeToken: buyToken, // Deduct fee from output
-      tradeSurplusRecipient: userAddress
-    });
-
-    console.log('Fetching 0x gasless quote:', {
+    console.log('Fetching 0x gasless quote via edge function:', {
       sellToken,
       buyToken,
       sellAmount,
@@ -117,27 +106,34 @@ class ZeroXGaslessService {
       chainId
     });
 
-    const response = await fetch(`${this.ZERO_X_API_URL}/gasless/quote?${params}`, {
-      headers: {
-        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || '',
-        '0x-version': 'v2'
+    const { data, error } = await supabase.functions.invoke('swap-0x-gasless', {
+      body: {
+        operation: 'get_quote',
+        sellToken,
+        buyToken,
+        sellAmount,
+        userAddress,
+        chainId
       }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('0x Gasless API error:', errorText);
-      throw new Error(`0x Gasless API error: ${response.statusText}`);
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(`Failed to get gasless quote: ${error.message}`);
     }
 
-    const quote = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to get gasless quote');
+    }
+
     console.log('0x gasless quote received:', {
-      buyAmount: quote.buyAmount,
-      price: quote.price,
-      fees: quote.fees
+      buyAmount: data.quote.buyAmount,
+      price: data.quote.price,
+      fees: data.quote.fees,
+      chainId: data.quote.chainId
     });
 
-    return quote;
+    return data.quote;
   }
 
   /**
@@ -149,57 +145,53 @@ class ZeroXGaslessService {
     quoteId: string,
     intentId: string
   ): Promise<GaslessSubmitResult> {
-    console.log('Submitting gasless swap to 0x');
+    console.log('Submitting gasless swap via edge function');
 
-    const chainId = quote.chainId;
-
-    const response = await fetch(`${this.ZERO_X_API_URL}/gasless/submit`, {
-      method: 'POST',
-      headers: {
-        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || '',
-        '0x-version': 'v2',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        chainId,
+    const { data, error } = await supabase.functions.invoke('swap-0x-gasless', {
+      body: {
+        operation: 'submit_swap',
         quote,
         signature,
         quoteId,
         intentId
-      })
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('0x submit error:', errorText);
-      throw new Error(`Failed to submit gasless swap: ${response.statusText}`);
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(`Failed to submit swap: ${error.message}`);
     }
 
-    const result = await response.json();
-    console.log('Gasless swap submitted:', result);
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to submit swap');
+    }
 
-    return result;
+    console.log('Gasless swap submitted:', data.result);
+
+    return data.result;
   }
 
   /**
    * Check the status of a gasless swap
    */
   async getSwapStatus(tradeHash: string): Promise<GaslessStatusResult> {
-    const response = await fetch(`${this.ZERO_X_API_URL}/gasless/status/${tradeHash}`, {
-      headers: {
-        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || '',
-        '0x-version': 'v2'
+    const { data, error } = await supabase.functions.invoke('swap-0x-gasless', {
+      body: {
+        operation: 'get_status',
+        tradeHash
       }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('0x status check error:', errorText);
-      throw new Error(`Failed to check swap status: ${response.statusText}`);
+    if (error) {
+      console.error('Edge function error:', error);
+      throw new Error(`Failed to check status: ${error.message}`);
     }
 
-    const status = await response.json();
-    return status;
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to check status');
+    }
+
+    return data.status;
   }
 
   /**

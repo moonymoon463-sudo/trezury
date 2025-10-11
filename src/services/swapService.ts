@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { zeroXGaslessService, GaslessQuote } from "./zeroXGaslessService";
 import { swapFeeService } from "./swapFeeService";
-import { secureWalletService } from "./secureWalletService";
+import { walletSigningService } from "./walletSigningService";
 import { ethers } from "ethers";
 
 export interface SwapQuote {
@@ -153,16 +153,6 @@ class SwapService {
         throw new Error('Wallet not found');
       }
 
-      // Derive wallet from password
-      const privateKey = await secureWalletService['derivePrivateKey'](userId, walletPassword);
-      
-      const provider = new ethers.JsonRpcProvider(
-        gaslessQuote.chainId === 42161 
-          ? 'https://arb1.arbitrum.io/rpc'
-          : 'https://eth.llamarpc.com'
-      );
-      const wallet = new ethers.Wallet(privateKey, provider);
-
       // Create transaction record
       const intentId = crypto.randomUUID();
 
@@ -172,7 +162,10 @@ class SwapService {
         
         if (gaslessQuote.approval) {
           // Sign approval permit if needed
-          signature = await wallet.signTypedData(
+          signature = await walletSigningService.signTypedData(
+            userId,
+            walletPassword,
+            gaslessQuote.chainId,
             gaslessQuote.approval.eip712.domain,
             gaslessQuote.approval.eip712.types,
             gaslessQuote.approval.eip712.message
@@ -181,7 +174,10 @@ class SwapService {
         
         if (gaslessQuote.trade) {
           // Sign trade permit
-          signature = await wallet.signTypedData(
+          signature = await walletSigningService.signTypedData(
+            userId,
+            walletPassword,
+            gaslessQuote.chainId,
             gaslessQuote.trade.eip712.domain,
             gaslessQuote.trade.eip712.types,
             gaslessQuote.trade.eip712.message
@@ -189,7 +185,7 @@ class SwapService {
         }
 
         if (!signature) {
-          throw new Error('No signature generated');
+          throw new Error('No signature generated - quote may not require permits');
         }
 
         // Submit to 0x gasless endpoint
@@ -210,29 +206,38 @@ class SwapService {
         if (statusResult.status === 'confirmed' && statusResult.transactions.length > 0) {
           const txHash = statusResult.transactions[0].hash;
 
-          // Record transaction
+          // Record transaction with proper schema
           const { error: txError } = await supabase
             .from('transactions')
             .insert({
               user_id: userId,
-              asset: quoteData.input_asset,
+              asset: quoteData.output_asset, // Asset received
               type: 'swap',
               status: 'completed',
-              quantity: quoteData.input_amount,
+              quantity: quoteData.output_amount, // Output amount
+              unit_price_usd: quoteData.unit_price_usd || 0,
+              fee_usd: quoteData.fee_bps || 80,
               transaction_hash: txHash,
               input_asset: quoteData.input_asset,
               output_asset: quoteData.output_asset,
+              metadata: {
+                chainId: gaslessQuote.chainId,
+                tradeHash: submitResult.tradeHash,
+                gasless: true,
+                quoteId
+              },
               created_at: new Date().toISOString()
             });
 
-          // Record fee collection
+          // Record fee collection with proper transaction ID
           const feeCalculation = swapFeeService.calculateSwapFee(
             quoteData.input_amount,
             quoteData.input_asset as any,
             quoteData.output_asset as any
           );
 
-          await swapFeeService.recordSwapFeeCollection(userId, intentId, feeCalculation);
+          // Note: Fee recording uses the txHash as the transaction reference
+          await swapFeeService.recordSwapFeeCollection(userId, txHash, feeCalculation);
 
           return {
             success: true,

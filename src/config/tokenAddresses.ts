@@ -34,11 +34,11 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     chainId: 1
   },
   XAUT: {
-    address: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold on Ethereum (will migrate to Arbitrum)
+    address: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold on Ethereum mainnet
     decimals: 6,
     symbol: 'XAUT',
-    chain: 'arbitrum', // XAUT available on Arbitrum
-    chainId: 42161
+    chain: 'ethereum',
+    chainId: 1
   },
   TRZRY: {
     address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
@@ -53,6 +53,21 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     symbol: 'BTC',
     chain: 'ethereum',
     chainId: 1
+  },
+  // Arbitrum tokens
+  'USDC_ARB': {
+    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Native USDC on Arbitrum
+    decimals: 6,
+    symbol: 'USDC',
+    chain: 'arbitrum',
+    chainId: 42161
+  },
+  'ETH_ARB': {
+    address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // Native ETH on Arbitrum
+    decimals: 18,
+    symbol: 'ETH',
+    chain: 'arbitrum',
+    chainId: 42161
   }
 };
 
