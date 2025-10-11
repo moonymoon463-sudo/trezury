@@ -60,6 +60,7 @@ import SupportTickets from "./pages/SupportTickets";
 import AdminSupport from "./pages/AdminSupport";
 import AdminReferrals from "./pages/AdminReferrals";
 import AdminAirdrops from "./pages/AdminAirdrops";
+import AdminContractDeploy from "./pages/AdminContractDeploy";
 import RealTimeSystemMonitor from "./components/admin/RealTimeSystemMonitor";
 import WebhookMonitoringDashboard from "./components/admin/WebhookMonitoringDashboard";
 import SwapAnalyticsDashboard from "./components/admin/SwapAnalyticsDashboard";
@@ -134,6 +135,7 @@ const AppRoutes = () => {
       <Route path="/admin/system-monitor" element={<ProtectedRoute><RealTimeSystemMonitor /></ProtectedRoute>} />
       <Route path="/admin/webhooks" element={<ProtectedRoute><WebhookMonitoringDashboard /></ProtectedRoute>} />
       <Route path="/admin/swap-analytics" element={<ProtectedRoute><SwapAnalyticsDashboard /></ProtectedRoute>} />
+      <Route path="/admin/deploy-contract" element={<ProtectedRoute><AdminContractDeploy /></ProtectedRoute>} />
       <Route path="/admin/alerts" element={<ProtectedRoute><AlertManagementSystem /></ProtectedRoute>} />
       <Route path="/admin/capacity-planning" element={<ProtectedRoute><CapacityPlanningDashboard /></ProtectedRoute>} />
       <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />

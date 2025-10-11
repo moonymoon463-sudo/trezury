@@ -2408,6 +2408,48 @@ serve(async (req) => {
         break;
       }
 
+      case 'deploy_gelato_contract': {
+        try {
+          if (!isAdmin) {
+            throw new Error('Admin privileges required for contract deployment');
+          }
+
+          console.log('🚀 Deploying GelatoSwapRelay contract...');
+
+          // Call the contract-deployment function
+          const deployResponse = await supabase.functions.invoke('contract-deployment', {
+            body: { operation: 'deploy_gelato_relay' }
+          });
+
+          if (deployResponse.error) {
+            throw new Error(`Deployment failed: ${deployResponse.error.message}`);
+          }
+
+          const deployData = deployResponse.data;
+
+          if (!deployData.success) {
+            throw new Error(deployData.error || 'Deployment failed');
+          }
+
+          console.log('✅ Contract deployed successfully:', deployData.contractAddress);
+
+          result = {
+            success: true,
+            contractAddress: deployData.contractAddress,
+            transactionHash: deployData.transactionHash,
+            etherscanUrl: deployData.etherscanUrl,
+            message: 'GelatoSwapRelay contract deployed and address stored as secret'
+          };
+        } catch (error) {
+          console.error('Contract deployment failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Deployment failed'
+          };
+        }
+        break;
+      }
+
       default:
         throw new Error(`Unknown operation: ${body.operation}`);
     }
