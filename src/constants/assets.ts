@@ -28,8 +28,8 @@ export const ASSETS = {
     unit: 'oz',
     gramsPerOz: 31.1035,
     decimals: 6,
-    chain: 'arbitrum' as const, // XAUT on Arbitrum
-    chainId: 42161,
+    chain: 'ethereum' as const, // XAUT on Ethereum mainnet
+    chainId: 1,
   },
   TRZRY: {
     symbol: 'TRZRY',

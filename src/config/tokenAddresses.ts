@@ -19,6 +19,13 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     chain: 'ethereum',
     chainId: 1
   },
+  XAUT: {
+    address: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold on Ethereum
+    decimals: 6,
+    symbol: 'XAUT',
+    chain: 'ethereum',
+    chainId: 1
+  },
   TRZRY: {
     address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
     decimals: 18,
