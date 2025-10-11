@@ -208,12 +208,11 @@ export class DexAggregatorService {
         };
       }
 
-      console.log(`🎉 0x swap completed:`, result.hash);
+      console.log(`🎉 0x swap completed:`, result.txHash);
 
       return { 
         success: true, 
-        txHash: result.hash,
-        transactionId: result.transactionId
+        txHash: result.txHash
       };
       
     } catch (error) {

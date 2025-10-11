@@ -216,24 +216,14 @@ const Swap = () => {
       );
       
       setQuote(newQuote);
-
-      // Estimate Gelato fee if gasless mode enabled
-      if (useGasless && newQuote.route.zeroXQuote) {
-        try {
-          const { gelatoSwapService } = await import('@/services/gelatoSwapService');
-          const feeEstimate = await gelatoSwapService.estimateGaslessSwapCost(
-            newQuote.route.zeroXQuote,
-            toAsset
-          );
-          setGelatoFeeEstimate(feeEstimate.gelatoFeeInTokens);
-        } catch (err) {
-          console.error('Failed to estimate Gelato fee:', err);
-        }
-      }
+      
+      // Estimate gasless fee (0x includes this in quote)
+      const estimatedFee = newQuote.outputAmount * 0.005; // ~0.5%
+      setGelatoFeeEstimate(estimatedFee);
       
       toast({
         title: "Quote Generated",
-        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${toAsset}${useGasless ? ` (minus ~${gelatoFeeEstimate.toFixed(4)} ${toAsset} Gelato fee)` : ''}`
+        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${toAsset} (minus ~${estimatedFee.toFixed(4)} ${toAsset} relay fee)`
       });
     } catch (error) {
       console.error('Quote generation error:', error);
@@ -288,70 +278,23 @@ const Swap = () => {
       const result = await swapService.executeSwap(quote.id, user.id, walletPassword, useGasless);
       
       if (result.success) {
-        // Start monitoring transaction status with intentId
-        if (result.intentId) {
-          setActiveIntentId(result.intentId);
-          
-          const toastTitle = (result as any).requiresMonitoring 
-            ? "Monitoring Existing Swap" 
-            : "Swap Initiated";
-          const toastDescription = (result as any).requiresMonitoring
-            ? "A swap is already in progress, monitoring status..."
-            : "Monitoring transaction status...";
-          
-          toast({
-            title: toastTitle,
-            description: toastDescription,
-          });
-          // Keep loading state - will be cleared by transaction monitor
-        } else {
-          // Legacy path - no intent tracking
-          console.log('✅ Swap completed (legacy path)');
-          toast({
-            title: "Swap Successful! 🎉",
-            description: "Transaction completed successfully",
-          });
-          await refreshBalances();
-          setFromAmount('');
-          setQuote(null);
-          setAutoQuote(null);
-          setLoading(false);
-        }
+        console.log('✅ Swap completed successfully');
+        toast({
+          title: "Swap Successful! 🎉",
+          description: "Transaction completed successfully",
+        });
+        await refreshBalances();
+        setFromAmount('');
+        setQuote(null);
+        setAutoQuote(null);
+        setLoading(false);
       } else {
         console.error('❌ Swap failed:', result.error);
-        
-        // Check for reconciliation requirement
-        if (result.requiresReconciliation && result.hash) {
-          toast({
-            title: "Swap Completed - Updating Records",
-            description: (
-              <div className="space-y-2">
-                <p>✅ Your swap succeeded on the blockchain!</p>
-                <p className="text-xs">Tx: {result.hash.slice(0, 10)}...{result.hash.slice(-8)}</p>
-                <p className="text-xs font-medium">💾 Recording transaction... Your balance will update automatically.</p>
-                <a 
-                  href={`https://etherscan.io/tx/${result.hash}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-xs underline text-primary"
-                >
-                  View on Etherscan →
-                </a>
-              </div>
-            ),
-            duration: 15000,
-          });
-          setTimeout(() => refreshBalances(), 2000);
-          setLoading(false);
-          return;
-        }
         
         // Enhanced error messages
         let errorMessage = result.error || "Swap execution failed";
         
-        if (result.requiresImport) {
-          errorMessage = "Please import your wallet key to sign transactions. Go to Settings > Wallet Management.";
-        } else if (errorMessage.includes("password")) {
+        if (errorMessage.includes("password")) {
           errorMessage = "Invalid wallet password. Please try again.";
         } else if (errorMessage.includes("insufficient")) {
           errorMessage = "Insufficient balance for swap and gas fees";
@@ -632,21 +575,21 @@ const Swap = () => {
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Platform Fee (0.8%)</span>
                 <span className="text-base text-foreground md:text-sm">
-                  {quote.fee.toFixed(6)} {fromAsset}
+                  {quote.platformFee.toFixed(6)} {toAsset}
                 </span>
               </div>
               
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
-                <span className="text-base text-foreground md:text-sm">Gas Fee (Relay)</span>
+                <span className="text-base text-foreground md:text-sm">Network Fee (Gasless)</span>
                 <span className="text-base text-green-600 md:text-sm font-medium">
-                  ~${(quote as any).estimatedRelayFeeUsd?.toFixed(2) || '1.50'} (paid by relay)
+                  ~{quote.networkFee.toFixed(4)} {toAsset} (deducted from output)
                 </span>
               </div>
               
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Minimum Received</span>
                 <span className="text-base text-foreground md:text-sm">
-                  {quote.minimumReceived.toFixed(6)} {toAsset}
+                  {(quote.outputAmount * 0.995).toFixed(6)} {toAsset}
                 </span>
               </div>
 

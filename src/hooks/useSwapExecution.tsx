@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { swapService, SwapResult } from '@/services/swapService';
 
 export interface SwapExecutionOptions {
-  useGasless?: boolean;
-  gaslessMode?: 'syncfee' | 'sponsored';
+  useGasless?: boolean; // Always true now with 0x Gasless API
 }
 
 export const useSwapExecution = () => {
@@ -21,16 +20,20 @@ export const useSwapExecution = () => {
       setLoading(true);
       setError(null);
 
-      // Pass gasless option to swap service
+      // 0x Gasless API is now default (always gasless)
       const result = await swapService.executeSwap(
         quoteId, 
         userId, 
         walletPassword, 
-        options?.useGasless || false
+        true // Always use gasless with 0x Gasless API
       );
       
       if (!result.success) {
         setError(result.error || 'Swap execution failed');
+      }
+
+      if (result.gelatoTaskId) {
+        setGelatoTaskId(result.gelatoTaskId);
       }
 
       return result;

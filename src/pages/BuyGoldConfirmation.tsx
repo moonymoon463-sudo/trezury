@@ -175,12 +175,10 @@ const BuyGoldConfirmation = () => {
           </div>
         </div>
 
-        {/* Gasless Swap Toggle */}
+        {/* Gasless Swap Info */}
         <GaslessSwapToggle 
-          enabled={gaslessEnabled}
-          onToggle={setGaslessEnabled}
-          estimatedFee={gaslessEnabled ? "~0.5%" : undefined}
-          estimatedFeeUSD={gaslessEnabled ? `~$${(quote.outputAmount * 0.005).toFixed(2)}` : undefined}
+          estimatedFee="~0.5%"
+          estimatedFeeUSD={`~$${(quote.outputAmount * 0.005).toFixed(2)}`}
         />
 
         {/* Risk Disclosure */}
