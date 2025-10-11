@@ -12,20 +12,6 @@ export interface TokenConfig {
 }
 
 export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
-  ETH: {
-    address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // Native ETH representation for 0x API
-    decimals: 18,
-    symbol: 'ETH',
-    chain: 'ethereum',
-    chainId: 1
-  },
-  WETH: {
-    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // Wrapped ETH
-    decimals: 18,
-    symbol: 'WETH',
-    chain: 'ethereum',
-    chainId: 1
-  },
   USDC: {
     address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     decimals: 6,
@@ -33,24 +19,10 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     chain: 'ethereum',
     chainId: 1
   },
-  XAUT: {
-    address: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold on Ethereum mainnet
-    decimals: 6,
-    symbol: 'XAUT',
-    chain: 'ethereum',
-    chainId: 1
-  },
   TRZRY: {
     address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
     decimals: 18,
     symbol: 'TRZRY',
-    chain: 'ethereum', // TRZRY on Ethereum mainnet
-    chainId: 1
-  },
-  BTC: {
-    address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', // WBTC
-    decimals: 8,
-    symbol: 'BTC',
     chain: 'ethereum',
     chainId: 1
   },
@@ -62,10 +34,10 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     chain: 'arbitrum',
     chainId: 42161
   },
-  'ETH_ARB': {
-    address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // Native ETH on Arbitrum
-    decimals: 18,
-    symbol: 'ETH',
+  'XAUT_ARB': {
+    address: '0x40461291347e1ecbb09499f3371d3f17f10d7159', // Tether Gold on Arbitrum
+    decimals: 6,
+    symbol: 'XAUT',
     chain: 'arbitrum',
     chainId: 42161
   }

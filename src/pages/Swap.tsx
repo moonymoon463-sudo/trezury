@@ -22,11 +22,13 @@ import AppLayout from "@/components/AppLayout";
 type Chain = 'ethereum' | 'arbitrum';
 
 const AVAILABLE_ASSETS = [
-  { symbol: 'ETH' as const, name: 'Ethereum', color: 'bg-purple-600', chain: 'ethereum' as Chain },
+  // Ethereum assets
   { symbol: 'USDC' as const, name: 'USD Coin', color: 'bg-blue-600', chain: 'ethereum' as Chain },
-  { symbol: 'XAUT' as const, name: 'Gold', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
-  { symbol: 'TRZRY' as const, name: 'Trzry', color: 'bg-green-600', chain: 'ethereum' as Chain },
-  { symbol: 'BTC' as const, name: 'Bitcoin', color: 'bg-orange-600', chain: 'ethereum' as Chain },
+  { symbol: 'TRZRY' as const, name: 'Trezury', color: 'bg-green-600', chain: 'ethereum' as Chain },
+  
+  // Arbitrum assets
+  { symbol: 'USDC_ARB' as const, name: 'USD Coin', color: 'bg-blue-600', chain: 'arbitrum' as Chain },
+  { symbol: 'XAUT_ARB' as const, name: 'Gold (XAUT)', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
 ];
 
 const Swap = () => {
@@ -38,8 +40,8 @@ const Swap = () => {
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
   const [currentChain, setCurrentChain] = useState<Chain>('ethereum');
-  const [fromAsset, setFromAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'>('USDC');
-  const [toAsset, setToAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'>('XAUT');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('TRZRY');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -83,10 +85,12 @@ const Swap = () => {
     
     // Handle URL parameters for pre-selecting assets
     const toParam = searchParams.get('to');
-    if (toParam && ['ETH', 'USDC', 'XAUT', 'TRZRY', 'BTC'].includes(toParam)) {
-      setToAsset(toParam as 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC');
-      if (toParam === 'TRZRY' || toParam === 'BTC') {
-        setFromAsset('USDC'); // Default to USDC when buying TRZRY or BTC
+    if (toParam && ['USDC', 'TRZRY', 'USDC_ARB', 'XAUT_ARB'].includes(toParam)) {
+      setToAsset(toParam as 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB');
+      if (toParam === 'TRZRY') {
+        setFromAsset('USDC');
+      } else if (toParam === 'XAUT_ARB') {
+        setFromAsset('USDC_ARB');
       }
     }
   }, [user, secureWalletAddress, getWalletAddress, searchParams, refreshBalances]);
@@ -94,7 +98,7 @@ const Swap = () => {
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
+  const getNetworkForAsset = (asset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
     const assetConfig = AVAILABLE_ASSETS.find(a => a.symbol === asset);
     return assetConfig?.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
   };
@@ -138,7 +142,7 @@ const Swap = () => {
     return () => clearTimeout(timer);
   }, [fromAmount, fromAsset, toAsset, user]);
 
-  const handleFromAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
+  const handleFromAssetChange = (newAsset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
     if (newAsset === toAsset) {
       setToAsset(fromAsset);
     }
@@ -147,7 +151,7 @@ const Swap = () => {
     setAutoQuote(null);
   };
 
-  const handleToAssetChange = (newAsset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
+  const handleToAssetChange = (newAsset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
     if (newAsset === fromAsset) {
       setFromAsset(toAsset);
     }
@@ -347,7 +351,7 @@ const Swap = () => {
                   {currentChain === 'ethereum' ? 'Ethereum' : 'Arbitrum'} Network
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {currentChain === 'ethereum' ? 'For TRZRY, ETH, BTC, USDC' : 'For XAUT (Gold)'}
+                  {currentChain === 'ethereum' ? 'For TRZRY ↔ USDC swaps' : 'For XAUT ↔ USDC swaps'}
                 </div>
               </div>
             </div>
@@ -360,8 +364,13 @@ const Swap = () => {
                 // Reset selections when switching chains
                 const availableAssets = getAvailableAssets(newChain);
                 if (availableAssets.length > 0) {
-                  setFromAsset(availableAssets[0].symbol);
-                  setToAsset(availableAssets[1]?.symbol || availableAssets[0].symbol);
+                  if (newChain === 'ethereum') {
+                    setFromAsset('USDC');
+                    setToAsset('TRZRY');
+                  } else {
+                    setFromAsset('USDC_ARB');
+                    setToAsset('XAUT_ARB');
+                  }
                 }
                 toast({
                   title: `Switched to ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
@@ -426,7 +435,7 @@ const Swap = () => {
         <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">From</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {fromAsset}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT_ARB' ? 6 : 2)} {fromAsset}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={fromAsset} onValueChange={handleFromAssetChange}>
@@ -488,7 +497,7 @@ const Swap = () => {
           <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">To</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {toAsset}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT_ARB' ? 6 : 2)} {toAsset}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={toAsset} onValueChange={handleToAssetChange}>
@@ -532,16 +541,6 @@ const Swap = () => {
                 readOnly
               />
             </div>
-            {fromAsset === 'XAUT' && toAsset === 'TRZRY' && (
-              <div className="text-xs text-muted-foreground mt-2">
-                💡 Swap powered by 0x Protocol (aggregated best price)
-              </div>
-            )}
-            {fromAsset === 'TRZRY' && toAsset === 'XAUT' && (
-              <div className="text-xs text-muted-foreground mt-2">
-                💡 Swap powered by 0x Protocol (aggregated best price)
-              </div>
-            )}
           </div>
         </div>
 
@@ -569,7 +568,7 @@ const Swap = () => {
             <>
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Exchange Rate</span>
-                <span className="text-base text-foreground md:text-sm">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
+                <span className="text-base text-foreground md:text-sm">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT_ARB' ? 'oz' : 'unit'}</span>
               </div>
               
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
@@ -605,12 +604,6 @@ const Swap = () => {
 
         {/* Bottom Button */}
         <div className="pt-3 md:pt-2 space-y-2">
-          {fromAsset === 'ETH' && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
-              ⚠️ ETH as input is not yet supported (gasless model). Swap USDC → ETH is fully supported.
-            </div>
-          )}
-          
           {!secureWalletAddress ? (
             <Button 
               onClick={() => navigate("/wallet")}
@@ -622,7 +615,7 @@ const Swap = () => {
           ) : (
             <Button 
               onClick={quote ? handleExecuteSwap : handlePreviewSwap}
-              disabled={loading || !fromAmount || fromAsset === 'ETH'}
+              disabled={loading || !fromAmount}
               className="w-full h-14 md:h-12 bg-primary text-primary-foreground font-bold text-lg md:text-base rounded-xl hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? (quote ? "Executing Swap..." : "Generating Quote...") : quote ? "Execute Swap" : "Preview Swap"}

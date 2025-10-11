@@ -67,14 +67,7 @@ class BatchBalanceManager {
 
       // Fallback to individual calls if batch fails
       console.warn('Batch balance fetch failed, falling back to individual calls');
-      const [ethResult, usdcResult, xautResult, trzryResult] = await Promise.allSettled([
-        supabase.functions.invoke('blockchain-operations', {
-          body: {
-            operation: 'get_balance',
-            address: address,
-            asset: 'ETH'
-          }
-        }),
+      const [usdcResult, trzryResult, usdcArbResult, xautArbResult] = await Promise.allSettled([
         supabase.functions.invoke('blockchain-operations', {
           body: {
             operation: 'get_balance',
@@ -86,40 +79,47 @@ class BatchBalanceManager {
           body: {
             operation: 'get_balance',
             address: address,
-            asset: 'XAUT'
+            asset: 'TRZRY'
           }
         }),
         supabase.functions.invoke('blockchain-operations', {
           body: {
             operation: 'get_balance',
             address: address,
-            asset: 'TRZRY'
+            asset: 'USDC_ARB'
+          }
+        }),
+        supabase.functions.invoke('blockchain-operations', {
+          body: {
+            operation: 'get_balance',
+            address: address,
+            asset: 'XAUT_ARB'
           }
         })
       ]);
 
-      const ethBalance = ethResult.status === 'fulfilled' && ethResult.value.data?.success 
-        ? ethResult.value.data.balance : 0;
       const usdcBalance = usdcResult.status === 'fulfilled' && usdcResult.value.data?.success 
         ? usdcResult.value.data.balance : 0;
-      const xautBalance = xautResult.status === 'fulfilled' && xautResult.value.data?.success 
-        ? xautResult.value.data.balance : 0;
       const trzryBalance = trzryResult.status === 'fulfilled' && trzryResult.value.data?.success 
         ? trzryResult.value.data.balance : 0;
+      const usdcArbBalance = usdcArbResult.status === 'fulfilled' && usdcArbResult.value.data?.success 
+        ? usdcArbResult.value.data.balance : 0;
+      const xautArbBalance = xautArbResult.status === 'fulfilled' && xautArbResult.value.data?.success 
+        ? xautArbResult.value.data.balance : 0;
 
       return [
-        { asset: 'ETH', amount: ethBalance, chain: 'ethereum' },
         { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
-        { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
-        { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' }
+        { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' },
+        { asset: 'USDC_ARB', amount: usdcArbBalance, chain: 'arbitrum' },
+        { asset: 'XAUT_ARB', amount: xautArbBalance, chain: 'arbitrum' }
       ];
     } catch (error) {
       console.error('Batch balance fetch failed:', error);
       return [
-        { asset: 'ETH', amount: 0, chain: 'ethereum' },
         { asset: 'USDC', amount: 0, chain: 'ethereum' },
-        { asset: 'XAUT', amount: 0, chain: 'ethereum' },
-        { asset: 'TRZRY', amount: 0, chain: 'ethereum' }
+        { asset: 'TRZRY', amount: 0, chain: 'ethereum' },
+        { asset: 'USDC_ARB', amount: 0, chain: 'arbitrum' },
+        { asset: 'XAUT_ARB', amount: 0, chain: 'arbitrum' }
       ];
     }
   }
@@ -233,10 +233,8 @@ export function useOptimizedWalletBalance() {
   // Memoized total value calculation with real-time prices
   const totalValue = useMemo(() => {
     return balances.reduce((total, balance) => {
-      if (balance.asset === 'USDC') return total + balance.amount;
-      if (balance.asset === 'XAUT') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
-      if (balance.asset === 'ETH') return total + (balance.amount * (cryptoPrices?.ETH || 0));
-      if (balance.asset === 'BTC') return total + (balance.amount * (cryptoPrices?.BTC || 0));
+      if (balance.asset === 'USDC' || balance.asset === 'USDC_ARB') return total + balance.amount;
+      if (balance.asset === 'XAUT_ARB') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
       if (balance.asset === 'TRZRY') return total + balance.amount;
       return total;
     }, 0);
