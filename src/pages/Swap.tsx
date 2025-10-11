@@ -39,9 +39,9 @@ const Swap = () => {
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
-  const [currentChain, setCurrentChain] = useState<Chain>('ethereum');
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('USDC');
-  const [toAsset, setToAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('TRZRY');
+  const [currentChain, setCurrentChain] = useState<Chain>('arbitrum');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('USDC_ARB');
+  const [toAsset, setToAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('XAUT_ARB');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -83,14 +83,20 @@ const Swap = () => {
       refreshBalances();
     }
     
-    // Handle URL parameters for pre-selecting assets
+    // Handle URL parameters for pre-selecting assets and chain
     const toParam = searchParams.get('to');
     if (toParam && ['USDC', 'TRZRY', 'USDC_ARB', 'XAUT_ARB'].includes(toParam)) {
       setToAsset(toParam as 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB');
+      
+      // Switch chain based on asset
       if (toParam === 'TRZRY') {
+        setCurrentChain('ethereum');
         setFromAsset('USDC');
+        setToAsset('TRZRY');
       } else if (toParam === 'XAUT_ARB') {
+        setCurrentChain('arbitrum');
         setFromAsset('USDC_ARB');
+        setToAsset('XAUT_ARB');
       }
     }
   }, [user, secureWalletAddress, getWalletAddress, searchParams, refreshBalances]);
