@@ -1252,8 +1252,8 @@ serve(async (req) => {
             }
           }
           
-          // Fetch balances from both Ethereum and Arbitrum in parallel
-          const assetsToFetch = ['ETH', 'USDC', 'TRZRY', 'USDC_ARB', 'XAUT_ARB'];
+    // Fetch balances from both Ethereum and Arbitrum in parallel
+    const assetsToFetch = ['ETH', 'USDC', 'XAUT', 'TRZRY', 'USDC_ARB', 'XAUT_ARB'];
           const balancePromises = assetsToFetch.map(asset => getBalanceForAsset(asset));
           const balances = await Promise.all(balancePromises);
           

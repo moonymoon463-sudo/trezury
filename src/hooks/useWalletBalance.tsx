@@ -91,6 +91,7 @@ export function useWalletBalance() {
       const newBalances: WalletBalance[] = [
         { asset: 'ETH', amount: Number(balancesMap.get('ETH')?.balance || 0), chain: 'ethereum' },
         { asset: 'USDC', amount: Number(balancesMap.get('USDC')?.balance || 0), chain: 'ethereum' },
+        { asset: 'XAUT', amount: Number(balancesMap.get('XAUT')?.balance || 0), chain: 'ethereum' },
         { asset: 'TRZRY', amount: Number(balancesMap.get('TRZRY')?.balance || 0), chain: 'ethereum' },
         { asset: 'USDC', amount: Number(balancesMap.get('USDC_ARB')?.balance || 0), chain: 'arbitrum' },
         { asset: 'XAUT', amount: Number(balancesMap.get('XAUT_ARB')?.balance || 0), chain: 'arbitrum' }

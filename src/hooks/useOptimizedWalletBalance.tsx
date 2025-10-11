@@ -67,6 +67,7 @@ class BatchBalanceManager {
         return [
           { asset: 'ETH', amount: balancesMap.get('ETH')?.balance || 0, chain: 'ethereum' },
           { asset: 'USDC', amount: balancesMap.get('USDC')?.balance || 0, chain: 'ethereum' },
+          { asset: 'XAUT', amount: balancesMap.get('XAUT')?.balance || 0, chain: 'ethereum' },
           { asset: 'TRZRY', amount: balancesMap.get('TRZRY')?.balance || 0, chain: 'ethereum' },
           { asset: 'USDC', amount: balancesMap.get('USDC_ARB')?.balance || 0, chain: 'arbitrum' },
           { asset: 'XAUT', amount: balancesMap.get('XAUT_ARB')?.balance || 0, chain: 'arbitrum' }
@@ -75,12 +76,19 @@ class BatchBalanceManager {
 
       // Fallback to individual calls if batch fails
       console.warn('Batch balance fetch failed, falling back to individual calls');
-      const [usdcResult, trzryResult, usdcArbResult, xautArbResult] = await Promise.allSettled([
+      const [usdcResult, xautResult, trzryResult, usdcArbResult, xautArbResult] = await Promise.allSettled([
         supabase.functions.invoke('blockchain-operations', {
           body: {
             operation: 'get_balance',
             address: address,
             asset: 'USDC'
+          }
+        }),
+        supabase.functions.invoke('blockchain-operations', {
+          body: {
+            operation: 'get_balance',
+            address: address,
+            asset: 'XAUT'
           }
         }),
         supabase.functions.invoke('blockchain-operations', {
@@ -108,6 +116,8 @@ class BatchBalanceManager {
 
       const usdcBalance = usdcResult.status === 'fulfilled' && usdcResult.value.data?.success 
         ? usdcResult.value.data.balance : 0;
+      const xautBalance = xautResult.status === 'fulfilled' && xautResult.value.data?.success 
+        ? xautResult.value.data.balance : 0;
       const trzryBalance = trzryResult.status === 'fulfilled' && trzryResult.value.data?.success 
         ? trzryResult.value.data.balance : 0;
       const usdcArbBalance = usdcArbResult.status === 'fulfilled' && usdcArbResult.value.data?.success 
@@ -117,17 +127,19 @@ class BatchBalanceManager {
 
       return [
         { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
+        { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
         { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' },
-        { asset: 'USDC_ARB', amount: usdcArbBalance, chain: 'arbitrum' },
-        { asset: 'XAUT_ARB', amount: xautArbBalance, chain: 'arbitrum' }
+        { asset: 'USDC', amount: usdcArbBalance, chain: 'arbitrum' },
+        { asset: 'XAUT', amount: xautArbBalance, chain: 'arbitrum' }
       ];
     } catch (error) {
       console.error('Batch balance fetch failed:', error);
       return [
         { asset: 'USDC', amount: 0, chain: 'ethereum' },
+        { asset: 'XAUT', amount: 0, chain: 'ethereum' },
         { asset: 'TRZRY', amount: 0, chain: 'ethereum' },
-        { asset: 'USDC_ARB', amount: 0, chain: 'arbitrum' },
-        { asset: 'XAUT_ARB', amount: 0, chain: 'arbitrum' }
+        { asset: 'USDC', amount: 0, chain: 'arbitrum' },
+        { asset: 'XAUT', amount: 0, chain: 'arbitrum' }
       ];
     }
   }

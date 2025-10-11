@@ -24,6 +24,7 @@ type Chain = 'ethereum' | 'arbitrum';
 const AVAILABLE_ASSETS = [
   // Ethereum assets
   { symbol: 'USDC' as const, name: 'USDC', color: 'bg-blue-600', chain: 'ethereum' as Chain },
+  { symbol: 'XAUT' as const, name: 'XAUT', color: 'bg-yellow-600', chain: 'ethereum' as Chain },
   { symbol: 'TRZRY' as const, name: 'TRZRY', color: 'bg-green-600', chain: 'ethereum' as Chain },
   
   // Arbitrum assets
@@ -40,8 +41,8 @@ const Swap = () => {
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
   const [currentChain, setCurrentChain] = useState<Chain>('arbitrum');
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('USDC_ARB');
-  const [toAsset, setToAsset] = useState<'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('XAUT_ARB');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('USDC_ARB');
+  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('XAUT_ARB');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -104,13 +105,13 @@ const Swap = () => {
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
     const assetConfig = AVAILABLE_ASSETS.find(a => a.symbol === asset);
     return assetConfig?.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
   };
 
   // Helper to get clean display name (removes _ARB suffix)
-  const getDisplayName = (asset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+  const getDisplayName = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
     if (asset === 'USDC_ARB') return 'USDC';
     if (asset === 'XAUT_ARB') return 'XAUT';
     return asset;
