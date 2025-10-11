@@ -27,13 +27,13 @@ function getChainRPCs(chain: string): string[] {
   
   const rpcs: Record<string, (string | null)[]> = {
     ethereum: [
-      infuraKey ? `https://sepolia.infura.io/v3/${infuraKey}` : null,
-      alchemyKey ? `https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}` : null,
-      ankrKey ? `https://rpc.ankr.com/eth_sepolia/${ankrKey}` : null,
-      'https://rpc.sepolia.org',
-      'https://ethereum-sepolia-rpc.publicnode.com',
-      'https://sepolia.gateway.tenderly.co',
-      'https://rpc.sepolia.dev'
+      infuraKey ? `https://mainnet.infura.io/v3/${infuraKey}` : null,
+      alchemyKey ? `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}` : null,
+      ankrKey ? `https://rpc.ankr.com/eth/${ankrKey}` : null,
+      'https://eth.llamarpc.com',
+      'https://rpc.ankr.com/eth',
+      'https://ethereum-rpc.publicnode.com',
+      'https://cloudflare-eth.com'
     ].filter(Boolean)
   };
 
@@ -47,9 +47,9 @@ function getAuthenticatedRpcUrls(chain: string): string[] {
 
   const authenticatedRpcs: string[] = [];
   
-  if (infuraKey) authenticatedRpcs.push(`https://sepolia.infura.io/v3/${infuraKey}`);
-  if (alchemyKey) authenticatedRpcs.push(`https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`);
-  if (ankrKey) authenticatedRpcs.push(`https://rpc.ankr.com/eth_sepolia/${ankrKey}`);
+  if (infuraKey) authenticatedRpcs.push(`https://mainnet.infura.io/v3/${infuraKey}`);
+  if (alchemyKey) authenticatedRpcs.push(`https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`);
+  if (ankrKey) authenticatedRpcs.push(`https://rpc.ankr.com/eth/${ankrKey}`);
 
   return authenticatedRpcs;
 }
@@ -159,7 +159,7 @@ serve(async (req) => {
 async function handleDeploy(chain: string, contracts: any, supabase: any) {
   if (!validateDeploymentChain(chain)) {
     return new Response(JSON.stringify({
-      error: `Unsupported deployment chain: ${chain}. Only 'ethereum' (Sepolia testnet) is supported.`
+      error: `Unsupported deployment chain: ${chain}. Only 'ethereum' (Mainnet) is supported.`
     }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -474,6 +474,21 @@ async function handleDeployGelatoRelay(network: string, supabase: any) {
 
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const deployerWallet = wallet.connect(provider);
+
+    // Verify we're on mainnet
+    const network = await provider.getNetwork();
+    console.log(`🌐 Connected to network: ${network.name} (chainId: ${network.chainId})`);
+
+    if (network.chainId !== 1n) {
+      return new Response(JSON.stringify({
+        error: 'Wrong network',
+        expected: 'Ethereum Mainnet (chainId: 1)',
+        actual: `${network.name} (chainId: ${network.chainId})`
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
 
     // Check balance
     const balance = await provider.getBalance(wallet.address);
