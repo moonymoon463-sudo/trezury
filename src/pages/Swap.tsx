@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2, Coins } from "lucide-react";
+import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -347,61 +347,48 @@ const Swap = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center ${
-                currentChain === 'ethereum' ? 'bg-gradient-to-br from-purple-500 to-blue-600' : 'bg-gradient-to-br from-yellow-500 to-amber-600'
+                currentChain === 'ethereum' ? 'bg-gradient-to-br from-purple-500 to-blue-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'
               }`}>
-                {currentChain === 'ethereum' ? (
-                  <span className="text-white text-sm font-bold md:text-xs">ETH</span>
-                ) : (
-                  <Coins className="text-white" size={20} />
-                )}
+                <span className="text-white text-sm font-bold md:text-xs">
+                  {currentChain === 'ethereum' ? 'ETH' : 'ARB'}
+                </span>
               </div>
               <div>
-                <div className={`font-semibold text-foreground ${
-                  currentChain === 'ethereum' ? 'text-sm md:text-xs' : 'text-xs md:text-[10px]'
-                }`}>
-                  {currentChain === 'ethereum' ? 'Ethereum Network' : 'Arbitrum Network'}
+                <div className="text-sm font-semibold text-foreground md:text-xs">
+                  {currentChain === 'ethereum' ? 'Ethereum' : 'Arbitrum'} Network
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {currentChain === 'ethereum' ? 'For TRZRY ↔ USDC swaps' : 'For XAUT ↔ USDC swaps'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {currentChain === 'arbitrum' && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  For XAUT ↔ USDC swap
-                </span>
-              )}
-              {currentChain === 'ethereum' && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  For TRZRY ↔ USDC swaps
-                </span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const newChain = currentChain === 'ethereum' ? 'arbitrum' : 'ethereum';
-                  setCurrentChain(newChain);
-                  // Reset selections when switching chains
-                  const availableAssets = getAvailableAssets(newChain);
-                  if (availableAssets.length > 0) {
-                    if (newChain === 'ethereum') {
-                      setFromAsset('USDC');
-                      setToAsset('TRZRY');
-                    } else {
-                      setFromAsset('USDC_ARB');
-                      setToAsset('XAUT_ARB');
-                    }
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newChain = currentChain === 'ethereum' ? 'arbitrum' : 'ethereum';
+                setCurrentChain(newChain);
+                // Reset selections when switching chains
+                const availableAssets = getAvailableAssets(newChain);
+                if (availableAssets.length > 0) {
+                  if (newChain === 'ethereum') {
+                    setFromAsset('USDC');
+                    setToAsset('TRZRY');
+                  } else {
+                    setFromAsset('USDC_ARB');
+                    setToAsset('XAUT_ARB');
                   }
-                  toast({
-                    title: `Switched to ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
-                    description: `Now showing ${newChain} assets`,
-                  });
-                }}
-                className="gap-2"
-              >
-                <Repeat2 size={14} />
-                Switch
-              </Button>
-            </div>
+                }
+                toast({
+                  title: `Switched to ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
+                  description: `Now showing ${newChain} assets`,
+                });
+              }}
+              className="gap-2"
+            >
+              <Repeat2 size={14} />
+              Switch
+            </Button>
           </div>
         </div>
 
