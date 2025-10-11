@@ -103,6 +103,13 @@ const Swap = () => {
     return assetConfig?.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
   };
 
+  // Helper to get clean display name (removes _ARB suffix)
+  const getDisplayName = (asset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+    if (asset === 'USDC_ARB') return 'USDC';
+    if (asset === 'XAUT_ARB') return 'XAUT';
+    return asset;
+  };
+
   // Get available assets filtered by current chain
   const getAvailableAssets = (chain: Chain) => {
     return AVAILABLE_ASSETS.filter(asset => asset.chain === chain);
@@ -203,7 +210,7 @@ const Swap = () => {
       toast({
         variant: "destructive", 
         title: "Insufficient Balance",
-        description: `You don't have enough ${fromAsset}`
+        description: `You don't have enough ${getDisplayName(fromAsset)}`
       });
       return;
     }
@@ -227,7 +234,7 @@ const Swap = () => {
       
       toast({
         title: "Quote Generated",
-        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${toAsset} (minus ~${estimatedFee.toFixed(4)} ${toAsset} relay fee)`
+        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${getDisplayName(toAsset)} (minus ~${estimatedFee.toFixed(4)} ${getDisplayName(toAsset)} relay fee)`
       });
     } catch (error) {
       console.error('Quote generation error:', error);
@@ -423,7 +430,7 @@ const Swap = () => {
             </div>
             {useGasless && quote && gelatoFeeEstimate > 0 && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                Relay fee: ~{gelatoFeeEstimate.toFixed(4)} {toAsset} deducted from output
+                Relay fee: ~{gelatoFeeEstimate.toFixed(4)} {getDisplayName(toAsset)} deducted from output
               </p>
             )}
           </div>
@@ -435,7 +442,7 @@ const Swap = () => {
         <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">From</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT_ARB' ? 6 : 2)} {fromAsset}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT_ARB' ? 6 : 2)} {getDisplayName(fromAsset)}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={fromAsset} onValueChange={handleFromAssetChange}>
@@ -444,11 +451,11 @@ const Swap = () => {
                     <div className={`w-10 h-10 md:w-8 md:h-8 ${
                       AVAILABLE_ASSETS.find(a => a.symbol === fromAsset)?.color
                     } rounded-full flex items-center justify-center`}>
-                      <span className="text-white text-sm font-bold md:text-xs">{fromAsset}</span>
+                      <span className="text-white text-sm font-bold md:text-xs">{getDisplayName(fromAsset)}</span>
                     </div>
               <div className="flex items-center gap-2">
                 <div>
-                  <span className="text-foreground text-lg font-bold md:text-base">{fromAsset}</span>
+                  <span className="text-foreground text-lg font-bold md:text-base">{getDisplayName(fromAsset)}</span>
                   <div className="text-sm text-muted-foreground md:text-xs">
                     {getNetworkForAsset(fromAsset)}
                   </div>
@@ -461,10 +468,10 @@ const Swap = () => {
                     <SelectItem key={asset.symbol} value={asset.symbol}>
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 ${asset.color} rounded-full flex items-center justify-center`}>
-                          <span className="text-white text-xs font-bold">{asset.symbol}</span>
+                          <span className="text-white text-xs font-bold">{getDisplayName(asset.symbol)}</span>
                         </div>
                         <div>
-                          <div className="font-medium">{asset.symbol}</div>
+                          <div className="font-medium">{getDisplayName(asset.symbol)}</div>
                           <div className="text-xs text-muted-foreground">{asset.name}</div>
                         </div>
                       </div>
@@ -497,7 +504,7 @@ const Swap = () => {
           <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">To</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT_ARB' ? 6 : 2)} {toAsset}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT_ARB' ? 6 : 2)} {getDisplayName(toAsset)}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={toAsset} onValueChange={handleToAssetChange}>
@@ -506,11 +513,11 @@ const Swap = () => {
                     <div className={`w-10 h-10 md:w-8 md:h-8 ${
                       AVAILABLE_ASSETS.find(a => a.symbol === toAsset)?.color
                     } rounded-full flex items-center justify-center`}>
-                      <span className="text-white text-sm font-bold md:text-xs">{toAsset}</span>
+                      <span className="text-white text-sm font-bold md:text-xs">{getDisplayName(toAsset)}</span>
                     </div>
               <div className="flex items-center gap-2">
                 <div>
-                  <span className="text-foreground text-lg font-bold md:text-base">{toAsset}</span>
+                  <span className="text-foreground text-lg font-bold md:text-base">{getDisplayName(toAsset)}</span>
                   <div className="text-sm text-muted-foreground md:text-xs">
                     {getNetworkForAsset(toAsset)}
                   </div>
@@ -523,10 +530,10 @@ const Swap = () => {
                     <SelectItem key={asset.symbol} value={asset.symbol}>
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 ${asset.color} rounded-full flex items-center justify-center`}>
-                          <span className="text-white text-xs font-bold">{asset.symbol}</span>
+                          <span className="text-white text-xs font-bold">{getDisplayName(asset.symbol)}</span>
                         </div>
                         <div>
-                          <div className="font-medium">{asset.symbol}</div>
+                          <div className="font-medium">{getDisplayName(asset.symbol)}</div>
                           <div className="text-xs text-muted-foreground">{asset.name}</div>
                         </div>
                       </div>
