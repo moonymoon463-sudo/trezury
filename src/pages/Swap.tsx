@@ -44,6 +44,8 @@ const Swap = () => {
   const [autoQuoteLoading, setAutoQuoteLoading] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
+  const [useGasless, setUseGasless] = useState(true); // Default to gasless
+  const [gelatoFeeEstimate, setGelatoFeeEstimate] = useState<number>(0);
 
   // Monitor transaction status with real-time updates
   useTransactionMonitor({
@@ -194,10 +196,24 @@ const Swap = () => {
       );
       
       setQuote(newQuote);
+
+      // Estimate Gelato fee if gasless mode enabled
+      if (useGasless && newQuote.route.zeroXQuote) {
+        try {
+          const { gelatoSwapService } = await import('@/services/gelatoSwapService');
+          const feeEstimate = await gelatoSwapService.estimateGaslessSwapCost(
+            newQuote.route.zeroXQuote,
+            toAsset
+          );
+          setGelatoFeeEstimate(feeEstimate.gelatoFeeInTokens);
+        } catch (err) {
+          console.error('Failed to estimate Gelato fee:', err);
+        }
+      }
       
       toast({
         title: "Quote Generated",
-        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${toAsset}`
+        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${toAsset}${useGasless ? ` (minus ~${gelatoFeeEstimate.toFixed(4)} ${toAsset} Gelato fee)` : ''}`
       });
     } catch (error) {
       console.error('Quote generation error:', error);
@@ -247,9 +263,9 @@ const Swap = () => {
       setLoading(true);
       setShowPasswordPrompt(false);
       
-      // Execute the swap transaction with wallet password
-      console.log('🔄 Executing swap transaction...');
-      const result = await swapService.executeSwap(quote.id, user.id, walletPassword);
+      // Execute the swap transaction with wallet password (or gasless)
+      console.log(`🔄 Executing ${useGasless ? 'GASLESS' : 'traditional'} swap transaction...`);
+      const result = await swapService.executeSwap(quote.id, user.id, walletPassword, useGasless);
       
       if (result.success) {
         // Start monitoring transaction status with intentId
@@ -352,17 +368,49 @@ const Swap = () => {
       className="flex flex-col h-full overflow-hidden"
     >
       <div className="flex-1 flex flex-col px-4 sm:px-5 py-4 space-y-3 md:px-6 md:py-3 md:space-y-3 max-w-none w-full md:max-w-4xl mx-auto">
-        {/* Wallet Status */}
-        {secureWalletAddress && (
-          <div className="bg-card p-3 rounded-lg md:p-2">
-            <div className="flex items-center gap-2">
-              <Wallet size={16} className="text-primary md:w-3.5 md:h-3.5" />
-              <span className="text-sm text-foreground md:text-xs">
-                Wallet: {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
-              </span>
+        {/* Wallet & Gasless Status */}
+        <div className="flex flex-col gap-2 md:gap-1">
+          {secureWalletAddress && (
+            <div className="bg-card p-3 rounded-lg md:p-2">
+              <div className="flex items-center gap-2">
+                <Wallet size={16} className="text-primary md:w-3.5 md:h-3.5" />
+                <span className="text-sm text-foreground md:text-xs">
+                  Wallet: {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
+                </span>
+              </div>
             </div>
+          )}
+          
+          {/* Gasless Toggle */}
+          <div className="bg-card p-3 rounded-lg md:p-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground md:text-xs">
+                  ⚡ Gasless Swap
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {useGasless ? 'No ETH needed' : 'Requires ETH for gas'}
+                </span>
+              </div>
+              <label className="relative inline-block w-10 h-5 md:w-8 md:h-4">
+                <input
+                  type="checkbox"
+                  checked={useGasless}
+                  onChange={(e) => setUseGasless(e.target.checked)}
+                  className="opacity-0 w-0 h-0 peer"
+                />
+                <span className="absolute cursor-pointer inset-0 bg-muted rounded-full transition-colors peer-checked:bg-primary">
+                  <span className="absolute left-0.5 top-0.5 h-4 w-4 md:h-3 md:w-3 bg-white rounded-full transition-transform peer-checked:translate-x-5 md:peer-checked:translate-x-4" />
+                </span>
+              </label>
+            </div>
+            {useGasless && quote && gelatoFeeEstimate > 0 && (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Relay fee: ~{gelatoFeeEstimate.toFixed(4)} {toAsset} deducted from output
+              </p>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Swap Interface */}
         <div className="relative flex flex-col gap-2 md:gap-1">

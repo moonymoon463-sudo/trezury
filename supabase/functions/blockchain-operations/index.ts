@@ -3382,6 +3382,134 @@ serve(async (req) => {
         result = await executeSimplifiedSwap(body, userWallet, provider);
         break;
 
+      case 'estimate_gelato_fee': {
+        // Estimate Gelato relay fee for a swap
+        try {
+          const { quote, outputAsset } = body;
+          
+          // Import Gelato helpers
+          const { estimateGelatoFee } = await import('./gelato-helpers.ts');
+          
+          const estimatedGas = BigInt(quote.estimatedGas || '300000');
+          const { feeWei, feeInBuyToken } = await estimateGelatoFee(
+            provider,
+            quote.sellTokenAddress,
+            quote.buyTokenAddress,
+            estimatedGas
+          );
+          
+          const outputAmount = parseFloat(ethers.formatUnits(quote.buyAmount, 18));
+          const feeInTokens = parseFloat(ethers.formatUnits(feeInBuyToken || feeWei, 18));
+          const costPercent = (feeInTokens / outputAmount) * 100;
+          
+          result = {
+            success: true,
+            feeInTokens,
+            feeUSD: parseFloat(ethers.formatEther(feeWei)) * 2500, // Simplified
+            netOutput: outputAmount - feeInTokens,
+            costPercent
+          };
+        } catch (error) {
+          console.error('Gelato fee estimation failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Fee estimation failed'
+          };
+        }
+        break;
+      }
+      
+      case 'execute_gelato_swap': {
+        // Execute gasless swap via Gelato Relay
+        try {
+          const { mode, quote, inputAsset, outputAsset, userAddress, quoteId, intentId } = body;
+          
+          const GELATO_CONTRACT_ADDRESS = Deno.env.get('GELATO_SWAP_CONTRACT_ADDRESS');
+          if (!GELATO_CONTRACT_ADDRESS) {
+            throw new Error('GELATO_SWAP_CONTRACT_ADDRESS not configured. Please deploy the GelatoSwapRelay contract first.');
+          }
+          
+          console.log(`⚡ Executing Gelato ${mode} swap for user ${userAddress}`);
+          
+          // Import Gelato helpers
+          const { submitToGelatoRelay } = await import('./gelato-helpers.ts');
+          
+          // Encode the swap call for GelatoSwapRelay contract
+          const GELATO_SWAP_ABI = [
+            'function executeSwapWithSyncFee(address,bytes,address,address,uint256)',
+            'function executeSwapSponsored(address,bytes,address,address,uint256)'
+          ];
+          
+          const contractInterface = new ethers.Interface(GELATO_SWAP_ABI);
+          const functionName = mode === 'syncfee' ? 'executeSwapWithSyncFee' : 'executeSwapSponsored';
+          
+          const callData = contractInterface.encodeFunctionData(
+            functionName,
+            [
+              quote.to, // 0x swap target
+              quote.data, // 0x swap calldata
+              quote.sellTokenAddress,
+              quote.buyTokenAddress,
+              quote.sellAmount
+            ]
+          );
+          
+          // Submit to Gelato Relay
+          const gelatoResult = await submitToGelatoRelay(
+            GELATO_CONTRACT_ADDRESS,
+            callData,
+            userAddress,
+            mode,
+            quote.buyTokenAddress, // Fee token (for SyncFee)
+            undefined // Sponsor API key (optional)
+          );
+          
+          if (!gelatoResult.success) {
+            // Update intent to failed
+            await supabase
+              .from('transaction_intents')
+              .update({
+                status: 'failed',
+                error_message: gelatoResult.error,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', intentId);
+            
+            result = {
+              success: false,
+              error: gelatoResult.error || 'Gelato relay submission failed'
+            };
+            break;
+          }
+          
+          // Update intent to processing
+          await supabase
+            .from('transaction_intents')
+            .update({
+              status: 'broadcasting',
+              metadata: { gelato_task_id: gelatoResult.taskId },
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', intentId);
+          
+          console.log(`✅ Gelato task submitted: ${gelatoResult.taskId}`);
+          
+          result = {
+            success: true,
+            taskId: gelatoResult.taskId,
+            intentId,
+            mode
+          };
+        } catch (error) {
+          console.error('Gelato swap execution failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Gelato swap failed'
+          };
+        }
+        break;
+      }
+
       default:
         throw new Error(`Unknown operation: ${body.operation}`);
     }

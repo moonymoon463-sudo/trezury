@@ -155,8 +155,14 @@ class SwapService {
 
   /**
    * Execute swap transaction
+   * @param useGasless Enable Gelato gasless swap (no ETH needed)
    */
-  async executeSwap(quoteId: string, userId: string, walletPassword: string): Promise<SwapResult> {
+  async executeSwap(
+    quoteId: string, 
+    userId: string, 
+    walletPassword: string,
+    useGasless: boolean = false
+  ): Promise<SwapResult> {
     try {
       console.log(`[SwapService] Starting swap execution for quote: ${quoteId}, user: ${userId}`);
       
@@ -303,34 +309,68 @@ class SwapService {
         };
       }
 
-      // Execute swap through 0x
-      console.log('[SwapService] Executing swap via 0x...');
-      const swapResult = await zeroXSwapService.executeSwap(
-        zeroXQuote,
-        quoteData.input_asset,
-        quoteData.output_asset,
-        userWalletAddress,
-        walletPassword,
-        quoteId,
-        intentId
-      );
+      // Execute swap - choose gasless or traditional
+      if (useGasless) {
+        console.log('[SwapService] ⚡ Executing GASLESS swap via Gelato...');
+        const { gelatoSwapService } = await import('./gelatoSwapService');
+        
+        const gelatoResult = await gelatoSwapService.executeGaslessSwap(
+          zeroXQuote,
+          quoteData.input_asset,
+          quoteData.output_asset,
+          userWalletAddress,
+          quoteId,
+          intentId,
+          'syncfee' // User pays fee from output tokens
+        );
 
-      if (!swapResult.success) {
-        console.error('[SwapService] 0x swap execution failed:', swapResult.error);
+        if (!gelatoResult.success) {
+          console.error('[SwapService] Gelato swap failed:', gelatoResult.error);
+          return {
+            success: false,
+            error: gelatoResult.error || 'Gasless swap failed',
+            intentId
+          };
+        }
+
+        console.log('[SwapService] ✅ Gelato gasless swap successful');
         return {
-          success: false,
-          error: swapResult.error || 'Swap execution failed',
+          success: true,
+          transactionId: gelatoResult.txHash,
+          hash: gelatoResult.txHash,
+          intentId,
+          gasFeePaidInTokens: true
+        };
+      } else {
+        // Traditional swap - user pays gas in ETH
+        console.log('[SwapService] Executing traditional swap via 0x...');
+        const swapResult = await zeroXSwapService.executeSwap(
+          zeroXQuote,
+          quoteData.input_asset,
+          quoteData.output_asset,
+          userWalletAddress,
+          walletPassword,
+          quoteId,
+          intentId
+        );
+
+        if (!swapResult.success) {
+          console.error('[SwapService] 0x swap execution failed:', swapResult.error);
+          return {
+            success: false,
+            error: swapResult.error || 'Swap execution failed',
+            intentId
+          };
+        }
+
+        console.log('[SwapService] ✅ 0x swap executed successfully');
+        return {
+          success: true,
+          transactionId: swapResult.txHash,
+          hash: swapResult.txHash,
           intentId
         };
       }
-
-      console.log('[SwapService] ✅ 0x swap executed successfully');
-      return {
-        success: true,
-        transactionId: swapResult.txHash,
-        hash: swapResult.txHash,
-        intentId
-      };
     } catch (err) {
       console.error('Swap execution error:', err);
       return {
