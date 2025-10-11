@@ -82,16 +82,18 @@ export function useWalletBalance() {
         return;
       }
 
-      // Map the response to our balance format
-      const balancesMap = new Map(
-        allBalancesData.balances?.map((b: any) => [b.asset, b.balance]) || []
+      // Map the response to our balance format - now includes both chains
+      interface BalanceResponse { balance: number; chain: string; asset: string }
+      const balancesMap = new Map<string, BalanceResponse>(
+        allBalancesData.balances?.map((b: any) => [b.asset, b as BalanceResponse]) || []
       );
 
       const newBalances: WalletBalance[] = [
-        { asset: 'ETH', amount: Number(balancesMap.get('ETH') || 0), chain: 'ethereum' },
-        { asset: 'USDC', amount: Number(balancesMap.get('USDC') || 0), chain: 'ethereum' },
-        { asset: 'XAUT', amount: Number(balancesMap.get('XAUT') || 0), chain: 'ethereum' },
-        { asset: 'TRZRY', amount: Number(balancesMap.get('TRZRY') || 0), chain: 'ethereum' }
+        { asset: 'ETH', amount: Number(balancesMap.get('ETH')?.balance || 0), chain: 'ethereum' },
+        { asset: 'USDC', amount: Number(balancesMap.get('USDC')?.balance || 0), chain: 'ethereum' },
+        { asset: 'TRZRY', amount: Number(balancesMap.get('TRZRY')?.balance || 0), chain: 'ethereum' },
+        { asset: 'USDC', amount: Number(balancesMap.get('USDC_ARB')?.balance || 0), chain: 'arbitrum' },
+        { asset: 'XAUT', amount: Number(balancesMap.get('XAUT_ARB')?.balance || 0), chain: 'arbitrum' }
       ];
 
       console.log('💰 Setting balances:', newBalances);
@@ -111,6 +113,14 @@ export function useWalletBalance() {
   const getBalance = useCallback((asset: string): number => {
     const balance = balances.find(b => b.asset === asset);
     return balance?.amount || 0;
+  }, [balances]);
+
+  const getAggregatedBalance = useCallback((asset: string): number => {
+    // Sum balances across all chains for the same asset
+    const total = balances
+      .filter(b => b.asset === asset)
+      .reduce((sum, b) => sum + b.amount, 0);
+    return total;
   }, [balances]);
 
   const totalValue = balances.reduce((total, balance) => {
@@ -137,5 +147,6 @@ export function useWalletBalance() {
     refreshBalances,
     fetchBalances,
     getBalance,
+    getAggregatedBalance,
   };
 }

@@ -58,11 +58,19 @@ class BatchBalanceManager {
       if (error) throw error;
 
       if (batchResult?.success && batchResult?.balances) {
-        return batchResult.balances.map((balance: any) => ({
-          asset: balance.asset,
-          amount: balance.balance || 0,
-          chain: 'ethereum'
-        }));
+        // Map multi-chain balances correctly
+        interface BalanceResponse { balance: number; chain: string; asset: string }
+        const balancesMap = new Map<string, BalanceResponse>(
+          batchResult.balances.map((b: any) => [b.asset, b as BalanceResponse])
+        );
+        
+        return [
+          { asset: 'ETH', amount: balancesMap.get('ETH')?.balance || 0, chain: 'ethereum' },
+          { asset: 'USDC', amount: balancesMap.get('USDC')?.balance || 0, chain: 'ethereum' },
+          { asset: 'TRZRY', amount: balancesMap.get('TRZRY')?.balance || 0, chain: 'ethereum' },
+          { asset: 'USDC', amount: balancesMap.get('USDC_ARB')?.balance || 0, chain: 'arbitrum' },
+          { asset: 'XAUT', amount: balancesMap.get('XAUT_ARB')?.balance || 0, chain: 'arbitrum' }
+        ];
       }
 
       // Fallback to individual calls if batch fails
@@ -230,11 +238,19 @@ export function useOptimizedWalletBalance() {
     return balance?.amount || 0;
   }, [balances]);
 
+  const getAggregatedBalance = useCallback((asset: string): number => {
+    // Sum balances across all chains for the same asset
+    const total = balances
+      .filter(b => b.asset === asset)
+      .reduce((sum, b) => sum + b.amount, 0);
+    return total;
+  }, [balances]);
+
   // Memoized total value calculation with real-time prices
   const totalValue = useMemo(() => {
     return balances.reduce((total, balance) => {
-      if (balance.asset === 'USDC' || balance.asset === 'USDC_ARB') return total + balance.amount;
-      if (balance.asset === 'XAUT_ARB') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
+      if (balance.asset === 'USDC') return total + balance.amount;
+      if (balance.asset === 'XAUT') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
       if (balance.asset === 'TRZRY') return total + balance.amount;
       return total;
     }, 0);
@@ -310,6 +326,7 @@ export function useOptimizedWalletBalance() {
     refreshBalances,
     fetchBalances,
     getBalance,
+    getAggregatedBalance,
     performanceMetrics
   };
 }

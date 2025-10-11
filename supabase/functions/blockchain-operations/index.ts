@@ -56,7 +56,20 @@ const RPC_ENDPOINTS = [
   'https://cloudflare-eth.com'
 ];
 
-console.log(`🔗 Initialized with ${RPC_ENDPOINTS.length} RPC endpoints`);
+// Arbitrum RPC endpoints
+const ARBITRUM_RPC_ENDPOINTS = [
+  ...(INFURA_API_KEY && INFURA_API_KEY !== 'undefined' && INFURA_API_KEY.length >= 10 
+    ? [`https://arbitrum-mainnet.infura.io/v3/${INFURA_API_KEY}`] 
+    : []),
+  ...(ALCHEMY_API_KEY && ALCHEMY_API_KEY !== 'undefined' && ALCHEMY_API_KEY.length >= 10
+    ? [`https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`] 
+    : []),
+  'https://arbitrum.publicnode.com',
+  'https://rpc.ankr.com/arbitrum',
+  'https://arbitrum.llamarpc.com'
+];
+
+console.log(`🔗 Initialized with ${RPC_ENDPOINTS.length} Ethereum RPC endpoints and ${ARBITRUM_RPC_ENDPOINTS.length} Arbitrum RPC endpoints`);
 
 // Block number cache to reduce RPC calls
 let cachedBlockNumber = 0;
@@ -70,8 +83,9 @@ const symbolCache = new Map<string, string>();
 let cachedChainlinkPrice: { price: number; timestamp: number } | null = null;
 const CHAINLINK_CACHE_TTL_MS = 30000; // 30 second cache for prices
 
-// Singleton provider instance
+// Singleton provider instances
 let globalProvider: ethers.FallbackProvider | null = null;
+let globalArbitrumProvider: ethers.FallbackProvider | null = null;
 
 // F-008 FIX: Structured logging utility
 interface LogContext {
@@ -312,6 +326,78 @@ async function getProvider(): Promise<ethers.FallbackProvider> {
   return await Promise.race([initPromise, timeout]) as ethers.FallbackProvider;
 }
 
+// Arbitrum provider initialization
+async function buildArbitrumProviderPool(): Promise<ProviderConfig[]> {
+  const pool: ProviderConfig[] = [];
+  
+  for (let i = 0; i < ARBITRUM_RPC_ENDPOINTS.length; i++) {
+    const url = ARBITRUM_RPC_ENDPOINTS[i];
+    try {
+      const provider = new ethers.JsonRpcProvider(url, {
+        name: 'arbitrum',
+        chainId: 42161,
+        ensAddress: null
+      });
+      
+      const network = await Promise.race([
+        provider.getNetwork(),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('timeout')), 3000)
+        )
+      ]);
+      
+      if (Number(network.chainId) !== 42161) {
+        throw new Error(`wrong chain: ${String(network.chainId)}`);
+      }
+      
+      pool.push({
+        provider,
+        priority: i + 1,
+        weight: 1,
+        stallTimeout: 3000
+      });
+      
+      const label = url.includes('infura') ? 'Infura' : url.includes('alchemy') ? 'Alchemy' : 'Public';
+      logStructured('info', `✅ Arbitrum RPC healthy: ${label}`, { chainId: Number(network.chainId) });
+      
+    } catch (err: any) {
+      const label = url.includes('infura') ? 'Infura' : url.includes('alchemy') ? 'Alchemy' : 'Public';
+      logStructured('warn', `⚠️ Arbitrum RPC unhealthy: ${label}`, { error: err?.message || err });
+    }
+  }
+  
+  if (pool.length === 0) {
+    throw new Error('No healthy Arbitrum RPC endpoints');
+  }
+  
+  return pool;
+}
+
+async function getArbitrumProvider(): Promise<ethers.FallbackProvider> {
+  if (globalArbitrumProvider) {
+    return globalArbitrumProvider;
+  }
+  
+  const initPromise = (async () => {
+    const pool = await buildArbitrumProviderPool();
+    const fallback = new ethers.FallbackProvider(pool, 1);
+    globalArbitrumProvider = fallback;
+    
+    logStructured('info', 'Arbitrum FallbackProvider initialized', {
+      total_providers: pool.length,
+      quorum: 1
+    });
+    
+    return fallback;
+  })();
+  
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Arbitrum Provider init timeout after 10s')), 10000)
+  );
+  
+  return await Promise.race([initPromise, timeout]) as ethers.FallbackProvider;
+}
+
 // F-002 FIX: Chain ID verification constant
 const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
 
@@ -319,27 +405,44 @@ const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
 const MAX_SLIPPAGE_BPS = 200;
 
 // F-004 FIX: Token address allowlist with expected symbols (XAUT uses "XAUt" on-chain)
-const TOKEN_ALLOWLIST: Record<string, { address: string; symbol: string; decimals: number; native?: boolean }> = {
+const TOKEN_ALLOWLIST: Record<string, { address: string; symbol: string; decimals: number; chain: 'ethereum' | 'arbitrum'; native?: boolean }> = {
   'ETH': {
     address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH - Uniswap uses WETH internally
     symbol: 'WETH',
     decimals: 18,
+    chain: 'ethereum',
     native: true
   },
   'USDC': {
     address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     symbol: 'USDC',
-    decimals: 6
+    decimals: 6,
+    chain: 'ethereum'
   },
   'XAUT': {
     address: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
     symbol: 'XAUt', // Note: On-chain symbol is "XAUt", not "XAUT"
-    decimals: 6
+    decimals: 6,
+    chain: 'ethereum'
   },
   'TRZRY': {
     address: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
     symbol: 'TRZRY',
-    decimals: 18
+    decimals: 18,
+    chain: 'ethereum'
+  },
+  // Arbitrum tokens
+  'USDC_ARB': {
+    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Native USDC on Arbitrum
+    symbol: 'USDC',
+    decimals: 6,
+    chain: 'arbitrum'
+  },
+  'XAUT_ARB': {
+    address: '0x40461291347e1ecbb09499f3371d3f17f10d7159', // Tether Gold on Arbitrum
+    symbol: 'XAUt',
+    decimals: 6,
+    chain: 'arbitrum'
   }
 } as const;
 
@@ -1046,7 +1149,7 @@ serve(async (req) => {
       case 'get_all_balances':
         try {
           const { address } = body;
-          console.log(`Getting all LIVE balances for ${address}`);
+          console.log(`Getting all LIVE balances (multi-chain) for ${address}`);
           
           if (!address || !isValidEthereumAddress(address)) {
             throw new Error('Invalid Ethereum address provided');
@@ -1079,19 +1182,28 @@ serve(async (req) => {
             }
           }
           
-          const assets = ['ETH', 'USDC', 'XAUT', 'TRZRY'];
-          const balancePromises = assets.map(async (asset) => {
+          // Helper to fetch balance for any asset on any chain
+          async function getBalanceForAsset(asset: string): Promise<{ asset: string; balance: number; chain: string; success: boolean; error?: string }> {
             try {
-              // Special handling for ETH - native balance (not ERC-20)
+              const tokenConfig = TOKEN_ALLOWLIST[asset];
+              if (!tokenConfig) {
+                throw new Error(`Token ${asset} not configured`);
+              }
+              
+              const provider = tokenConfig.chain === 'arbitrum' 
+                ? await getArbitrumProvider() 
+                : await getProvider();
+              
+              // Special handling for ETH native balance
               if (asset === 'ETH') {
                 const ethBalance = await withRpcRetry(
-                  () => provider.getBalance(address), 
+                  () => provider.getBalance(address),
                   'ETH_getBalance'
                 );
-                const formattedBalance = parseFloat(ethers.formatEther(ethBalance));
                 return {
                   asset,
-                  balance: formattedBalance,
+                  balance: parseFloat(ethers.formatEther(ethBalance)),
+                  chain: 'ethereum',
                   success: true
                 };
               }
@@ -1101,22 +1213,31 @@ serve(async (req) => {
                 return {
                   asset,
                   balance: 0,
+                  chain: 'ethereum',
                   success: true
                 };
               }
               
-              const contractAddress = await getContractAddress(asset, provider);
-              const contract = new ethers.Contract(contractAddress, ERC20_ABI, provider);
+              // ERC-20 token balance
+              const contract = new ethers.Contract(
+                tokenConfig.address,
+                ERC20_ABI,
+                provider
+              );
               
-              const [balance, decimals] = await Promise.all([
-                withRpcRetry(() => contract.balanceOf(address), `${asset}_balanceOf`),
-                withRpcRetry(() => contract.decimals(), `${asset}_decimals`)
-              ]);
-              const formattedBalance = parseFloat(ethers.formatUnits(balance, decimals));
+              const balance = await withRpcRetry(
+                () => contract.balanceOf(address),
+                `${asset}_balanceOf`
+              );
+              
+              const formattedBalance = parseFloat(
+                ethers.formatUnits(balance, tokenConfig.decimals)
+              );
               
               return {
                 asset,
                 balance: formattedBalance,
+                chain: tokenConfig.chain,
                 success: true
               };
             } catch (error) {
@@ -1124,22 +1245,28 @@ serve(async (req) => {
               return {
                 asset,
                 balance: 0,
+                chain: TOKEN_ALLOWLIST[asset]?.chain || 'ethereum',
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error'
               };
             }
-          });
+          }
           
+          // Fetch balances from both Ethereum and Arbitrum in parallel
+          const assetsToFetch = ['ETH', 'USDC', 'TRZRY', 'USDC_ARB', 'XAUT_ARB'];
+          const balancePromises = assetsToFetch.map(asset => getBalanceForAsset(asset));
           const balances = await Promise.all(balancePromises);
-          console.log(`All LIVE balances retrieved:`, balances);
+          
+          console.log(`Multi-chain balances retrieved:`, balances);
           
           result = {
             success: true,
             balances,
-            address
+            address,
+            chains: ['ethereum', 'arbitrum']
           };
         } catch (error) {
-          console.error('LIVE batch balance query failed:', error);
+          console.error('Multi-chain balance query failed:', error);
           result = {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',

@@ -6,10 +6,11 @@ import { useWalletBalance } from "@/hooks/useWalletBalance";
 
 const Wallet = () => {
   const navigate = useNavigate();
-  const { getBalance, loading } = useWalletBalance();
+  const { getAggregatedBalance, loading } = useWalletBalance();
   
-  const usdcBalance = getBalance('USDC');
-  const goldBalance = getBalance('XAUT');
+  // Show aggregated balances across all chains
+  const usdcBalance = getAggregatedBalance('USDC');
+  const goldBalance = getAggregatedBalance('XAUT');
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -52,22 +53,23 @@ const Wallet = () => {
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-foreground mb-6">Balance</h2>
           <div className="space-y-3">
-            {/* USD Balance */}
+            {/* USD Balance - Aggregated across Ethereum + Arbitrum */}
             <div className="bg-card p-4 rounded-xl">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-surface-elevated rounded-full flex items-center justify-center">
                   <DollarSign className="text-foreground" size={24} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-muted-foreground text-sm">USD</p>
+                  <p className="text-muted-foreground text-sm">USD (All Networks)</p>
                   <p className="text-foreground text-xl font-bold">
                     {loading ? "Loading..." : `$${usdcBalance.toFixed(2)}`}
                   </p>
+                  <p className="text-xs text-muted-foreground">Ethereum + Arbitrum</p>
                 </div>
               </div>
             </div>
 
-            {/* Gold Balance */}
+            {/* Gold Balance - Aggregated across Ethereum + Arbitrum */}
             <div className="bg-card p-4 rounded-xl">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
@@ -76,10 +78,11 @@ const Wallet = () => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <p className="text-muted-foreground text-sm">Gold (XAUT)</p>
+                  <p className="text-muted-foreground text-sm">Gold (All Networks)</p>
                   <p className="text-foreground text-xl font-bold">
                     {loading ? "Loading..." : `${goldBalance.toFixed(6)} oz`}
                   </p>
+                  <p className="text-xs text-muted-foreground">Ethereum + Arbitrum</p>
                 </div>
               </div>
             </div>
