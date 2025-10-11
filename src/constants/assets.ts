@@ -10,12 +10,16 @@ export const ASSETS = {
     displayName: 'Ethereum',
     decimals: 18,
     native: true,
+    chain: 'ethereum' as const,
+    chainId: 1,
   },
   USDC: {
     symbol: 'USDC',
     name: 'USD Coin',
     displayName: 'USD Coin',
     decimals: 6,
+    chain: 'ethereum' as const,
+    chainId: 1,
   },
   XAUT: {
     symbol: 'XAUT',
@@ -24,18 +28,24 @@ export const ASSETS = {
     unit: 'oz',
     gramsPerOz: 31.1035,
     decimals: 6,
+    chain: 'arbitrum' as const, // XAUT on Arbitrum
+    chainId: 42161,
   },
   TRZRY: {
     symbol: 'TRZRY',
     name: 'Trzry Reserve',
     displayName: 'Trzry',
     decimals: 6,
+    chain: 'ethereum' as const, // TRZRY on Ethereum
+    chainId: 1,
   },
   BTC: {
     symbol: 'BTC',
     name: 'Wrapped Bitcoin',
     displayName: 'Bitcoin',
     decimals: 8,
+    chain: 'ethereum' as const,
+    chainId: 1,
   },
 } as const;
 

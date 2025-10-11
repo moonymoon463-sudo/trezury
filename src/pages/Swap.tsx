@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ArrowUpDown, Edit, Wallet } from "lucide-react";
+import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -19,12 +19,14 @@ import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 import { useTransactionMonitor } from "@/hooks/useTransactionMonitor";
 import AppLayout from "@/components/AppLayout";
 
+type Chain = 'ethereum' | 'arbitrum';
+
 const AVAILABLE_ASSETS = [
-  { symbol: 'ETH' as const, name: 'Ethereum', color: 'bg-purple-600' },
-  { symbol: 'USDC' as const, name: 'USD Coin', color: 'bg-blue-600' },
-  { symbol: 'XAUT' as const, name: 'Gold', color: 'bg-yellow-600' },
-  { symbol: 'TRZRY' as const, name: 'Trzry', color: 'bg-green-600' },
-  { symbol: 'BTC' as const, name: 'Bitcoin', color: 'bg-orange-600' },
+  { symbol: 'ETH' as const, name: 'Ethereum', color: 'bg-purple-600', chain: 'ethereum' as Chain },
+  { symbol: 'USDC' as const, name: 'USD Coin', color: 'bg-blue-600', chain: 'ethereum' as Chain },
+  { symbol: 'XAUT' as const, name: 'Gold', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
+  { symbol: 'TRZRY' as const, name: 'Trzry', color: 'bg-green-600', chain: 'ethereum' as Chain },
+  { symbol: 'BTC' as const, name: 'Bitcoin', color: 'bg-orange-600', chain: 'ethereum' as Chain },
 ];
 
 const Swap = () => {
@@ -35,6 +37,7 @@ const Swap = () => {
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
+  const [currentChain, setCurrentChain] = useState<Chain>('ethereum');
   const [fromAsset, setFromAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'>('USDC');
   const [toAsset, setToAsset] = useState<'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
@@ -92,7 +95,13 @@ const Swap = () => {
   const toBalance = getBalance(toAsset);
   
   const getNetworkForAsset = (asset: 'ETH' | 'USDC' | 'XAUT' | 'TRZRY' | 'BTC') => {
-    return 'Ethereum'; // All assets on Ethereum mainnet
+    const assetConfig = AVAILABLE_ASSETS.find(a => a.symbol === asset);
+    return assetConfig?.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
+  };
+
+  // Get available assets filtered by current chain
+  const getAvailableAssets = (chain: Chain) => {
+    return AVAILABLE_ASSETS.filter(asset => asset.chain === chain);
   };
   
   // Auto-generate quote as user types (debounced)
@@ -143,6 +152,17 @@ const Swap = () => {
       setFromAsset(toAsset);
     }
     setToAsset(newAsset);
+    
+    // Auto-switch chain based on selected asset
+    const assetConfig = AVAILABLE_ASSETS.find(a => a.symbol === newAsset);
+    if (assetConfig && assetConfig.chain !== currentChain) {
+      setCurrentChain(assetConfig.chain);
+      toast({
+        title: `Switched to ${assetConfig.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
+        description: `${newAsset} is available on ${assetConfig.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'} network`,
+      });
+    }
+    
     setQuote(null);
     setAutoQuote(null);
   };
@@ -368,6 +388,51 @@ const Swap = () => {
       className="flex flex-col h-full overflow-hidden"
     >
       <div className="flex-1 flex flex-col px-4 sm:px-5 py-4 space-y-3 md:px-6 md:py-3 md:space-y-3 max-w-none w-full md:max-w-4xl mx-auto">
+        {/* Chain Switcher */}
+        <div className="bg-card p-4 rounded-xl border-2 border-primary/20 md:p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center ${
+                currentChain === 'ethereum' ? 'bg-gradient-to-br from-purple-500 to-blue-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'
+              }`}>
+                <span className="text-white text-sm font-bold md:text-xs">
+                  {currentChain === 'ethereum' ? 'ETH' : 'ARB'}
+                </span>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-foreground md:text-xs">
+                  {currentChain === 'ethereum' ? 'Ethereum' : 'Arbitrum'} Network
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {currentChain === 'ethereum' ? 'For TRZRY, ETH, BTC, USDC' : 'For XAUT (Gold)'}
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const newChain = currentChain === 'ethereum' ? 'arbitrum' : 'ethereum';
+                setCurrentChain(newChain);
+                // Reset selections when switching chains
+                const availableAssets = getAvailableAssets(newChain);
+                if (availableAssets.length > 0) {
+                  setFromAsset(availableAssets[0].symbol);
+                  setToAsset(availableAssets[1]?.symbol || availableAssets[0].symbol);
+                }
+                toast({
+                  title: `Switched to ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
+                  description: `Now showing ${newChain} assets`,
+                });
+              }}
+              className="gap-2"
+            >
+              <Repeat2 size={14} />
+              Switch
+            </Button>
+          </div>
+        </div>
+
         {/* Wallet & Gasless Status */}
         <div className="flex flex-col gap-2 md:gap-1">
           {secureWalletAddress && (
@@ -502,7 +567,7 @@ const Swap = () => {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_ASSETS.map((asset) => (
+                  {getAvailableAssets(currentChain).map((asset) => (
                     <SelectItem key={asset.symbol} value={asset.symbol}>
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 ${asset.color} rounded-full flex items-center justify-center`}>
