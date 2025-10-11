@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 
@@ -9,6 +10,7 @@ export default function AdminContractDeploy() {
   const [deploying, setDeploying] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedChain, setSelectedChain] = useState<'ethereum' | 'arbitrum'>('ethereum');
 
   const deployContract = async () => {
     try {
@@ -17,9 +19,12 @@ export default function AdminContractDeploy() {
       setResult(null);
 
       const { data, error: invokeError } = await supabase.functions.invoke(
-        'blockchain-operations',
+        'contract-deployment',
         {
-          body: { operation: 'deploy_gelato_contract' }
+          body: { 
+            operation: 'deploy_gelato_relay',
+            chain: selectedChain 
+          }
         }
       );
 
@@ -45,7 +50,7 @@ export default function AdminContractDeploy() {
         <CardHeader>
           <CardTitle>Deploy GelatoSwapRelay Contract</CardTitle>
           <CardDescription>
-            Deploy the gasless swap contract to Ethereum mainnet
+            Deploy the gasless swap contract to Ethereum or Arbitrum
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -56,12 +61,25 @@ export default function AdminContractDeploy() {
                 <p className="font-semibold">Prerequisites:</p>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>PLATFORM_PRIVATE_KEY secret must be set in Supabase</li>
-                  <li>Deployer wallet must have at least 0.05 ETH</li>
+                  <li>Ethereum: Min 0.05 ETH | Arbitrum: Min 0.01 ETH</li>
                   <li>Admin privileges required</li>
                 </ul>
               </div>
             </AlertDescription>
           </Alert>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Deployment Chain</label>
+            <Select value={selectedChain} onValueChange={(value: 'ethereum' | 'arbitrum') => setSelectedChain(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Chain" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ethereum">Ethereum Mainnet (chainId: 1)</SelectItem>
+                <SelectItem value="arbitrum">Arbitrum One (chainId: 42161)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button
             onClick={deployContract}
@@ -95,8 +113,9 @@ export default function AdminContractDeploy() {
                 <div className="space-y-2">
                   <p className="font-semibold text-green-800">✅ Contract Deployed Successfully!</p>
                   <div className="text-sm space-y-1">
+                    <p><strong>Chain:</strong> <code className="bg-white px-2 py-1 rounded">{result.chain}</code></p>
                     <p><strong>Address:</strong> <code className="bg-white px-2 py-1 rounded">{result.contractAddress}</code></p>
-                    <p><strong>TX Hash:</strong> <code className="bg-white px-2 py-1 rounded text-xs">{result.transactionHash}</code></p>
+                    <p><strong>TX Hash:</strong> <code className="bg-white px-2 py-1 rounded text-xs">{result.txHash}</code></p>
                     {result.etherscanUrl && (
                       <a
                         href={result.etherscanUrl}
@@ -104,12 +123,12 @@ export default function AdminContractDeploy() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center text-blue-600 hover:text-blue-800"
                       >
-                        View on Etherscan <ExternalLink className="ml-1 h-3 w-3" />
+                        View on {result.chain === 'ethereum' ? 'Etherscan' : 'Arbiscan'} <ExternalLink className="ml-1 h-3 w-3" />
                       </a>
                     )}
                   </div>
                   <p className="text-xs text-green-700 mt-2">
-                    ✅ Contract address automatically stored as GELATO_SWAP_CONTRACT_ADDRESS secret
+                    ✅ Contract address automatically stored as {result.chain === 'ethereum' ? 'GELATO_SWAP_CONTRACT_ADDRESS' : 'GELATO_SWAP_CONTRACT_ADDRESS_ARBITRUM'} secret
                   </p>
                 </div>
               </AlertDescription>

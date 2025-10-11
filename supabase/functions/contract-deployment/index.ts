@@ -34,6 +34,14 @@ function getChainRPCs(chain: string): string[] {
       'https://rpc.ankr.com/eth',
       'https://ethereum-rpc.publicnode.com',
       'https://cloudflare-eth.com'
+    ].filter(Boolean),
+    arbitrum: [
+      infuraKey ? `https://arbitrum-mainnet.infura.io/v3/${infuraKey}` : null,
+      alchemyKey ? `https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}` : null,
+      ankrKey ? `https://rpc.ankr.com/arbitrum/${ankrKey}` : null,
+      'https://arb1.arbitrum.io/rpc',
+      'https://arbitrum.llamarpc.com',
+      'https://arbitrum-one.publicnode.com'
     ].filter(Boolean)
   };
 
@@ -47,15 +55,21 @@ function getAuthenticatedRpcUrls(chain: string): string[] {
 
   const authenticatedRpcs: string[] = [];
   
-  if (infuraKey) authenticatedRpcs.push(`https://mainnet.infura.io/v3/${infuraKey}`);
-  if (alchemyKey) authenticatedRpcs.push(`https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`);
-  if (ankrKey) authenticatedRpcs.push(`https://rpc.ankr.com/eth/${ankrKey}`);
+  if (chain === 'ethereum') {
+    if (infuraKey) authenticatedRpcs.push(`https://mainnet.infura.io/v3/${infuraKey}`);
+    if (alchemyKey) authenticatedRpcs.push(`https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`);
+    if (ankrKey) authenticatedRpcs.push(`https://rpc.ankr.com/eth/${ankrKey}`);
+  } else if (chain === 'arbitrum') {
+    if (infuraKey) authenticatedRpcs.push(`https://arbitrum-mainnet.infura.io/v3/${infuraKey}`);
+    if (alchemyKey) authenticatedRpcs.push(`https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`);
+    if (ankrKey) authenticatedRpcs.push(`https://rpc.ankr.com/arbitrum/${ankrKey}`);
+  }
 
   return authenticatedRpcs;
 }
 
-function validateDeploymentChain(chain: string): chain is 'ethereum' {
-  const DEPLOYMENT_CHAINS = ['ethereum'];
+function validateDeploymentChain(chain: string): chain is 'ethereum' | 'arbitrum' {
+  const DEPLOYMENT_CHAINS = ['ethereum', 'arbitrum'];
   return DEPLOYMENT_CHAINS.includes(chain);
 }
 
@@ -122,7 +136,13 @@ serve(async (req) => {
       case 'deploy':
         return handleDeploy(requestBody.chain!, requestBody.contracts, supabase);
       case 'deploy_gelato_relay':
-        return handleDeployGelatoRelay(requestBody.network || 'mainnet', supabase);
+        const chain = requestBody.chain || 'ethereum';
+        if (!validateDeploymentChain(chain)) {
+          return new Response(JSON.stringify({
+            error: `Unsupported chain: ${chain}. Supported chains: ethereum, arbitrum`
+          }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        return handleDeployGelatoRelay(chain, supabase);
       case 'get_addresses':
         return handleGetAddresses(requestBody.chain!);
       case 'get_status':
@@ -445,8 +465,8 @@ async function handleGetLogs(supabase: any, chain: string) {
   }
 }
 
-async function handleDeployGelatoRelay(network: string, supabase: any) {
-  console.log(`🚀 Starting GelatoSwapRelay deployment to ${network}`);
+async function handleDeployGelatoRelay(chain: string, supabase: any) {
+  console.log(`🚀 Starting GelatoSwapRelay deployment to ${chain}`);
 
   const platformPrivateKey = Deno.env.get('PLATFORM_PRIVATE_KEY');
   if (!platformPrivateKey) {
@@ -462,27 +482,45 @@ async function handleDeployGelatoRelay(network: string, supabase: any) {
     const wallet = new ethers.Wallet(platformPrivateKey);
     console.log(`📝 Deployer address: ${wallet.address}`);
 
-    // Connect to Ethereum mainnet
-    const infuraKey = Deno.env.get('INFURA_API_KEY');
-    const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
-    
-    const rpcUrl = infuraKey 
-      ? `https://mainnet.infura.io/v3/${infuraKey}`
-      : alchemyKey
-      ? `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`
-      : 'https://eth.llamarpc.com';
+    // Get chain-specific RPCs
+    const rpcUrls = getChainRPCs(chain);
+    if (rpcUrls.length === 0) {
+      throw new Error(`No RPC endpoints available for ${chain}`);
+    }
 
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    // Try RPCs until one works
+    let provider = null;
+    for (const rpcUrl of rpcUrls) {
+      try {
+        provider = new ethers.JsonRpcProvider(rpcUrl);
+        await provider.getBlockNumber();
+        console.log(`✅ Connected via: ${rpcUrl}`);
+        break;
+      } catch (e) {
+        console.warn(`❌ Failed to connect to ${rpcUrl}`);
+        provider = null;
+      }
+    }
+
+    if (!provider) {
+      throw new Error(`Failed to connect to any ${chain} RPC`);
+    }
+
     const deployerWallet = wallet.connect(provider);
 
-    // Verify we're on mainnet
+    // Verify correct network
     const network = await provider.getNetwork();
     console.log(`🌐 Connected to network: ${network.name} (chainId: ${network.chainId})`);
 
-    if (network.chainId !== 1n) {
+    const expectedChainIds: Record<string, bigint> = {
+      ethereum: 1n,
+      arbitrum: 42161n
+    };
+
+    if (network.chainId !== expectedChainIds[chain]) {
       return new Response(JSON.stringify({
         error: 'Wrong network',
-        expected: 'Ethereum Mainnet (chainId: 1)',
+        expected: `${chain} (chainId: ${expectedChainIds[chain]})`,
         actual: `${network.name} (chainId: ${network.chainId})`
       }), {
         status: 400,
@@ -494,10 +532,11 @@ async function handleDeployGelatoRelay(network: string, supabase: any) {
     const balance = await provider.getBalance(wallet.address);
     console.log(`💰 Deployer balance: ${ethers.formatEther(balance)} ETH`);
 
-    if (balance < ethers.parseEther('0.05')) {
+    const minBalance = chain === 'arbitrum' ? '0.01' : '0.05';
+    if (balance < ethers.parseEther(minBalance)) {
       return new Response(JSON.stringify({
         error: 'Insufficient ETH balance',
-        required: '0.05 ETH minimum',
+        required: `${minBalance} ETH minimum`,
         current: ethers.formatEther(balance)
       }), {
         status: 400,
@@ -522,21 +561,25 @@ async function handleDeployGelatoRelay(network: string, supabase: any) {
     const contractAddress = await contract.getAddress();
     console.log(`✅ GelatoSwapRelay deployed at: ${contractAddress}`);
 
-    // Store deployment info
+    // Store deployment with chain-specific identifier
+    const chainIdentifier = chain === 'ethereum' ? 'ethereum-mainnet' : 'arbitrum-mainnet';
+    const txHash = contract.deploymentTransaction()?.hash;
+    
     const { error: dbError } = await supabase
       .from('deployed_contracts')
       .insert({
-        chain: 'ethereum-mainnet',
+        chain: chainIdentifier,
         contracts: {
           GelatoSwapRelay: contractAddress
         },
         deployed_at: new Date().toISOString(),
         deployer_address: wallet.address,
-        deployment_metadata: {
-          network,
+        metadata: {
+          network: network.name,
+          chainId: network.chainId.toString(),
           timestamp: new Date().toISOString(),
           environment: 'production',
-          txHash: contract.deploymentTransaction()?.hash
+          txHash
         }
       });
 
@@ -544,33 +587,36 @@ async function handleDeployGelatoRelay(network: string, supabase: any) {
       console.error('Failed to store deployment:', dbError);
     }
 
-    // Automatically store contract address as secret for use by blockchain-operations
+    // Auto-store contract address as secret
+    const secretName = chain === 'ethereum' 
+      ? 'GELATO_SWAP_CONTRACT_ADDRESS'
+      : 'GELATO_SWAP_CONTRACT_ADDRESS_ARBITRUM';
+
     try {
-      const { error: secretError } = await supabaseClient
+      const { error: secretError } = await supabase
         .from('vault.secrets')
-        .upsert({
-          name: 'GELATO_SWAP_CONTRACT_ADDRESS',
-          secret: contractAddress
-        });
+        .upsert({ name: secretName, secret: contractAddress });
 
       if (secretError) {
-        console.warn('⚠️ Could not auto-store contract address as secret:', secretError);
-        console.log('📝 Please manually add GELATO_SWAP_CONTRACT_ADDRESS secret with value:', contractAddress);
+        console.warn(`⚠️ Could not auto-store contract address as secret: ${secretError}`);
       } else {
-        console.log('✅ Contract address stored as GELATO_SWAP_CONTRACT_ADDRESS secret');
+        console.log(`✅ Contract address stored as ${secretName} secret`);
       }
     } catch (secretStoreError) {
       console.warn('⚠️ Failed to store secret automatically:', secretStoreError);
-      console.log('📝 Please manually add GELATO_SWAP_CONTRACT_ADDRESS secret with value:', contractAddress);
     }
 
     return new Response(JSON.stringify({
       success: true,
       contractAddress,
       deployer: wallet.address,
-      network,
-      txHash: contract.deploymentTransaction()?.hash,
-      message: 'GelatoSwapRelay deployed successfully'
+      chain,
+      chainId: network.chainId.toString(),
+      txHash,
+      etherscanUrl: chain === 'ethereum' 
+        ? `https://etherscan.io/tx/${txHash}`
+        : `https://arbiscan.io/tx/${txHash}`,
+      message: `GelatoSwapRelay deployed successfully to ${chain}`
     }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
