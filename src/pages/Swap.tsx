@@ -478,7 +478,7 @@ const Swap = () => {
         <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">From</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT_ARB' ? 6 : 2)} {getDisplayName(fromAsset)}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed((fromAsset === 'XAUT' || fromAsset === 'XAUT_ARB') ? 6 : 2)} {getDisplayName(fromAsset)}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={fromAsset} onValueChange={handleFromAssetChange}>
@@ -540,7 +540,7 @@ const Swap = () => {
           <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">To</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT_ARB' ? 6 : 2)} {getDisplayName(toAsset)}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed((toAsset === 'XAUT' || toAsset === 'XAUT_ARB') ? 6 : 2)} {getDisplayName(toAsset)}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={toAsset} onValueChange={handleToAssetChange}>
