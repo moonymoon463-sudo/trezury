@@ -18,6 +18,8 @@ import { swapService, SwapQuote } from "@/services/swapService";
 import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
 import { useTransactionMonitor } from "@/hooks/useTransactionMonitor";
 import AppLayout from "@/components/AppLayout";
+import { useCryptoPrices } from "@/hooks/useCryptoPrices";
+import { useGoldPrice } from "@/hooks/useGoldPrice";
 
 type Chain = 'ethereum' | 'arbitrum';
 
@@ -52,6 +54,9 @@ const Swap = () => {
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [useGasless, setUseGasless] = useState(true); // Default to gasless
   const [gelatoFeeEstimate, setGelatoFeeEstimate] = useState<number>(0);
+  
+  const { prices: cryptoPrices } = useCryptoPrices();
+  const { price: goldPrice } = useGoldPrice();
 
   // Monitor transaction status with real-time updates
   useTransactionMonitor({
@@ -342,6 +347,27 @@ const Swap = () => {
     }
   };
 
+  const calculateUSDValue = (asset: string, amount: number): string => {
+    if (!amount || isNaN(amount)) return '$0.00';
+    
+    let usdValue = 0;
+    
+    if (asset === 'USDC' || asset === 'USDC_ARB') {
+      usdValue = amount;
+    } else if (asset === 'XAUT' || asset === 'XAUT_ARB') {
+      usdValue = amount * (goldPrice?.usd_per_oz || 0);
+    } else if (asset === 'TRZRY') {
+      usdValue = amount;
+    } else if (asset === 'ETH') {
+      usdValue = amount * (cryptoPrices?.ETH || 0);
+    }
+    
+    return `$${usdValue.toLocaleString('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
   return (
     <AppLayout
       headerProps={{ showBackButton: true, backPath: "/" }}
@@ -515,12 +541,19 @@ const Swap = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
-                placeholder="0.00"
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-              />
+              <div className="flex flex-col items-end flex-1">
+                <Input
+                  className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
+                  placeholder="0.00"
+                  value={fromAmount}
+                  onChange={(e) => setFromAmount(e.target.value)}
+                />
+                {fromAmount && parseFloat(fromAmount) > 0 && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    ≈ {calculateUSDValue(fromAsset, parseFloat(fromAmount))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -577,12 +610,19 @@ const Swap = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
-                placeholder="0.00"
-                value={(quote || autoQuote) ? (quote || autoQuote)!.outputAmount.toFixed(6) : autoQuoteLoading ? '...' : ''}
-                readOnly
-              />
+              <div className="flex flex-col items-end flex-1">
+                <Input
+                  className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
+                  placeholder="0.00"
+                  value={(quote || autoQuote) ? (quote || autoQuote)!.outputAmount.toFixed(6) : autoQuoteLoading ? '...' : ''}
+                  readOnly
+                />
+                {((quote || autoQuote)?.outputAmount) && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    ≈ {calculateUSDValue(toAsset, (quote || autoQuote)!.outputAmount)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
