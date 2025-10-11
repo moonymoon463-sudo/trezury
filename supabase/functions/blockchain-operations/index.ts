@@ -564,7 +564,7 @@ async function calculateDynamicMargin(provider: ethers.FallbackProvider): Promis
 }
 
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_transaction_history' | 'estimate_gas' | 'wallet_readonly_diagnostics';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_transaction_history' | 'estimate_gas' | 'wallet_readonly_diagnostics' | 'execute_gelato_swap' | 'estimate_gelato_fee' | 'check_gelato_status';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -855,7 +855,7 @@ serve(async (req) => {
     }
       
       // Check transaction velocity for operations that modify state (only for user requests)
-      const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'collect_fee'];
+      const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'collect_fee', 'execute_gelato_swap'];
       if (!isServiceRole && stateModifyingOps.includes(body.operation)) {
         const { data: recentTxs, error: velocityError } = await supabase
           .from('transactions')
@@ -2367,6 +2367,42 @@ serve(async (req) => {
           result = {
             success: false,
             error: error instanceof Error ? error.message : 'Gelato swap failed'
+          };
+        }
+        break;
+      }
+
+      case 'check_gelato_status': {
+        // Check status of a Gelato task
+        try {
+          const { taskId } = body;
+          
+          if (!taskId) {
+            throw new Error('taskId is required');
+          }
+          
+          console.log(`🔍 Checking Gelato task status: ${taskId}`);
+          
+          // Import Gelato helpers
+          const { checkGelatoTaskStatus } = await import('./gelato-helpers.ts');
+          
+          const status = await checkGelatoTaskStatus(taskId);
+          
+          console.log(`✅ Task ${taskId} status:`, status.state);
+          
+          result = {
+            success: true,
+            taskId,
+            state: status.state,
+            transactionHash: status.transactionHash,
+            blockNumber: status.blockNumber,
+            executionDate: status.executionDate
+          };
+        } catch (error) {
+          console.error('Gelato status check failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Status check failed'
           };
         }
         break;

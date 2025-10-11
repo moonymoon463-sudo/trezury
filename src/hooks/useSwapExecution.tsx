@@ -1,16 +1,33 @@
 import { useState } from 'react';
 import { swapService, SwapResult } from '@/services/swapService';
 
+export interface SwapExecutionOptions {
+  useGasless?: boolean;
+  gaslessMode?: 'syncfee' | 'sponsored';
+}
+
 export const useSwapExecution = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gelatoTaskId, setGelatoTaskId] = useState<string | null>(null);
 
-  const executeSwap = async (quoteId: string, userId: string, walletPassword: string): Promise<SwapResult> => {
+  const executeSwap = async (
+    quoteId: string, 
+    userId: string, 
+    walletPassword: string,
+    options?: SwapExecutionOptions
+  ): Promise<SwapResult> => {
     try {
       setLoading(true);
       setError(null);
 
-      const result = await swapService.executeSwap(quoteId, userId, walletPassword);
+      // Pass gasless option to swap service
+      const result = await swapService.executeSwap(
+        quoteId, 
+        userId, 
+        walletPassword, 
+        options?.useGasless || false
+      );
       
       if (!result.success) {
         setError(result.error || 'Swap execution failed');
@@ -32,6 +49,7 @@ export const useSwapExecution = () => {
   return {
     executeSwap,
     loading,
-    error
+    error,
+    gelatoTaskId
   };
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Copy, Clock, TrendingUp, Loader2 } from "lucide-react";
@@ -6,6 +6,7 @@ import { Quote } from "@/services/quoteEngine";
 import { useToast } from "@/hooks/use-toast";
 import { useTransactionExecution } from "@/hooks/useTransactionExecution";
 import AurumLogo from "@/components/AurumLogo";
+import { GaslessSwapToggle } from "@/components/GaslessSwapToggle";
 
 const BuyGoldConfirmation = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const BuyGoldConfirmation = () => {
   const { toast } = useToast();
   const { executeTransaction, loading: executionLoading } = useTransactionExecution();
   const [isExecuting, setIsExecuting] = useState(false);
+  const [gaslessEnabled, setGaslessEnabled] = useState(false);
   
   const quote = location.state?.quote as Quote;
 
@@ -173,10 +175,19 @@ const BuyGoldConfirmation = () => {
           </div>
         </div>
 
+        {/* Gasless Swap Toggle */}
+        <GaslessSwapToggle 
+          enabled={gaslessEnabled}
+          onToggle={setGaslessEnabled}
+          estimatedFee={gaslessEnabled ? "~0.5%" : undefined}
+          estimatedFeeUSD={gaslessEnabled ? `~$${(quote.outputAmount * 0.005).toFixed(2)}` : undefined}
+        />
+
         {/* Risk Disclosure */}
         <div className="bg-card rounded-xl p-4 mb-6">
           <p className="text-sm text-muted-foreground">
             Prices are subject to market fluctuations. The actual amount received may vary slightly due to slippage protection.
+            {gaslessEnabled && " Gasless mode deducts fees from output tokens."}
           </p>
         </div>
       </main>
