@@ -564,7 +564,7 @@ async function calculateDynamicMargin(provider: ethers.FallbackProvider): Promis
 }
 
 interface BlockchainOperationRequest {
-  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_uniswap_quote' | 'execute_uniswap_swap' | 'get_transaction_history' | 'estimate_gas' | 'wallet_readonly_diagnostics';
+  operation: 'execute_swap' | 'execute_buy' | 'execute_sell' | 'execute_transaction' | 'transfer' | 'collect_fee' | 'get_balance' | 'get_all_balances' | 'get_rpc_url' | 'get_transaction_history' | 'estimate_gas' | 'wallet_readonly_diagnostics';
   quoteId?: string;
   inputAsset?: string;
   outputAsset?: string;
@@ -855,7 +855,7 @@ serve(async (req) => {
     }
       
       // Check transaction velocity for operations that modify state (only for user requests)
-      const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'execute_uniswap_swap', 'collect_fee'];
+      const stateModifyingOps = ['execute_transaction', 'transfer', 'execute_swap', 'collect_fee'];
       if (!isServiceRole && stateModifyingOps.includes(body.operation)) {
         const { data: recentTxs, error: velocityError } = await supabase
           .from('transactions')
@@ -2243,30 +2243,6 @@ serve(async (req) => {
         };
         break;
 
-      case 'execute_swap_simple':
-        console.log('📝 Executing simplified swap with input token fee');
-        
-        // Import the simplified swap handler
-        const { executeSimplifiedSwap } = await import('./simplified-swap.ts');
-        
-        // Get user wallet
-        const provider = await getProvider();
-        const { wallet: userWallet, error: walletError } = await resolveUserWallet(
-          body.userId,
-          body.walletPassword
-        );
-        
-        if (!userWallet || walletError) {
-          result = {
-            success: false,
-            error: walletError || 'Failed to resolve user wallet'
-          };
-          break;
-        }
-        
-        // Execute the simplified swap
-        result = await executeSimplifiedSwap(body, userWallet, provider);
-        break;
 
       case 'estimate_gelato_fee': {
         // Estimate Gelato relay fee for a swap

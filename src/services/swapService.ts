@@ -380,33 +380,6 @@ class SwapService {
     }
   }
 
-  /**
-   * Get live TRZRY price from Uniswap V3
-   */
-  private async getTRZRYPrice(): Promise<number> {
-    try {
-      // Query Uniswap V3 for TRZRY/USDC price
-      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'get_uniswap_quote',
-          inputAsset: 'TRZRY',
-          outputAsset: 'USDC',
-          amount: 1.0, // Query price of 1 TRZRY
-          slippage: 0.1
-        }
-      });
-
-      if (error || !data?.success) {
-        console.warn('⚠️ Failed to fetch live TRZRY price, using fallback 1.0');
-        return 1.0; // Fallback to 1:1 if pool doesn't exist yet
-      }
-
-      return data.outputAmount; // Live TRZRY price in USDC
-    } catch (error) {
-      console.error('❌ Error fetching TRZRY price:', error);
-      return 1.0; // Fallback
-    }
-  }
 
   private async saveSwapQuote(quote: SwapQuote, userId: string): Promise<void> {
     // Store in existing quotes table with swap-specific metadata

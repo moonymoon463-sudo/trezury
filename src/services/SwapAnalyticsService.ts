@@ -122,7 +122,7 @@ export class SwapAnalyticsService {
     // For now, returning mock data representing different DEX performances
     const dexes = [
       {
-        dex_name: 'Uniswap V3',
+        dex_name: '0x Aggregated',
         volume_24h: 150000 + Math.random() * 50000,
         trades_count: 450 + Math.floor(Math.random() * 100),
         success_rate: 97 + Math.random() * 2,

@@ -145,10 +145,10 @@ export class DexAggregatorService {
     
     return {
       '0x-aggregated': basePrice * (1 + (Math.random() - 0.5) * 0.01),
-      'uniswap-v3': basePrice * (1 + (Math.random() - 0.5) * 0.01),
-      'sushiswap': basePrice * (1 + (Math.random() - 0.5) * 0.01),
       'curve': basePrice * (1 + (Math.random() - 0.5) * 0.01),
-      'balancer': basePrice * (1 + (Math.random() - 0.5) * 0.01)
+      'sushiswap': basePrice * (1 + (Math.random() - 0.5) * 0.01),
+      'balancer': basePrice * (1 + (Math.random() - 0.5) * 0.01),
+      '1inch': basePrice * (1 + (Math.random() - 0.5) * 0.01)
     };
   }
 

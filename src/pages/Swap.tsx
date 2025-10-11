@@ -526,12 +526,12 @@ const Swap = () => {
             </div>
             {fromAsset === 'XAUT' && toAsset === 'TRZRY' && (
               <div className="text-xs text-muted-foreground mt-2">
-                💡 Direct XAUT → TRZRY swap on Uniswap V3 (market price)
+                💡 Swap powered by 0x Protocol (aggregated best price)
               </div>
             )}
             {fromAsset === 'TRZRY' && toAsset === 'XAUT' && (
               <div className="text-xs text-muted-foreground mt-2">
-                💡 Direct TRZRY → XAUT swap on Uniswap V3 (market price)
+                💡 Swap powered by 0x Protocol (aggregated best price)
               </div>
             )}
           </div>
