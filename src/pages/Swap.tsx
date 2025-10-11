@@ -493,7 +493,7 @@ const Swap = () => {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_ASSETS.map((asset) => (
+                  {getAvailableAssets(currentChain).map((asset) => (
                     <SelectItem key={asset.symbol} value={asset.symbol}>
                       <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 ${asset.color} rounded-full flex items-center justify-center`}>
