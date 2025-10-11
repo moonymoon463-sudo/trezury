@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import UniswapV3QuoterABI from "@/contracts/abis/UniswapV3Quoter.json";
+import { ethers } from "ethers";
+import { zeroXSwapService } from "./zeroXSwapService";
 
 export interface DexRoute {
   id: string;
@@ -30,37 +31,20 @@ export interface ArbitrageOpportunity {
   expiresAt: Date;
 }
 
+/**
+ * DEX Aggregator Service using 0x Protocol exclusively
+ * 
+ * 0x aggregates 100+ DEX sources including:
+ * - Uniswap V2, V3, V4
+ * - SushiSwap, Curve, Balancer
+ * - 1inch, and 95+ more protocols
+ * 
+ * This provides better prices than any single DEX.
+ */
 export class DexAggregatorService {
-  private static readonly UNISWAP_V3_QUOTER = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6';
-  private static readonly UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
-  
-  private static readonly TOKEN_ADDRESSES = {
-    ETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH mainnet
-    USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC mainnet (corrected)
-    XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38', // Tether Gold mainnet
-    TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B', // TRZRY Token
-    BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' // WBTC mainnet
-  };
-  
-  private static readonly POOL_FEES = {
-    'USDC-ETH': 3000, // 0.3%
-    'ETH-USDC': 3000, // 0.3%
-    'USDC-XAUT': 3000, // 0.3%
-    'XAUT-USDC': 3000, // 0.3%
-    'USDC-TRZRY': 3000, // 0.3%
-    'TRZRY-USDC': 3000, // 0.3%
-    'XAUT-TRZRY': 3000, // 0.3%
-    'TRZRY-XAUT': 3000, // 0.3%
-    'BTC-ETH': 3000, // 0.3%
-    'ETH-BTC': 3000, // 0.3%
-    'BTC-USDC': 3000, // 0.3%
-    'USDC-BTC': 3000, // 0.3%
-    'BTC-XAUT': 10000, // 1.0% for less common pairs
-    'XAUT-BTC': 10000, // 1.0%
-    'BTC-TRZRY': 10000, // 1.0%
-    'TRZRY-BTC': 10000 // 1.0%
-  };
-
+  /**
+   * Get best swap routes using 0x Protocol aggregator
+   */
   static async getBestRoute(
     inputAsset: string,
     outputAsset: string,
@@ -69,75 +53,47 @@ export class DexAggregatorService {
     userAddress?: string
   ): Promise<DexRoute[]> {
     try {
-      console.log(`🔍 Finding REAL DEX routes: ${amount} ${inputAsset} → ${outputAsset}`);
-      const routes: DexRoute[] = [];
+      console.log(`🔍 Finding best routes via 0x aggregator: ${amount} ${inputAsset} → ${outputAsset}`);
       
-      // Get REAL Uniswap V3 quote via blockchain operations
-      const uniswapRoute = await this.getUniswapV3Quote(inputAsset, outputAsset, amount, slippage, userAddress);
-      if (uniswapRoute) {
-        routes.push(uniswapRoute);
-      }
+      // Get quote from 0x (which aggregates 100+ DEXs including Uniswap)
+      const inputDecimals = zeroXSwapService.getTokenDecimals(inputAsset);
+      const sellAmount = ethers.parseUnits(amount.toString(), inputDecimals).toString();
       
-      console.log(`✅ Found ${routes.length} REAL routes`);
-      return routes.sort((a, b) => b.outputAmount - a.outputAmount);
+      const quote = await zeroXSwapService.getQuote(
+        inputAsset,
+        outputAsset,
+        sellAmount,
+        userAddress || '0x0000000000000000000000000000000000000000'
+      );
+      
+      const outputDecimals = zeroXSwapService.getTokenDecimals(outputAsset);
+      const outputAmount = parseFloat(ethers.formatUnits(quote.buyAmount, outputDecimals));
+      
+      console.log(`✅ 0x quote: ${outputAmount} ${outputAsset} via ${quote.sources.length} sources`);
+      console.log(`📊 Price: ${quote.price}, Guaranteed: ${quote.guaranteedPrice}`);
+      
+      return [{
+        id: '0x-aggregated',
+        protocol: '0x',
+        inputAsset,
+        outputAsset,
+        inputAmount: amount,
+        outputAmount,
+        priceImpact: 0.5, // 0x handles this internally
+        gasEstimate: parseInt(quote.estimatedGas),
+        route: quote.sources,
+        confidence: 95
+      }];
       
     } catch (error) {
-      console.error('❌ Error fetching REAL DEX routes:', error);
+      console.error('❌ Error fetching 0x routes:', error);
       return [];
     }
   }
 
-  private static async getUniswapV3Quote(
-    inputAsset: string,
-    outputAsset: string,
-    amount: number,
-    slippage: number,
-    userAddress?: string
-  ): Promise<DexRoute | null> {
-    try {
-      console.log(`📊 Getting REAL Uniswap V3 quote: ${amount} ${inputAsset} → ${outputAsset}`);
-      
-      const { data, error } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'get_uniswap_quote',
-          inputAsset,
-          outputAsset,
-          amount,
-          slippage,
-          userAddress
-        }
-      });
-
-      if (error || !data?.success) {
-        console.error('❌ REAL Uniswap quote failed:', error || data?.error);
-        return null;
-      }
-
-      console.log(`✅ REAL Uniswap quote: ${data.outputAmount} ${outputAsset} (${data.priceImpact}% impact)`);
-
-      return {
-        id: `uniswap-v3-${Date.now()}`,
-        protocol: 'uniswap-v3',
-        inputAsset,
-        outputAsset,
-        inputAmount: amount,
-        outputAmount: data.outputAmount,
-        priceImpact: data.priceImpact,
-        gasEstimate: data.gasEstimate,
-        route: [{
-          protocol: 'uniswap-v3',
-          poolFee: this.POOL_FEES[`${inputAsset}-${outputAsset}` as keyof typeof this.POOL_FEES] || 3000,
-          tokenIn: this.TOKEN_ADDRESSES[inputAsset as keyof typeof this.TOKEN_ADDRESSES],
-          tokenOut: this.TOKEN_ADDRESSES[outputAsset as keyof typeof this.TOKEN_ADDRESSES]
-        }],
-        confidence: 0.98
-      };
-    } catch (error) {
-      console.error('❌ Error getting REAL Uniswap V3 quote:', error);
-      return null;
-    }
-  }
-
+  /**
+   * Find arbitrage opportunities across protocols
+   */
   static async findArbitrageOpportunities(
     assets: string[] = ['USDC', 'USDT', 'DAI', 'XAUT']
   ): Promise<ArbitrageOpportunity[]> {
@@ -188,14 +144,18 @@ export class DexAggregatorService {
     const basePrice = Math.random() * 100 + 50; // Random price between $50-150
     
     return {
+      '0x-aggregated': basePrice * (1 + (Math.random() - 0.5) * 0.01),
       'uniswap-v3': basePrice * (1 + (Math.random() - 0.5) * 0.01),
       'sushiswap': basePrice * (1 + (Math.random() - 0.5) * 0.01),
       'curve': basePrice * (1 + (Math.random() - 0.5) * 0.01),
-      'balancer': basePrice * (1 + (Math.random() - 0.5) * 0.01),
-      '1inch': basePrice * (1 + (Math.random() - 0.5) * 0.01)
+      'balancer': basePrice * (1 + (Math.random() - 0.5) * 0.01)
     };
   }
 
+  /**
+   * Execute swap using 0x Protocol
+   * Delegates to swapService which uses execute_0x_swap
+   */
   static async executeOptimalSwap(
     route: DexRoute,
     userAddress: string,
@@ -224,81 +184,43 @@ export class DexAggregatorService {
     transactionId?: string;
   }> {
     try {
-      console.log(`🔄 Executing REAL swap on ${route.protocol}: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
+      console.log(`🔄 Executing 0x swap: ${route.inputAmount} ${route.inputAsset} → ${route.outputAsset}`);
       console.log(`👤 User wallet: ${userAddress}, Quote ID: ${quoteId || 'none'}, Intent ID: ${intentId || 'none'}`);
       
-      // Execute REAL Uniswap V3 swap through blockchain operations with user's wallet
-      const { data: swapResult, error: swapError } = await supabase.functions.invoke('blockchain-operations', {
-        body: {
-          operation: 'execute_uniswap_swap',
-          inputAsset: route.inputAsset,
-          outputAsset: route.outputAsset,
-          amountIn: route.inputAmount,
-          slippage: slippage,
-          walletPassword: walletPassword,
-          quoteId: quoteId,
-          intentId: intentId, // Actual intent row ID
-          idempotencyKey: idempotencyKey // Separate idempotency key for duplicate detection
-        }
-      });
-
-      if (swapError || !swapResult?.success) {
-        // Extract detailed error message from edge function response
-        let errorMessage = 'Real swap execution failed';
-        
-        // If swapResult has error details (success: false case)
-        if (swapResult?.error) {
-          errorMessage = swapResult.error;
-        }
-        // If swapError has context (non-2xx status case)
-        else if (swapError && typeof swapError === 'object' && 'context' in swapError) {
-          const context = (swapError as any).context;
-          if (context?.error) {
-            errorMessage = context.error;
-          } else if (context) {
-            errorMessage = JSON.stringify(context);
-          }
-        }
-        // Fallback to error message
-        else if (swapError?.message) {
-          errorMessage = swapError.message;
-        }
-        
-        console.error(`❌ REAL ${route.protocol} swap failed:`, errorMessage);
+      if (!quoteId) {
+        throw new Error('Quote ID is required for swap execution');
+      }
+      
+      // Execute via swapService which uses execute_0x_swap operation
+      const { swapService } = await import('./swapService');
+      const result = await swapService.executeSwap(
+        quoteId, 
+        userAddress, // userId (will be resolved via auth)
+        walletPassword || ''
+      );
+      
+      if (!result.success) {
+        console.error(`❌ 0x swap failed:`, result.error);
         return {
           success: false,
-          error: errorMessage,
-          requiresImport: swapResult?.requiresImport || false,
-          requiresRefund: swapResult?.requiresRefund || false,
-          refundTxHash: swapResult?.refundTxHash
+          error: result.error || '0x swap execution failed',
+          requiresImport: false
         };
       }
 
-      console.log(`🎉 REAL ${route.protocol} swap completed:`, swapResult.txHash);
-      console.log(`🏦 User wallet used: ${swapResult.userWallet}`);
+      console.log(`🎉 0x swap completed:`, result.hash);
 
       return { 
         success: true, 
-        txHash: swapResult.txHash,
-        gasFeePaidInTokens: swapResult.gasFeePaidInTokens,
-        gasFeeInTokens: swapResult.gasFeeInTokens,
-        adjustedInputAmount: swapResult.adjustedInputAmount,
-        gasFeePaidByRelayer: swapResult.gasFeePaidByRelayer,
-        relayFeeInOutputTokens: swapResult.relayFeeInOutputTokens,
-        relayFeeUsd: swapResult.relayFeeUsd,
-        netOutputAmount: swapResult.netOutputAmount,
-        outputAmount: swapResult.outputAmount,
-        relayerAddress: swapResult.relayerAddress,
-        transactionId: swapResult.transactionId,
-        requiresReconciliation: swapResult.requiresReconciliation || false
+        txHash: result.hash,
+        transactionId: result.transactionId
       };
       
-      
     } catch (error) {
-      console.error('❌ Error executing REAL swap:', error);
+      console.error('❌ Error executing 0x swap:', error);
       return { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Real swap execution failed' 
+        error: error instanceof Error ? error.message : '0x swap execution failed' 
       };
     }
   }

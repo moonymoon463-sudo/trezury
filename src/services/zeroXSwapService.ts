@@ -1,21 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-
-// Token addresses on Ethereum mainnet
-const TOKEN_ADDRESSES: Record<string, string> = {
-  'ETH': '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // Native ETH representation for 0x API
-  'USDC': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-  'XAUT': '0x68749665FF8D2d112Fa859AA293F07A622782F38',
-  'TRZRY': '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
-  'BTC': '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' // WBTC
-};
-
-const TOKEN_DECIMALS: Record<string, number> = {
-  'ETH': 18,
-  'USDC': 6,
-  'XAUT': 6,
-  'TRZRY': 18,
-  'BTC': 8
-};
+import { TOKEN_ADDRESSES, TOKEN_DECIMALS, getTokenAddress, getTokenDecimals } from "@/config/tokenAddresses";
 
 export interface ZeroXQuote {
   buyAmount: string;
@@ -37,19 +21,11 @@ class ZeroXSwapService {
   private readonly PLATFORM_FEE_RECIPIENT = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   getTokenAddress(symbol: string): string {
-    const address = TOKEN_ADDRESSES[symbol];
-    if (!address) {
-      throw new Error(`Unsupported token: ${symbol}`);
-    }
-    return address;
+    return getTokenAddress(symbol);
   }
 
   getTokenDecimals(symbol: string): number {
-    const decimals = TOKEN_DECIMALS[symbol];
-    if (!decimals) {
-      throw new Error(`Unsupported token: ${symbol}`);
-    }
-    return decimals;
+    return getTokenDecimals(symbol);
   }
 
   /**
