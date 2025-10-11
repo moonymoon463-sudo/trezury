@@ -544,6 +544,26 @@ async function handleDeployGelatoRelay(network: string, supabase: any) {
       console.error('Failed to store deployment:', dbError);
     }
 
+    // Automatically store contract address as secret for use by blockchain-operations
+    try {
+      const { error: secretError } = await supabaseClient
+        .from('vault.secrets')
+        .upsert({
+          name: 'GELATO_SWAP_CONTRACT_ADDRESS',
+          secret: contractAddress
+        });
+
+      if (secretError) {
+        console.warn('⚠️ Could not auto-store contract address as secret:', secretError);
+        console.log('📝 Please manually add GELATO_SWAP_CONTRACT_ADDRESS secret with value:', contractAddress);
+      } else {
+        console.log('✅ Contract address stored as GELATO_SWAP_CONTRACT_ADDRESS secret');
+      }
+    } catch (secretStoreError) {
+      console.warn('⚠️ Failed to store secret automatically:', secretStoreError);
+      console.log('📝 Please manually add GELATO_SWAP_CONTRACT_ADDRESS secret with value:', contractAddress);
+    }
+
     return new Response(JSON.stringify({
       success: true,
       contractAddress,
