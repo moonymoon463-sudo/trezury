@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2 } from "lucide-react";
+import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2, Coins } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -345,50 +345,79 @@ const Swap = () => {
         {/* Chain Switcher */}
         <div className="bg-card p-4 rounded-xl border-2 border-primary/20 md:p-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center ${
-                currentChain === 'ethereum' ? 'bg-gradient-to-br from-purple-500 to-blue-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'
-              }`}>
-                <span className="text-white text-sm font-bold md:text-xs">
-                  {currentChain === 'ethereum' ? 'ETH' : 'ARB'}
-                </span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-foreground md:text-xs">
-                  {currentChain === 'ethereum' ? 'Ethereum' : 'Arbitrum'} Network
+            {currentChain === 'arbitrum' ? (
+              // Arbitrum: Buy Gold layout
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-500 to-amber-600">
+                    <Coins className="text-white" size={20} />
+                  </div>
+                  <span className="text-base font-bold text-yellow-500 md:text-sm">
+                    Buy Gold
+                  </span>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {currentChain === 'ethereum' ? 'For TRZRY ↔ USDC swaps' : 'For XAUT ↔ USDC swaps'}
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Arbitrum Network</div>
+                    <div className="text-xs text-muted-foreground">For XAUT ↔ USDC swap</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newChain = 'ethereum';
+                      setCurrentChain(newChain);
+                      setFromAsset('USDC');
+                      setToAsset('TRZRY');
+                      toast({
+                        title: "Switched to Ethereum",
+                        description: "Now showing Ethereum assets",
+                      });
+                    }}
+                    className="gap-2"
+                  >
+                    <Repeat2 size={14} />
+                    Switch
+                  </Button>
                 </div>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const newChain = currentChain === 'ethereum' ? 'arbitrum' : 'ethereum';
-                setCurrentChain(newChain);
-                // Reset selections when switching chains
-                const availableAssets = getAvailableAssets(newChain);
-                if (availableAssets.length > 0) {
-                  if (newChain === 'ethereum') {
-                    setFromAsset('USDC');
-                    setToAsset('TRZRY');
-                  } else {
-                    setFromAsset('USDC_ARB');
-                    setToAsset('XAUT_ARB');
-                  }
-                }
-                toast({
-                  title: `Switched to ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
-                  description: `Now showing ${newChain} assets`,
-                });
-              }}
-              className="gap-2"
-            >
-              <Repeat2 size={14} />
-              Switch
-            </Button>
+              </>
+            ) : (
+              // Ethereum: Buy TRZRY layout
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-600">
+                    <span className="text-white text-sm font-bold md:text-xs">ETH</span>
+                  </div>
+                  <span className="text-base font-bold text-purple-500 md:text-sm">
+                    Buy TRZRY
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Ethereum Network</div>
+                    <div className="text-xs text-muted-foreground">For TRZRY ↔ USDC swaps</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newChain = 'arbitrum';
+                      setCurrentChain(newChain);
+                      setFromAsset('USDC_ARB');
+                      setToAsset('XAUT_ARB');
+                      toast({
+                        title: "Switched to Arbitrum",
+                        description: "Now showing Arbitrum assets",
+                      });
+                    }}
+                    className="gap-2"
+                  >
+                    <Repeat2 size={14} />
+                    Switch
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
