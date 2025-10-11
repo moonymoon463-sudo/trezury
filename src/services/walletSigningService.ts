@@ -98,6 +98,7 @@ class WalletSigningService {
 
   /**
    * Sign EIP-712 typed data
+   * ✅ PHASE 3: SIGNATURE MONITORING
    */
   async signTypedData(
     userId: string,
@@ -107,8 +108,57 @@ class WalletSigningService {
     types: any,
     message: any
   ): Promise<string> {
-    const wallet = await this.getWalletForSigning(userId, userPassword, chainId);
-    return await wallet.signTypedData(domain, types, message);
+    try {
+      const wallet = await this.getWalletForSigning(userId, userPassword, chainId);
+      const signature = await wallet.signTypedData(domain, types, message);
+      
+      // ✅ Log successful signature
+      supabase.from('signature_attempts').insert({
+        user_id: userId,
+        success: true,
+        chain_id: chainId,
+        metadata: {
+          domain: domain.name,
+          timestamp: Date.now()
+        }
+      }).then();
+      
+      return signature;
+    } catch (error) {
+      // ✅ MONITOR FAILED SIGNATURES
+      console.error('❌ Signature failed:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown signature error';
+      
+      // Log to database
+      supabase.from('signature_attempts').insert({
+        user_id: userId,
+        success: false,
+        chain_id: chainId,
+        error_message: errorMessage,
+        metadata: {
+          domain: domain.name,
+          timestamp: Date.now(),
+          error_type: error instanceof Error ? error.name : 'UnknownError'
+        }
+      }).then();
+      
+      // Alert on repeated failures
+      import('@/services/securityMonitoringService').then(({ securityMonitoringService }) => {
+        securityMonitoringService.logSecurityEvent({
+          event_type: 'signature_failure',
+          severity: 'medium',
+          user_id: userId,
+          event_data: {
+            chainId,
+            error: errorMessage,
+            timestamp: Date.now()
+          }
+        });
+      }).catch();
+      
+      throw error;
+    }
   }
 }
 

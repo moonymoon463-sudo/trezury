@@ -122,6 +122,37 @@ class SwapService {
     useGasless: boolean = true // Always true with 0x Gasless
   ): Promise<SwapResult> {
     try {
+      // ✅ PHASE 2: IDEMPOTENCY CHECK
+      const { data: existingSwap } = await supabase
+        .from('transactions')
+        .select('id, status, metadata')
+        .eq('quote_id', quoteId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (existingSwap) {
+        // If swap already in progress or completed, reject with idempotency
+        if (['pending', 'completed'].includes(existingSwap.status)) {
+          console.warn(`⚠️ Idempotency: Swap already exists for quote ${quoteId}`, {
+            swapId: existingSwap.id,
+            status: existingSwap.status
+          });
+          
+          // Log idempotency rejection
+          import('@/utils/productionMonitoring').then(({ logSwapEvent }) => {
+            logSwapEvent(quoteId, userId, 'idempotency_rejected', {
+              existingSwapId: existingSwap.id,
+              existingStatus: existingSwap.status
+            });
+          });
+          
+          return {
+            success: false,
+            error: 'Swap already in progress for this quote. Please generate a new quote.'
+          };
+        }
+      }
+
       // Fetch the quote
       const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
@@ -134,8 +165,19 @@ class SwapService {
         throw new Error('Quote not found or expired');
       }
 
-      // Check if quote is expired
+      // ✅ PHASE 3: QUOTE EXPIRATION MONITORING
       if (new Date() > new Date(quoteData.expires_at)) {
+        console.warn(`⏱️ Quote expired: ${quoteId}`);
+        
+        import('@/utils/productionMonitoring').then(({ logSwapEvent }) => {
+          logSwapEvent(quoteId, userId, 'swap_failed', {
+            reason: 'quote_expired',
+            expiresAt: quoteData.expires_at,
+            attemptedAt: new Date().toISOString(),
+            timeSinceExpiry: Date.now() - new Date(quoteData.expires_at).getTime()
+          });
+        });
+        
         throw new Error('Quote has expired. Please generate a new quote.');
       }
 
@@ -206,11 +248,14 @@ class SwapService {
         if (statusResult.status === 'confirmed' && statusResult.transactions.length > 0) {
           const txHash = statusResult.transactions[0].hash;
 
-          // Record transaction with proper schema
+          // Record transaction with proper schema + idempotency metadata
+          const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
+          
           const { error: txError } = await supabase
             .from('transactions')
             .insert({
               user_id: userId,
+              quote_id: quoteId, // ✅ Link to quote for idempotency
               asset: quoteData.output_asset, // Asset received
               type: 'swap',
               status: 'completed',
@@ -224,7 +269,10 @@ class SwapService {
                 chainId: gaslessQuote.chainId,
                 tradeHash: submitResult.tradeHash,
                 gasless: true,
-                quoteId
+                quoteId,
+                idempotency_key: idempotencyKey, // ✅ Track idempotency
+                submission_timestamp: Date.now(),
+                quote_used: quoteId
               },
               created_at: new Date().toISOString()
             });

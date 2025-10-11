@@ -23,6 +23,7 @@ import BottomNavigation from '@/components/BottomNavigation';
 import AurumLogo from '@/components/AurumLogo';
 import { AISystemTest } from '@/components/testing/AISystemTest';
 import { NewsCollectionTrigger } from '@/components/admin/NewsCollectionTrigger';
+import { LiveSwapMonitoring } from '@/components/admin/LiveSwapMonitoring';
 import { useAdminSessionTimeout } from '@/hooks/useAdminSessionTimeout';
 
 const AdminDashboard = () => {
@@ -290,6 +291,9 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Live Swap Monitoring */}
+        <LiveSwapMonitoring />
 
         {/* AI Enhancement Testing */}
         <div className="grid gap-6 lg:grid-cols-2">

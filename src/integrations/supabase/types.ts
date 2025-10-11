@@ -154,6 +154,36 @@ export type Database = {
         }
         Relationships: []
       }
+      api_downtime_log: {
+        Row: {
+          detected_at: string
+          duration_seconds: number | null
+          error_details: Json | null
+          error_message: string | null
+          id: string
+          provider: string
+          resolved_at: string | null
+        }
+        Insert: {
+          detected_at?: string
+          duration_seconds?: number | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          provider: string
+          resolved_at?: string | null
+        }
+        Update: {
+          detected_at?: string
+          duration_seconds?: number | null
+          error_details?: Json | null
+          error_message?: string | null
+          id?: string
+          provider?: string
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
       api_rate_limits: {
         Row: {
           blocked_until: string | null
@@ -253,6 +283,39 @@ export type Database = {
           metadata?: Json | null
           success?: boolean | null
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      balance_change_alerts: {
+        Row: {
+          alert_severity: string
+          balance_snapshot: Json
+          created_at: string
+          current_total: number
+          id: string
+          percent_change: number
+          previous_total: number
+          user_id: string
+        }
+        Insert: {
+          alert_severity: string
+          balance_snapshot: Json
+          created_at?: string
+          current_total: number
+          id?: string
+          percent_change: number
+          previous_total: number
+          user_id: string
+        }
+        Update: {
+          alert_severity?: string
+          balance_snapshot?: Json
+          created_at?: string
+          current_total?: number
+          id?: string
+          percent_change?: number
+          previous_total?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -2108,6 +2171,36 @@ export type Database = {
           risk_score?: number | null
           session_id?: string
           user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      signature_attempts: {
+        Row: {
+          chain_id: number
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          success: boolean
+          user_id: string
+        }
+        Insert: {
+          chain_id: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          success: boolean
+          user_id: string
+        }
+        Update: {
+          chain_id?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          success?: boolean
           user_id?: string
         }
         Relationships: []

@@ -136,14 +136,84 @@ class RateLimitingService {
 
   /**
    * Rate limit transaction operations (higher cost)
+   * ✅ PHASE 4: ENHANCED TIERED RATE LIMITING
    */
   async checkTransactionLimit(userId: string): Promise<RateLimitResult> {
     const tier = await this.getUserTier(userId);
     const identifier = `${userId}:transactions`;
     
-    // Transactions cost more tokens
-    const cost = tier === 'basic' ? 5 : tier === 'premium' ? 3 : 1;
-    return this.checkLimit(identifier, tier, cost);
+    // ✅ STRICTER LIMITS FOR UNVERIFIED USERS
+    let cost: number;
+    let maxTransactions: number;
+    
+    if (tier === 'basic') {
+      cost = 10; // Much higher cost for unverified
+      maxTransactions = 10; // Max 10 transactions per hour for basic
+    } else if (tier === 'premium') {
+      cost = 3;
+      maxTransactions = 50; // 50 transactions per hour for verified
+    } else {
+      cost = 1;
+      maxTransactions = 1000; // Unlimited for admin
+    }
+    
+    // Check both cost-based and absolute count
+    const costResult = this.checkLimit(identifier, tier, cost);
+    
+    // Also check absolute transaction count
+    const countResult = this.checkAbsoluteLimit(
+      `${userId}:tx_count`,
+      maxTransactions,
+      3600000 // 1 hour window
+    );
+    
+    return {
+      allowed: costResult.allowed && countResult.allowed,
+      remaining: Math.min(costResult.remaining, countResult.remaining),
+      resetTime: Math.max(costResult.resetTime, countResult.resetTime),
+      tier
+    };
+  }
+
+  /**
+   * Check absolute count limit (not token-based)
+   * ✅ NEW: Enforce hard transaction count limits
+   */
+  private checkAbsoluteLimit(
+    identifier: string,
+    maxCount: number,
+    windowMs: number
+  ): RateLimitResult {
+    const key = `count_${identifier}`;
+    const now = Date.now();
+    
+    // Simple sliding window counter
+    if (!this.buckets.has(key)) {
+      this.buckets.set(key, {
+        tokens: 0,
+        lastRefill: now,
+        maxTokens: maxCount,
+        refillRate: maxCount / (windowMs / 1000)
+      });
+    }
+    
+    const bucket = this.buckets.get(key)!;
+    
+    // Reset if window expired
+    if (now - bucket.lastRefill > windowMs) {
+      bucket.tokens = 0;
+      bucket.lastRefill = now;
+    }
+    
+    bucket.tokens += 1;
+    const allowed = bucket.tokens <= maxCount;
+    
+    return {
+      allowed,
+      remaining: Math.max(0, maxCount - bucket.tokens),
+      resetTime: bucket.lastRefill + windowMs,
+      tier: 'count_based'
+    };
   }
 
   /**

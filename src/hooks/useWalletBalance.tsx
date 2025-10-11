@@ -98,6 +98,50 @@ export function useWalletBalance() {
       ];
 
       console.log('💰 Setting balances:', newBalances);
+
+      // ✅ PHASE 3: UNUSUAL BALANCE CHANGE DETECTION
+      const previousTotal = balances.reduce((sum, b) => sum + b.amount, 0);
+      const currentTotal = newBalances.reduce((sum, b) => sum + b.amount, 0);
+      const percentChange = previousTotal > 0 
+        ? Math.abs((currentTotal - previousTotal) / previousTotal) * 100 
+        : 0;
+
+      if (percentChange > 50 && previousTotal > 0) {
+        // Alert on >50% balance change
+        console.warn(`⚠️ Large balance change detected: ${percentChange.toFixed(2)}%`, {
+          previousTotal,
+          currentTotal,
+          balances: newBalances
+        });
+        
+        // Log to database
+        const severity = percentChange > 90 ? 'critical' : percentChange > 75 ? 'high' : 'medium';
+        
+        supabase.from('balance_change_alerts').insert([{
+          user_id: user?.id!,
+          previous_total: previousTotal,
+          current_total: currentTotal,
+          percent_change: percentChange,
+          balance_snapshot: newBalances as any,
+          alert_severity: severity
+        }]).then();
+        
+        // Security monitoring
+        import('@/services/securityMonitoringService').then(({ securityMonitoringService }) => {
+          securityMonitoringService.logSecurityEvent({
+            event_type: 'unusual_balance_change',
+            severity: 'high',
+            user_id: user?.id,
+            event_data: {
+              previousTotal,
+              currentTotal,
+              percentChange: percentChange.toFixed(2),
+              balanceSnapshot: newBalances
+            }
+          });
+        }).catch();
+      }
+
       setBalances(newBalances);
     } catch (error) {
       console.error('Failed to fetch wallet balances:', error);
