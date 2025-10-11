@@ -97,11 +97,13 @@ export async function checkRateLimit(
           last_request: now.toISOString(),
           blocked_until: null
         }, {
-          onConflict: 'identifier,endpoint'
+          onConflict: 'identifier,endpoint',
+          ignoreDuplicates: false
         });
 
       if (upsertError) {
         console.error('Rate limit upsert error:', upsertError);
+        // Continue anyway - fail open for rate limiting
       }
 
       return {
