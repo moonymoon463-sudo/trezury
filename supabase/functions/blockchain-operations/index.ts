@@ -1207,6 +1207,64 @@ serve(async (req) => {
         }
         break;
 
+      case 'broadcast_signed_transaction':
+        try {
+          const { signedTransaction, asset, from, to, amount, userId } = body;
+          console.log(`Broadcasting pre-signed transaction: ${amount} ${asset} from ${from} to ${to}`);
+          
+          if (!signedTransaction) {
+            throw new Error('Signed transaction is required');
+          }
+
+          // Broadcast the pre-signed transaction to the network
+          const tx = await provider.broadcastTransaction(signedTransaction);
+          console.log(`Transaction broadcasted with hash: ${tx.hash}`);
+          
+          // Wait for confirmation
+          const receipt = await tx.wait();
+          console.log(`Transaction confirmed: ${receipt.hash}`);
+
+          // Record transaction in database
+          const { error: txError } = await supabaseAdmin
+            .from('transactions')
+            .insert({
+              user_id: userId,
+              type: 'send',
+              asset,
+              quantity: amount,
+              status: receipt.status === 1 ? 'completed' : 'failed',
+              metadata: {
+                from,
+                to,
+                tx_hash: receipt.hash,
+                block_number: receipt.blockNumber,
+                gas_used: receipt.gasUsed?.toString(),
+                confirmations: receipt.confirmations || 1
+              }
+            });
+
+          if (txError) {
+            console.error('Failed to record transaction:', txError);
+          }
+          
+          result = {
+            success: true,
+            hash: receipt.hash,
+            from,
+            to,
+            amount,
+            asset,
+            confirmations: receipt.confirmations || 1,
+            status: receipt.status === 1 ? 'success' : 'failed',
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString()
+          };
+        } catch (error) {
+          console.error('Transaction broadcast failed:', error);
+          throw error;
+        }
+        break;
+
       case 'transfer':
         try {
           const { from, to, amount, asset, userId } = body;

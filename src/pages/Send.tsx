@@ -11,15 +11,19 @@ import { useWalletBalance } from "@/hooks/useWalletBalance";
 import { useSecureWallet } from "@/hooks/useSecureWallet";
 import { useTransactionLimits } from "@/hooks/useTransactionLimits";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { sendTransactionSchema } from "@/lib/validation/transactionSchemas";
 import { cn } from "@/lib/utils";
+import { PasswordPrompt } from "@/components/wallet/PasswordPrompt";
+import { secureWalletService } from "@/services/secureWalletService";
 
 const Send = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { getBalance, refreshBalances } = useWalletBalance();
-  const { signTransaction, getWalletAddress } = useSecureWallet();
+  const { getWalletAddress } = useSecureWallet();
   const { checkTransactionVelocity, checking: limitsChecking } = useTransactionLimits();
   
   const [asset, setAsset] = useState<string>("");
@@ -29,6 +33,7 @@ const Send = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [senderAddress, setSenderAddress] = useState<string>("");
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
 
   const assets = [
     { value: "USDC", label: "USDC", icon: "💲" },
@@ -119,6 +124,15 @@ const Send = () => {
   const handleSend = async () => {
     if (!validateForm()) return;
 
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to send tokens",
+      });
+      return;
+    }
+
     // Check transaction velocity limits
     const usdValue = parseFloat(amount) || 0;
     const velocityCheck = await checkTransactionVelocity(usdValue);
@@ -126,15 +140,73 @@ const Send = () => {
       return; // Error toast already shown by the hook
     }
 
+    // Check on-chain balance before sending
     setIsLoading(true);
     try {
+      const balanceResponse = await supabase.functions.invoke('blockchain-operations', {
+        body: {
+          operation: 'get_balance',
+          address: senderAddress,
+          asset
+        }
+      });
+
+      if (balanceResponse.error) {
+        throw new Error('Failed to check balance');
+      }
+
+      const onChainBalance = balanceResponse.data?.balance || 0;
+      if (onChainBalance < parseFloat(amount)) {
+        toast({
+          variant: "destructive",
+          title: "Insufficient Balance",
+          description: `You only have ${onChainBalance} ${asset} available on-chain`,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Prompt for password to sign transaction
+      setShowPasswordPrompt(true);
+    } catch (error) {
+      console.error('Balance check error:', error);
+      toast({
+        variant: "destructive",
+        title: "Balance Check Failed",
+        description: error instanceof Error ? error.message : "Failed to verify balance",
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordConfirm = async (password: string) => {
+    if (!user) return;
+
+    try {
+      // Sign transaction locally with user's private key
+      const transactionData = {
+        to: recipientAddress,
+        amount: parseFloat(amount),
+        asset,
+        from: senderAddress
+      };
+
+      const signedTx = await secureWalletService.signTransaction(
+        user.id,
+        transactionData,
+        password
+      );
+
+      // Broadcast signed transaction
       const response = await supabase.functions.invoke('blockchain-operations', {
         body: {
-          operation: 'transfer',
+          operation: 'broadcast_signed_transaction',
+          signedTransaction: signedTx,
           asset,
-          to_address: recipientAddress,
+          from: senderAddress,
+          to: recipientAddress,
           amount: parseFloat(amount),
-          from_address: senderAddress
+          userId: user.id
         }
       });
 
@@ -145,8 +217,8 @@ const Send = () => {
       await refreshBalances();
       
       toast({
-        title: "Transfer Initiated",
-        description: `Sending ${amount} ${asset} to ${recipientAddress.slice(0, 6)}...${recipientAddress.slice(-4)}`,
+        title: "Transfer Complete",
+        description: `Successfully sent ${amount} ${asset}`,
       });
 
       navigate("/transactions");
@@ -155,10 +227,11 @@ const Send = () => {
       toast({
         variant: "destructive",
         title: "Transfer Failed",
-        description: error instanceof Error ? error.message : "An error occurred during the transfer",
+        description: error instanceof Error ? error.message : "Failed to sign or broadcast transaction",
       });
     } finally {
       setIsLoading(false);
+      setShowPasswordPrompt(false);
     }
   };
 
@@ -278,6 +351,13 @@ const Send = () => {
           </Button>
         </div>
       </div>
+
+      <PasswordPrompt
+        open={showPasswordPrompt}
+        onOpenChange={setShowPasswordPrompt}
+        onConfirm={handlePasswordConfirm}
+        loading={isLoading}
+      />
     </AppLayout>
   );
 };

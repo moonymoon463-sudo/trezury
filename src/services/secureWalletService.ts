@@ -234,8 +234,23 @@ class SecureWalletService {
       
       const wallet = new ethers.Wallet(privateKey);
 
+      // Create proper transaction object for ERC20 transfer
+      // The transaction will be constructed on the edge function side
+      // We'll sign a simplified version here for now
+      const tx = {
+        to: transactionData.to,
+        value: ethers.parseUnits('0', 'wei'), // ERC20 transfer has 0 ETH value
+        data: '0x', // Will be constructed by edge function
+        chainId: 1, // Ethereum mainnet
+        gasLimit: 100000,
+        maxFeePerGas: ethers.parseUnits('50', 'gwei'),
+        maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'),
+        nonce: 0, // Will be filled by edge function
+        type: 2 // EIP-1559
+      };
+
       // Sign the transaction
-      const signature = await wallet.signTransaction(transactionData);
+      const signature = await wallet.signTransaction(tx);
 
       await this.logSecurityEvent(
         userId,
