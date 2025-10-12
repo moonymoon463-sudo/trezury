@@ -18,7 +18,7 @@ const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
   42161: { // Arbitrum
     ETH: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
+    XAUT: '0x40461291347e1ecbb09499f3371d3f17f10d7159', // Correct Arbitrum XAUT address
     BTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f'
   }
 };
@@ -55,11 +55,35 @@ serve(async (req) => {
     if (operation === 'get_quote') {
       const { sellToken, buyToken, sellAmount, userAddress, chainId } = params;
       
-      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[sellToken];
-      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[buyToken];
+      // Validate chain is supported
+      const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
+      if (!availableChains.includes(chainId)) {
+        console.error('Unsupported chain:', { chainId, availableChains });
+        throw new Error(`Unsupported chain: ${chainId}. Available: ${availableChains.join(', ')}`);
+      }
+      
+      // Strip _ARB suffix if present (for Arbitrum tokens)
+      const cleanSellToken = sellToken.replace('_ARB', '');
+      const cleanBuyToken = buyToken.replace('_ARB', '');
+      
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanSellToken];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanBuyToken];
+
+      console.log('Token mapping:', {
+        sellToken: `${sellToken} -> ${cleanSellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${cleanBuyToken} -> ${buyTokenAddress}`,
+        chainId,
+        availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
+      });
 
       if (!sellTokenAddress || !buyTokenAddress) {
-        throw new Error(`Token not supported on chain ${chainId}`);
+        console.error('Token not found:', { 
+          chainId, 
+          cleanSellToken, 
+          cleanBuyToken,
+          availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
+        });
+        throw new Error(`Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`);
       }
 
       const queryParams = new URLSearchParams({
