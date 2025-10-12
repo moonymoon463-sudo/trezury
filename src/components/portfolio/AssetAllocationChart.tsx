@@ -6,10 +6,9 @@ import { PieChart as PieChartIcon } from "lucide-react";
 interface AssetAllocationChartProps {
   assets: PortfolioAsset[];
   loading?: boolean;
-  aggregateChains?: boolean;
 }
 
-export function AssetAllocationChart({ assets, loading = false, aggregateChains = true }: AssetAllocationChartProps) {
+export function AssetAllocationChart({ assets, loading = false }: AssetAllocationChartProps) {
   // Show loading skeleton while fetching balances
   if (loading) {
     return (
@@ -24,42 +23,32 @@ export function AssetAllocationChart({ assets, loading = false, aggregateChains 
     );
   }
 
-  // Group assets by type and calculate totals
+  // Group assets by type and calculate totals - aggregate across chains
   const data = assets
     .filter(asset => asset.valueUSD > 0) // Only positive values for pie chart
     .reduce((acc, asset) => {
-      // Normalize asset identifier by removing chain suffix
+      // Normalize asset identifier by removing chain suffix (_ARB)
       const baseAsset = asset.asset.replace('_ARB', '');
-      // Choose grouping key based on aggregateChains prop
-      const groupKey = aggregateChains ? baseAsset : asset.asset;
-      const existing = acc.find(item => item.groupKey === groupKey);
+      const existing = acc.find(item => item.baseAsset === baseAsset);
       
       if (existing) {
         existing.value += asset.valueUSD;
       } else {
-        // Determine display name based on aggregation mode
-        let displayName: string;
-        if (aggregateChains) {
-          // Simple display name without chain info
-          displayName = baseAsset === 'USDC' ? 'USD Coin' :
-                       baseAsset === 'XAUT' ? 'Tether Gold' :
-                       baseAsset === 'TRZRY' ? 'Treasury' :
-                       asset.name.split(' (')[0]; // Remove chain suffix from name
-        } else {
-          // Full name with chain (e.g., "USD Coin (Arbitrum)")
-          displayName = asset.name;
-        }
+        // Use simple display name without chain info
+        const displayName = baseAsset === 'USDC' ? 'USD Coin' :
+                           baseAsset === 'XAUT' ? 'Tether Gold' :
+                           baseAsset === 'TRZRY' ? 'Treasury' :
+                           asset.name.split(' (')[0]; // Remove chain suffix from name
         
         acc.push({
           name: displayName,
-          groupKey: groupKey,
           baseAsset: baseAsset,
           value: asset.valueUSD,
           color: getAssetColor(baseAsset)
         });
       }
       return acc;
-    }, [] as Array<{ name: string; groupKey: string; baseAsset: string; value: number; color: string }>)
+    }, [] as Array<{ name: string; baseAsset: string; value: number; color: string }>)
     .sort((a, b) => b.value - a.value); // Sort by value descending
 
   function getAssetColor(asset: string): string {
