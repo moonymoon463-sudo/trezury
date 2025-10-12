@@ -145,34 +145,7 @@ class SwapService {
       return quote;
     } catch (error) {
       console.error('Error generating swap quote:', error);
-      
-      // Extract debug metadata from error object
-      const errorObj = error as any;
-      const enhancedError = new Error(
-        errorObj.message || 'Failed to generate swap quote'
-      ) as any;
-      
-      // Preserve metadata if present directly on error object
-      if (errorObj.requestUrl) enhancedError.requestUrl = errorObj.requestUrl;
-      if (errorObj.requestId) enhancedError.requestId = errorObj.requestId;
-      if (errorObj.statusCode) enhancedError.statusCode = errorObj.statusCode;
-      
-      // Also try parsing from message (legacy support)
-      if (!enhancedError.requestUrl && errorObj.message) {
-        try {
-          const errorMatch = errorObj.message.match(/\{.*\}/);
-          if (errorMatch) {
-            const errorData = JSON.parse(errorMatch[0]);
-            if (errorData.requestUrl) enhancedError.requestUrl = errorData.requestUrl;
-            if (errorData.requestId) enhancedError.requestId = errorData.requestId;
-            if (errorData.status) enhancedError.statusCode = errorData.status;
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-      
-      throw enhancedError;
+      throw error;
     }
   }
 

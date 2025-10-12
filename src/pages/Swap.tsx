@@ -54,9 +54,6 @@ const Swap = () => {
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [useGasless, setUseGasless] = useState(true); // Default to gasless
   const [gelatoFeeEstimate, setGelatoFeeEstimate] = useState<number>(0);
-  const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [debugMode, setDebugMode] = useState(false);
-  const [lastDebugInfo, setLastDebugInfo] = useState<{url?: string, requestId?: string, error?: string} | null>(null);
   
   const { prices: cryptoPrices } = useCryptoPrices();
   const { price: goldPrice } = useGoldPrice();
@@ -135,24 +132,17 @@ const Swap = () => {
     const timer = setTimeout(async () => {
       if (!user || !fromAmount || parseFloat(fromAmount) <= 0) {
         setAutoQuote(null);
-        setQuoteError(null);
-        setLastDebugInfo(null);
         return;
       }
 
       // All direct pairs are now supported: USDC↔XAUT, USDC↔TRZRY, XAUT↔TRZRY
       if (fromAsset === toAsset) {
         setAutoQuote(null);
-        setQuoteError(null);
-        setLastDebugInfo(null);
         return;
       }
 
       try {
         setAutoQuoteLoading(true);
-        setQuoteError(null);
-        setLastDebugInfo(null);
-        
         const newQuote = await swapService.generateSwapQuote(
           fromAsset,
           toAsset,
@@ -160,34 +150,8 @@ const Swap = () => {
           user.id
         );
         setAutoQuote(newQuote);
-        setQuoteError(null);
-        setLastDebugInfo(null);
       } catch (error) {
         console.error('Auto-quote generation failed:', error);
-        
-        // Parse error for debug info
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorObj = typeof error === 'object' && error !== null ? error as any : {};
-        
-        // Set debug info if available
-        if (errorObj.requestUrl || errorObj.requestId) {
-          setLastDebugInfo({
-            url: errorObj.requestUrl,
-            requestId: errorObj.requestId,
-            error: errorMessage
-          });
-        }
-        
-        // Set user-friendly error message
-        if (errorMessage.includes('no Route matched') || errorMessage.includes('404')) {
-          const network = currentChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
-          const oppositeNetwork = currentChain === 'arbitrum' ? 'Ethereum' : 'Arbitrum';
-          setQuoteError(`No route available for ${getDisplayName(fromAsset)} ↔ ${getDisplayName(toAsset)} on ${network}. Try switching to ${oppositeNetwork}.`);
-        } else {
-          setQuoteError('Unable to calculate swap price. Please try again.');
-        }
-        
-        // Keep fromAmount, only clear autoQuote
         setAutoQuote(null);
       } finally {
         setAutoQuoteLoading(false);
@@ -195,7 +159,7 @@ const Swap = () => {
     }, 500); // Wait 500ms after user stops typing
 
     return () => clearTimeout(timer);
-  }, [fromAmount, fromAsset, toAsset, user, currentChain]);
+  }, [fromAmount, fromAsset, toAsset, user]);
 
   const handleFromAssetChange = (newAsset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
     if (newAsset === toAsset) {
@@ -504,28 +468,6 @@ const Swap = () => {
             </div>
           )}
           
-          {/* Debug Mode Toggle */}
-          <div className="bg-card p-3 rounded-lg md:p-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground md:text-xs">
-                  🔍 Debug Mode
-                </span>
-              </div>
-              <label className="relative inline-block w-10 h-5 md:w-8 md:h-4">
-                <input
-                  type="checkbox"
-                  checked={debugMode}
-                  onChange={(e) => setDebugMode(e.target.checked)}
-                  className="opacity-0 w-0 h-0 peer"
-                />
-                <span className="absolute cursor-pointer inset-0 bg-muted rounded-full transition-colors peer-checked:bg-primary">
-                  <span className="absolute left-0.5 top-0.5 h-4 w-4 md:h-3 md:w-3 bg-white rounded-full transition-transform peer-checked:translate-x-5 md:peer-checked:translate-x-4" />
-                </span>
-              </label>
-            </div>
-          </div>
-
           {/* Gasless Toggle */}
           <div className="bg-card p-3 rounded-lg md:p-2">
             <div className="flex items-center justify-between gap-3">
@@ -615,64 +557,6 @@ const Swap = () => {
               </div>
             </div>
           </div>
-
-          {/* Inline Error Banner */}
-          {quoteError && (
-            <div className="bg-destructive/10 border border-destructive/20 px-4 py-3 rounded-lg">
-              <div className="flex items-start gap-2">
-                <span className="text-destructive text-sm flex-1">{quoteError}</span>
-                {quoteError.includes('Try switching') && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const newChain = currentChain === 'arbitrum' ? 'ethereum' : 'arbitrum';
-                      setCurrentChain(newChain);
-                      if (newChain === 'ethereum') {
-                        setFromAsset('USDC');
-                        setToAsset('XAUT');
-                      } else {
-                        setFromAsset('USDC_ARB');
-                        setToAsset('XAUT_ARB');
-                      }
-                      setQuoteError(null);
-                      toast({
-                        title: `Switched to ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}`,
-                        description: `Now on ${newChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'} network`,
-                      });
-                    }}
-                    className="shrink-0"
-                  >
-                    Switch Network
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Debug Info */}
-          {debugMode && lastDebugInfo && (
-            <div className="bg-muted/50 border border-border px-3 py-2 rounded-lg">
-              <div className="text-xs space-y-1">
-                <div className="font-semibold text-foreground">Debug Info:</div>
-                {lastDebugInfo.url && (
-                  <div className="text-muted-foreground break-all">
-                    <span className="font-medium">URL:</span> {lastDebugInfo.url}
-                  </div>
-                )}
-                {lastDebugInfo.requestId && (
-                  <div className="text-muted-foreground">
-                    <span className="font-medium">Request ID:</span> {lastDebugInfo.requestId}
-                  </div>
-                )}
-                {lastDebugInfo.error && (
-                  <div className="text-destructive">
-                    <span className="font-medium">Error:</span> {lastDebugInfo.error}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Swap Button */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">

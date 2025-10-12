@@ -119,23 +119,11 @@ class ZeroXGaslessService {
 
     if (error) {
       console.error('Edge function error:', error);
-      // Preserve error metadata
-      const enhancedError = new Error(`Failed to get gasless quote: ${error.message}`) as any;
-      if (data && typeof data === 'object') {
-        enhancedError.requestUrl = data.requestUrl;
-        enhancedError.requestId = data.requestId;
-        enhancedError.statusCode = data.status;
-      }
-      throw enhancedError;
+      throw new Error(`Failed to get gasless quote: ${error.message}`);
     }
 
     if (!data.success) {
-      // Preserve debug metadata from edge function error response
-      const enhancedError = new Error(data.error || 'Failed to get gasless quote') as any;
-      enhancedError.requestUrl = data.requestUrl;
-      enhancedError.requestId = data.requestId;
-      enhancedError.statusCode = data.status;
-      throw enhancedError;
+      throw new Error(data.error || 'Failed to get gasless quote');
     }
 
     console.log('0x gasless quote received:', {
