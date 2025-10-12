@@ -1,7 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { zeroXGaslessService, GaslessQuote } from "./zeroXGaslessService";
+import { zeroXSwapService } from "./zeroXSwapService";
 import { swapFeeService } from "./swapFeeService";
 import { walletSigningService } from "./walletSigningService";
+import { getTokenDecimals, getTokenChainId } from "@/config/tokenAddresses";
 import { ethers } from "ethers";
 
 export interface SwapQuote {
@@ -59,19 +61,54 @@ class SwapService {
       }
 
       // Convert amount to wei/smallest unit
-      const decimals = this.getTokenDecimals(inputAsset);
+      const decimals = getTokenDecimals(inputAsset);
       const sellAmount = ethers.parseUnits(inputAmount.toString(), decimals).toString();
 
-      // Get gasless quote from 0x
-      const gaslessQuote = await zeroXGaslessService.getGaslessQuote(
-        inputAsset,
-        outputAsset,
-        sellAmount,
-        onchainWallet.address
-      );
+      // Try gasless quote first, fallback to indicative price if it fails
+      let gaslessQuote: GaslessQuote | null = null;
+      
+      try {
+        gaslessQuote = await zeroXGaslessService.getGaslessQuote(
+          inputAsset,
+          outputAsset,
+          sellAmount,
+          onchainWallet.address
+        );
+      } catch (error) {
+        console.log('Gasless quote failed, using indicative price fallback:', error);
+        
+        // Fallback to indicative price (doesn't require balance)
+        const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount);
+        const buyDecimals = getTokenDecimals(outputAsset);
+        const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
+        const exchangeRate = outputAmount / inputAmount;
 
-      // Parse amounts
-      const buyDecimals = this.getTokenDecimals(outputAsset);
+        // Approximate fees (platform fee already included in price endpoint)
+        const platformFee = outputAmount * 0.008;
+        const networkFee = 0;
+
+        const chainId = getTokenChainId(inputAsset);
+        const quote: SwapQuote = {
+          id: crypto.randomUUID(),
+          inputAsset,
+          outputAsset,
+          inputAmount,
+          outputAmount,
+          exchangeRate,
+          platformFee,
+          networkFee,
+          estimatedTotal: outputAmount,
+          routeDetails: JSON.stringify({ indicative: true, source: '0x_price', priceResult }),
+          expiresAt: new Date(Date.now() + 30000).toISOString(),
+          chainId
+        };
+        
+        await this.saveSwapQuote(quote, userId);
+        return quote;
+      }
+
+      // Parse amounts from successful gasless quote
+      const buyDecimals = getTokenDecimals(outputAsset);
       const outputAmount = parseFloat(
         ethers.formatUnits(gaslessQuote.buyAmount, buyDecimals)
       );
@@ -332,16 +369,6 @@ class SwapService {
     }
   }
 
-  private getTokenDecimals(symbol: string): number {
-    const decimals: Record<string, number> = {
-      'ETH': 18,
-      'USDC': 6,
-      'XAUT': 6,
-      'TRZRY': 18,
-      'BTC': 8
-    };
-    return decimals[symbol] || 18;
-  }
 }
 
 export const swapService = new SwapService();

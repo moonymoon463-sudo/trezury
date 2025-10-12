@@ -29,6 +29,59 @@ class ZeroXSwapService {
   }
 
   /**
+   * Get indicative price from 0x Swap API (no balance check)
+   * Used as fallback when gasless quote fails
+   */
+  async getPrice(
+    sellToken: string,
+    buyToken: string,
+    sellAmount: string
+  ): Promise<{ buyAmount: string; price: string; buyTokenAddress: string; sellTokenAddress: string }> {
+    const sellTokenAddress = this.getTokenAddress(sellToken);
+    const buyTokenAddress = this.getTokenAddress(buyToken);
+
+    const params = new URLSearchParams({
+      sellToken: sellTokenAddress,
+      buyToken: buyTokenAddress,
+      sellAmount: sellAmount,
+      slippagePercentage: '0.005', // 0.5% slippage
+      buyTokenPercentageFee: '0.008', // 0.8% platform fee
+      feeRecipient: this.PLATFORM_FEE_RECIPIENT
+    });
+
+    console.log('Fetching 0x indicative price:', {
+      sellToken,
+      buyToken,
+      sellAmount
+    });
+
+    const response = await fetch(`${this.ZERO_X_API_URL}/swap/v1/price?${params}`, {
+      headers: {
+        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || import.meta.env.VITE_ZEROX_API_KEY || ''
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('0x price API error:', errorText);
+      throw new Error(`0x price API error: ${response.statusText} - ${errorText}`);
+    }
+
+    const price = await response.json();
+    console.log('0x indicative price received:', {
+      buyAmount: price.buyAmount,
+      price: price.price
+    });
+
+    return {
+      buyAmount: price.buyAmount,
+      price: price.price,
+      buyTokenAddress,
+      sellTokenAddress
+    };
+  }
+
+  /**
    * Get a quote from 0x Swap API with our platform fee included
    */
   async getQuote(
