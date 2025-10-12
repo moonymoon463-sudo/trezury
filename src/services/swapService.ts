@@ -75,8 +75,7 @@ class SwapService {
           onchainWallet.address
         );
       } catch (error) {
-        console.warn('⚠️ Gasless quote failed, using indicative price fallback:', error);
-        console.log('🔄 Fetching fallback indicative price...');
+        console.log('Gasless quote failed, using indicative price fallback:', error);
         
         // Fallback to indicative price (doesn't require balance)
         const chainId = getTokenChainId(inputAsset);
@@ -84,12 +83,6 @@ class SwapService {
         const buyDecimals = getTokenDecimals(outputAsset);
         const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
         const exchangeRate = outputAmount / inputAmount;
-
-        console.log('✅ Fallback indicative price used:', { 
-          outputAmount, 
-          exchangeRate,
-          reason: 'gasless_quote_failed'
-        });
 
         // Approximate fees (platform fee already included in price endpoint)
         const platformFee = outputAmount * 0.008;
