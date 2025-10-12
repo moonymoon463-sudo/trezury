@@ -23,6 +23,7 @@ export interface Transaction {
   output_asset?: string;
   tx_hash?: string;
   metadata?: Record<string, any>;
+  chain: string;
   created_at: string;
   updated_at: string;
 }
@@ -156,7 +157,8 @@ class TransactionService {
     output_asset,
     tx_hash,
     metadata = {},
-    quote_id
+    quote_id,
+    chain = 'ethereum'
   }: {
     type: 'buy' | 'sell' | 'swap' | 'deposit' | 'withdrawal' | 'send' | 'receive' | 'fee';
     asset: string;
@@ -169,6 +171,7 @@ class TransactionService {
     tx_hash?: string;
     metadata?: Record<string, any>;
     quote_id?: string;
+    chain?: string;
   }): Promise<Transaction | null> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -191,7 +194,8 @@ class TransactionService {
           input_asset,
           output_asset,
           tx_hash,
-          metadata
+          metadata,
+          chain
         })
         .select()
         .single();

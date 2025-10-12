@@ -1471,6 +1471,7 @@ export type Database = {
       payment_transactions: {
         Row: {
           amount: number
+          chain: string | null
           created_at: string
           currency: string
           external_id: string
@@ -1483,6 +1484,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          chain?: string | null
           created_at?: string
           currency: string
           external_id: string
@@ -1495,6 +1497,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          chain?: string | null
           created_at?: string
           currency?: string
           external_id?: string
@@ -2627,6 +2630,7 @@ export type Database = {
       transactions: {
         Row: {
           asset: string
+          chain: string | null
           created_at: string
           deposit_id: string | null
           fee_gold_units: number | null
@@ -2646,6 +2650,7 @@ export type Database = {
         }
         Insert: {
           asset: string
+          chain?: string | null
           created_at?: string
           deposit_id?: string | null
           fee_gold_units?: number | null
@@ -2665,6 +2670,7 @@ export type Database = {
         }
         Update: {
           asset?: string
+          chain?: string | null
           created_at?: string
           deposit_id?: string | null
           fee_gold_units?: number | null

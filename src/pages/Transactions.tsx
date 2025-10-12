@@ -6,16 +6,19 @@ import { useTransactionTracker } from '@/hooks/useTransactionTracker';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ChainBadge } from '@/components/ChainBadge';
 import { ArrowUpIcon, ArrowDownIcon, RefreshCwIcon, DollarSignIcon, SendIcon, DownloadIcon, UploadIcon } from 'lucide-react';
 
 const Transactions = () => {
   const navigate = useNavigate();
   const { activities, loading, error, getActivityIcon, getActivityDescription } = useTransactionTracker();
   const [activeFilter, setActiveFilter] = useState('all');
+  const [chainFilter, setChainFilter] = useState('all');
 
   const filteredActivities = activities.filter(activity => {
-    if (activeFilter === 'all') return true;
-    return activity.type === activeFilter;
+    const typeMatch = activeFilter === 'all' || activity.type === activeFilter;
+    const chainMatch = chainFilter === 'all' || (activity.chain || 'ethereum') === chainFilter;
+    return typeMatch && chainMatch;
   });
 
   const getReactIcon = (type: string) => {
@@ -122,7 +125,7 @@ const Transactions = () => {
       <StandardHeader />
       
       <div className="flex-1 overflow-y-auto px-3 md:px-4 pt-[calc(3.5rem+max(8px,env(safe-area-inset-top))+0.5rem)] pb-[calc(var(--bottom-nav-height,56px)+env(safe-area-inset-bottom)+0.5rem)] space-y-4">
-        {/* Filter buttons */}
+        {/* Type filter buttons */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {['all', 'buy', 'sell', 'swap', 'send', 'receive', 'deposit', 'withdrawal'].map((filter) => (
             <Button
@@ -133,6 +136,21 @@ const Transactions = () => {
               onClick={() => setActiveFilter(filter)}
             >
               {filter}
+            </Button>
+          ))}
+        </div>
+
+        {/* Chain filter buttons */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {['all', 'ethereum', 'arbitrum', 'base'].map((filter) => (
+            <Button
+              key={filter}
+              variant={chainFilter === filter ? "default" : "outline"}
+              size="sm"
+              className="whitespace-nowrap capitalize"
+              onClick={() => setChainFilter(filter)}
+            >
+              {filter === 'all' ? 'All Chains' : filter}
             </Button>
           ))}
         </div>
@@ -155,12 +173,13 @@ const Transactions = () => {
                 className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
                 onClick={() => handleActivityClick(activity)}
               >
-                <div className="flex items-center justify-between">
+                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {getReactIcon(activity.type)}
                     <div>
-                      <div className="font-medium flex items-center gap-2">
+                      <div className="font-medium flex items-center gap-2 flex-wrap">
                         <span className="capitalize">{activity.type}</span>
+                        <ChainBadge chain={activity.chain || 'ethereum'} />
                         {getSourceBadge(activity)}
                       </div>
                       <div className="text-sm text-muted-foreground">

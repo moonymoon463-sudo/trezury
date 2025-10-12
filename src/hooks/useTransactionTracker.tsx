@@ -17,6 +17,7 @@ export interface ActivityRecord {
   fee_usd?: number;
   input_asset?: string;
   output_asset?: string;
+  chain?: string;
 }
 
 export const useTransactionTracker = () => {
@@ -53,7 +54,8 @@ export const useTransactionTracker = () => {
     from_address,
     to_address,
     unit_price_usd,
-    fee_usd
+    fee_usd,
+    chain = 'ethereum'
   }: {
     type: 'send' | 'receive' | 'deposit' | 'withdrawal';
     asset: string;
@@ -63,6 +65,7 @@ export const useTransactionTracker = () => {
     to_address?: string;
     unit_price_usd?: number;
     fee_usd?: number;
+    chain?: string;
   }) => {
     try {
       const transaction = await transactionService.recordTransaction({
@@ -72,6 +75,7 @@ export const useTransactionTracker = () => {
         unit_price_usd,
         fee_usd,
         tx_hash,
+        chain,
         metadata: {
           from_address,
           to_address,
@@ -179,24 +183,26 @@ export const useTransactionTracker = () => {
     const action = activity.type.charAt(0).toUpperCase() + activity.type.slice(1);
     const amount = activity.quantity.toFixed(activity.asset === 'USDC' ? 2 : 6);
     const asset = activity.asset;
+    const chain = activity.chain || 'ethereum';
+    const chainLabel = chain === 'arbitrum' ? 'Arbitrum' : chain === 'base' ? 'Base' : 'Ethereum';
 
     switch (activity.type) {
       case 'buy':
-        return `${action} ${amount} ${asset}${activity.metadata?.provider ? ` via ${activity.metadata.provider}` : ''}`;
+        return `${action} ${amount} ${asset} on ${chainLabel}${activity.metadata?.provider ? ` via ${activity.metadata.provider}` : ''}`;
       case 'sell':
-        return `${action} ${amount} ${asset}${activity.metadata?.provider ? ` via ${activity.metadata.provider}` : ''}`;
+        return `${action} ${amount} ${asset} on ${chainLabel}${activity.metadata?.provider ? ` via ${activity.metadata.provider}` : ''}`;
       case 'swap':
-        return `Swap ${activity.input_asset} → ${activity.output_asset}`;
+        return `Swap ${activity.input_asset} → ${activity.output_asset} on ${chainLabel}`;
       case 'send':
-        return `Send ${amount} ${asset}`;
+        return `Send ${amount} ${asset} on ${chainLabel}`;
       case 'receive':
-        return `Receive ${amount} ${asset}`;
+        return `Receive ${amount} ${asset} on ${chainLabel}`;
       case 'deposit':
-        return `Deposit ${amount} ${asset}`;
+        return `Deposit ${amount} ${asset} on ${chainLabel}`;
       case 'withdrawal':
-        return `Withdraw ${amount} ${asset}`;
+        return `Withdraw ${amount} ${asset} on ${chainLabel}`;
       default:
-        return `${action} ${amount} ${asset}`;
+        return `${action} ${amount} ${asset} on ${chainLabel}`;
     }
   }, []);
 
