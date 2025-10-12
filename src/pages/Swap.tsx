@@ -351,14 +351,15 @@ const Swap = () => {
     if (!amount || isNaN(amount)) return '$0.00';
     
     let usdValue = 0;
+    const baseAsset = asset.replace('_ARB', '');
     
-    if (asset === 'USDC' || asset === 'USDC_ARB') {
+    if (baseAsset === 'USDC') {
       usdValue = amount;
-    } else if (asset === 'XAUT' || asset === 'XAUT_ARB') {
+    } else if (baseAsset === 'XAUT') {
       usdValue = amount * (goldPrice?.usd_per_oz || 0);
-    } else if (asset === 'TRZRY') {
+    } else if (baseAsset === 'TRZRY') {
       usdValue = amount;
-    } else if (asset === 'ETH') {
+    } else if (baseAsset === 'ETH') {
       usdValue = amount * (cryptoPrices?.ETH || 0);
     }
     

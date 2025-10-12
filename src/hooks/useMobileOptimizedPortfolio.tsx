@@ -20,6 +20,7 @@ export interface PortfolioAsset {
   balance: number;
   allocation: number;
   apy?: number;
+  chain?: string;
 }
 
 export interface PortfolioSummary {
@@ -150,7 +151,7 @@ export function useMobileOptimizedPortfolio() {
                 processedBalances.push({
                   asset: balance.asset,
                   amount: balance.balance || 0,
-                  chain: 'ethereum'
+                  chain: balance.chain || 'ethereum'
                 });
               } else {
                 // For failed balances, use 0 but don't error out
@@ -158,7 +159,7 @@ export function useMobileOptimizedPortfolio() {
                 processedBalances.push({
                   asset: balance.asset,
                   amount: 0,
-                  chain: 'ethereum'
+                  chain: balance.chain || 'ethereum'
                 });
               }
             });
@@ -233,55 +234,73 @@ export function useMobileOptimizedPortfolio() {
       let valueUSD = 0;
       let apy = 0;
       let name = balance.asset;
+      let displayAsset = balance.asset;
 
-      switch (balance.asset) {
+      // Normalize asset identifier for calculation
+      const baseAsset = balance.asset.replace('_ARB', '');
+      const chainLabel = balance.chain === 'arbitrum' ? ' (Arbitrum)' : '';
+
+      switch (baseAsset) {
         case 'USDC':
           valueUSD = balance.amount;
           apy = 0;
-          name = 'USD Coin';
+          name = `USD Coin${chainLabel}`;
+          displayAsset = 'USDC';
           break;
         case 'XAUT':
           valueUSD = balance.amount * effectiveGoldPrice.usd_per_oz;
           apy = 0;
-          name = 'GOLD XAUT';
+          name = `GOLD XAUT${chainLabel}`;
+          displayAsset = 'XAUT';
           break;
         case 'TRZRY':
           valueUSD = balance.amount;
           apy = 5.2;
           name = 'Treasury';
+          displayAsset = 'TRZRY';
           break;
         case 'ETH':
           valueUSD = cryptoPrices?.ETH ? balance.amount * cryptoPrices.ETH : 0;
           apy = 0;
           name = 'Ethereum';
+          displayAsset = 'ETH';
           break;
         case 'BTC':
           valueUSD = cryptoPrices?.BTC ? balance.amount * cryptoPrices.BTC : 0;
           apy = 0;
           name = 'Bitcoin';
+          displayAsset = 'BTC';
           break;
       }
 
       if (valueUSD > 0 || balance.amount >= 0) {
         assets.push({
-          asset: balance.asset,
+          asset: displayAsset,
           name: name,
           value: valueUSD,
           valueUSD: valueUSD,
           balance: balance.amount,
           allocation: 0, // Will be calculated after totalValue
-          apy
+          apy,
+          chain: balance.chain
         });
       }
 
       totalValue += valueUSD;
     });
 
-    // Calculate allocations
-    const calculatedAssets = assets.map(asset => ({
-      ...asset,
-      allocation: totalValue > 0 ? (asset.value / totalValue) * 100 : 0
-    }));
+    // Calculate allocations - keep separate line items for multi-chain assets
+    const aggregatedAssets = new Map<string, PortfolioAsset>();
+    
+    assets.forEach(asset => {
+      const key = `${asset.asset}_${asset.chain}`;
+      aggregatedAssets.set(key, {
+        ...asset,
+        allocation: totalValue > 0 ? (asset.value / totalValue) * 100 : 0
+      });
+    });
+
+    const calculatedAssets = Array.from(aggregatedAssets.values());
 
     // Store as last known good assets
     if (calculatedAssets.length > 0) {

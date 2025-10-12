@@ -58,20 +58,12 @@ class BatchBalanceManager {
       if (error) throw error;
 
       if (batchResult?.success && batchResult?.balances) {
-        // Map multi-chain balances correctly
-        interface BalanceResponse { balance: number; chain: string; asset: string }
-        const balancesMap = new Map<string, BalanceResponse>(
-          batchResult.balances.map((b: any) => [b.asset, b as BalanceResponse])
-        );
-        
-        return [
-          { asset: 'ETH', amount: balancesMap.get('ETH')?.balance || 0, chain: 'ethereum' },
-          { asset: 'USDC', amount: balancesMap.get('USDC')?.balance || 0, chain: 'ethereum' },
-          { asset: 'XAUT', amount: balancesMap.get('XAUT')?.balance || 0, chain: 'ethereum' },
-          { asset: 'TRZRY', amount: balancesMap.get('TRZRY')?.balance || 0, chain: 'ethereum' },
-          { asset: 'USDC', amount: balancesMap.get('USDC_ARB')?.balance || 0, chain: 'arbitrum' },
-          { asset: 'XAUT', amount: balancesMap.get('XAUT_ARB')?.balance || 0, chain: 'arbitrum' }
-        ];
+        // Map balances directly from backend response preserving chain info
+        return batchResult.balances.map((b: any) => ({
+          asset: b.asset,  // Keep original asset identifier (USDC_ARB, XAUT_ARB, etc.)
+          amount: b.balance || 0,
+          chain: b.chain
+        }));
       }
 
       // Fallback to individual calls if batch fails
@@ -129,8 +121,8 @@ class BatchBalanceManager {
         { asset: 'USDC', amount: usdcBalance, chain: 'ethereum' },
         { asset: 'XAUT', amount: xautBalance, chain: 'ethereum' },
         { asset: 'TRZRY', amount: trzryBalance, chain: 'ethereum' },
-        { asset: 'USDC', amount: usdcArbBalance, chain: 'arbitrum' },
-        { asset: 'XAUT', amount: xautArbBalance, chain: 'arbitrum' }
+        { asset: 'USDC_ARB', amount: usdcArbBalance, chain: 'arbitrum' },
+        { asset: 'XAUT_ARB', amount: xautArbBalance, chain: 'arbitrum' }
       ];
     } catch (error) {
       console.error('Batch balance fetch failed:', error);
@@ -138,8 +130,8 @@ class BatchBalanceManager {
         { asset: 'USDC', amount: 0, chain: 'ethereum' },
         { asset: 'XAUT', amount: 0, chain: 'ethereum' },
         { asset: 'TRZRY', amount: 0, chain: 'ethereum' },
-        { asset: 'USDC', amount: 0, chain: 'arbitrum' },
-        { asset: 'XAUT', amount: 0, chain: 'arbitrum' }
+        { asset: 'USDC_ARB', amount: 0, chain: 'arbitrum' },
+        { asset: 'XAUT_ARB', amount: 0, chain: 'arbitrum' }
       ];
     }
   }
@@ -245,15 +237,21 @@ export function useOptimizedWalletBalance() {
     return fetchBalances(true);
   }, [fetchBalances]);
 
-  const getBalance = useCallback((asset: string): number => {
+  const getBalance = useCallback((asset: string, chain?: string): number => {
+    if (chain) {
+      const balance = balances.find(b => b.asset === asset && b.chain === chain);
+      return balance?.amount || 0;
+    }
     const balance = balances.find(b => b.asset === asset);
     return balance?.amount || 0;
   }, [balances]);
 
-  const getAggregatedBalance = useCallback((asset: string): number => {
-    // Sum balances across all chains for the same asset
+  const getAggregatedBalance = useCallback((baseAsset: string): number => {
+    // Handle _ARB suffix variants
+    const variants = [baseAsset, `${baseAsset}_ARB`];
+    
     const total = balances
-      .filter(b => b.asset === asset)
+      .filter(b => variants.includes(b.asset))
       .reduce((sum, b) => sum + b.amount, 0);
     return total;
   }, [balances]);
