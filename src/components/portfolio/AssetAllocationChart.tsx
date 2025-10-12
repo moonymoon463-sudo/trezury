@@ -28,29 +28,33 @@ export function AssetAllocationChart({ assets, loading = false, separateChains =
   const data = assets
     .filter(asset => asset.valueUSD > 0) // Only positive values for pie chart
     .reduce((acc, asset) => {
-      // When separateChains is true, use full asset identifier (includes _ARB)
-      // When false, normalize by removing chain suffix
       const baseAsset = asset.asset.replace('_ARB', '');
-      const groupKey = separateChains ? asset.asset : baseAsset;
+      const chain = asset.chain || 'ethereum';
+      const chainLabel = chain === 'arbitrum' ? 'Arbitrum' : chain === 'ethereum' ? 'Ethereum' : chain;
+
+      // Use asset+chain as group key when separating chains
+      const groupKey = separateChains ? `${baseAsset}_${chain}` : baseAsset;
+
       const existing = acc.find(item => item.groupKey === groupKey);
-      
       if (existing) {
         existing.value += asset.valueUSD;
       } else {
-        // When separateChains is true, use full asset name with chain label
-        // When false, use simplified name
-        const displayName = separateChains 
-          ? asset.name // e.g., "USD Coin (Arbitrum)"
-          : (baseAsset === 'USDC' ? 'USD Coin' :
-             baseAsset === 'XAUT' ? 'Tether Gold' :
-             baseAsset === 'TRZRY' ? 'Treasury' :
-             asset.name.split(' (')[0]); // Remove chain suffix from name
-        
+        // Ensure display name includes chain when separateChains=true
+        const baseName =
+          baseAsset === 'USDC' ? 'USD Coin' :
+          baseAsset === 'XAUT' ? 'Tether Gold' :
+          baseAsset === 'TRZRY' ? 'Treasury' :
+          asset.name?.split(' (')[0] || baseAsset;
+
+        const displayName = separateChains
+          ? (asset.name?.includes('(') ? asset.name : `${baseName} (${chainLabel})`)
+          : baseName;
+
         acc.push({
           name: displayName,
-          groupKey: groupKey,
+          groupKey,
           value: asset.valueUSD,
-          color: getAssetColor(baseAsset)
+          color: getAssetColor(baseAsset),
         });
       }
       return acc;
