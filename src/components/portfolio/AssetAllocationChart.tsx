@@ -23,22 +23,32 @@ export function AssetAllocationChart({ assets, loading = false }: AssetAllocatio
     );
   }
 
-  // Group assets by type and calculate totals
+  // Group assets by type and calculate totals - aggregate across chains
   const data = assets
     .filter(asset => asset.valueUSD > 0) // Only positive values for pie chart
     .reduce((acc, asset) => {
-      const existing = acc.find(item => item.name === asset.asset);
+      // Normalize asset identifier by removing chain suffix (_ARB)
+      const baseAsset = asset.asset.replace('_ARB', '');
+      const existing = acc.find(item => item.baseAsset === baseAsset);
+      
       if (existing) {
         existing.value += asset.valueUSD;
       } else {
+        // Use simple display name without chain info
+        const displayName = baseAsset === 'USDC' ? 'USD Coin' :
+                           baseAsset === 'XAUT' ? 'Tether Gold' :
+                           baseAsset === 'TRZRY' ? 'Treasury' :
+                           asset.name.split(' (')[0]; // Remove chain suffix from name
+        
         acc.push({
-          name: asset.name,
+          name: displayName,
+          baseAsset: baseAsset,
           value: asset.valueUSD,
-          color: getAssetColor(asset.asset)
+          color: getAssetColor(baseAsset)
         });
       }
       return acc;
-    }, [] as Array<{ name: string; value: number; color: string }>)
+    }, [] as Array<{ name: string; baseAsset: string; value: number; color: string }>)
     .sort((a, b) => b.value - a.value); // Sort by value descending
 
   function getAssetColor(asset: string): string {
