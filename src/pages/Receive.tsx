@@ -145,7 +145,7 @@ const Receive = () => {
             </div>
             <div className="flex items-start gap-2">
               <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mt-0.5">2</span>
-              <span>Ensure they send supported tokens (USDC, XAUT) on Ethereum network</span>
+              <span>Ensure they send supported tokens (USDC, XAUT) on Ethereum or Arbitrum networks</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mt-0.5">3</span>
@@ -156,20 +156,33 @@ const Receive = () => {
 
         {/* Supported Assets */}
         <div className="bg-surface-elevated rounded-xl p-4">
-          <h4 className="text-foreground font-semibold mb-3">Supported Assets</h4>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 p-2 rounded-lg bg-background">
-              <span className="text-lg">💲</span>
-              <div>
-                <div className="font-medium">USDC</div>
-                <div className="text-xs text-muted-foreground">USD Coin</div>
+          <h4 className="text-foreground font-semibold mb-3">Supported Assets & Networks</h4>
+          <div className="space-y-3">
+            {/* USDC */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-background">
+                <span className="text-lg">💲</span>
+                <div className="flex-1">
+                  <div className="font-medium">USDC - USD Coin</div>
+                </div>
+              </div>
+              <div className="pl-10 text-xs text-muted-foreground space-y-1">
+                <div>✓ Ethereum Mainnet</div>
+                <div>✓ Arbitrum One</div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-2 rounded-lg bg-background">
-              <span className="text-lg">🥇</span>
-              <div>
-                <div className="font-medium">XAUT</div>
-                <div className="text-xs text-muted-foreground">Tether Gold</div>
+
+            {/* XAUT */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-background">
+                <span className="text-lg">🥇</span>
+                <div className="flex-1">
+                  <div className="font-medium">XAUT - Tether Gold</div>
+                </div>
+              </div>
+              <div className="pl-10 text-xs text-muted-foreground space-y-1">
+                <div>✓ Ethereum Mainnet</div>
+                <div>✓ Arbitrum One</div>
               </div>
             </div>
           </div>
@@ -217,7 +230,8 @@ const Receive = () => {
         <Alert>
           <QrCode className="h-4 w-4" />
           <AlertDescription>
-            Only send tokens to this address on the Ethereum network. 
+            This address works on <strong>Ethereum Mainnet</strong> and <strong>Arbitrum One</strong>. 
+            Only send supported tokens (USDC, XAUT) on these networks. 
             Sending tokens on other networks may result in permanent loss.
           </AlertDescription>
         </Alert>
