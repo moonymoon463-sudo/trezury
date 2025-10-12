@@ -23,6 +23,16 @@ const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
   }
 };
 
+// Helper to get correct 0x API base URL for the chain
+function getZeroXSwapBaseUrl(chainId: number): string {
+  if (chainId === 1) {
+    return 'https://api.0x.org';
+  } else if (chainId === 42161) {
+    return 'https://arbitrum.api.0x.org';
+  }
+  throw new Error(`Unsupported chainId: ${chainId}`);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -95,14 +105,19 @@ serve(async (req) => {
         feeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
       });
 
+      const baseUrl = getZeroXSwapBaseUrl(chainId);
+      const priceUrl = `${baseUrl}/swap/v1/price?${queryParams}`;
+      
       console.log('Fetching indicative price from 0x:', {
         chainId,
+        baseUrl,
+        fullUrl: priceUrl,
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
         sellAmount
       });
 
-      const response = await fetch(`https://api.0x.org/swap/v1/price?${queryParams}`, {
+      const response = await fetch(priceUrl, {
         headers: {
           '0x-api-key': ZERO_X_API_KEY
         }
@@ -110,9 +125,12 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
+        const requestId = response.headers.get('x-request-id');
         console.error('0x price API error:', {
           status: response.status,
           statusText: response.statusText,
+          requestUrl: priceUrl,
+          requestId,
           body: errorText
         });
         throw new Error(`0x price API error (${response.status}): ${errorText}`);
@@ -173,8 +191,13 @@ serve(async (req) => {
         tradeSurplusRecipient: userAddress
       });
 
+      const baseUrl = getZeroXSwapBaseUrl(chainId);
+      const quoteUrl = `${baseUrl}/gasless/quote?${queryParams}`;
+      
       console.log('Constructing 0x API request:', {
         chainId,
+        baseUrl,
+        fullUrl: quoteUrl,
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
         sellAmount,
@@ -182,7 +205,7 @@ serve(async (req) => {
         swapFeeToken: buyTokenAddress
       });
 
-      const response = await fetch(`https://api.0x.org/gasless/quote?${queryParams}`, {
+      const response = await fetch(quoteUrl, {
         headers: {
           '0x-api-key': ZERO_X_API_KEY,
           '0x-version': 'v2'
@@ -191,9 +214,12 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
+        const requestId = response.headers.get('x-request-id');
         console.error('0x API error details:', {
           status: response.status,
           statusText: response.statusText,
+          requestUrl: quoteUrl,
+          requestId,
           body: errorText,
           requestParams: {
             chainId,
