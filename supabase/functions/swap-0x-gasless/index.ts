@@ -52,6 +52,81 @@ serve(async (req) => {
       throw new Error('0x API key not configured');
     }
 
+    if (operation === 'get_price') {
+      const { sellToken, buyToken, sellAmount, chainId } = params;
+      
+      // Validate chain is supported
+      const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
+      if (!availableChains.includes(chainId)) {
+        console.error('Unsupported chain:', { chainId, availableChains });
+        throw new Error(`Unsupported chain: ${chainId}. Available: ${availableChains.join(', ')}`);
+      }
+      
+      // Strip _ARB suffix if present (for Arbitrum tokens)
+      const cleanSellToken = sellToken.replace('_ARB', '');
+      const cleanBuyToken = buyToken.replace('_ARB', '');
+      
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanSellToken];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanBuyToken];
+
+      console.log('Indicative price token mapping:', {
+        sellToken: `${sellToken} -> ${cleanSellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${cleanBuyToken} -> ${buyTokenAddress}`,
+        chainId,
+        availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
+      });
+
+      if (!sellTokenAddress || !buyTokenAddress) {
+        console.error('Token not found:', { 
+          chainId, 
+          cleanSellToken, 
+          cleanBuyToken,
+          availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
+        });
+        throw new Error(`Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`);
+      }
+
+      const queryParams = new URLSearchParams({
+        sellToken: sellTokenAddress,
+        buyToken: buyTokenAddress,
+        sellAmount: sellAmount,
+        slippagePercentage: '0.005',
+        buyTokenPercentageFee: '0.008',
+        feeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
+      });
+
+      console.log('Fetching indicative price from 0x:', {
+        chainId,
+        sellToken: `${sellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${buyTokenAddress}`,
+        sellAmount
+      });
+
+      const response = await fetch(`https://api.0x.org/swap/v1/price?${queryParams}`, {
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('0x price API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`0x price API error (${response.status}): ${errorText}`);
+      }
+
+      const price = await response.json();
+      console.log('Indicative price received:', { buyAmount: price.buyAmount, price: price.price });
+
+      return new Response(
+        JSON.stringify({ success: true, price }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (operation === 'get_quote') {
       const { sellToken, buyToken, sellAmount, userAddress, chainId } = params;
       

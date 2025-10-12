@@ -29,55 +29,49 @@ class ZeroXSwapService {
   }
 
   /**
-   * Get indicative price from 0x Swap API (no balance check)
+   * Get indicative price via edge function (no balance check)
    * Used as fallback when gasless quote fails
    */
   async getPrice(
     sellToken: string,
     buyToken: string,
-    sellAmount: string
+    sellAmount: string,
+    chainId: number
   ): Promise<{ buyAmount: string; price: string; buyTokenAddress: string; sellTokenAddress: string }> {
-    const sellTokenAddress = this.getTokenAddress(sellToken);
-    const buyTokenAddress = this.getTokenAddress(buyToken);
-
-    const params = new URLSearchParams({
-      sellToken: sellTokenAddress,
-      buyToken: buyTokenAddress,
-      sellAmount: sellAmount,
-      slippagePercentage: '0.005', // 0.5% slippage
-      buyTokenPercentageFee: '0.008', // 0.8% platform fee
-      feeRecipient: this.PLATFORM_FEE_RECIPIENT
-    });
-
-    console.log('Fetching 0x indicative price:', {
+    console.log('Fetching indicative price via edge function:', {
       sellToken,
       buyToken,
-      sellAmount
+      sellAmount,
+      chainId
     });
 
-    const response = await fetch(`${this.ZERO_X_API_URL}/swap/v1/price?${params}`, {
-      headers: {
-        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || import.meta.env.VITE_ZEROX_API_KEY || ''
+    const { data, error } = await supabase.functions.invoke('swap-0x-gasless', {
+      body: {
+        operation: 'get_price',
+        sellToken,
+        buyToken,
+        sellAmount,
+        chainId
       }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('0x price API error:', errorText);
-      throw new Error(`0x price API error: ${response.statusText} - ${errorText}`);
+    if (error) {
+      console.error('Edge function price error:', error);
+      throw new Error(`Failed to fetch price: ${error.message}`);
     }
 
-    const price = await response.json();
-    console.log('0x indicative price received:', {
-      buyAmount: price.buyAmount,
-      price: price.price
-    });
+    if (!data.success) {
+      console.error('Price fetch failed:', data.error);
+      throw new Error(data.error || 'Failed to fetch price');
+    }
+
+    console.log('Indicative price received:', { buyAmount: data.price.buyAmount, price: data.price.price });
 
     return {
-      buyAmount: price.buyAmount,
-      price: price.price,
-      buyTokenAddress,
-      sellTokenAddress
+      buyAmount: data.price.buyAmount,
+      price: data.price.price,
+      buyTokenAddress: data.price.buyTokenAddress,
+      sellTokenAddress: data.price.sellTokenAddress
     };
   }
 

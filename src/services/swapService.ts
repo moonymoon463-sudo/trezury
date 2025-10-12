@@ -78,7 +78,8 @@ class SwapService {
         console.log('Gasless quote failed, using indicative price fallback:', error);
         
         // Fallback to indicative price (doesn't require balance)
-        const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount);
+        const chainId = getTokenChainId(inputAsset);
+        const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount, chainId);
         const buyDecimals = getTokenDecimals(outputAsset);
         const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
         const exchangeRate = outputAmount / inputAmount;
@@ -87,7 +88,6 @@ class SwapService {
         const platformFee = outputAmount * 0.008;
         const networkFee = 0;
 
-        const chainId = getTokenChainId(inputAsset);
         const quote: SwapQuote = {
           id: crypto.randomUUID(),
           inputAsset,
@@ -350,14 +350,14 @@ class SwapService {
   private async saveSwapQuote(quote: SwapQuote, userId: string) {
     const { error } = await supabase.from('quotes').insert({
       user_id: userId,
-      side: 'buy',
+      side: 'swap',
       input_asset: quote.inputAsset,
       output_asset: quote.outputAsset,
       input_amount: quote.inputAmount,
       output_amount: quote.outputAmount,
-      unit_price_usd: quote.exchangeRate,
+      unit_price_usd: null,
       fee_bps: 80,
-      grams: 0,
+      grams: null,
       route: quote.routeDetails as any,
       expires_at: quote.expiresAt,
       created_at: new Date().toISOString()
