@@ -136,6 +136,7 @@ const Swap = () => {
       if (!user || !fromAmount || parseFloat(fromAmount) <= 0) {
         setAutoQuote(null);
         setQuoteError(null);
+        setLastDebugInfo(null);
         return;
       }
 
@@ -143,12 +144,15 @@ const Swap = () => {
       if (fromAsset === toAsset) {
         setAutoQuote(null);
         setQuoteError(null);
+        setLastDebugInfo(null);
         return;
       }
 
       try {
         setAutoQuoteLoading(true);
         setQuoteError(null);
+        setLastDebugInfo(null);
+        
         const newQuote = await swapService.generateSwapQuote(
           fromAsset,
           toAsset,
@@ -156,6 +160,8 @@ const Swap = () => {
           user.id
         );
         setAutoQuote(newQuote);
+        setQuoteError(null);
+        setLastDebugInfo(null);
       } catch (error) {
         console.error('Auto-quote generation failed:', error);
         
