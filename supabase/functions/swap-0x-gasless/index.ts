@@ -94,11 +94,18 @@ serve(async (req) => {
         taker: userAddress,
         swapFeeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
         swapFeeBps: '80', // 0.8% platform fee
-        swapFeeToken: buyToken,
+        swapFeeToken: buyTokenAddress,
         tradeSurplusRecipient: userAddress
       });
 
-      console.log('Fetching 0x gasless quote:', { sellToken, buyToken, chainId, userAddress });
+      console.log('Constructing 0x API request:', {
+        chainId,
+        sellToken: `${sellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${buyTokenAddress}`,
+        sellAmount,
+        userAddress,
+        swapFeeToken: buyTokenAddress
+      });
 
       const response = await fetch(`https://api.0x.org/gasless/quote?${queryParams}`, {
         headers: {
@@ -109,8 +116,18 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('0x API error:', errorText);
-        throw new Error(`0x API error: ${response.statusText}`);
+        console.error('0x API error details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+          requestParams: {
+            chainId,
+            sellToken: sellTokenAddress,
+            buyToken: buyTokenAddress,
+            swapFeeToken: buyTokenAddress
+          }
+        });
+        throw new Error(`0x API error (${response.status}): ${errorText}`);
       }
 
       const quote = await response.json();
