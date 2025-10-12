@@ -145,6 +145,25 @@ class SwapService {
       return quote;
     } catch (error) {
       console.error('Error generating swap quote:', error);
+      
+      // Parse error response for debug metadata
+      if (error && typeof error === 'object' && 'message' in error) {
+        try {
+          const errorMsg = (error as any).message;
+          const errorMatch = errorMsg.match(/\{.*\}/);
+          if (errorMatch) {
+            const errorData = JSON.parse(errorMatch[0]);
+            // Attach debug metadata to error
+            Object.assign(error, {
+              requestUrl: errorData.requestUrl,
+              requestId: errorData.requestId
+            });
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      
       throw error;
     }
   }

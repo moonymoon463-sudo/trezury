@@ -133,7 +133,20 @@ serve(async (req) => {
           requestId,
           body: errorText
         });
-        throw new Error(`0x price API error (${response.status}): ${errorText}`);
+        
+        // Return structured error with debug info
+        return new Response(
+          JSON.stringify({ 
+            error: `0x price API error (${response.status}): ${errorText}`,
+            requestUrl: priceUrl,
+            requestId,
+            status: response.status
+          }),
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
       const price = await response.json();
@@ -228,7 +241,20 @@ serve(async (req) => {
             swapFeeToken: buyTokenAddress
           }
         });
-        throw new Error(`0x API error (${response.status}): ${errorText}`);
+        
+        // Return structured error with debug info
+        return new Response(
+          JSON.stringify({ 
+            error: `0x API error (${response.status}): ${errorText}`,
+            requestUrl: quoteUrl,
+            requestId,
+            status: response.status
+          }),
+          { 
+            status: response.status, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
       const quote = await response.json();
