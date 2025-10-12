@@ -81,7 +81,7 @@ export function AIInsightsPanel({ insights, loading, onRefresh, portfolioAssets,
       <CardContent>
         {/* Asset Allocation Chart */}
         <div className="mb-4">
-          <AssetAllocationChart assets={portfolioAssets} />
+          <AssetAllocationChart assets={portfolioAssets} separateChains={true} />
         </div>
         
         {loading ? (
