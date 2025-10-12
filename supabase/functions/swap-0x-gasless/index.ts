@@ -6,6 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to get chain-specific 0x base URL for /swap API
+const getZeroXSwapBaseUrl = (chainId: number): string => {
+  switch (chainId) {
+    case 1:
+      return 'https://api.0x.org';
+    case 42161:
+      return 'https://arbitrum.api.0x.org';
+    default:
+      throw new Error(`Unsupported chain for 0x Swap API: ${chainId}`);
+  }
+};
+
 // Token addresses by chain
 const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
   1: { // Ethereum
@@ -95,14 +107,19 @@ serve(async (req) => {
         feeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
       });
 
+      const baseUrl = getZeroXSwapBaseUrl(chainId);
+      const priceUrl = `${baseUrl}/swap/v1/price?${queryParams}`;
+
       console.log('Fetching indicative price from 0x:', {
         chainId,
+        baseUrl,
+        priceUrl,
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
         sellAmount
       });
 
-      const response = await fetch(`https://api.0x.org/swap/v1/price?${queryParams}`, {
+      const response = await fetch(priceUrl, {
         headers: {
           '0x-api-key': ZERO_X_API_KEY
         }
@@ -110,16 +127,24 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
+        const errorHeaders = Object.fromEntries(response.headers.entries());
         console.error('0x price API error:', {
           status: response.status,
           statusText: response.statusText,
-          body: errorText
+          body: errorText,
+          headers: errorHeaders,
+          requestUrl: priceUrl
         });
         throw new Error(`0x price API error (${response.status}): ${errorText}`);
       }
 
       const price = await response.json();
-      console.log('Indicative price received:', { buyAmount: price.buyAmount, price: price.price });
+      console.log('✅ Indicative price received:', { 
+        buyAmount: price.buyAmount, 
+        price: price.price,
+        chainId,
+        requestId: response.headers.get('x-request-id')
+      });
 
       return new Response(
         JSON.stringify({ success: true, price }),
@@ -206,7 +231,15 @@ serve(async (req) => {
       }
 
       const quote = await response.json();
-      console.log('Quote received:', { buyAmount: quote.buyAmount, chainId: quote.chainId });
+      
+      // Ensure chainId is always present in response
+      quote.chainId = quote.chainId ?? chainId;
+      
+      console.log('✅ Gasless quote received:', { 
+        buyAmount: quote.buyAmount, 
+        chainId: quote.chainId,
+        requestId: response.headers.get('x-request-id')
+      });
 
       return new Response(
         JSON.stringify({ success: true, quote }),

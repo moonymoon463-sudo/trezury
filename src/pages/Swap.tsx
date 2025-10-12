@@ -54,6 +54,7 @@ const Swap = () => {
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [useGasless, setUseGasless] = useState(true); // Default to gasless
   const [gelatoFeeEstimate, setGelatoFeeEstimate] = useState<number>(0);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   
   const { prices: cryptoPrices } = useCryptoPrices();
   const { price: goldPrice } = useGoldPrice();
@@ -143,6 +144,7 @@ const Swap = () => {
 
       try {
         setAutoQuoteLoading(true);
+        setQuoteError(null);
         const newQuote = await swapService.generateSwapQuote(
           fromAsset,
           toAsset,
@@ -150,8 +152,11 @@ const Swap = () => {
           user.id
         );
         setAutoQuote(newQuote);
+        console.log('✅ Auto-quote generated successfully');
       } catch (error) {
-        console.error('Auto-quote generation failed:', error);
+        console.error('❌ Auto-quote generation failed:', error);
+        const errorMsg = error instanceof Error ? error.message : 'Failed to get quote';
+        setQuoteError(errorMsg);
         setAutoQuote(null);
       } finally {
         setAutoQuoteLoading(false);
@@ -168,6 +173,7 @@ const Swap = () => {
     setFromAsset(newAsset);
     setQuote(null);
     setAutoQuote(null);
+    setQuoteError(null);
   };
 
   const handleToAssetChange = (newAsset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
@@ -188,6 +194,7 @@ const Swap = () => {
     
     setQuote(null);
     setAutoQuote(null);
+    setQuoteError(null);
   };
 
   const handleSwapTokens = () => {
@@ -197,6 +204,7 @@ const Swap = () => {
     setFromAmount('');
     setQuote(null);
     setAutoQuote(null);
+    setQuoteError(null);
   };
   
   const handlePreviewSwap = async () => {
@@ -231,6 +239,7 @@ const Swap = () => {
     
     try {
       setLoading(true);
+      setQuoteError(null);
       const newQuote = await swapService.generateSwapQuote(
         fromAsset,
         toAsset,
@@ -249,8 +258,9 @@ const Swap = () => {
         description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${getDisplayName(toAsset)} (minus ~${estimatedFee.toFixed(4)} ${getDisplayName(toAsset)} relay fee)`
       });
     } catch (error) {
-      console.error('Quote generation error:', error);
+      console.error('❌ Quote generation error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate swap quote';
+      setQuoteError(errorMessage);
       toast({
         variant: "destructive",
         title: "Quote Failed", 
@@ -627,6 +637,31 @@ const Swap = () => {
             </div>
           </div>
         </div>
+
+        {/* Error Banner */}
+        {quoteError && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 md:p-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-destructive md:text-xs">Quote Failed</p>
+                <p className="text-xs text-destructive/80 mt-0.5">{quoteError}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setQuoteError(null);
+                  if (fromAmount && parseFloat(fromAmount) > 0) {
+                    handlePreviewSwap();
+                  }
+                }}
+                className="text-destructive hover:text-destructive/80 h-8 md:h-6 text-xs"
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Trading Details */}
         <div className="space-y-2 flex-1 overflow-y-auto md:space-y-1.5">
