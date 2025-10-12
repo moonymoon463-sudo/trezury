@@ -259,9 +259,10 @@ export function useOptimizedWalletBalance() {
   // Memoized total value calculation with real-time prices
   const totalValue = useMemo(() => {
     return balances.reduce((total, balance) => {
-      if (balance.asset === 'USDC') return total + balance.amount;
-      if (balance.asset === 'XAUT') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
-      if (balance.asset === 'TRZRY') return total + balance.amount;
+      const base = balance.asset.replace('_ARB', '');
+      if (base === 'USDC') return total + balance.amount;
+      if (base === 'XAUT') return total + (balance.amount * (goldPrice?.usd_per_oz || 3981));
+      if (base === 'TRZRY') return total + balance.amount;
       return total;
     }, 0);
   }, [balances, cryptoPrices, goldPrice]);

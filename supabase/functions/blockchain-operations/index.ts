@@ -1190,9 +1190,29 @@ serve(async (req) => {
                 throw new Error(`Token ${asset} not configured`);
               }
               
-              const provider = tokenConfig.chain === 'arbitrum' 
-                ? await getArbitrumProvider() 
-                : await getProvider();
+              let provider: ethers.Provider;
+              if (tokenConfig.chain === 'arbitrum') {
+                // Use a fresh static provider per-call to avoid "network changed" issues
+                provider = null as any;
+                for (const url of ARBITRUM_RPC_ENDPOINTS) {
+                  try {
+                    const p = new ethers.JsonRpcProvider(url, { name: 'arbitrum', chainId: 42161, ensAddress: null });
+                    // Quick health check with 2s timeout
+                    await Promise.race([
+                      p.getBlockNumber(),
+                      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+                    ]);
+                    provider = p;
+                    break;
+                  } catch (_) { /* try next */ }
+                }
+                if (!provider) {
+                  // Fallback to global Arbitrum FallbackProvider
+                  provider = await getArbitrumProvider();
+                }
+              } else {
+                provider = await getProvider();
+              }
               
               // Special handling for ETH native balance
               if (asset === 'ETH') {
