@@ -398,35 +398,6 @@ async function getArbitrumProvider(): Promise<ethers.FallbackProvider> {
   return await Promise.race([initPromise, timeout]) as ethers.FallbackProvider;
 }
 
-// ✅ Multi-chain provider factory - returns correct provider based on chainId
-async function getProviderForChain(chainId: number): Promise<ethers.FallbackProvider> {
-  if (chainId === 42161) {
-    return await getArbitrumProvider();
-  } else if (chainId === 1) {
-    return await getProvider();
-  } else {
-    throw new Error(`Unsupported chainId: ${chainId}. Supported chains: 1 (Ethereum), 42161 (Arbitrum)`);
-  }
-}
-
-// ✅ Wallet factory - creates wallet connected to correct chain
-async function getPlatformWalletForChain(chainId: number): Promise<ethers.Wallet> {
-  if (!PLATFORM_PRIVATE_KEY) {
-    throw new Error('PLATFORM_PRIVATE_KEY not configured');
-  }
-  const provider = await getProviderForChain(chainId);
-  return new ethers.Wallet(PLATFORM_PRIVATE_KEY, provider);
-}
-
-// ✅ Relayer wallet factory - creates relayer wallet connected to correct chain
-async function getRelayerWalletForChain(chainId: number): Promise<ethers.Wallet | null> {
-  if (!RELAYER_PRIVATE_KEY) {
-    return null;
-  }
-  const provider = await getProviderForChain(chainId);
-  return new ethers.Wallet(RELAYER_PRIVATE_KEY, provider);
-}
-
 // F-002 FIX: Chain ID verification constant
 const EXPECTED_CHAIN_ID = 1; // Ethereum mainnet
 
@@ -1059,8 +1030,27 @@ serve(async (req) => {
       }
     }
 
-    // ✅ Providers and wallets are now created per-operation based on chainId
-    console.log('🚀 Multi-chain edge function ready (Ethereum mainnet, Arbitrum)');
+    // Initialize live provider (singleton) and wallet
+    const provider = await getProvider();
+    const platformWallet = new ethers.Wallet(PLATFORM_PRIVATE_KEY, provider);
+    
+    console.log(`Platform wallet address: ${platformWallet.address}`);
+    console.log(`Connected to Ethereum mainnet`);
+
+    // Initialize relayer wallet for ERC-2771 meta-transactions
+    const relayerWallet = RELAYER_PRIVATE_KEY ? new ethers.Wallet(RELAYER_PRIVATE_KEY, provider) : null;
+    if (relayerWallet) {
+      console.log(`🔐 Relayer wallet address: ${relayerWallet.address}`);
+      const relayerBalance = await withRpcRetry(
+        () => provider.getBalance(relayerWallet.address),
+        'getRelayerBalance'
+      );
+      console.log(`⛽ Relayer ETH balance: ${ethers.formatEther(relayerBalance)} ETH\n`);
+      
+      if (relayerBalance < ethers.parseEther('0.01')) {
+        console.warn('⚠️ Relayer wallet balance low! Please fund with at least 0.5 ETH');
+      }
+    }
 
     let result = {};
 
@@ -1074,7 +1064,7 @@ serve(async (req) => {
 
       case 'get_balance':
         try {
-          const { address, asset, chainId } = body;
+          const { address, asset } = body;
           console.log(`Getting LIVE balance for ${address}, asset: ${asset}`);
           
           if (!address || !isValidEthereumAddress(address)) {
@@ -1108,13 +1098,6 @@ serve(async (req) => {
             }
           }
           
-          // ✅ Determine chainId from token metadata or explicit parameter
-          const tokenInfo = TOKEN_ALLOWLIST[asset];
-          const targetChainId = chainId || (tokenInfo?.chain === 'arbitrum' ? 42161 : 1);
-          
-          // ✅ Get provider for the correct chain
-          const provider = await getProviderForChain(targetChainId);
-          
           // Special handling for ETH - native balance (not ERC-20)
           if (asset === 'ETH') {
             const ethBalance = await withRpcRetry(
@@ -1129,8 +1112,7 @@ serve(async (req) => {
               success: true,
               balance: formattedBalance,
               asset,
-              address,
-              chainId: targetChainId
+              address
             };
             break;
           }
@@ -1468,20 +1450,12 @@ serve(async (req) => {
 
       case 'execute_swap':
         try {
-          const { inputAsset, outputAsset, amount, userAddress, route, slippage, chainId } = body;
+          const { inputAsset, outputAsset, amount, userAddress, route, slippage } = body;
           console.log(`Executing LIVE DEX swap: ${amount} ${inputAsset} to ${outputAsset} via ${route?.protocol || 'direct'}`);
           
           if (!userAddress || !isValidEthereumAddress(userAddress)) {
             throw new Error('Valid user address required for swap');
           }
-          
-          // ✅ Infer chainId from token metadata if not provided
-          const inputTokenInfo = TOKEN_ALLOWLIST[inputAsset];
-          const inferredChainId = chainId || (inputTokenInfo?.chain === 'arbitrum' ? 42161 : 1);
-          
-          // ✅ Get provider and platform wallet for the correct chain
-          const provider = await getProviderForChain(inferredChainId);
-          const platformWallet = await getPlatformWalletForChain(inferredChainId);
           
           // Validate platform wallet has sufficient balance for output token
           const outputContractAddress = await getContractAddress(outputAsset, provider);
@@ -1576,12 +1550,7 @@ serve(async (req) => {
             throw new Error('Failed to decrypt wallet');
           }
 
-          // ✅ Infer chainId from token metadata (0x swaps default to Ethereum mainnet)
-          const sellTokenInfo = TOKEN_ALLOWLIST[sellToken];
-          const inferredChainId = sellTokenInfo?.chain === 'arbitrum' ? 42161 : 1;
-          
-          // ✅ Get provider for the correct chain
-          const provider = await getProviderForChain(inferredChainId);
+          const provider = await getProvider();
 
           // Get token decimals for balance check
           const TOKEN_DECIMALS: Record<string, number> = {
@@ -2661,16 +2630,7 @@ serve(async (req) => {
             quoterAddress: QUOTER_ADDRESS 
           });
           
-          // ✅ Use factory function to get Arbitrum provider
-          const arbitrumProvider = await getProviderForChain(chainId);
-          
-          // Force network detection before contract usage (prevents lazy-loading issues)
-          const network = await arbitrumProvider.getNetwork();
-          console.log('🌐 Arbitrum network confirmed:', { chainId: Number(network.chainId) });
-          
-          if (Number(network.chainId) !== 42161) {
-            throw new Error(`Wrong network for Camelot quote: expected 42161, got ${Number(network.chainId)}`);
-          }
+          const arbitrumProvider = await getArbitrumProvider();
           
           const quoterABI = [
             'function quoteExactInputSingle(tuple(address tokenIn, address tokenOut, uint256 amountIn, uint160 sqrtPriceLimitX96) params) external returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)'
@@ -2723,16 +2683,9 @@ serve(async (req) => {
       case 'camelot_swap': {
         // Execute swap via Camelot V3 with Gelato gasless relay
         try {
-          const { chainId, tokenIn, tokenOut, amountIn, amountOutMinimum, userAddress, quoteId } = body;
-          
-          // ✅ Validate chainId
-          const targetChainId = chainId || 42161;
-          if (targetChainId !== 42161) {
-            throw new Error('Camelot swaps only available on Arbitrum (chainId 42161)');
-          }
+          const { tokenIn, tokenOut, amountIn, amountOutMinimum, userAddress, quoteId } = body;
           
           console.log('⚡ Executing Camelot V3 swap via Gelato:', {
-            chainId: targetChainId,
             tokenIn,
             tokenOut,
             amountIn,
