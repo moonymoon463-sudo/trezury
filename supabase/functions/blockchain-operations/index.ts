@@ -2622,12 +2622,15 @@ serve(async (req) => {
             throw new Error('Camelot V3 only available on Arbitrum (chainId 42161)');
           }
           
-          console.log('📊 Getting Camelot V3 quote:', { tokenIn, tokenOut, amountIn });
+          const QUOTER_ADDRESS = '0x0Fc73040b26E9bC8514fA028D998E73A254Fa76E';
+          console.log('📊 Getting Camelot V3 quote:', { 
+            tokenIn, 
+            tokenOut, 
+            amountIn,
+            quoterAddress: QUOTER_ADDRESS 
+          });
           
           const arbitrumProvider = await getArbitrumProvider();
-          
-          // Camelot V3 Quoter address on Arbitrum (Algebra V1.9)
-          const QUOTER_ADDRESS = '0x0Fc73040b26E9bC8514fA028D998E73A254Fa76E';
           
           const quoterABI = [
             'function quoteExactInputSingle(tuple(address tokenIn, address tokenOut, uint256 amountIn, uint160 sqrtPriceLimitX96) params) external returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)'
@@ -2635,9 +2638,9 @@ serve(async (req) => {
           
           const quoter = new ethers.Contract(QUOTER_ADDRESS, quoterABI, arbitrumProvider);
           
-          // Call quoter
+          // Call quoter using staticCall (required for Algebra V1.9 quoter design)
           const [amountOut, sqrtPriceX96After, initializedTicksCrossed, gasEstimate] = 
-            await quoter.quoteExactInputSingle({
+            await quoter.quoteExactInputSingle.staticCall({
               tokenIn,
               tokenOut,
               amountIn,
