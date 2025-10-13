@@ -82,8 +82,8 @@ class SwapService {
         const shouldTryCamelot = 
           chainId === 42161 && 
           ((inputAsset === 'USDC_ARB' && outputAsset === 'XAUT_ARB') ||
-           (inputAsset === 'XAUT_ARB' && outputAsset === 'USDC_ARB')) &&
-          error?.message?.includes('no Route matched');
+           (inputAsset === 'XAUT_ARB' && outputAsset === 'USDC_ARB'));
+
         
         if (shouldTryCamelot) {
           console.log('🦙 Falling back to Camelot V3 for Arbitrum USDC/XAUT swap');
@@ -285,8 +285,58 @@ class SwapService {
         throw new Error('Quote has expired. Please generate a new quote.');
       }
 
-      // Parse the stored gasless quote
-      const gaslessQuote: GaslessQuote = JSON.parse(quoteData.route as string);
+      // Determine route/source from stored quote
+      const routeData: any = JSON.parse(quoteData.route as string);
+
+      // If this quote was generated via Camelot V3, execute via Gelato relay
+      if (routeData?.source === 'camelot_v3') {
+        // Get user wallet address
+        const { data: onchainWallet } = await supabase
+          .from('onchain_addresses')
+          .select('address')
+          .eq('user_id', userId)
+          .single();
+
+        if (!onchainWallet?.address) {
+          throw new Error('Wallet not found');
+        }
+
+        // Resolve token addresses and amounts
+        const { getTokenAddress } = await import('@/config/tokenAddresses');
+        const inAddr = getTokenAddress(quoteData.input_asset);
+        const outAddr = getTokenAddress(quoteData.output_asset);
+
+        const inDecimals = getTokenDecimals(quoteData.input_asset);
+        const outDecimals = getTokenDecimals(quoteData.output_asset);
+
+        const amountIn = ethers.parseUnits(String(quoteData.input_amount), inDecimals).toString();
+        const minOutNum = Number(quoteData.output_amount) * 0.995; // 0.5% slippage
+        const amountOutMinimum = ethers.parseUnits(minOutNum.toFixed(outDecimals), outDecimals).toString();
+
+        // Submit Camelot swap via edge function (Gelato relay)
+        const { data, error } = await supabase.functions.invoke('blockchain-operations', {
+          body: {
+            operation: 'camelot_swap',
+            tokenIn: inAddr,
+            tokenOut: outAddr,
+            amountIn,
+            amountOutMinimum,
+            userAddress: onchainWallet.address,
+            quoteId
+          }
+        });
+
+        if (error) throw new Error(error.message || 'Camelot swap failed');
+        if (!data?.success) throw new Error(data?.error || 'Camelot swap failed');
+
+        return {
+          success: true,
+          gelatoTaskId: data.taskId
+        };
+      }
+
+      // Parse the stored gasless quote (0x)
+      const gaslessQuote: GaslessQuote = routeData as GaslessQuote;
 
       // Get user wallet address
       const { data: onchainWallet } = await supabase
