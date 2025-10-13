@@ -86,7 +86,12 @@ class SwapService {
 
         
         if (shouldTryCamelot) {
-          console.log('🦙 Falling back to Camelot V3 for Arbitrum USDC/XAUT swap');
+          console.log('🟢 Trying Camelot fallback', {
+            inputAsset,
+            outputAsset,
+            sellAmount,
+            chainId
+          });
           
           try {
             // Import Camelot service
@@ -97,6 +102,8 @@ class SwapService {
             const tokenInAddress = getTokenAddress(inputAsset);
             const tokenOutAddress = getTokenAddress(outputAsset);
             
+            console.log('🔗 Camelot token addresses', { tokenInAddress, tokenOutAddress });
+            
             // Get quote from Camelot V3
             const camelotQuote = await camelotV3Service.getQuote(
               tokenInAddress,
@@ -104,8 +111,28 @@ class SwapService {
               sellAmount
             );
             
+            console.log('🟢 Camelot V3 quote received:', camelotQuote);
+            
             const buyDecimals = getTokenDecimals(outputAsset);
-            const outputAmount = camelotQuote.amountOutFormatted;
+            
+            // Robust amountOut parsing: prefer raw string, fallback to formatted number
+            const rawAmountOut = camelotQuote.amountOut ?? camelotQuote.amountOutFormatted;
+            if (!rawAmountOut && rawAmountOut !== 0) {
+              console.error('❌ Camelot quote missing amountOut/amountOutFormatted', camelotQuote);
+              throw new Error('Camelot quote returned no amountOut');
+            }
+            
+            let outputAmount: number;
+            if (typeof rawAmountOut === 'string') {
+              // Base units -> formatted
+              outputAmount = parseFloat(ethers.formatUnits(rawAmountOut, buyDecimals));
+            } else {
+              // Already formatted number
+              outputAmount = rawAmountOut as number;
+            }
+            
+            console.log('💰 Parsed Camelot outputAmount:', { outputAmount, buyDecimals });
+            
             const exchangeRate = outputAmount / inputAmount;
             
             // Platform fee: 0.8%

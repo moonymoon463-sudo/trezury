@@ -40,6 +40,8 @@ class CamelotV3Service {
         }
       });
 
+      console.log('🟣 Camelot edge function raw response:', { data, error });
+
       if (error) {
         console.error('Camelot V3 quote error:', error);
         throw new Error(`Camelot V3 quote failed: ${error.message}`);
