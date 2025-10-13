@@ -64,8 +64,9 @@ class SwapService {
       const decimals = getTokenDecimals(inputAsset);
       const sellAmount = ethers.parseUnits(inputAmount.toString(), decimals).toString();
 
-      // Try gasless quote first, fallback to indicative price if it fails
+      // Try gasless quote first, fallback to indicative price or Camelot V3 if it fails
       let gaslessQuote: GaslessQuote | null = null;
+      const chainId = getTokenChainId(inputAsset);
       
       try {
         gaslessQuote = await zeroXGaslessService.getGaslessQuote(
@@ -74,37 +75,103 @@ class SwapService {
           sellAmount,
           onchainWallet.address
         );
-      } catch (error) {
-        console.log('Gasless quote failed, using indicative price fallback:', error);
+      } catch (error: any) {
+        console.log('Gasless quote failed, checking fallback options:', error);
         
-        // Fallback to indicative price (doesn't require balance)
-        const chainId = getTokenChainId(inputAsset);
-        const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount, chainId);
-        const buyDecimals = getTokenDecimals(outputAsset);
-        const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
-        const exchangeRate = outputAmount / inputAmount;
-
-        // Approximate fees (platform fee already included in price endpoint)
-        const platformFee = outputAmount * 0.008;
-        const networkFee = 0;
-
-        const quote: SwapQuote = {
-          id: crypto.randomUUID(),
-          inputAsset,
-          outputAsset,
-          inputAmount,
-          outputAmount,
-          exchangeRate,
-          platformFee,
-          networkFee,
-          estimatedTotal: outputAmount,
-          routeDetails: JSON.stringify({ indicative: true, source: '0x_price', priceResult }),
-          expiresAt: new Date(Date.now() + 30000).toISOString(),
-          chainId
-        };
+        // Check if we should try Camelot V3 (Arbitrum USDC/XAUT pairs)
+        const shouldTryCamelot = 
+          chainId === 42161 && 
+          ((inputAsset === 'USDC_ARB' && outputAsset === 'XAUT_ARB') ||
+           (inputAsset === 'XAUT_ARB' && outputAsset === 'USDC_ARB')) &&
+          error?.message?.includes('no Route matched');
         
-        await this.saveSwapQuote(quote, userId);
-        return quote;
+        if (shouldTryCamelot) {
+          console.log('🦙 Falling back to Camelot V3 for Arbitrum USDC/XAUT swap');
+          
+          try {
+            // Import Camelot service
+            const { camelotV3Service } = await import('./camelotV3Service');
+            
+            // Get token addresses
+            const { getTokenAddress } = await import('@/config/tokenAddresses');
+            const tokenInAddress = getTokenAddress(inputAsset);
+            const tokenOutAddress = getTokenAddress(outputAsset);
+            
+            // Get quote from Camelot V3
+            const camelotQuote = await camelotV3Service.getQuote(
+              tokenInAddress,
+              tokenOutAddress,
+              sellAmount
+            );
+            
+            const buyDecimals = getTokenDecimals(outputAsset);
+            const outputAmount = camelotQuote.amountOutFormatted;
+            const exchangeRate = outputAmount / inputAmount;
+            
+            // Platform fee: 0.8%
+            const platformFee = outputAmount * 0.008;
+            const networkFee = 0; // Gelato will deduct from output
+            
+            const quote: SwapQuote = {
+              id: crypto.randomUUID(),
+              inputAsset,
+              outputAsset,
+              inputAmount,
+              outputAmount,
+              exchangeRate,
+              platformFee,
+              networkFee,
+              estimatedTotal: outputAmount,
+              routeDetails: JSON.stringify({ 
+                indicative: true, 
+                source: 'camelot_v3',
+                pool: camelotQuote.pool,
+                gasEstimate: camelotQuote.gasEstimate
+              }),
+              expiresAt: new Date(Date.now() + 30000).toISOString(),
+              chainId
+            };
+            
+            await this.saveSwapQuote(quote, userId);
+            return quote;
+          } catch (camelotError) {
+            console.error('Camelot V3 quote also failed:', camelotError);
+            // Fall through to standard indicative price fallback
+          }
+        }
+        
+        // Standard fallback to indicative price (doesn't require balance)
+        try {
+          const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount, chainId);
+          const buyDecimals = getTokenDecimals(outputAsset);
+          const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
+          const exchangeRate = outputAmount / inputAmount;
+
+          // Approximate fees (platform fee already included in price endpoint)
+          const platformFee = outputAmount * 0.008;
+          const networkFee = 0;
+
+          const quote: SwapQuote = {
+            id: crypto.randomUUID(),
+            inputAsset,
+            outputAsset,
+            inputAmount,
+            outputAmount,
+            exchangeRate,
+            platformFee,
+            networkFee,
+            estimatedTotal: outputAmount,
+            routeDetails: JSON.stringify({ indicative: true, source: '0x_price', priceResult }),
+            expiresAt: new Date(Date.now() + 30000).toISOString(),
+            chainId
+          };
+          
+          await this.saveSwapQuote(quote, userId);
+          return quote;
+        } catch (priceError) {
+          console.error('All quote methods failed:', priceError);
+          throw new Error('Unable to generate quote: All routing options failed');
+        }
       }
 
       // Parse amounts from successful gasless quote

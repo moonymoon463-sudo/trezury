@@ -2613,6 +2613,136 @@ serve(async (req) => {
         break;
       }
 
+      case 'camelot_quote': {
+        // Get quote from Camelot V3 (Algebra) on Arbitrum
+        try {
+          const { chainId, tokenIn, tokenOut, amountIn } = body;
+          
+          if (chainId !== 42161) {
+            throw new Error('Camelot V3 only available on Arbitrum (chainId 42161)');
+          }
+          
+          console.log('📊 Getting Camelot V3 quote:', { tokenIn, tokenOut, amountIn });
+          
+          const arbitrumProvider = await getArbitrumProvider();
+          
+          // Camelot V3 Quoter address on Arbitrum (Algebra V1.9)
+          const QUOTER_ADDRESS = '0x0Fc73040b26E9bC8514fA028D998E73A254Fa76E';
+          
+          const quoterABI = [
+            'function quoteExactInputSingle(tuple(address tokenIn, address tokenOut, uint256 amountIn, uint160 sqrtPriceLimitX96) params) external returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)'
+          ];
+          
+          const quoter = new ethers.Contract(QUOTER_ADDRESS, quoterABI, arbitrumProvider);
+          
+          // Call quoter
+          const [amountOut, sqrtPriceX96After, initializedTicksCrossed, gasEstimate] = 
+            await quoter.quoteExactInputSingle({
+              tokenIn,
+              tokenOut,
+              amountIn,
+              sqrtPriceLimitX96: 0
+            });
+          
+          // Get token decimals to format output
+          const tokenOutConfig = Object.values(TOKEN_ALLOWLIST).find(
+            t => t.address.toLowerCase() === tokenOut.toLowerCase()
+          );
+          
+          const decimals = tokenOutConfig?.decimals || 18;
+          const amountOutFormatted = parseFloat(ethers.formatUnits(amountOut, decimals));
+          
+          console.log('✅ Camelot V3 quote:', {
+            amountOut: amountOut.toString(),
+            amountOutFormatted,
+            gasEstimate: gasEstimate.toString()
+          });
+          
+          result = {
+            success: true,
+            amountOut: amountOut.toString(),
+            amountOutFormatted,
+            source: 'camelot_v3',
+            gasEstimate: gasEstimate.toString(),
+            sqrtPriceX96After: sqrtPriceX96After.toString(),
+            initializedTicksCrossed: initializedTicksCrossed.toString()
+          };
+        } catch (error) {
+          console.error('Camelot V3 quote failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Camelot V3 quote failed'
+          };
+        }
+        break;
+      }
+
+      case 'camelot_swap': {
+        // Execute swap via Camelot V3 with Gelato gasless relay
+        try {
+          const { tokenIn, tokenOut, amountIn, amountOutMinimum, userAddress, quoteId } = body;
+          
+          console.log('⚡ Executing Camelot V3 swap via Gelato:', {
+            tokenIn,
+            tokenOut,
+            amountIn,
+            amountOutMinimum,
+            userAddress
+          });
+          
+          // Camelot V3 Router address on Arbitrum
+          const ROUTER_ADDRESS = '0x1F721E2E82F6676FCE4eA07A5958cF098D339e18';
+          
+          const routerABI = [
+            'function exactInputSingle(tuple(address tokenIn, address tokenOut, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96) params) external payable returns (uint256 amountOut)'
+          ];
+          
+          const routerInterface = new ethers.Interface(routerABI);
+          
+          // Build swap calldata
+          const deadline = Math.floor(Date.now() / 1000) + 300; // 5 minutes
+          const swapCalldata = routerInterface.encodeFunctionData('exactInputSingle', [{
+            tokenIn,
+            tokenOut,
+            recipient: userAddress,
+            deadline,
+            amountIn,
+            amountOutMinimum,
+            sqrtPriceLimitX96: 0
+          }]);
+          
+          // Submit via Gelato relay
+          const { submitToGelatoRelay } = await import('./gelato-helpers.ts');
+          
+          const gelatoResult = await submitToGelatoRelay(
+            ROUTER_ADDRESS,
+            swapCalldata,
+            userAddress,
+            'syncfee', // User pays fee from output tokens
+            tokenOut // Fee token
+          );
+          
+          if (!gelatoResult.success) {
+            throw new Error(gelatoResult.error || 'Gelato submission failed');
+          }
+          
+          console.log('✅ Camelot V3 swap submitted to Gelato:', gelatoResult.taskId);
+          
+          result = {
+            success: true,
+            taskId: gelatoResult.taskId,
+            source: 'camelot_v3',
+            quoteId
+          };
+        } catch (error) {
+          console.error('Camelot V3 swap execution failed:', error);
+          result = {
+            success: false,
+            error: error instanceof Error ? error.message : 'Camelot V3 swap failed'
+          };
+        }
+        break;
+      }
 
       default:
         throw new Error(`Unknown operation: ${body.operation}`);

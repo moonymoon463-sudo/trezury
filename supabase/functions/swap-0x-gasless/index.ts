@@ -105,13 +105,73 @@ serve(async (req) => {
         feeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
       });
 
-      // Phase 1 Test: Try forcing 0x to check Camelot V3 (Algebra-based) on Arbitrum
-      if (chainId === 42161) {
-        queryParams.append('includedSources', 'Algebra');
-        console.log('🧪 Phase 1 Test: Added Algebra source for Arbitrum routing');
-      }
-
       const baseUrl = getZeroXSwapBaseUrl(chainId);
+      
+      // Phase 1B: Try multiple sources for Arbitrum
+      if (chainId === 42161) {
+        const sources = ['Algebra', 'Camelot', 'CamelotV3', 'Camelot_V3'];
+        const testedSources: string[] = [];
+        let lastError: any = null;
+        
+        for (const source of sources) {
+          const testParams = new URLSearchParams(queryParams);
+          testParams.append('includedSources', source);
+          const priceUrl = `${baseUrl}/swap/v1/price?${testParams}`;
+          
+          console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum`, {
+            fullUrl: priceUrl,
+            sellToken: `${sellToken} -> ${sellTokenAddress}`,
+            buyToken: `${buyToken} -> ${buyTokenAddress}`
+          });
+          
+          try {
+            const response = await fetch(priceUrl, {
+              headers: {
+                '0x-api-key': ZERO_X_API_KEY
+              }
+            });
+            
+            if (response.ok) {
+              console.log(`✅ 0x source "${source}" worked for Arbitrum!`);
+              const data = await response.json();
+              return new Response(JSON.stringify({ 
+                success: true,
+                price: data,
+                routeSource: source
+              }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+            
+            testedSources.push(source);
+            const errorBody = await response.text();
+            const requestId = response.headers.get('x-request-id');
+            lastError = { status: response.status, body: errorBody, requestId, source };
+            
+            console.log(`❌ 0x source "${source}" failed:`, {
+              status: response.status,
+              requestId,
+              body: errorBody.substring(0, 200)
+            });
+          } catch (err) {
+            testedSources.push(source);
+            console.error(`❌ 0x source "${source}" request failed:`, err);
+          }
+        }
+        
+        // All sources failed - return structured error
+        console.error('❌ All 0x sources failed for Arbitrum', { testedSources });
+        throw new Error(JSON.stringify({
+          error: '0x API error (404): no Route matched with those values',
+          status: 404,
+          requestUrl: baseUrl,
+          requestId: lastError?.requestId,
+          testedSources,
+          lastErrorBody: lastError?.body
+        }));
+      }
+      
+      // Standard flow for non-Arbitrum
       const priceUrl = `${baseUrl}/swap/v1/price?${queryParams}`;
       
       console.log('Fetching indicative price from 0x:', {
@@ -197,13 +257,76 @@ serve(async (req) => {
         tradeSurplusRecipient: userAddress
       });
 
-      // Phase 1 Test: Try forcing 0x to check Camelot V3 (Algebra-based) on Arbitrum
-      if (chainId === 42161) {
-        queryParams.append('includedSources', 'Algebra');
-        console.log('🧪 Phase 1 Test: Added Algebra source for Arbitrum routing');
-      }
-
       const baseUrl = getZeroXSwapBaseUrl(chainId);
+      
+      // Phase 1B: Try multiple sources for Arbitrum
+      if (chainId === 42161) {
+        const sources = ['Algebra', 'Camelot', 'CamelotV3', 'Camelot_V3'];
+        const testedSources: string[] = [];
+        let lastError: any = null;
+        
+        for (const source of sources) {
+          const testParams = new URLSearchParams(queryParams);
+          testParams.append('includedSources', source);
+          const quoteUrl = `${baseUrl}/gasless/quote?${testParams}`;
+          
+          console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum gasless quote`, {
+            fullUrl: quoteUrl,
+            sellToken: `${sellToken} -> ${sellTokenAddress}`,
+            buyToken: `${buyToken} -> ${buyTokenAddress}`,
+            taker: userAddress
+          });
+          
+          try {
+            const response = await fetch(quoteUrl, {
+              headers: {
+                '0x-api-key': ZERO_X_API_KEY,
+                '0x-version': 'v2'
+              }
+            });
+            
+            if (response.ok) {
+              console.log(`✅ 0x gasless source "${source}" worked for Arbitrum!`);
+              const data = await response.json();
+              return new Response(JSON.stringify({ 
+                success: true,
+                quote: data,
+                routeSource: source
+              }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+            
+            testedSources.push(source);
+            const errorBody = await response.text();
+            const requestId = response.headers.get('x-request-id');
+            lastError = { status: response.status, body: errorBody, requestId, source };
+            
+            console.log(`❌ 0x gasless source "${source}" failed:`, {
+              status: response.status,
+              requestId,
+              body: errorBody.substring(0, 200)
+            });
+          } catch (err) {
+            testedSources.push(source);
+            console.error(`❌ 0x gasless source "${source}" request failed:`, err);
+          }
+        }
+        
+        // All sources failed - return structured error for fallback to Camelot
+        console.error('❌ All 0x gasless sources failed for Arbitrum - will fallback to Camelot V3', { testedSources });
+        throw new Error(JSON.stringify({
+          error: '0x API error (404): no Route matched with those values',
+          status: 404,
+          requestUrl: baseUrl,
+          requestId: lastError?.requestId,
+          testedSources,
+          lastErrorBody: lastError?.body,
+          fallbackToCamelot: true
+        }));
+      }
+      
+      // Standard flow for non-Arbitrum
       const quoteUrl = `${baseUrl}/gasless/quote?${queryParams}`;
       
       console.log('Constructing 0x API request:', {
