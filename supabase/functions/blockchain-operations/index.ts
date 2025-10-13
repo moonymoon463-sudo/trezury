@@ -2632,6 +2632,14 @@ serve(async (req) => {
           
           const arbitrumProvider = await getArbitrumProvider();
           
+          // Force network detection before contract usage (prevents lazy-loading issues)
+          const network = await arbitrumProvider.getNetwork();
+          console.log('🌐 Arbitrum network confirmed:', { chainId: Number(network.chainId) });
+          
+          if (Number(network.chainId) !== 42161) {
+            throw new Error(`Wrong network for Camelot quote: expected 42161, got ${Number(network.chainId)}`);
+          }
+          
           const quoterABI = [
             'function quoteExactInputSingle(tuple(address tokenIn, address tokenOut, uint256 amountIn, uint160 sqrtPriceLimitX96) params) external returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)'
           ];
