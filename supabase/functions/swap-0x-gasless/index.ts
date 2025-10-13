@@ -105,6 +105,12 @@ serve(async (req) => {
         feeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
       });
 
+      // Phase 1 Test: Try forcing 0x to check Camelot V3 (Algebra-based) on Arbitrum
+      if (chainId === 42161) {
+        queryParams.append('includedSources', 'Algebra');
+        console.log('🧪 Phase 1 Test: Added Algebra source for Arbitrum routing');
+      }
+
       const baseUrl = getZeroXSwapBaseUrl(chainId);
       const priceUrl = `${baseUrl}/swap/v1/price?${queryParams}`;
       
@@ -190,6 +196,12 @@ serve(async (req) => {
         swapFeeToken: buyTokenAddress,
         tradeSurplusRecipient: userAddress
       });
+
+      // Phase 1 Test: Try forcing 0x to check Camelot V3 (Algebra-based) on Arbitrum
+      if (chainId === 42161) {
+        queryParams.append('includedSources', 'Algebra');
+        console.log('🧪 Phase 1 Test: Added Algebra source for Arbitrum routing');
+      }
 
       const baseUrl = getZeroXSwapBaseUrl(chainId);
       const quoteUrl = `${baseUrl}/gasless/quote?${queryParams}`;
