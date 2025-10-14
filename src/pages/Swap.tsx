@@ -55,8 +55,14 @@ const Swap = () => {
   const [useGasless, setUseGasless] = useState(true); // Default to gasless
   const [gelatoFeeEstimate, setGelatoFeeEstimate] = useState<number>(0);
   
-  const { prices: cryptoPrices } = useCryptoPrices();
-  const { price: goldPrice } = useGoldPrice();
+  const { prices: cryptoPrices, loading: cryptoPricesLoading } = useCryptoPrices();
+  const { price: goldPrice, loading: goldPriceLoading } = useGoldPrice();
+
+  // Debug logging for price data
+  useEffect(() => {
+    console.log('💰 Crypto Prices:', cryptoPrices, 'Loading:', cryptoPricesLoading);
+    console.log('🪙 Gold Price:', goldPrice, 'Loading:', goldPriceLoading);
+  }, [cryptoPrices, cryptoPricesLoading, goldPrice, goldPriceLoading]);
 
   // Monitor transaction status with real-time updates
   useTransactionMonitor({
@@ -356,11 +362,21 @@ const Swap = () => {
     if (baseAsset === 'USDC') {
       usdValue = amount;
     } else if (baseAsset === 'XAUT') {
-      usdValue = amount * (goldPrice?.usd_per_oz || 0);
+      const xautPrice = goldPrice?.usd_per_oz;
+      if (!xautPrice) {
+        console.warn('⚠️ XAUT price not loaded yet');
+        return 'Loading...';
+      }
+      usdValue = amount * xautPrice;
     } else if (baseAsset === 'TRZRY') {
       usdValue = amount;
     } else if (baseAsset === 'ETH') {
-      usdValue = amount * (cryptoPrices?.ETH || 0);
+      const ethPrice = cryptoPrices?.ETH;
+      if (!ethPrice) {
+        console.warn('⚠️ ETH price not loaded yet');
+        return 'Loading...';
+      }
+      usdValue = amount * ethPrice;
     }
     
     return `$${usdValue.toLocaleString('en-US', { 
