@@ -195,14 +195,41 @@ serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         const requestId = response.headers.get('x-request-id');
-        console.error('0x price API error:', {
+        
+        // Enhanced error logging
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = { raw: errorText };
+        }
+        
+        console.error('❌ 0x v2 price API error:', {
           status: response.status,
           statusText: response.statusText,
           requestUrl: priceUrl,
           requestId,
-          body: errorText
+          headers: {
+            'content-type': response.headers.get('content-type'),
+            'x-0x-version': response.headers.get('x-0x-version')
+          },
+          errorDetails,
+          requestParams: {
+            chainId,
+            sellToken: sellTokenAddress,
+            buyToken: buyTokenAddress,
+            sellAmount
+          }
         });
-        throw new Error(`0x price API error (${response.status}): ${errorText}`);
+        
+        // Return structured error for better handling
+        throw new Error(JSON.stringify({
+          status: response.status,
+          message: errorDetails.message || errorDetails.reason || errorText,
+          code: errorDetails.code,
+          requestId,
+          requestUrl: priceUrl
+        }));
       }
 
       const price = await response.json();
@@ -353,20 +380,42 @@ serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         const requestId = response.headers.get('x-request-id');
-        console.error('0x API error details:', {
+        
+        // Enhanced error logging
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = { raw: errorText };
+        }
+        
+        console.error('❌ 0x v2 gasless quote API error:', {
           status: response.status,
           statusText: response.statusText,
           requestUrl: quoteUrl,
           requestId,
-          body: errorText,
+          headers: {
+            'content-type': response.headers.get('content-type'),
+            'x-0x-version': response.headers.get('x-0x-version')
+          },
+          errorDetails,
           requestParams: {
             chainId,
             sellToken: sellTokenAddress,
             buyToken: buyTokenAddress,
-            swapFeeToken: buyTokenAddress
+            swapFeeToken: buyTokenAddress,
+            taker: userAddress
           }
         });
-        throw new Error(`0x API error (${response.status}): ${errorText}`);
+        
+        // Return structured error for better handling
+        throw new Error(JSON.stringify({
+          status: response.status,
+          message: errorDetails.message || errorDetails.reason || errorText,
+          code: errorDetails.code,
+          requestId,
+          requestUrl: quoteUrl
+        }));
       }
 
       const quote = await response.json();

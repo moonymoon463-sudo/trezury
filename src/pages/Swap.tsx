@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2, Coins } from "lucide-react";
+import { ChevronDown, ArrowUpDown, Edit, Wallet, Repeat2, Coins, AlertCircle, RefreshCw } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -50,6 +50,7 @@ const Swap = () => {
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [autoQuoteLoading, setAutoQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [useGasless, setUseGasless] = useState(true); // Default to gasless
@@ -138,17 +139,20 @@ const Swap = () => {
     const timer = setTimeout(async () => {
       if (!user || !fromAmount || parseFloat(fromAmount) <= 0) {
         setAutoQuote(null);
+        setQuoteError(null);
         return;
       }
 
       // All direct pairs are now supported: USDC↔XAUT, USDC↔TRZRY, XAUT↔TRZRY
       if (fromAsset === toAsset) {
         setAutoQuote(null);
+        setQuoteError(null);
         return;
       }
 
       try {
         setAutoQuoteLoading(true);
+        setQuoteError(null);
         const newQuote = await swapService.generateSwapQuote(
           fromAsset,
           toAsset,
@@ -159,6 +163,16 @@ const Swap = () => {
       } catch (error) {
         console.error('Auto-quote generation failed:', error);
         setAutoQuote(null);
+        
+        // Set user-friendly error message
+        const errorMessage = error instanceof Error ? error.message : 'Failed to get quote';
+        if (errorMessage.includes('no Route matched') || errorMessage.includes('404')) {
+          setQuoteError('No liquidity available for this swap. Please try a different amount or asset pair.');
+        } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+          setQuoteError('Rate limit reached. Please wait a moment and try again.');
+        } else {
+          setQuoteError('Unable to calculate swap quote. Please try again.');
+        }
       } finally {
         setAutoQuoteLoading(false);
       }
@@ -631,9 +645,23 @@ const Swap = () => {
                 <Input
                   className="bg-transparent border-none text-foreground text-right text-2xl font-bold placeholder:text-muted-foreground focus:ring-0 md:text-xl min-h-[44px] md:min-h-[auto]"
                   placeholder="0.00"
-                  value={(quote || autoQuote) ? (quote || autoQuote)!.outputAmount.toFixed(6) : autoQuoteLoading ? '...' : ''}
+                  value={
+                    (quote || autoQuote) ? (quote || autoQuote)!.outputAmount.toFixed(6) : 
+                    autoQuoteLoading ? '...' : 
+                    quoteError ? '...' : 
+                    ''
+                  }
                   readOnly
                 />
+                {autoQuoteLoading && (
+                  <div className="text-xs text-muted-foreground mt-1">Calculating...</div>
+                )}
+                {quoteError && !autoQuoteLoading && (
+                  <div className="text-xs text-yellow-500 mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Quote unavailable
+                  </div>
+                )}
                 {((quote || autoQuote)?.outputAmount) && (
                   <div className="text-xs text-muted-foreground mt-1">
                     ≈ {calculateUSDValue(toAsset, (quote || autoQuote)!.outputAmount)}
@@ -643,6 +671,35 @@ const Swap = () => {
             </div>
           </div>
         </div>
+
+        {/* Quote Error Message */}
+        {quoteError && fromAmount && parseFloat(fromAmount) > 0 && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg md:p-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="text-yellow-500 flex-shrink-0 mt-0.5" size={18} />
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-yellow-500 mb-1">Quote Unavailable</h4>
+                <p className="text-xs text-yellow-500/80">{quoteError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setAutoQuote(null);
+                    setQuoteError(null);
+                    // Trigger re-fetch by updating amount slightly
+                    const currentAmount = parseFloat(fromAmount);
+                    setFromAmount(String(currentAmount + 0.000001));
+                    setTimeout(() => setFromAmount(String(currentAmount)), 100);
+                  }}
+                  className="mt-2 gap-2"
+                >
+                  <RefreshCw size={14} />
+                  Retry Quote
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Trading Details */}
         <div className="space-y-2 flex-1 overflow-y-auto md:space-y-1.5">
