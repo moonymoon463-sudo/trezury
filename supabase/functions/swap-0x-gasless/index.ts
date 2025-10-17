@@ -101,8 +101,9 @@ serve(async (req) => {
         buyToken: buyTokenAddress,
         sellAmount: sellAmount,
         slippagePercentage: '0.005',
-        buyTokenPercentageFee: '0.008',
-        feeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'
+        swapFeeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835', // v2 parameter
+        swapFeeBps: '80', // v2 parameter (0.8%)
+        swapFeeToken: buyTokenAddress // v2 parameter - fee collected in output token
       });
 
       const baseUrl = getZeroXSwapBaseUrl(chainId);
@@ -127,7 +128,8 @@ serve(async (req) => {
           try {
             const response = await fetch(priceUrl, {
               headers: {
-                '0x-api-key': ZERO_X_API_KEY
+                '0x-api-key': ZERO_X_API_KEY,
+                '0x-version': 'v2' // Required for v2 API
               }
             });
             
@@ -185,7 +187,8 @@ serve(async (req) => {
 
       const response = await fetch(priceUrl, {
         headers: {
-          '0x-api-key': ZERO_X_API_KEY
+          '0x-api-key': ZERO_X_API_KEY,
+          '0x-version': 'v2' // Required for v2 API
         }
       });
 

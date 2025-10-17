@@ -91,10 +91,12 @@ class ZeroXSwapService {
       sellToken: sellTokenAddress,
       buyToken: buyTokenAddress,
       sellAmount: sellAmount,
-      takerAddress: userAddress,
+      taker: userAddress, // v2 parameter
       slippagePercentage: '0.005', // 0.5% slippage (0x recommends 0.5-1%)
-      buyTokenPercentageFee: '0.008', // 0.8% platform fee
-      feeRecipient: this.PLATFORM_FEE_RECIPIENT,
+      swapFeeRecipient: this.PLATFORM_FEE_RECIPIENT, // v2 parameter
+      swapFeeBps: '80', // v2 parameter (0.8% platform fee)
+      swapFeeToken: buyTokenAddress, // v2 parameter - fee collected in output token
+      tradeSurplusRecipient: userAddress, // v2 parameter - optional but recommended
       skipValidation: 'false'
     });
 
@@ -107,14 +109,27 @@ class ZeroXSwapService {
 
     const response = await fetch(`${this.ZERO_X_API_URL}/swap/v1/quote?${params}`, {
       headers: {
-        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || ''
+        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || '',
+        '0x-version': 'v2' // Required for v2 API
       }
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('0x API error:', errorText);
-      throw new Error(`0x API error: ${response.statusText} - ${errorText}`);
+      let errorObj;
+      try {
+        errorObj = JSON.parse(errorText);
+      } catch {
+        errorObj = { message: errorText };
+      }
+      
+      console.error('0x API v2 error:', {
+        status: response.status,
+        requestId: response.headers.get('x-request-id'),
+        error: errorObj
+      });
+      
+      throw new Error(errorObj.message || errorText);
     }
 
     const quote = await response.json();
