@@ -166,10 +166,14 @@ const Swap = () => {
         
         // Set user-friendly error message
         const errorMessage = error instanceof Error ? error.message : 'Failed to get quote';
-        if (errorMessage.includes('no Route matched') || errorMessage.includes('404')) {
+        if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('authentication')) {
+          setQuoteError('API authentication failed. Please check configuration.');
+        } else if (errorMessage.includes('no Route matched') || errorMessage.includes('404')) {
           setQuoteError('No liquidity available for this swap. Please try a different amount or asset pair.');
         } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
           setQuoteError('Rate limit reached. Please wait a moment and try again.');
+        } else if (errorMessage.includes('allowanceTarget')) {
+          setQuoteError('Token approval configuration error. Please contact support.');
         } else {
           setQuoteError('Unable to calculate swap quote. Please try again.');
         }

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PLATFORM_FEE_RECIPIENT } from "@/config/platformFees";
 
 export interface PlatformFeeRecord {
   transaction_id: string;
@@ -17,7 +18,6 @@ export interface FeeCollectionSummary {
 }
 
 class FeeCollectionService {
-  private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   /**
    * Get all collected platform fees
@@ -102,7 +102,7 @@ class FeeCollectionService {
    * Get platform fee wallet address
    */
   getPlatformWallet(): string {
-    return this.PLATFORM_FEE_WALLET;
+    return PLATFORM_FEE_RECIPIENT;
   }
 
   /**
@@ -156,7 +156,7 @@ class FeeCollectionService {
       fee.transaction_type,
       fee.fee_asset,
       fee.fee_amount_usd.toFixed(2),
-      this.PLATFORM_FEE_WALLET
+      PLATFORM_FEE_RECIPIENT
     ]);
 
     const csvContent = [headers, ...rows]

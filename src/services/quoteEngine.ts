@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { goldPriceService } from "./goldPrice";
+import { PLATFORM_FEE_RECIPIENT, PLATFORM_FEE_BPS } from "@/config/platformFees";
 
 export interface QuoteRequest {
   side: 'buy' | 'sell';
@@ -28,11 +29,10 @@ export interface Quote {
 }
 
 class QuoteEngineService {
-  private readonly TOTAL_FEE_BPS = 100; // Simplified 1% total fee
+  private readonly TOTAL_FEE_BPS = PLATFORM_FEE_BPS; // Use centralized fee config
   private readonly SLIPPAGE_BPS = 25; // 0.25% slippage protection
   private readonly GRAMS_PER_TROY_OUNCE = 31.1035;
   private readonly QUOTE_VALIDITY_MINUTES = 2;
-  private readonly PLATFORM_FEE_WALLET = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // Platform fee collection wallet
 
   async generateQuote(request: QuoteRequest, userId: string): Promise<Quote> {
     const goldPrice = await goldPriceService.getCurrentPrice();
@@ -120,7 +120,7 @@ class QuoteEngineService {
         goldPrice: unitPriceUsd,
         timestamp: goldPrice.last_updated,
         platformFeeUsd,
-        platformFeeWallet: this.PLATFORM_FEE_WALLET
+        platformFeeWallet: PLATFORM_FEE_RECIPIENT
       }
     };
 

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PLATFORM_FEE_RECIPIENT, PLATFORM_FEE_BPS } from "@/config/platformFees";
 
 export interface SwapFeeCalculation {
   feeAmount: number;
@@ -8,12 +9,7 @@ export interface SwapFeeCalculation {
 }
 
 class SwapFeeService {
-  private readonly PLATFORM_FEE_BPS = 80; // Standardized 0.8% platform fee
   private readonly ELIGIBLE_TOKENS = ['ETH', 'USDC', 'XAUT', 'TRZRY', 'BTC'];
-  
-  private getPlatformFeeWallet(): string {
-    return import.meta.env.VITE_PLATFORM_FEE_WALLET || '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
-  }
 
   /**
    * Check if fee should be applied (only for eligible token pairs)
@@ -35,19 +31,19 @@ class SwapFeeService {
       return {
         feeAmount: 0,
         feeAsset: inputAsset,
-        platformFeeWallet: this.getPlatformFeeWallet(),
+        platformFeeWallet: PLATFORM_FEE_RECIPIENT,
         remainingAmount: inputAmount
       };
     }
     
     // Take fee from INPUT token before swap
-    const feeAmount = (inputAmount * this.PLATFORM_FEE_BPS) / 10000;
+    const feeAmount = (inputAmount * PLATFORM_FEE_BPS) / 10000;
     const remainingAmount = inputAmount - feeAmount;
 
     return {
       feeAmount: Number(feeAmount.toFixed(6)),
       feeAsset: inputAsset,
-      platformFeeWallet: this.getPlatformFeeWallet(),
+      platformFeeWallet: PLATFORM_FEE_RECIPIENT,
       remainingAmount: Number(remainingAmount.toFixed(6))
     };
   }
@@ -122,7 +118,7 @@ class SwapFeeService {
    * Get platform fee wallet address
    */
   getWalletAddress(): string {
-    return this.getPlatformFeeWallet();
+    return PLATFORM_FEE_RECIPIENT;
   }
 
   /**
@@ -133,7 +129,7 @@ class SwapFeeService {
     netAmount: number;
   } {
     // Standardized 0.8% total fee
-    const totalFee = (baseAmount * this.PLATFORM_FEE_BPS) / 10000;
+    const totalFee = (baseAmount * PLATFORM_FEE_BPS) / 10000;
     const netAmount = baseAmount - totalFee;
 
     return {

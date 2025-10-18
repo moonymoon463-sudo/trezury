@@ -380,11 +380,32 @@ class SwapService {
       const intentId = crypto.randomUUID();
 
       try {
+        // ✅ CRITICAL: Check if approval is needed for allowanceTarget
+        // The allowanceTarget is the ONLY address we should approve
+        // This will be either:
+        // - AllowanceHolder contract (for standard permit2 flows)
+        // - Permit2 contract (0x000000000022D473030F116dDEE9F6B43aC78BA3)
+        // NEVER approve the Settler contract!
+        
+        if (gaslessQuote.allowanceTarget) {
+          console.log('✅ Swap using allowanceTarget:', {
+            allowanceTarget: gaslessQuote.allowanceTarget,
+            sellToken: gaslessQuote.sellToken,
+            sellAmount: gaslessQuote.sellAmount,
+            note: 'This is the ONLY address we approve for token transfers'
+          });
+        }
+        
         // Sign the trade permit with user's wallet
         let signature: string = '';
         
         if (gaslessQuote.approval) {
-          // Sign approval permit if needed
+          // ✅ Sign approval permit (EIP-712 signature for permit2)
+          console.log('📝 Signing approval permit for allowanceTarget:', {
+            allowanceTarget: gaslessQuote.allowanceTarget,
+            primaryType: gaslessQuote.approval.eip712.primaryType || 'PermitTransferFrom'
+          });
+          
           signature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
@@ -393,10 +414,14 @@ class SwapService {
             gaslessQuote.approval.eip712.types,
             gaslessQuote.approval.eip712.message
           );
+          
+          console.log('✅ Approval signature generated');
         }
         
         if (gaslessQuote.trade) {
-          // Sign trade permit
+          // ✅ Sign trade permit (EIP-712 signature for trade execution)
+          console.log('📝 Signing trade permit');
+          
           signature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
@@ -405,6 +430,8 @@ class SwapService {
             gaslessQuote.trade.eip712.types,
             gaslessQuote.trade.eip712.message
           );
+          
+          console.log('✅ Trade signature generated');
         }
 
         if (!signature) {

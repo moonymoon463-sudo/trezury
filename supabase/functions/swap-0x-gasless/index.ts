@@ -6,6 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Platform fee configuration (MUST be an EOA)
+const PLATFORM_FEE_RECIPIENT = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // User confirmed EOA
+const PLATFORM_FEE_BPS = 80; // 0.8%
+
 // Token addresses by chain
 const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
   1: { // Ethereum
@@ -58,9 +62,25 @@ serve(async (req) => {
     const { operation, ...params } = await req.json();
     const ZERO_X_API_KEY = Deno.env.get('ZERO_X_API_KEY');
     
-    if (!ZERO_X_API_KEY) {
-      throw new Error('0x API key not configured');
+    // Validate API key is configured
+    if (!ZERO_X_API_KEY || ZERO_X_API_KEY === 'your_0x_api_key_here') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: '0x API key not configured. Please add ZERO_X_API_KEY to Supabase secrets.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
+    
+    // Log configuration status (without exposing full key)
+    console.log('🔧 0x API Configuration:', {
+      apiKeyConfigured: true,
+      apiKeyLength: ZERO_X_API_KEY.length,
+      platformFeeRecipient: PLATFORM_FEE_RECIPIENT,
+      platformFeeBps: PLATFORM_FEE_BPS,
+      feeRecipientIsEOA: true // User confirmed
+    });
 
     if (operation === 'get_price') {
       const { sellToken, buyToken, sellAmount, chainId } = params;
@@ -102,8 +122,8 @@ serve(async (req) => {
         buyToken: buyTokenAddress,
         sellAmount: sellAmount,
         slippagePercentage: '0.005',
-        swapFeeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835', // v2 parameter
-        swapFeeBps: '80', // v2 parameter (0.8%)
+        swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // v2 parameter - EOA wallet
+        swapFeeBps: String(PLATFORM_FEE_BPS), // v2 parameter (0.8%)
         swapFeeToken: buyTokenAddress // v2 parameter - fee collected in output token
       });
 
@@ -239,10 +259,20 @@ serve(async (req) => {
       }
 
       const price = await response.json();
-      console.log('Indicative price received:', { buyAmount: price.buyAmount, price: price.price });
+      console.log('✅ Indicative price received:', { 
+        buyAmount: price.buyAmount, 
+        price: price.price,
+        allowanceTarget: price.allowanceTarget // May be present in price response
+      });
 
       return new Response(
-        JSON.stringify({ success: true, price }),
+        JSON.stringify({ 
+          success: true, 
+          price: {
+            ...price,
+            allowanceTarget: price.allowanceTarget // Pass through if present
+          }
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -287,8 +317,8 @@ serve(async (req) => {
         buyToken: buyTokenAddress,
         sellAmount: sellAmount,
         taker: userAddress,
-        swapFeeRecipient: '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835',
-        swapFeeBps: '80', // 0.8% platform fee
+        swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // EOA wallet
+        swapFeeBps: String(PLATFORM_FEE_BPS), // 0.8% platform fee
         swapFeeToken: buyTokenAddress,
         tradeSurplusRecipient: userAddress
       });
@@ -430,10 +460,24 @@ serve(async (req) => {
       }
 
       const quote = await response.json();
-      console.log('Quote received:', { buyAmount: quote.buyAmount, chainId: quote.chainId });
+      console.log('✅ 0x v2 Gasless Quote Response:', {
+        buyAmount: quote.buyAmount,
+        chainId: quote.chainId,
+        allowanceTarget: quote.allowanceTarget, // ✅ Critical field
+        hasApproval: !!quote.approval,
+        hasTrade: !!quote.trade,
+        hasIssues: !!quote.issues?.allowance || !!quote.issues?.balance
+      });
 
       return new Response(
-        JSON.stringify({ success: true, quote }),
+        JSON.stringify({ 
+          success: true, 
+          quote: {
+            ...quote,
+            // Ensure allowanceTarget is explicitly passed
+            allowanceTarget: quote.allowanceTarget
+          }
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TOKEN_ADDRESSES, TOKEN_DECIMALS, getTokenAddress, getTokenDecimals } from "@/config/tokenAddresses";
+import { PLATFORM_FEE_RECIPIENT, PLATFORM_FEE_BPS } from "@/config/platformFees";
 
 export interface ZeroXQuote {
   buyAmount: string;
@@ -9,16 +10,36 @@ export interface ZeroXQuote {
   estimatedGas: string;
   to: string;
   data: string;
-  allowanceTarget: string;
+  allowanceTarget: string; // ✅ CRITICAL: Where to approve tokens (AllowanceHolder or Permit2)
   buyTokenAddress: string;
   sellTokenAddress: string;
   sources: Array<{ name: string; proportion: string }>;
+  
+  // ✅ EIP-712 signature data for permit2 flow
+  approval?: {
+    type: string;
+    hash: string;
+    eip712: {
+      domain: any;
+      types: any;
+      message: any;
+      primaryType: string;
+    };
+  };
+  trade?: {
+    type: string;
+    hash: string;
+    eip712: {
+      domain: any;
+      types: any;
+      message: any;
+      primaryType: string;
+    };
+  };
 }
 
 class ZeroXSwapService {
   private readonly ZERO_X_API_URL = 'https://api.0x.org';
-  private readonly PLATFORM_FEE_BPS = 80; // 0.8%
-  private readonly PLATFORM_FEE_RECIPIENT = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
 
   getTokenAddress(symbol: string): string {
     return getTokenAddress(symbol);
@@ -94,8 +115,8 @@ class ZeroXSwapService {
       sellAmount: sellAmount,
       taker: userAddress, // v2 parameter
       slippagePercentage: '0.005', // 0.5% slippage (0x recommends 0.5-1%)
-      swapFeeRecipient: this.PLATFORM_FEE_RECIPIENT, // v2 parameter
-      swapFeeBps: '80', // v2 parameter (0.8% platform fee)
+      swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // v2 parameter - EOA wallet
+      swapFeeBps: String(PLATFORM_FEE_BPS), // v2 parameter (0.8% platform fee)
       swapFeeToken: buyTokenAddress, // v2 parameter - fee collected in output token
       tradeSurplusRecipient: userAddress, // v2 parameter - optional but recommended
       skipValidation: 'false'
@@ -140,9 +161,12 @@ class ZeroXSwapService {
     }
 
     const quote = await response.json();
-    console.log('0x quote received:', {
+    console.log('✅ 0x quote received:', {
       buyAmount: quote.buyAmount,
       price: quote.price,
+      allowanceTarget: quote.allowanceTarget, // ✅ Critical field
+      hasApproval: !!quote.approval,
+      hasTrade: !!quote.trade,
       sources: quote.sources
     });
 
