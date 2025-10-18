@@ -88,6 +88,7 @@ class ZeroXSwapService {
     const buyTokenAddress = this.getTokenAddress(buyToken);
 
     const params = new URLSearchParams({
+      chainId: '1', // ✅ Always 1 for Ethereum mainnet in this service
       sellToken: sellTokenAddress,
       buyToken: buyTokenAddress,
       sellAmount: sellAmount,
@@ -100,14 +101,20 @@ class ZeroXSwapService {
       skipValidation: 'false'
     });
 
-    console.log('Fetching 0x quote:', {
+    console.log('🔍 0x v2 Permit2 Quote Request:', {
+      endpoint: '/swap/permit2/quote',
+      chainId: '1',
       sellToken,
       buyToken,
       sellAmount,
-      userAddress
+      userAddress,
+      headers: {
+        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
+        '0x-version': 'v2'
+      }
     });
 
-    const response = await fetch(`${this.ZERO_X_API_URL}/swap/v1/quote?${params}`, {
+    const response = await fetch(`${this.ZERO_X_API_URL}/swap/permit2/quote?${params}`, {
       headers: {
         '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || '',
         '0x-version': 'v2' // Required for v2 API

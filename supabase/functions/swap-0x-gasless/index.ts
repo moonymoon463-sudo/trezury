@@ -97,6 +97,7 @@ serve(async (req) => {
       }
 
       const queryParams = new URLSearchParams({
+        chainId: chainId.toString(), // ✅ Required by permit2 API
         sellToken: sellTokenAddress,
         buyToken: buyTokenAddress,
         sellAmount: sellAmount,
@@ -117,7 +118,7 @@ serve(async (req) => {
         for (const source of sources) {
           const testParams = new URLSearchParams(queryParams);
           testParams.append('includedSources', source);
-          const priceUrl = `${baseUrl}/swap/v1/price?${testParams}`;
+          const priceUrl = `${baseUrl}/swap/permit2/price?${testParams}`;
           
           console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum`, {
             fullUrl: priceUrl,
@@ -174,15 +175,20 @@ serve(async (req) => {
       }
       
       // Standard flow for non-Arbitrum
-      const priceUrl = `${baseUrl}/swap/v1/price?${queryParams}`;
+      const priceUrl = `${baseUrl}/swap/permit2/price?${queryParams}`;
       
-      console.log('Fetching indicative price from 0x:', {
+      console.log('🔍 0x v2 Permit2 Price Request:', {
         chainId,
         baseUrl,
+        endpoint: '/swap/permit2/price',
         fullUrl: priceUrl,
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
-        sellAmount
+        sellAmount,
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
+          '0x-version': 'v2'
+        }
       });
 
       const response = await fetch(priceUrl, {
@@ -359,15 +365,20 @@ serve(async (req) => {
       // Standard flow for non-Arbitrum
       const quoteUrl = `${baseUrl}/gasless/quote?${queryParams}`;
       
-      console.log('Constructing 0x API request:', {
+      console.log('🔍 0x v2 Gasless Quote Request:', {
         chainId,
         baseUrl,
+        endpoint: '/gasless/quote',
         fullUrl: quoteUrl,
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
         sellAmount,
         userAddress,
-        swapFeeToken: buyTokenAddress
+        swapFeeToken: buyTokenAddress,
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
+          '0x-version': 'v2'
+        }
       });
 
       const response = await fetch(quoteUrl, {
