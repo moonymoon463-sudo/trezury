@@ -6,6 +6,15 @@ import { walletSigningService } from "./walletSigningService";
 import { getTokenDecimals, getTokenChainId } from "@/config/tokenAddresses";
 import { ethers } from "ethers";
 
+/**
+ * Filter out EIP712Domain from types object for ethers.js v6 compatibility
+ * The domain parameter already contains this information
+ */
+function filterEIP712Types(types: any): any {
+  const { EIP712Domain, ...filteredTypes } = types;
+  return filteredTypes;
+}
+
 export interface SwapQuote {
   id: string;
   inputAsset: string;
@@ -242,7 +251,16 @@ class SwapService {
           // ✅ Sign approval permit (EIP-712 signature for permit2)
           console.log('📝 Signing approval permit for allowanceTarget:', {
             allowanceTarget: gaslessQuote.allowanceTarget,
-            primaryType: gaslessQuote.approval.eip712.primaryType || 'PermitTransferFrom'
+            primaryType: gaslessQuote.approval.eip712.primaryType || 'PermitTransferFrom',
+            typesBeforeFilter: Object.keys(gaslessQuote.approval.eip712.types)
+          });
+          
+          // ✅ Strip EIP712Domain from types (ethers.js v6 requirement)
+          const filteredTypes = filterEIP712Types(gaslessQuote.approval.eip712.types);
+          
+          console.log('🔧 Filtered types:', {
+            before: Object.keys(gaslessQuote.approval.eip712.types),
+            after: Object.keys(filteredTypes)
           });
           
           signature = await walletSigningService.signTypedData(
@@ -250,7 +268,7 @@ class SwapService {
             walletPassword,
             gaslessQuote.chainId,
             gaslessQuote.approval.eip712.domain,
-            gaslessQuote.approval.eip712.types,
+            filteredTypes,
             gaslessQuote.approval.eip712.message
           );
           
@@ -261,12 +279,15 @@ class SwapService {
           // ✅ Sign trade permit (EIP-712 signature for trade execution)
           console.log('📝 Signing trade permit');
           
+          // ✅ Strip EIP712Domain from types (ethers.js v6 requirement)
+          const filteredTypes = filterEIP712Types(gaslessQuote.trade.eip712.types);
+          
           signature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
             gaslessQuote.chainId,
             gaslessQuote.trade.eip712.domain,
-            gaslessQuote.trade.eip712.types,
+            filteredTypes,
             gaslessQuote.trade.eip712.message
           );
           
