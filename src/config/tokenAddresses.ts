@@ -40,9 +40,14 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     symbol: 'USDC',
     chain: 'arbitrum',
     chainId: 42161
+  },
+  'XAUT0_ARB': {
+    address: '0x40461291347e1ecbb09499f3371d3f17f10d7159', // XAUT0 (Omnichain Gold) on Arbitrum
+    decimals: 6,
+    symbol: 'XAUT0',
+    chain: 'arbitrum',
+    chainId: 42161
   }
-  // Note: XAUT is not supported on Arbitrum due to lack of liquidity
-  // Use Ethereum mainnet for XAUT swaps
 };
 
 // Legacy compatibility: Map symbols to addresses (for services using old format)

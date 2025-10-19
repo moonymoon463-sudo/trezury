@@ -29,8 +29,9 @@ const AVAILABLE_ASSETS = [
   { symbol: 'XAUT' as const, name: 'XAUT', color: 'bg-yellow-600', chain: 'ethereum' as Chain },
   { symbol: 'TRZRY' as const, name: 'TRZRY', color: 'bg-green-600', chain: 'ethereum' as Chain },
   
-  // Arbitrum assets (XAUT removed - no liquidity on Arbitrum)
+  // Arbitrum assets
   { symbol: 'USDC_ARB' as const, name: 'USDC', color: 'bg-blue-600', chain: 'arbitrum' as Chain },
+  { symbol: 'XAUT0_ARB' as const, name: 'XAUT0', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
 ];
 
 const Swap = () => {
@@ -42,8 +43,8 @@ const Swap = () => {
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
   const [currentChain, setCurrentChain] = useState<Chain>('ethereum');
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB'>('USDC');
-  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB'>('XAUT');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -97,15 +98,15 @@ const Swap = () => {
     
     // Handle URL parameters for pre-selecting assets and chain
     const toParam = searchParams.get('to');
-    if (toParam && ['USDC', 'XAUT', 'TRZRY', 'USDC_ARB'].includes(toParam)) {
-      setToAsset(toParam as 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB');
+    if (toParam && ['USDC', 'XAUT', 'TRZRY', 'USDC_ARB', 'XAUT0_ARB'].includes(toParam)) {
+      setToAsset(toParam as 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB');
       
       // Switch chain based on asset
       if (toParam === 'TRZRY' || toParam === 'XAUT') {
         setCurrentChain('ethereum');
         setFromAsset('USDC');
         setToAsset(toParam as 'TRZRY' | 'XAUT');
-      } else if (toParam === 'USDC_ARB') {
+      } else if (toParam === 'USDC_ARB' || toParam === 'XAUT0_ARB') {
         setCurrentChain('arbitrum');
         setFromAsset('USDC_ARB');
       }
@@ -115,14 +116,15 @@ const Swap = () => {
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
+  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB') => {
     const assetConfig = AVAILABLE_ASSETS.find(a => a.symbol === asset);
     return assetConfig?.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
   };
 
   // Helper to get clean display name (removes _ARB suffix)
-  const getDisplayName = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
+  const getDisplayName = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB') => {
     if (asset === 'USDC_ARB') return 'USDC';
+    if (asset === 'XAUT0_ARB') return 'XAUT0';
     return asset;
   };
 
@@ -184,7 +186,7 @@ const Swap = () => {
     return () => clearTimeout(timer);
   }, [fromAmount, fromAsset, toAsset, user]);
 
-  const handleFromAssetChange = (newAsset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
+  const handleFromAssetChange = (newAsset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB') => {
     if (newAsset === toAsset) {
       setToAsset(fromAsset);
     }
@@ -193,7 +195,7 @@ const Swap = () => {
     setAutoQuote(null);
   };
 
-  const handleToAssetChange = (newAsset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
+  const handleToAssetChange = (newAsset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT0_ARB') => {
     if (newAsset === fromAsset) {
       setFromAsset(toAsset);
     }
