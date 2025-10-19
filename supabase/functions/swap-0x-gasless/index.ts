@@ -67,9 +67,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: '0x API key not configured. Please add ZERO_X_API_KEY to Supabase secrets.'
+          error: 'missing_api_key',
+          message: '0x API key not configured. Please add ZERO_X_API_KEY to Supabase secrets.'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
     
@@ -81,6 +82,61 @@ serve(async (req) => {
       platformFeeBps: PLATFORM_FEE_BPS,
       feeRecipientIsEOA: true // User confirmed
     });
+
+    if (operation === 'self_test') {
+      const chainId = (params.chainId && Number(params.chainId)) || 1;
+      const sellTokenSymbol = 'USDC';
+      const buyTokenSymbol = 'ETH';
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[sellTokenSymbol];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[buyTokenSymbol];
+      try {
+        if (!sellTokenAddress || !buyTokenAddress) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'token_not_found',
+              message: `Token not supported on chain ${chainId}: ${sellTokenSymbol} or ${buyTokenSymbol}`
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        const baseUrl = getZeroXSwapBaseUrl(chainId);
+        const qs = new URLSearchParams({
+          chainId: String(chainId),
+          sellToken: sellTokenAddress,
+          buyToken: buyTokenAddress,
+          sellAmount: '1000000',
+          swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
+          swapFeeBps: String(PLATFORM_FEE_BPS),
+          swapFeeToken: buyTokenAddress
+        });
+        const url = `${baseUrl}/swap/permit2/price?${qs}`;
+        const resp = await fetch(url, { headers: { '0x-api-key': ZERO_X_API_KEY!, '0x-version': 'v2' } });
+        const requestId = resp.headers.get('x-request-id');
+        const text = await resp.text();
+        let json: any = null;
+        try { json = JSON.parse(text); } catch {}
+        return new Response(JSON.stringify({
+          success: true,
+          self_test: {
+            apiKeyPresent: true,
+            chainId,
+            baseUrl,
+            priceOk: resp.ok,
+            status: resp.status,
+            requestId,
+            body: resp.ok ? { buyAmount: json?.buyAmount, allowanceTarget: json?.allowanceTarget } : { error: json?.message || text?.slice(0, 200) }
+          }
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+      } catch (e: any) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'self_test_failed',
+          message: e?.message || 'Failed to run self-test',
+          chainId
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+      }
+    }
 
     if (operation === 'get_price') {
       const { sellToken, buyToken, sellAmount, chainId } = params;
