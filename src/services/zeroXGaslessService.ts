@@ -117,7 +117,9 @@ class ZeroXGaslessService {
         buyToken,
         sellAmount,
         userAddress,
-        chainId
+        chainId,
+        includedSources: options?.includedSources,
+        excludedSources: options?.excludedSources
       }
     });
 

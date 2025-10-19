@@ -311,7 +311,7 @@ class SwapService {
         }
 
         // Submit to 0x gasless endpoint with auto-recovery
-        let submitResult;
+        let submitResult: { tradeHash: string; status: 'pending' | 'submitted' | 'confirmed' | 'failed' } | undefined;
         try {
           submitResult = await zeroXGaslessService.submitGaslessSwap(
             gaslessQuote,
@@ -365,17 +365,10 @@ class SwapService {
               quote.id,
               intentId
             );
-          } else {
-            // Preserve 0x error details for UI
-            throw error;
-          }
-        }
+          } else if (isXAUTSwap && /500|INTERNAL_SERVER_ERROR|submit_failed/i.test(error?.message || '')) {
+            // Retry once with strict RFQ-only routing for XAUT-specific upstream issues
+            console.warn('⚠️ Submit failed for XAUT, retrying with strict RFQ-only routing...');
 
-        // If submit failed with 500 error for XAUT, retry once with RFQ-only
-        if (!submitResult.success && isXAUTSwap && (submitResult.error?.includes('500') || submitResult.error?.includes('INTERNAL_SERVER_ERROR'))) {
-          console.log('⚠️ Submit failed with 500 error for XAUT, retrying with strict RFQ-only routing...');
-          
-          try {
             // Re-quote with strict RFQ-only routing
             const retryQuote = await zeroXGaslessService.getGaslessQuote(
               quote.inputAsset,
@@ -418,24 +411,15 @@ class SwapService {
               quote.id,
               intentId
             );
-
-            if (submitResult.success) {
-              console.log('✅ Retry succeeded with strict RFQ-only routing');
-            }
-          } catch (retryError) {
-            console.error('❌ Retry with RFQ-only failed:', retryError);
-            // Preserve original error with zid for UI
-            const errorMsg = submitResult.error || 'Gasless swap submission failed';
-            const errorDetails = submitResult.zid ? ` [zid: ${submitResult.zid}]` : '';
-            throw new Error(errorMsg + errorDetails);
+          } else {
+            // Preserve 0x error details for UI
+            throw error;
           }
         }
 
         // Final check after all retries
-        if (!submitResult.success || !submitResult.tradeHash) {
-          const errorMsg = submitResult.error || 'Gasless swap submission failed';
-          const errorDetails = submitResult.zid ? ` [zid: ${submitResult.zid}]` : '';
-          throw new Error(errorMsg + errorDetails);
+        if (!submitResult?.tradeHash) {
+          throw new Error('Gasless swap submission failed');
         }
 
         // Wait for completion (with timeout)
