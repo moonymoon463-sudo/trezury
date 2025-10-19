@@ -408,7 +408,10 @@ serve(async (req) => {
               const data = await response.json();
               return new Response(JSON.stringify({ 
                 success: true,
-                quote: data,
+                quote: {
+                  ...data,
+                  chainId: chainId // ✅ Inject chainId for Arbitrum quotes
+                },
                 routeSource: source
               }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -536,8 +539,8 @@ serve(async (req) => {
       const quote = await response.json();
       console.log('✅ 0x v2 Gasless Quote Response:', {
         buyAmount: quote.buyAmount,
-        chainId: quote.chainId,
-        allowanceTarget: quote.allowanceTarget, // ✅ Critical field
+        chainId: quote.chainId, // Will be undefined from 0x API
+        allowanceTarget: quote.allowanceTarget,
         hasApproval: !!quote.approval,
         hasTrade: !!quote.trade,
         hasIssues: !!quote.issues?.allowance || !!quote.issues?.balance
@@ -548,7 +551,7 @@ serve(async (req) => {
           success: true, 
           quote: {
             ...quote,
-            // Ensure allowanceTarget is explicitly passed
+            chainId: chainId, // ✅ Inject chainId from request params
             allowanceTarget: quote.allowanceTarget
           }
         }),
@@ -559,7 +562,45 @@ serve(async (req) => {
     if (operation === 'submit_swap') {
       const { quote, signature, quoteId, intentId } = params;
 
-      console.log('Submitting gasless swap to 0x');
+      console.log('Submitting gasless swap to 0x', {
+        chainId: quote.chainId,
+        hasApproval: !!quote.approval,
+        hasTrade: !!quote.trade
+      });
+
+      // Validate required fields
+      if (!quote.chainId) {
+        throw new Error('Missing chainId in quote');
+      }
+      if (!quote.trade) {
+        throw new Error('Missing trade data in quote');
+      }
+
+      // ✅ Construct proper payload per 0x API docs
+      const submitPayload: any = {
+        chainId: parseInt(quote.chainId.toString()), // Ensure it's a number
+        trade: {
+          type: quote.trade.type,
+          eip712: quote.trade.eip712,
+          signature: signature
+        }
+      };
+
+      // Include approval if present
+      if (quote.approval) {
+        submitPayload.approval = {
+          type: quote.approval.type,
+          eip712: quote.approval.eip712,
+          signature: signature // Same signature for both
+        };
+      }
+
+      console.log('📤 Submit payload:', {
+        chainId: submitPayload.chainId,
+        hasApproval: !!submitPayload.approval,
+        hasTrade: !!submitPayload.trade,
+        tradeType: quote.trade.type
+      });
 
       const response = await fetch('https://api.0x.org/gasless/submit', {
         method: 'POST',
@@ -568,23 +609,26 @@ serve(async (req) => {
           '0x-version': 'v2',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          chainId: quote.chainId,
-          quote,
-          signature,
-          quoteId,
-          intentId
-        })
+        body: JSON.stringify(submitPayload)
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('0x submit error:', errorText);
-        throw new Error(`Failed to submit: ${response.statusText}`);
+        const requestId = response.headers.get('x-request-id');
+        console.error('❌ 0x submit error:', {
+          status: response.status,
+          requestId,
+          error: errorText,
+          submittedPayload: submitPayload
+        });
+        throw new Error(`Failed to submit: ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('Swap submitted:', { tradeHash: result.tradeHash });
+      console.log('✅ Swap submitted successfully:', { 
+        tradeHash: result.tradeHash,
+        status: result.status 
+      });
 
       return new Response(
         JSON.stringify({ success: true, result }),
