@@ -244,8 +244,9 @@ class SwapService {
           });
         }
         
-        // Sign the trade permit with user's wallet
-        let signature: string = '';
+        // Sign the trade and approval permits with user's wallet
+        let approvalSignature: string | undefined;
+        let tradeSignature: string | undefined;
         
         if (gaslessQuote.approval) {
           // ✅ Sign approval permit (EIP-712 signature for permit2)
@@ -263,7 +264,7 @@ class SwapService {
             after: Object.keys(filteredTypes)
           });
           
-          signature = await walletSigningService.signTypedData(
+          approvalSignature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
             gaslessQuote.chainId,
@@ -282,7 +283,7 @@ class SwapService {
           // ✅ Strip EIP712Domain from types (ethers.js v6 requirement)
           const filteredTypes = filterEIP712Types(gaslessQuote.trade.eip712.types);
           
-          signature = await walletSigningService.signTypedData(
+          tradeSignature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
             gaslessQuote.chainId,
@@ -294,14 +295,17 @@ class SwapService {
           console.log('✅ Trade signature generated');
         }
 
-        if (!signature) {
-          throw new Error('No signature generated - quote may not require permits');
+        if (!tradeSignature) {
+          throw new Error('No trade signature generated - required for gasless swap');
+        }
+        if (gaslessQuote.approval && !approvalSignature) {
+          throw new Error('Approval signature missing for required approval step');
         }
 
         // Submit to 0x gasless endpoint
         const submitResult = await zeroXGaslessService.submitGaslessSwap(
           gaslessQuote,
-          signature,
+          { approval: approvalSignature, trade: tradeSignature },
           quote.id,
           intentId
         );

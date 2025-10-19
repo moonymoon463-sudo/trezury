@@ -141,7 +141,7 @@ class ZeroXGaslessService {
    */
   async submitGaslessSwap(
     quote: GaslessQuote,
-    signature: string,
+    signatures: { approval?: string; trade: string },
     quoteId: string,
     intentId: string
   ): Promise<GaslessSubmitResult> {
@@ -151,7 +151,7 @@ class ZeroXGaslessService {
       body: {
         operation: 'submit_swap',
         quote,
-        signature,
+        signatures,
         quoteId,
         intentId
       }

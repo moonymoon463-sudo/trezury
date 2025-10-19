@@ -560,7 +560,7 @@ serve(async (req) => {
     }
 
     if (operation === 'submit_swap') {
-      const { quote, signature, quoteId, intentId } = params;
+      const { quote, signatures, quoteId, intentId } = params;
 
       console.log('Submitting gasless swap to 0x', {
         chainId: quote.chainId,
@@ -575,23 +575,37 @@ serve(async (req) => {
       if (!quote.trade) {
         throw new Error('Missing trade data in quote');
       }
+      if (!signatures || !signatures.trade) {
+        throw new Error('Missing trade signature');
+      }
+
+      // Helper to convert 0x hex signature to { r, s, v }
+      const toSigObject = (sig: string) => {
+        const hex = sig.startsWith('0x') ? sig.slice(2) : sig;
+        if (hex.length !== 130) throw new Error('Unexpected signature length');
+        const r = '0x' + hex.slice(0, 64);
+        const s = '0x' + hex.slice(64, 128);
+        let v = parseInt(hex.slice(128, 130), 16);
+        if (v === 0 || v === 1) v += 27;
+        return { r, s, v };
+      };
 
       // ✅ Construct proper payload per 0x API docs
       const submitPayload: any = {
-        chainId: parseInt(quote.chainId.toString()), // Ensure it's a number
+        chainId: Number(quote.chainId),
         trade: {
           type: quote.trade.type,
           eip712: quote.trade.eip712,
-          signature: signature
+          signature: toSigObject(signatures.trade)
         }
       };
 
       // Include approval if present
-      if (quote.approval) {
+      if (quote.approval && signatures.approval) {
         submitPayload.approval = {
           type: quote.approval.type,
           eip712: quote.approval.eip712,
-          signature: signature // Same signature for both
+          signature: toSigObject(signatures.approval)
         };
       }
 
