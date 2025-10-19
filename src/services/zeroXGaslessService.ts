@@ -158,12 +158,31 @@ class ZeroXGaslessService {
     });
 
     if (error) {
-      console.error('Edge function error:', error);
-      throw new Error(`Failed to submit swap: ${error.message}`);
+      console.error('Edge function invocation error:', error);
+      throw new Error(`Failed to invoke edge function: ${error.message}`);
     }
 
+    // Handle success: false responses from edge function
     if (!data.success) {
-      throw new Error(data.error || 'Failed to submit swap');
+      const errorType = data.error || 'unknown';
+      const message = data.message || 'Swap submission failed';
+      const requestId = data.requestId ? ` [${data.requestId}]` : '';
+      
+      console.error('0x API error:', {
+        error: errorType,
+        message,
+        details: data.details,
+        requestId: data.requestId,
+        zid: data.zid,
+        code: data.code
+      });
+
+      // Throw specific errors for auto-recovery
+      if (errorType === 'quote_expired' || errorType === 'stale_or_invalid_signature') {
+        throw new Error(`EXPIRED:${message}${requestId}`);
+      }
+
+      throw new Error(`${message}${requestId}`);
     }
 
     console.log('Gasless swap submitted:', data.result);

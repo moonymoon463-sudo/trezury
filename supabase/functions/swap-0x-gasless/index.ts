@@ -590,6 +590,41 @@ serve(async (req) => {
         return { r, s, v };
       };
 
+      // ✅ Pre-check deadlines for staleness
+      const now = Math.floor(Date.now() / 1000);
+      const tradeDeadline = quote.trade?.eip712?.message?.deadline;
+      const approvalDeadline = quote.approval?.eip712?.message?.deadline;
+      
+      if (tradeDeadline && now > Number(tradeDeadline) - 10) {
+        console.warn('⏱️ Trade deadline is stale or near expiry:', {
+          now,
+          deadline: tradeDeadline,
+          secondsRemaining: Number(tradeDeadline) - now
+        });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'quote_expired',
+            message: 'Quote deadline has passed. Please refresh and try again.',
+            code: 400
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (approvalDeadline && now > Number(approvalDeadline) - 10) {
+        console.warn('⏱️ Approval deadline is stale or near expiry');
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'quote_expired',
+            message: 'Approval deadline has passed. Please refresh and try again.',
+            code: 400
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // ✅ Construct proper payload per 0x API docs with signatureType
       const submitPayload: any = {
         chainId: Number(quote.chainId),
@@ -622,51 +657,110 @@ serve(async (req) => {
         tradeType: quote.trade.type
       });
 
-      const response = await fetch('https://api.0x.org/gasless/submit', {
-        method: 'POST',
-        headers: {
-          '0x-api-key': ZERO_X_API_KEY,
-          '0x-version': 'v2',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(submitPayload)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        const requestId = response.headers.get('x-request-id');
-        
-        // Try to parse error details
-        let errorDetails = errorText;
+      // ✅ Retry logic for transient errors
+      let lastError: any;
+      const maxRetries = 2;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const parsed = JSON.parse(errorText);
-          errorDetails = parsed.message || parsed.name || errorText;
-          if (parsed.data?.details) {
-            errorDetails += ` - ${JSON.stringify(parsed.data.details)}`;
+          if (attempt > 0) {
+            const backoff = attempt === 1 ? 300 : 800;
+            console.log(`⏳ Retry attempt ${attempt} after ${backoff}ms`);
+            await new Promise(resolve => setTimeout(resolve, backoff));
           }
-        } catch (e) {
-          // Keep raw text if not JSON
+
+          const response = await fetch('https://api.0x.org/gasless/submit', {
+            method: 'POST',
+            headers: {
+              '0x-api-key': ZERO_X_API_KEY,
+              '0x-version': 'v2',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(submitPayload)
+          });
+
+          const requestId = response.headers.get('x-request-id');
+          const zid = response.headers.get('zid');
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            
+            // Retry on 5xx errors
+            if (response.status >= 500 && attempt < maxRetries) {
+              console.warn(`⚠️ 0x API ${response.status} error, will retry:`, { requestId, zid });
+              lastError = { status: response.status, text: errorText, requestId, zid };
+              continue;
+            }
+            
+            // Parse 4xx errors
+            let parsedError: any = {};
+            try {
+              parsedError = JSON.parse(errorText);
+            } catch {}
+            
+            const errorMessage = parsedError.message || parsedError.name || errorText;
+            const errorDetails = parsedError.data?.details;
+            
+            console.error('❌ 0x submit error:', {
+              status: response.status,
+              requestId,
+              zid,
+              error: errorText,
+              parsedError
+            });
+            
+            // Check for stale/invalid signature errors
+            const isStale = errorMessage.toLowerCase().includes('expired') ||
+                          errorMessage.toLowerCase().includes('stale') ||
+                          errorMessage.toLowerCase().includes('invalid nonce') ||
+                          errorMessage.toLowerCase().includes('invalid signature');
+            
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: isStale ? 'stale_or_invalid_signature' : 'submit_failed',
+                message: errorMessage,
+                details: errorDetails,
+                requestId,
+                zid,
+                code: response.status,
+                hint: isStale ? 'requote_and_resign' : undefined
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          const result = await response.json();
+          console.log('✅ Swap submitted successfully:', { 
+            tradeHash: result.tradeHash,
+            status: result.status,
+            requestId,
+            zid
+          });
+
+          return new Response(
+            JSON.stringify({ success: true, result, requestId, zid }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (err: any) {
+          lastError = err;
+          if (attempt === maxRetries) break;
+          console.warn(`⚠️ Request failed, attempt ${attempt + 1}:`, err.message);
         }
-        
-        console.error('❌ 0x submit error:', {
-          status: response.status,
-          requestId,
-          error: errorText,
-          submittedPayload: submitPayload
-        });
-        
-        throw new Error(`0x API error (${response.status}): ${errorDetails}${requestId ? ` [${requestId}]` : ''}`);
       }
 
-      const result = await response.json();
-      console.log('✅ Swap submitted successfully:', { 
-        tradeHash: result.tradeHash,
-        status: result.status 
-      });
-
+      // All retries exhausted
+      console.error('❌ All retry attempts failed:', lastError);
       return new Response(
-        JSON.stringify({ success: true, result }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error: 'api_error',
+          message: lastError?.text || lastError?.message || 'Failed to submit after retries',
+          requestId: lastError?.requestId,
+          zid: lastError?.zid,
+          code: lastError?.status || 500
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -701,10 +795,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: 'edge_error',
+        message: error.message 
       }),
       { 
-        status: 400,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );

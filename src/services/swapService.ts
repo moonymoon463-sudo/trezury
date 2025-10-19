@@ -302,13 +302,65 @@ class SwapService {
           throw new Error('Approval signature missing for required approval step');
         }
 
-        // Submit to 0x gasless endpoint
-        const submitResult = await zeroXGaslessService.submitGaslessSwap(
-          gaslessQuote,
-          { approval: approvalSignature, trade: tradeSignature },
-          quote.id,
-          intentId
-        );
+        // Submit to 0x gasless endpoint with auto-recovery
+        let submitResult;
+        try {
+          submitResult = await zeroXGaslessService.submitGaslessSwap(
+            gaslessQuote,
+            { approval: approvalSignature, trade: tradeSignature },
+            quote.id,
+            intentId
+          );
+        } catch (error: any) {
+          // Auto-recovery for expired/stale quotes
+          if (error.message?.startsWith('EXPIRED:')) {
+            console.warn('⏱️ Quote expired during submission, refreshing and retrying...');
+            
+            // Fetch fresh quote
+            const freshQuote = await zeroXGaslessService.getGaslessQuote(
+              quote.inputAsset,
+              quote.outputAsset,
+              sellAmount,
+              onchainWallet.address
+            );
+
+            // Re-sign with fresh quote
+            let freshApprovalSig: string | undefined;
+            if (freshQuote.approval) {
+              const filteredTypes = filterEIP712Types(freshQuote.approval.eip712.types);
+              freshApprovalSig = await walletSigningService.signTypedData(
+                userId,
+                walletPassword,
+                freshQuote.chainId,
+                freshQuote.approval.eip712.domain,
+                filteredTypes,
+                freshQuote.approval.eip712.message
+              );
+            }
+
+            const freshTradeSig = await walletSigningService.signTypedData(
+              userId,
+              walletPassword,
+              freshQuote.chainId,
+              freshQuote.trade.eip712.domain,
+              filterEIP712Types(freshQuote.trade.eip712.types),
+              freshQuote.trade.eip712.message
+            );
+
+            console.log('✅ Fresh signatures generated, retrying submit...');
+
+            // Retry submission with fresh signatures
+            submitResult = await zeroXGaslessService.submitGaslessSwap(
+              freshQuote,
+              { approval: freshApprovalSig, trade: freshTradeSig },
+              quote.id,
+              intentId
+            );
+          } else {
+            // Preserve 0x error details for UI
+            throw error;
+          }
+        }
 
         // Wait for completion (with timeout)
         const statusResult = await zeroXGaslessService.waitForCompletion(
