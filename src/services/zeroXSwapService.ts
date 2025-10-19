@@ -81,9 +81,20 @@ class ZeroXSwapService {
       throw new Error(`Failed to fetch price: ${error.message}`);
     }
 
-    if (!data.success) {
-      console.error('Price fetch failed:', data.error);
-      throw new Error(data.error || 'Failed to fetch price');
+    if (!data?.success) {
+      const message = data?.message || data?.error || 'Failed to fetch price';
+      console.error('Price fetch failed:', { error: data?.error, message });
+      
+      // Provide specific error messages for common cases
+      if (data?.error === 'no_route' || message.includes('no liquidity') || message.includes('not supported')) {
+        throw new Error(message);
+      } else if (data?.error === 'api_error' && (message.includes('401') || message.includes('403'))) {
+        throw new Error('API authentication failed. Please check configuration.');
+      } else if (message.includes('rate limit') || message.includes('429')) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      }
+      
+      throw new Error(message);
     }
 
     console.log('Indicative price received:', { buyAmount: data.price.buyAmount, price: data.price.price });

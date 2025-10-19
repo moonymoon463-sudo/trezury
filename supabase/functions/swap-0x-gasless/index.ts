@@ -89,12 +89,35 @@ serve(async (req) => {
       const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
       if (!availableChains.includes(chainId)) {
         console.error('Unsupported chain:', { chainId, availableChains });
-        throw new Error(`Unsupported chain: ${chainId}. Available: ${availableChains.join(', ')}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'unsupported_chain',
+            message: `Chain ${chainId} is not supported. Available: ${availableChains.join(', ')}`
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
       
       // Strip _ARB suffix if present (for Arbitrum tokens)
       const cleanSellToken = sellToken.replace('_ARB', '');
       const cleanBuyToken = buyToken.replace('_ARB', '');
+      
+      // Special case: XAUT is not supported on Arbitrum (no liquidity)
+      if (chainId === 42161 && (cleanSellToken === 'XAUT' || cleanBuyToken === 'XAUT')) {
+        console.warn('⚠️ XAUT swap requested on Arbitrum - not supported');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'no_route',
+            message: 'XAUT is not supported on Arbitrum (no liquidity). Please switch to Ethereum to trade XAUT.',
+            chainId,
+            sellToken,
+            buyToken
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
       
       const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanSellToken];
       const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanBuyToken];
@@ -113,7 +136,14 @@ serve(async (req) => {
           cleanBuyToken,
           availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
         });
-        throw new Error(`Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'token_not_found',
+            message: `Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
 
       const queryParams = new URLSearchParams({
@@ -182,16 +212,21 @@ serve(async (req) => {
           }
         }
         
-        // All sources failed - return structured error
+        // All sources failed - return normalized 200 error
         console.error('❌ All 0x sources failed for Arbitrum', { testedSources });
-        throw new Error(JSON.stringify({
-          error: '0x API error (404): no Route matched with those values',
-          status: 404,
-          requestUrl: baseUrl,
-          requestId: lastError?.requestId,
-          testedSources,
-          lastErrorBody: lastError?.body
-        }));
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'no_route',
+            message: `No liquidity for ${sellToken} → ${buyToken} swap on Arbitrum. Try a different pair or switch to Ethereum.`,
+            chainId,
+            sellToken,
+            buyToken,
+            testedSources,
+            requestId: lastError?.requestId
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
       
       // Standard flow for non-Arbitrum
@@ -248,14 +283,31 @@ serve(async (req) => {
           }
         });
         
-        // Return structured error for better handling
-        throw new Error(JSON.stringify({
-          status: response.status,
-          message: errorDetails.message || errorDetails.reason || errorText,
-          code: errorDetails.code,
-          requestId,
-          requestUrl: priceUrl
-        }));
+        // Normalize error response to 200 with details
+        const errorMsg = errorDetails.message || errorDetails.reason || errorText;
+        let userMessage = errorMsg;
+        
+        if (errorMsg.includes('no Route matched') || response.status === 404) {
+          userMessage = `No liquidity for ${sellToken} → ${buyToken} swap. Try a different pair or amount.`;
+        } else if (response.status === 401 || response.status === 403) {
+          userMessage = 'API authentication failed. Please contact support.';
+        } else if (response.status === 429) {
+          userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: response.status === 404 ? 'no_route' : 'api_error',
+            message: userMessage,
+            status: response.status,
+            requestId,
+            chainId,
+            sellToken,
+            buyToken
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
 
       const price = await response.json();
@@ -379,17 +431,22 @@ serve(async (req) => {
           }
         }
         
-        // All sources failed - return structured error for fallback to Camelot
+        // All sources failed - return normalized 200 error for fallback
         console.error('❌ All 0x gasless sources failed for Arbitrum - will fallback to Camelot V3', { testedSources });
-        throw new Error(JSON.stringify({
-          error: '0x API error (404): no Route matched with those values',
-          status: 404,
-          requestUrl: baseUrl,
-          requestId: lastError?.requestId,
-          testedSources,
-          lastErrorBody: lastError?.body,
-          fallbackToCamelot: true
-        }));
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'no_route',
+            message: `No liquidity for ${sellToken} → ${buyToken} gasless swap on Arbitrum. Try a different pair or switch to Ethereum.`,
+            chainId,
+            sellToken,
+            buyToken,
+            testedSources,
+            requestId: lastError?.requestId,
+            fallbackToCamelot: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
       
       // Standard flow for non-Arbitrum
@@ -449,14 +506,31 @@ serve(async (req) => {
           }
         });
         
-        // Return structured error for better handling
-        throw new Error(JSON.stringify({
-          status: response.status,
-          message: errorDetails.message || errorDetails.reason || errorText,
-          code: errorDetails.code,
-          requestId,
-          requestUrl: quoteUrl
-        }));
+        // Normalize error response to 200 with details
+        const errorMsg = errorDetails.message || errorDetails.reason || errorText;
+        let userMessage = errorMsg;
+        
+        if (errorMsg.includes('no Route matched') || response.status === 404) {
+          userMessage = `No liquidity for ${sellToken} → ${buyToken} gasless swap. Try a different pair or amount.`;
+        } else if (response.status === 401 || response.status === 403) {
+          userMessage = 'API authentication failed. Please contact support.';
+        } else if (response.status === 429) {
+          userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: response.status === 404 ? 'no_route' : 'api_error',
+            message: userMessage,
+            status: response.status,
+            requestId,
+            chainId,
+            sellToken,
+            buyToken
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
 
       const quote = await response.json();

@@ -29,9 +29,8 @@ const AVAILABLE_ASSETS = [
   { symbol: 'XAUT' as const, name: 'XAUT', color: 'bg-yellow-600', chain: 'ethereum' as Chain },
   { symbol: 'TRZRY' as const, name: 'TRZRY', color: 'bg-green-600', chain: 'ethereum' as Chain },
   
-  // Arbitrum assets
+  // Arbitrum assets (XAUT removed - no liquidity on Arbitrum)
   { symbol: 'USDC_ARB' as const, name: 'USDC', color: 'bg-blue-600', chain: 'arbitrum' as Chain },
-  { symbol: 'XAUT_ARB' as const, name: 'XAUT', color: 'bg-yellow-600', chain: 'arbitrum' as Chain },
 ];
 
 const Swap = () => {
@@ -42,9 +41,9 @@ const Swap = () => {
   const { toast } = useToast();
   const { walletAddress: secureWalletAddress, getWalletAddress, loading: walletLoading } = useSecureWallet();
   
-  const [currentChain, setCurrentChain] = useState<Chain>('arbitrum');
-  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('USDC_ARB');
-  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB'>('XAUT_ARB');
+  const [currentChain, setCurrentChain] = useState<Chain>('ethereum');
+  const [fromAsset, setFromAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB'>('USDC');
+  const [toAsset, setToAsset] = useState<'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB'>('XAUT');
   const [fromAmount, setFromAmount] = useState('');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [autoQuote, setAutoQuote] = useState<SwapQuote | null>(null);
@@ -98,18 +97,17 @@ const Swap = () => {
     
     // Handle URL parameters for pre-selecting assets and chain
     const toParam = searchParams.get('to');
-    if (toParam && ['USDC', 'TRZRY', 'USDC_ARB', 'XAUT_ARB'].includes(toParam)) {
-      setToAsset(toParam as 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB');
+    if (toParam && ['USDC', 'XAUT', 'TRZRY', 'USDC_ARB'].includes(toParam)) {
+      setToAsset(toParam as 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB');
       
       // Switch chain based on asset
-      if (toParam === 'TRZRY') {
+      if (toParam === 'TRZRY' || toParam === 'XAUT') {
         setCurrentChain('ethereum');
         setFromAsset('USDC');
-        setToAsset('TRZRY');
-      } else if (toParam === 'XAUT_ARB') {
+        setToAsset(toParam as 'TRZRY' | 'XAUT');
+      } else if (toParam === 'USDC_ARB') {
         setCurrentChain('arbitrum');
         setFromAsset('USDC_ARB');
-        setToAsset('XAUT_ARB');
       }
     }
   }, [user, secureWalletAddress, getWalletAddress, searchParams, refreshBalances]);
@@ -117,15 +115,14 @@ const Swap = () => {
   const fromBalance = getBalance(fromAsset);
   const toBalance = getBalance(toAsset);
   
-  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+  const getNetworkForAsset = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
     const assetConfig = AVAILABLE_ASSETS.find(a => a.symbol === asset);
     return assetConfig?.chain === 'arbitrum' ? 'Arbitrum' : 'Ethereum';
   };
 
   // Helper to get clean display name (removes _ARB suffix)
-  const getDisplayName = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+  const getDisplayName = (asset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
     if (asset === 'USDC_ARB') return 'USDC';
-    if (asset === 'XAUT_ARB') return 'XAUT';
     return asset;
   };
 
@@ -166,10 +163,12 @@ const Swap = () => {
         
         // Set user-friendly error message
         const errorMessage = error instanceof Error ? error.message : 'Failed to get quote';
-        if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('authentication')) {
+        if (errorMessage.includes('not supported') && errorMessage.includes('Arbitrum') && errorMessage.includes('XAUT')) {
+          setQuoteError('XAUT is not available on Arbitrum. Please switch to Ethereum to trade XAUT.');
+        } else if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('authentication')) {
           setQuoteError('API authentication failed. Please check configuration.');
-        } else if (errorMessage.includes('no Route matched') || errorMessage.includes('404')) {
-          setQuoteError('No liquidity available for this swap. Please try a different amount or asset pair.');
+        } else if (errorMessage.includes('no liquidity') || errorMessage.includes('no Route matched') || errorMessage.includes('404')) {
+          setQuoteError(`No liquidity available for ${getDisplayName(fromAsset)} → ${getDisplayName(toAsset)} on ${currentChain === 'arbitrum' ? 'Arbitrum' : 'Ethereum'}. Try switching networks.`);
         } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
           setQuoteError('Rate limit reached. Please wait a moment and try again.');
         } else if (errorMessage.includes('allowanceTarget')) {
@@ -185,7 +184,7 @@ const Swap = () => {
     return () => clearTimeout(timer);
   }, [fromAmount, fromAsset, toAsset, user]);
 
-  const handleFromAssetChange = (newAsset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+  const handleFromAssetChange = (newAsset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
     if (newAsset === toAsset) {
       setToAsset(fromAsset);
     }
@@ -194,7 +193,7 @@ const Swap = () => {
     setAutoQuote(null);
   };
 
-  const handleToAssetChange = (newAsset: 'USDC' | 'TRZRY' | 'USDC_ARB' | 'XAUT_ARB') => {
+  const handleToAssetChange = (newAsset: 'USDC' | 'XAUT' | 'TRZRY' | 'USDC_ARB') => {
     if (newAsset === fromAsset) {
       setFromAsset(toAsset);
     }
@@ -413,33 +412,33 @@ const Swap = () => {
         {/* Chain Switcher */}
         <div className="bg-card p-4 rounded-xl border-2 border-primary/20 md:p-3">
           <div className="flex items-center justify-between">
-            {currentChain === 'arbitrum' ? (
-              // Arbitrum: Buy Gold layout
+            {currentChain === 'ethereum' ? (
+              // Ethereum: Full Asset Support
               <>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-500 to-amber-600">
+                  <div className="w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-indigo-600">
                     <Coins className="text-white" size={20} />
                   </div>
-                  <span className="text-base font-bold text-yellow-500 md:text-sm">
-                    Buy Gold
+                  <span className="text-base font-bold text-purple-500 md:text-sm">
+                    Swap Assets
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Arbitrum Network</div>
-                    <div className="text-xs text-muted-foreground">For XAUT ↔ USDC swap</div>
+                    <div className="text-xs text-muted-foreground">Ethereum Mainnet</div>
+                    <div className="text-xs text-muted-foreground">USDC, XAUT, TRZRY</div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const newChain = 'ethereum';
+                      const newChain = 'arbitrum';
                       setCurrentChain(newChain);
-                      setFromAsset('USDC');
-                      setToAsset('TRZRY');
+                      setFromAsset('USDC_ARB');
+                      setToAsset('USDC_ARB');
                       toast({
-                        title: "Switched to Ethereum",
-                        description: "Now showing Ethereum assets",
+                        title: "Switched to Arbitrum",
+                        description: "Now showing Arbitrum assets",
                       });
                     }}
                     className="gap-2"
@@ -472,7 +471,7 @@ const Swap = () => {
                       const newChain = 'arbitrum';
                       setCurrentChain(newChain);
                       setFromAsset('USDC_ARB');
-                      setToAsset('XAUT_ARB');
+                      setToAsset('USDC_ARB');
                       toast({
                         title: "Switched to Arbitrum",
                         description: "Now showing Arbitrum assets",
@@ -539,7 +538,7 @@ const Swap = () => {
         <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">From</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed((fromAsset === 'XAUT' || fromAsset === 'XAUT_ARB') ? 6 : 2)} {getDisplayName(fromAsset)}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {fromBalance.toFixed(fromAsset === 'XAUT' ? 6 : 2)} {getDisplayName(fromAsset)}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={fromAsset} onValueChange={handleFromAssetChange}>
@@ -608,7 +607,7 @@ const Swap = () => {
           <div className="bg-card px-4 sm:px-5 py-4 rounded-xl md:px-6 md:py-3">
             <div className="flex justify-between items-center mb-2 md:mb-1">
               <span className="text-sm text-muted-foreground md:text-xs">To</span>
-              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed((toAsset === 'XAUT' || toAsset === 'XAUT_ARB') ? 6 : 2)} {getDisplayName(toAsset)}</span>
+              <span className="text-sm text-muted-foreground md:text-xs">Balance: {toBalance.toFixed(toAsset === 'XAUT' ? 6 : 2)} {getDisplayName(toAsset)}</span>
             </div>
             <div className="flex items-center gap-4 md:gap-3">
               <Select value={toAsset} onValueChange={handleToAssetChange}>
@@ -729,7 +728,7 @@ const Swap = () => {
             <>
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
                 <span className="text-base text-foreground md:text-sm">Exchange Rate</span>
-                <span className="text-base text-foreground md:text-sm">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT_ARB' ? 'oz' : 'unit'}</span>
+                <span className="text-base text-foreground md:text-sm">${quote.exchangeRate.toFixed(2)}/{toAsset === 'XAUT' ? 'oz' : 'unit'}</span>
               </div>
               
               <div className="flex justify-between items-center bg-card px-4 sm:px-5 py-3 rounded-lg md:px-4 md:py-2">
