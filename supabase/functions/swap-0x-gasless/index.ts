@@ -438,7 +438,7 @@ serve(async (req) => {
     }
 
     if (operation === 'get_quote') {
-      const { sellToken, buyToken, sellAmount, userAddress, chainId } = params;
+      const { sellToken, buyToken, sellAmount, userAddress, chainId, includedSources, excludedSources } = params;
       
       // Validate chain is supported
       const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
@@ -471,6 +471,19 @@ serve(async (req) => {
         throw new Error(`Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`);
       }
 
+      // Extract source routing preferences if provided
+      const routeIncludedSources = includedSources as string[] | undefined;
+      const routeExcludedSources = excludedSources as string[] | undefined;
+
+      // Default routing for XAUT on mainnet to avoid problematic sources
+      const isXAUTSwap = sellTokenAddress.toLowerCase() === '0x68749665ff8d2d112fa859aa293f07a622782f38' || 
+                         buyTokenAddress.toLowerCase() === '0x68749665ff8d2d112fa859aa293f07a622782f38';
+      const defaultIncludedSources = isXAUTSwap && chainId === 1 && !routeIncludedSources ? ['0x_RFQ'] : undefined;
+      const defaultExcludedSources = isXAUTSwap && chainId === 1 && !routeExcludedSources ? ['FluidLite', 'RingSwap'] : undefined;
+
+      const finalIncludedSources = routeIncludedSources || defaultIncludedSources;
+      const finalExcludedSources = routeExcludedSources || defaultExcludedSources;
+
       const queryParams = new URLSearchParams({
         chainId: chainId.toString(),
         sellToken: sellTokenAddress,
@@ -482,6 +495,14 @@ serve(async (req) => {
         swapFeeToken: buyTokenAddress,
         tradeSurplusRecipient: userAddress
       });
+
+      // Add source routing if specified
+      if (finalIncludedSources && finalIncludedSources.length > 0) {
+        queryParams.set('includedSources', finalIncludedSources.join(','));
+      }
+      if (finalExcludedSources && finalExcludedSources.length > 0) {
+        queryParams.set('excludedSources', finalExcludedSources.join(','));
+      }
 
       const baseUrl = getZeroXSwapBaseUrl(chainId);
       
@@ -573,6 +594,8 @@ serve(async (req) => {
         sellAmount,
         userAddress,
         swapFeeToken: buyTokenAddress,
+        includedSources: finalIncludedSources,
+        excludedSources: finalExcludedSources,
         headers: {
           '0x-api-key': ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
           '0x-version': 'v2'

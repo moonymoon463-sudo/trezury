@@ -171,11 +171,19 @@ class SwapService {
       const decimals = getTokenDecimals(quote.inputAsset);
       const sellAmount = ethers.parseUnits(quote.inputAmount.toString(), decimals).toString();
 
+      // Determine source routing preferences for XAUT
+      const isXAUTSwap = quote.inputAsset === 'XAUT' || quote.outputAsset === 'XAUT';
+      const routeOptions = isXAUTSwap ? {
+        includedSources: ['0x_RFQ'],
+        excludedSources: ['FluidLite', 'RingSwap']
+      } : undefined;
+
       const gaslessQuote = await zeroXGaslessService.getGaslessQuote(
         quote.inputAsset,
         quote.outputAsset,
         sellAmount,
-        onchainWallet.address
+        onchainWallet.address,
+        routeOptions
       );
 
       console.log('✅ Fresh gasless quote obtained:', {
@@ -321,7 +329,8 @@ class SwapService {
               quote.inputAsset,
               quote.outputAsset,
               sellAmount,
-              onchainWallet.address
+              onchainWallet.address,
+              routeOptions
             );
 
             // Re-sign with fresh quote
@@ -360,6 +369,73 @@ class SwapService {
             // Preserve 0x error details for UI
             throw error;
           }
+        }
+
+        // If submit failed with 500 error for XAUT, retry once with RFQ-only
+        if (!submitResult.success && isXAUTSwap && (submitResult.error?.includes('500') || submitResult.error?.includes('INTERNAL_SERVER_ERROR'))) {
+          console.log('⚠️ Submit failed with 500 error for XAUT, retrying with strict RFQ-only routing...');
+          
+          try {
+            // Re-quote with strict RFQ-only routing
+            const retryQuote = await zeroXGaslessService.getGaslessQuote(
+              quote.inputAsset,
+              quote.outputAsset,
+              sellAmount,
+              onchainWallet.address,
+              {
+                includedSources: ['0x_RFQ'],
+                excludedSources: ['FluidLite', 'RingSwap']
+              }
+            );
+
+            // Re-sign with new quote
+            let retryApprovalSig: string | undefined;
+            if (retryQuote.approval) {
+              const filteredTypes = filterEIP712Types(retryQuote.approval.eip712.types);
+              retryApprovalSig = await walletSigningService.signTypedData(
+                userId,
+                walletPassword,
+                retryQuote.chainId,
+                retryQuote.approval.eip712.domain,
+                filteredTypes,
+                retryQuote.approval.eip712.message
+              );
+            }
+
+            const retryTradeSig = await walletSigningService.signTypedData(
+              userId,
+              walletPassword,
+              retryQuote.chainId,
+              retryQuote.trade.eip712.domain,
+              filterEIP712Types(retryQuote.trade.eip712.types),
+              retryQuote.trade.eip712.message
+            );
+
+            // Retry submit
+            submitResult = await zeroXGaslessService.submitGaslessSwap(
+              retryQuote,
+              { approval: retryApprovalSig, trade: retryTradeSig },
+              quote.id,
+              intentId
+            );
+
+            if (submitResult.success) {
+              console.log('✅ Retry succeeded with strict RFQ-only routing');
+            }
+          } catch (retryError) {
+            console.error('❌ Retry with RFQ-only failed:', retryError);
+            // Preserve original error with zid for UI
+            const errorMsg = submitResult.error || 'Gasless swap submission failed';
+            const errorDetails = submitResult.zid ? ` [zid: ${submitResult.zid}]` : '';
+            throw new Error(errorMsg + errorDetails);
+          }
+        }
+
+        // Final check after all retries
+        if (!submitResult.success || !submitResult.tradeHash) {
+          const errorMsg = submitResult.error || 'Gasless swap submission failed';
+          const errorDetails = submitResult.zid ? ` [zid: ${submitResult.zid}]` : '';
+          throw new Error(errorMsg + errorDetails);
         }
 
         // Wait for completion (with timeout)

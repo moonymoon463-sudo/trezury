@@ -92,9 +92,13 @@ class ZeroXGaslessService {
    */
   async getGaslessQuote(
     sellToken: string,
-    buyToken: string,
+    buyToken: string, 
     sellAmount: string,
-    userAddress: string
+    userAddress: string,
+    options?: {
+      includedSources?: string[];
+      excludedSources?: string[];
+    }
   ): Promise<GaslessQuote> {
     const chainId = this.getChainId(sellToken, buyToken);
 
