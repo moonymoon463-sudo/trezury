@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { swapService, SwapResult } from '@/services/swapService';
+import { swapService, SwapResult, SwapQuote } from '@/services/swapService';
 
 export interface SwapExecutionOptions {
   useGasless?: boolean; // Always true now with 0x Gasless API
@@ -11,7 +11,7 @@ export const useSwapExecution = () => {
   const [gelatoTaskId, setGelatoTaskId] = useState<string | null>(null);
 
   const executeSwap = async (
-    quoteId: string, 
+    quote: SwapQuote, 
     userId: string, 
     walletPassword: string,
     options?: SwapExecutionOptions
@@ -22,7 +22,7 @@ export const useSwapExecution = () => {
 
       // 0x Gasless API is now default (always gasless)
       const result = await swapService.executeSwap(
-        quoteId, 
+        quote, 
         userId, 
         walletPassword, 
         true // Always use gasless with 0x Gasless API

@@ -321,7 +321,7 @@ const Swap = () => {
       
       // Execute the swap transaction with wallet password (or gasless)
       console.log(`🔄 Executing ${useGasless ? 'GASLESS' : 'traditional'} swap transaction...`);
-      const result = await swapService.executeSwap(quote.id, user.id, walletPassword, useGasless);
+      const result = await swapService.executeSwap(quote, user.id, walletPassword, useGasless);
       
       if (result.success) {
         console.log('✅ Swap completed successfully');

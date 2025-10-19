@@ -93,7 +93,7 @@ class SwapService {
    * Execute a swap using 0x Gasless API
    */
   async executeSwap(
-    quoteId: string,
+    quote: SwapQuote,
     userId: string,
     walletPassword: string,
     useGasless: boolean = true // Always true with 0x Gasless
@@ -103,21 +103,21 @@ class SwapService {
       const { data: existingSwap } = await supabase
         .from('transactions')
         .select('id, status, metadata')
-        .eq('quote_id', quoteId)
+        .eq('quote_id', quote.id)
         .eq('user_id', userId)
         .maybeSingle();
 
       if (existingSwap) {
         // If swap already in progress or completed, reject with idempotency
         if (['pending', 'completed'].includes(existingSwap.status)) {
-          console.warn(`⚠️ Idempotency: Swap already exists for quote ${quoteId}`, {
+          console.warn(`⚠️ Idempotency: Swap already exists for quote ${quote.id}`, {
             swapId: existingSwap.id,
             status: existingSwap.status
           });
           
           // Log idempotency rejection
           import('@/utils/productionMonitoring').then(({ logSwapEvent }) => {
-            logSwapEvent(quoteId, userId, 'idempotency_rejected', {
+            logSwapEvent(quote.id, userId, 'idempotency_rejected', {
               existingSwapId: existingSwap.id,
               existingStatus: existingSwap.status
             });
@@ -130,60 +130,67 @@ class SwapService {
         }
       }
 
-      // Fetch the quote
-      const { data: quoteData, error: quoteError } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('id', quoteId)
-        .eq('user_id', userId)
-        .single();
-
-      if (quoteError || !quoteData) {
-        throw new Error('Quote not found or expired');
-      }
-
       // ✅ PHASE 3: QUOTE EXPIRATION MONITORING
-      if (new Date() > new Date(quoteData.expires_at)) {
-        console.warn(`⏱️ Quote expired: ${quoteId}`);
+      if (new Date() > new Date(quote.expiresAt)) {
+        console.warn(`⏱️ Quote expired: ${quote.id}`);
         
         import('@/utils/productionMonitoring').then(({ logSwapEvent }) => {
-          logSwapEvent(quoteId, userId, 'swap_failed', {
+          logSwapEvent(quote.id, userId, 'swap_failed', {
             reason: 'quote_expired',
-            expiresAt: quoteData.expires_at,
+            expiresAt: quote.expiresAt,
             attemptedAt: new Date().toISOString(),
-            timeSinceExpiry: Date.now() - new Date(quoteData.expires_at).getTime()
+            timeSinceExpiry: Date.now() - new Date(quote.expiresAt).getTime()
           });
         });
         
         throw new Error('Quote has expired. Please generate a new quote.');
       }
 
-      // Determine route/source from stored quote
-      const routeData: any = JSON.parse(quoteData.route as string);
+      // Get user wallet address for fresh gasless quote
+      const { data: onchainWallet } = await supabase
+        .from('onchain_addresses')
+        .select('address')
+        .eq('user_id', userId)
+        .single();
+
+      if (!onchainWallet?.address) {
+        throw new Error('Wallet not found');
+      }
+
+      // Fetch fresh gasless quote with permit2 signatures (0x best practice)
+      console.log('🔄 Fetching fresh 0x gasless quote for execution');
+      const decimals = getTokenDecimals(quote.inputAsset);
+      const sellAmount = ethers.parseUnits(quote.inputAmount.toString(), decimals).toString();
+
+      const gaslessQuote = await zeroXGaslessService.getGaslessQuote(
+        quote.inputAsset,
+        quote.outputAsset,
+        sellAmount,
+        onchainWallet.address
+      );
+
+      console.log('✅ Fresh gasless quote obtained:', {
+        buyAmount: gaslessQuote.buyAmount,
+        chainId: gaslessQuote.chainId,
+        hasApproval: !!gaslessQuote.approval,
+        hasTrade: !!gaslessQuote.trade
+      });
+
+      // Determine route/source from quote
+      const routeData: any = JSON.parse(quote.routeDetails);
 
       // If this quote was generated via Camelot V3, execute via Gelato relay
       if (routeData?.source === 'camelot_v3') {
-        // Get user wallet address
-        const { data: onchainWallet } = await supabase
-          .from('onchain_addresses')
-          .select('address')
-          .eq('user_id', userId)
-          .single();
-
-        if (!onchainWallet?.address) {
-          throw new Error('Wallet not found');
-        }
-
         // Resolve token addresses and amounts
         const { getTokenAddress } = await import('@/config/tokenAddresses');
-        const inAddr = getTokenAddress(quoteData.input_asset);
-        const outAddr = getTokenAddress(quoteData.output_asset);
+        const inAddr = getTokenAddress(quote.inputAsset);
+        const outAddr = getTokenAddress(quote.outputAsset);
 
-        const inDecimals = getTokenDecimals(quoteData.input_asset);
-        const outDecimals = getTokenDecimals(quoteData.output_asset);
+        const inDecimals = getTokenDecimals(quote.inputAsset);
+        const outDecimals = getTokenDecimals(quote.outputAsset);
 
-        const amountIn = ethers.parseUnits(String(quoteData.input_amount), inDecimals).toString();
-        const minOutNum = Number(quoteData.output_amount) * 0.995; // 0.5% slippage
+        const amountIn = ethers.parseUnits(String(quote.inputAmount), inDecimals).toString();
+        const minOutNum = Number(quote.outputAmount) * 0.995; // 0.5% slippage
         const amountOutMinimum = ethers.parseUnits(minOutNum.toFixed(outDecimals), outDecimals).toString();
 
         // Submit Camelot swap via edge function (Gelato relay)
@@ -195,7 +202,7 @@ class SwapService {
             amountIn,
             amountOutMinimum,
             userAddress: onchainWallet.address,
-            quoteId
+            quoteId: quote.id
           }
         });
 
@@ -206,20 +213,6 @@ class SwapService {
           success: true,
           gelatoTaskId: data.taskId
         };
-      }
-
-      // Parse the stored gasless quote (0x)
-      const gaslessQuote: GaslessQuote = routeData as GaslessQuote;
-
-      // Get user wallet address
-      const { data: onchainWallet } = await supabase
-        .from('onchain_addresses')
-        .select('address')
-        .eq('user_id', userId)
-        .single();
-
-      if (!onchainWallet?.address) {
-        throw new Error('Wallet not found');
       }
 
       // Create transaction record
@@ -288,7 +281,7 @@ class SwapService {
         const submitResult = await zeroXGaslessService.submitGaslessSwap(
           gaslessQuote,
           signature,
-          quoteId,
+          quote.id,
           intentId
         );
 
@@ -303,39 +296,39 @@ class SwapService {
           const txHash = statusResult.transactions[0].hash;
 
           // Record transaction with proper schema + idempotency metadata
-          const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
+          const idempotencyKey = `swap_${quote.id}_${Date.now()}`;
           
           const { error: txError } = await supabase
             .from('transactions')
             .insert({
               user_id: userId,
-              quote_id: quoteId, // ✅ Link to quote for idempotency
-              asset: quoteData.output_asset, // Asset received
+              quote_id: quote.id, // ✅ Link to quote for idempotency
+              asset: quote.outputAsset, // Asset received
               type: 'swap',
               status: 'completed',
-              quantity: quoteData.output_amount, // Output amount
-              unit_price_usd: quoteData.unit_price_usd || 0,
-              fee_usd: quoteData.fee_bps || 80,
+              quantity: quote.outputAmount, // Output amount
+              unit_price_usd: 0,
+              fee_usd: 80,
               transaction_hash: txHash,
-              input_asset: quoteData.input_asset,
-              output_asset: quoteData.output_asset,
+              input_asset: quote.inputAsset,
+              output_asset: quote.outputAsset,
               metadata: {
                 chainId: gaslessQuote.chainId,
                 tradeHash: submitResult.tradeHash,
                 gasless: true,
-                quoteId,
+                quoteId: quote.id,
                 idempotency_key: idempotencyKey, // ✅ Track idempotency
                 submission_timestamp: Date.now(),
-                quote_used: quoteId
+                quote_used: quote.id
               },
               created_at: new Date().toISOString()
             });
 
           // Record fee collection with proper transaction ID
           const feeCalculation = swapFeeService.calculateSwapFee(
-            quoteData.input_amount,
-            quoteData.input_asset as any,
-            quoteData.output_asset as any
+            quote.inputAmount,
+            quote.inputAsset as any,
+            quote.outputAsset as any
           );
 
           // Note: Fee recording uses the txHash as the transaction reference

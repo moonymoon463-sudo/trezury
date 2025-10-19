@@ -191,6 +191,11 @@ export class DexAggregatorService {
         throw new Error('Quote ID is required for swap execution');
       }
       
+      // ⚠️ DEPRECATED: This path is no longer supported after quote refactoring
+      // Swaps should be executed through swapService.executeSwap() with full SwapQuote object
+      throw new Error('execute0xSwap is deprecated - use swapService.executeSwap() directly with SwapQuote object');
+      
+      /* OLD CODE - DEPRECATED
       // Execute via swapService which uses execute_0x_swap operation
       const { swapService } = await import('./swapService');
       const result = await swapService.executeSwap(
@@ -214,6 +219,7 @@ export class DexAggregatorService {
         success: true, 
         txHash: result.txHash
       };
+      */
       
     } catch (error) {
       console.error('❌ Error executing 0x swap:', error);
