@@ -193,11 +193,12 @@ class ZeroXGaslessService {
   /**
    * Check the status of a gasless swap
    */
-  async getSwapStatus(tradeHash: string): Promise<GaslessStatusResult> {
+  async getSwapStatus(tradeHash: string, chainId?: number): Promise<GaslessStatusResult> {
     const { data, error } = await supabase.functions.invoke('swap-0x-gasless', {
       body: {
         operation: 'get_status',
-        tradeHash
+        tradeHash,
+        chainId: chainId || 1 // Default to Ethereum mainnet
       }
     });
 
@@ -218,11 +219,12 @@ class ZeroXGaslessService {
    */
   async waitForCompletion(
     tradeHash: string,
+    chainId: number,
     maxAttempts: number = 60,
     intervalMs: number = 2000
   ): Promise<GaslessStatusResult> {
     for (let i = 0; i < maxAttempts; i++) {
-      const status = await this.getSwapStatus(tradeHash);
+      const status = await this.getSwapStatus(tradeHash, chainId);
       
       if (status.status === 'confirmed' || status.status === 'failed' || status.status === 'expired') {
         return status;

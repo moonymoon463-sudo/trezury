@@ -492,11 +492,37 @@ const Swap = () => {
         <div className="flex flex-col gap-2 md:gap-1">
           {secureWalletAddress && (
             <div className="bg-card p-3 rounded-lg md:p-2">
-              <div className="flex items-center gap-2">
-                <Wallet size={16} className="text-primary md:w-3.5 md:h-3.5" />
-                <span className="text-sm text-foreground md:text-xs">
-                  Wallet: {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Wallet size={16} className="text-primary md:w-3.5 md:h-3.5" />
+                  <span className="text-sm text-foreground md:text-xs">
+                    Wallet: {secureWalletAddress.slice(0, 6)}...{secureWalletAddress.slice(-4)}
+                  </span>
+                </div>
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const { data, error } = await import('@/integrations/supabase/client').then(m => m.supabase.functions.invoke('swap-0x-gasless', {
+                          body: { operation: 'self_test', chainId: currentChain === 'ethereum' ? 1 : 42161, testAddress: secureWalletAddress }
+                        }));
+                        if (error) throw error;
+                        toast({
+                          title: "Self-Test Results",
+                          description: data.success ? `✅ Gasless Price: ${data.self_test.tests.gaslessPrice?.ok ? 'OK' : 'FAIL'} | Quote: ${data.self_test.tests.gaslessQuote?.ok ? 'OK' : 'FAIL'}` : `❌ ${data.error}`,
+                          duration: 5000,
+                        });
+                      } catch (e: any) {
+                        toast({ title: "Self-Test Failed", description: e.message, variant: "destructive" });
+                      }
+                    }}
+                    className="text-xs"
+                  >
+                    Test
+                  </Button>
+                )}
               </div>
             </div>
           )}

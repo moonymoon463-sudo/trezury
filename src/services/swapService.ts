@@ -365,6 +365,7 @@ class SwapService {
         // Wait for completion (with timeout)
         const statusResult = await zeroXGaslessService.waitForCompletion(
           submitResult.tradeHash,
+          gaslessQuote.chainId,
           60, // 60 attempts
           2000 // 2 seconds interval
         );

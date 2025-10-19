@@ -85,10 +85,18 @@ serve(async (req) => {
 
     if (operation === 'self_test') {
       const chainId = (params.chainId && Number(params.chainId)) || 1;
+      const testAddress = params.testAddress || '0x0000000000000000000000000000000000000001';
       const sellTokenSymbol = 'USDC';
-      const buyTokenSymbol = 'ETH';
-      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[sellTokenSymbol];
-      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[buyTokenSymbol];
+      const buyTokenSymbol = 'WETH';
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[sellTokenSymbol] || TOKEN_ADDRESSES[chainId]?.['USDC'];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[buyTokenSymbol] || TOKEN_ADDRESSES[chainId]?.['ETH'];
+      
+      const results: any = {
+        apiKeyPresent: true,
+        chainId,
+        tests: {}
+      };
+      
       try {
         if (!sellTokenAddress || !buyTokenAddress) {
           return new Response(
@@ -100,40 +108,84 @@ serve(async (req) => {
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
         }
+        
         const baseUrl = getZeroXSwapBaseUrl(chainId);
-        const qs = new URLSearchParams({
-          chainId: String(chainId),
-          sellToken: sellTokenAddress,
-          buyToken: buyTokenAddress,
-          sellAmount: '1000000',
-          swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
-          swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken: buyTokenAddress
-        });
-        const url = `${baseUrl}/swap/permit2/price?${qs}`;
-        const resp = await fetch(url, { headers: { '0x-api-key': ZERO_X_API_KEY!, '0x-version': 'v2' } });
-        const requestId = resp.headers.get('x-request-id');
-        const text = await resp.text();
-        let json: any = null;
-        try { json = JSON.parse(text); } catch {}
+        
+        // Test 1: Gasless Price
+        try {
+          const priceQs = new URLSearchParams({
+            chainId: String(chainId),
+            sellToken: sellTokenAddress,
+            buyToken: buyTokenAddress,
+            sellAmount: '1000000',
+            swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
+            swapFeeBps: String(PLATFORM_FEE_BPS),
+            swapFeeToken: buyTokenAddress
+          });
+          const priceUrl = `${baseUrl}/gasless/price?${priceQs}`;
+          const priceResp = await fetch(priceUrl, { headers: { '0x-api-key': ZERO_X_API_KEY!, '0x-version': 'v2' } });
+          const priceRequestId = priceResp.headers.get('x-request-id');
+          const priceText = await priceResp.text();
+          let priceJson: any = null;
+          try { priceJson = JSON.parse(priceText); } catch {}
+          
+          results.tests.gaslessPrice = {
+            ok: priceResp.ok,
+            status: priceResp.status,
+            requestId: priceRequestId,
+            endpoint: '/gasless/price',
+            body: priceResp.ok ? { buyAmount: priceJson?.buyAmount } : { error: priceJson?.message || priceText?.slice(0, 200) }
+          };
+        } catch (e: any) {
+          results.tests.gaslessPrice = { ok: false, error: e.message };
+        }
+        
+        // Test 2: Gasless Quote (with taker address)
+        try {
+          const quoteQs = new URLSearchParams({
+            chainId: String(chainId),
+            sellToken: sellTokenAddress,
+            buyToken: buyTokenAddress,
+            sellAmount: '1000000',
+            taker: testAddress,
+            swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
+            swapFeeBps: String(PLATFORM_FEE_BPS),
+            swapFeeToken: buyTokenAddress,
+            tradeSurplusRecipient: testAddress
+          });
+          const quoteUrl = `${baseUrl}/gasless/quote?${quoteQs}`;
+          const quoteResp = await fetch(quoteUrl, { headers: { '0x-api-key': ZERO_X_API_KEY!, '0x-version': 'v2' } });
+          const quoteRequestId = quoteResp.headers.get('x-request-id');
+          const quoteText = await quoteResp.text();
+          let quoteJson: any = null;
+          try { quoteJson = JSON.parse(quoteText); } catch {}
+          
+          results.tests.gaslessQuote = {
+            ok: quoteResp.ok,
+            status: quoteResp.status,
+            requestId: quoteRequestId,
+            endpoint: '/gasless/quote',
+            body: quoteResp.ok ? { 
+              buyAmount: quoteJson?.buyAmount,
+              allowanceTarget: quoteJson?.allowanceTarget,
+              hasApproval: !!quoteJson?.approval,
+              hasTrade: !!quoteJson?.trade
+            } : { error: quoteJson?.message || quoteText?.slice(0, 200) }
+          };
+        } catch (e: any) {
+          results.tests.gaslessQuote = { ok: false, error: e.message };
+        }
+        
         return new Response(JSON.stringify({
           success: true,
-          self_test: {
-            apiKeyPresent: true,
-            chainId,
-            baseUrl,
-            priceOk: resp.ok,
-            status: resp.status,
-            requestId,
-            body: resp.ok ? { buyAmount: json?.buyAmount, allowanceTarget: json?.allowanceTarget } : { error: json?.message || text?.slice(0, 200) }
-          }
+          self_test: results
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
       } catch (e: any) {
         return new Response(JSON.stringify({
           success: false,
           error: 'self_test_failed',
           message: e?.message || 'Failed to run self-test',
-          chainId
+          results
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
       }
     }
@@ -285,13 +337,13 @@ serve(async (req) => {
         );
       }
       
-      // Standard flow for non-Arbitrum
-      const priceUrl = `${baseUrl}/swap/permit2/price?${queryParams}`;
+      // Standard flow for non-Arbitrum - use Gasless v2 price endpoint
+      const priceUrl = `${baseUrl}/gasless/price?${queryParams}`;
       
-      console.log('🔍 0x v2 Permit2 Price Request:', {
+      console.log('🔍 0x v2 Gasless Price Request:', {
         chainId,
         baseUrl,
-        endpoint: '/swap/permit2/price',
+        endpoint: '/gasless/price',
         fullUrl: priceUrl,
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
@@ -725,7 +777,8 @@ serve(async (req) => {
             await new Promise(resolve => setTimeout(resolve, backoff));
           }
 
-          const response = await fetch('https://api.0x.org/gasless/submit', {
+          const submitUrl = `https://api.0x.org/gasless/submit?chainId=${submitPayload.chainId}`;
+          const response = await fetch(submitUrl, {
             method: 'POST',
             headers: {
               '0x-api-key': ZERO_X_API_KEY,
@@ -821,9 +874,11 @@ serve(async (req) => {
     }
 
     if (operation === 'get_status') {
-      const { tradeHash } = params;
+      const { tradeHash, chainId } = params;
+      const statusChainId = chainId || 1; // Default to Ethereum mainnet
 
-      const response = await fetch(`https://api.0x.org/gasless/status/${tradeHash}`, {
+      const statusUrl = `https://api.0x.org/gasless/status/${tradeHash}?chainId=${statusChainId}`;
+      const response = await fetch(statusUrl, {
         headers: {
           '0x-api-key': ZERO_X_API_KEY,
           '0x-version': 'v2'
