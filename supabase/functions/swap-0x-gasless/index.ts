@@ -590,13 +590,16 @@ serve(async (req) => {
         return { r, s, v };
       };
 
-      // ✅ Construct proper payload per 0x API docs
+      // ✅ Construct proper payload per 0x API docs with signatureType
       const submitPayload: any = {
         chainId: Number(quote.chainId),
         trade: {
           type: quote.trade.type,
           eip712: quote.trade.eip712,
-          signature: toSigObject(signatures.trade)
+          signature: {
+            ...toSigObject(signatures.trade),
+            signatureType: 2 // EIP-712 typed data signature
+          }
         }
       };
 
@@ -605,7 +608,10 @@ serve(async (req) => {
         submitPayload.approval = {
           type: quote.approval.type,
           eip712: quote.approval.eip712,
-          signature: toSigObject(signatures.approval)
+          signature: {
+            ...toSigObject(signatures.approval),
+            signatureType: 2 // EIP-712 typed data signature
+          }
         };
       }
 
@@ -629,13 +635,27 @@ serve(async (req) => {
       if (!response.ok) {
         const errorText = await response.text();
         const requestId = response.headers.get('x-request-id');
+        
+        // Try to parse error details
+        let errorDetails = errorText;
+        try {
+          const parsed = JSON.parse(errorText);
+          errorDetails = parsed.message || parsed.name || errorText;
+          if (parsed.data?.details) {
+            errorDetails += ` - ${JSON.stringify(parsed.data.details)}`;
+          }
+        } catch (e) {
+          // Keep raw text if not JSON
+        }
+        
         console.error('❌ 0x submit error:', {
           status: response.status,
           requestId,
           error: errorText,
           submittedPayload: submitPayload
         });
-        throw new Error(`Failed to submit: ${response.statusText} - ${errorText}`);
+        
+        throw new Error(`0x API error (${response.status}): ${errorDetails}${requestId ? ` [${requestId}]` : ''}`);
       }
 
       const result = await response.json();
