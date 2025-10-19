@@ -40,7 +40,7 @@ export interface SwapResult {
 
 class SwapService {
   /**
-   * Generate a swap quote using 0x Gasless API
+   * Generate a swap quote using 0x indicative price (no balance check, no DB save)
    */
   async generateSwapQuote(
     inputAsset: string,
@@ -49,176 +49,24 @@ class SwapService {
     userId: string
   ): Promise<SwapQuote> {
     try {
-      // Get user's wallet address
-      const { data: onchainWallet } = await supabase
-        .from('onchain_addresses')
-        .select('address')
-        .eq('user_id', userId)
-        .single();
-
-      if (!onchainWallet?.address) {
-        throw new Error('User wallet not found');
-      }
-
-      // Convert amount to wei/smallest unit
+      // Get chain ID and format amount for 0x API
+      const chainId = getTokenChainId(inputAsset);
       const decimals = getTokenDecimals(inputAsset);
       const sellAmount = ethers.parseUnits(inputAmount.toString(), decimals).toString();
 
-      // Try gasless quote first, fallback to indicative price or Camelot V3 if it fails
-      let gaslessQuote: GaslessQuote | null = null;
-      const chainId = getTokenChainId(inputAsset);
+      // Fetch 0x indicative price (no balance check)
+      const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount, chainId);
       
-      try {
-        gaslessQuote = await zeroXGaslessService.getGaslessQuote(
-          inputAsset,
-          outputAsset,
-          sellAmount,
-          onchainWallet.address
-        );
-      } catch (error: any) {
-        console.log('Gasless quote failed, checking fallback options:', error);
-        
-        // Check if we should try Camelot V3 (Arbitrum USDC/XAUT pairs)
-        const shouldTryCamelot = 
-          chainId === 42161 && 
-          ((inputAsset === 'USDC_ARB' && outputAsset === 'XAUT_ARB') ||
-           (inputAsset === 'XAUT_ARB' && outputAsset === 'USDC_ARB'));
-
-        
-        if (shouldTryCamelot) {
-          console.log('🟢 Trying Camelot fallback', {
-            inputAsset,
-            outputAsset,
-            sellAmount,
-            chainId
-          });
-          
-          try {
-            // Import Camelot service
-            const { camelotV3Service } = await import('./camelotV3Service');
-            
-            // Get token addresses
-            const { getTokenAddress } = await import('@/config/tokenAddresses');
-            const tokenInAddress = getTokenAddress(inputAsset);
-            const tokenOutAddress = getTokenAddress(outputAsset);
-            
-            console.log('🔗 Camelot token addresses', { tokenInAddress, tokenOutAddress });
-            
-            // Get quote from Camelot V3
-            const camelotQuote = await camelotV3Service.getQuote(
-              tokenInAddress,
-              tokenOutAddress,
-              sellAmount
-            );
-            
-            console.log('🟢 Camelot V3 quote received:', camelotQuote);
-            
-            const buyDecimals = getTokenDecimals(outputAsset);
-            
-            // Robust amountOut parsing: prefer raw string, fallback to formatted number
-            const rawAmountOut = camelotQuote.amountOut ?? camelotQuote.amountOutFormatted;
-            if (!rawAmountOut && rawAmountOut !== 0) {
-              console.error('❌ Camelot quote missing amountOut/amountOutFormatted', camelotQuote);
-              throw new Error('Camelot quote returned no amountOut');
-            }
-            
-            let outputAmount: number;
-            if (typeof rawAmountOut === 'string') {
-              // Base units -> formatted
-              outputAmount = parseFloat(ethers.formatUnits(rawAmountOut, buyDecimals));
-            } else {
-              // Already formatted number
-              outputAmount = rawAmountOut as number;
-            }
-            
-            console.log('💰 Parsed Camelot outputAmount:', { outputAmount, buyDecimals });
-            
-            const exchangeRate = outputAmount / inputAmount;
-            
-            // Platform fee: 0.8%
-            const platformFee = outputAmount * 0.008;
-            const networkFee = 0; // Gelato will deduct from output
-            
-            const quote: SwapQuote = {
-              id: crypto.randomUUID(),
-              inputAsset,
-              outputAsset,
-              inputAmount,
-              outputAmount,
-              exchangeRate,
-              platformFee,
-              networkFee,
-              estimatedTotal: outputAmount,
-              routeDetails: JSON.stringify({ 
-                indicative: true, 
-                source: 'camelot_v3',
-                pool: camelotQuote.pool,
-                gasEstimate: camelotQuote.gasEstimate
-              }),
-              expiresAt: new Date(Date.now() + 30000).toISOString(),
-              chainId
-            };
-            
-            await this.saveSwapQuote(quote, userId);
-            return quote;
-          } catch (camelotError) {
-            console.error('Camelot V3 quote also failed:', camelotError);
-            // Fall through to standard indicative price fallback
-          }
-        }
-        
-        // Standard fallback to indicative price (doesn't require balance)
-        try {
-          const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount, chainId);
-          const buyDecimals = getTokenDecimals(outputAsset);
-          const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
-          const exchangeRate = outputAmount / inputAmount;
-
-          // Approximate fees (platform fee already included in price endpoint)
-          const platformFee = outputAmount * 0.008;
-          const networkFee = 0;
-
-          const quote: SwapQuote = {
-            id: crypto.randomUUID(),
-            inputAsset,
-            outputAsset,
-            inputAmount,
-            outputAmount,
-            exchangeRate,
-            platformFee,
-            networkFee,
-            estimatedTotal: outputAmount,
-            routeDetails: JSON.stringify({ indicative: true, source: '0x_price', priceResult }),
-            expiresAt: new Date(Date.now() + 30000).toISOString(),
-            chainId
-          };
-          
-          await this.saveSwapQuote(quote, userId);
-          return quote;
-        } catch (priceError) {
-          console.error('All quote methods failed:', priceError);
-          throw new Error('Unable to generate quote: All routing options failed');
-        }
-      }
-
-      // Parse amounts from successful gasless quote
+      // Format output amount
       const buyDecimals = getTokenDecimals(outputAsset);
-      const outputAmount = parseFloat(
-        ethers.formatUnits(gaslessQuote.buyAmount, buyDecimals)
-      );
-
-      // Calculate fees from 0x response
-      const platformFee = gaslessQuote.fees.integratorFee?.amount 
-        ? parseFloat(ethers.formatUnits(gaslessQuote.fees.integratorFee.amount, buyDecimals))
-        : 0;
-      
-      const networkFee = gaslessQuote.fees.gasFee?.amount
-        ? parseFloat(ethers.formatUnits(gaslessQuote.fees.gasFee.amount, buyDecimals))
-        : 0;
-
+      const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
       const exchangeRate = outputAmount / inputAmount;
 
-      // Save quote to database
+      // Calculate platform fee (0.8%)
+      const platformFee = outputAmount * 0.008;
+      const networkFee = 0;
+
+      // Return quote (no database save)
       const quote: SwapQuote = {
         id: crypto.randomUUID(),
         inputAsset,
@@ -228,13 +76,11 @@ class SwapService {
         exchangeRate,
         platformFee,
         networkFee,
-        estimatedTotal: outputAmount,
-        routeDetails: JSON.stringify(gaslessQuote),
-        expiresAt: new Date(Date.now() + 30000).toISOString(), // 30 seconds
-        chainId: gaslessQuote.chainId
+        estimatedTotal: outputAmount - platformFee,
+        routeDetails: JSON.stringify({ source: '0x_price', priceResult }),
+        expiresAt: new Date(Date.now() + 30000).toISOString(),
+        chainId
       };
-
-      await this.saveSwapQuote(quote, userId);
 
       return quote;
     } catch (error) {
@@ -518,27 +364,6 @@ class SwapService {
     }
   }
 
-  private async saveSwapQuote(quote: SwapQuote, userId: string) {
-    const { error } = await supabase.from('quotes').insert({
-      user_id: userId,
-      side: 'swap',
-      input_asset: quote.inputAsset,
-      output_asset: quote.outputAsset,
-      input_amount: quote.inputAmount,
-      output_amount: quote.outputAmount,
-      unit_price_usd: null,
-      fee_bps: 80,
-      grams: null,
-      route: quote.routeDetails as any,
-      expires_at: quote.expiresAt,
-      created_at: new Date().toISOString()
-    });
-
-    if (error) {
-      console.error('Error saving quote:', error);
-      throw new Error('Failed to save quote');
-    }
-  }
 
 }
 
