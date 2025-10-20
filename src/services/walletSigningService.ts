@@ -27,14 +27,14 @@ class WalletSigningService {
     // Generate new cryptographically random salt
     const salt = crypto.getRandomValues(new Uint8Array(this.SALT_BYTES));
     
-    // Store in database (use upsert to avoid 409 conflicts)
+    // Store in database
     await supabase
       .from('secure_wallet_metadata')
-      .upsert({
+      .insert({
         user_id: userId,
         kdf_salt: Array.from(salt),
         kdf_iterations: this.KDF_ITERATIONS
-      } as any, { onConflict: 'user_id' });
+      } as any);
 
     return salt;
   }
@@ -112,19 +112,16 @@ class WalletSigningService {
       const wallet = await this.getWalletForSigning(userId, userPassword, chainId);
       const signature = await wallet.signTypedData(domain, types, message);
       
-      // ✅ Log successful signature (ignore RLS errors)
-      try {
-        await supabase.from('signature_attempts').insert({
-          user_id: userId,
-          success: true,
-          chain_id: chainId,
-          metadata: {
-            domain: domain.name,
-            timestamp: Date.now()
-          }
-        });
-      } catch {}
-
+      // ✅ Log successful signature
+      supabase.from('signature_attempts').insert({
+        user_id: userId,
+        success: true,
+        chain_id: chainId,
+        metadata: {
+          domain: domain.name,
+          timestamp: Date.now()
+        }
+      }).then();
       
       return signature;
     } catch (error) {
@@ -133,21 +130,18 @@ class WalletSigningService {
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown signature error';
       
-      // Log to database (ignore RLS errors)
-      try {
-        await supabase.from('signature_attempts').insert({
-          user_id: userId,
-          success: false,
-          chain_id: chainId,
-          error_message: errorMessage,
-          metadata: {
-            domain: domain.name,
-            timestamp: Date.now(),
-            error_type: error instanceof Error ? error.name : 'UnknownError'
-          }
-        });
-      } catch {}
-
+      // Log to database
+      supabase.from('signature_attempts').insert({
+        user_id: userId,
+        success: false,
+        chain_id: chainId,
+        error_message: errorMessage,
+        metadata: {
+          domain: domain.name,
+          timestamp: Date.now(),
+          error_type: error instanceof Error ? error.name : 'UnknownError'
+        }
+      }).then();
       
       // Alert on repeated failures
       import('@/services/securityMonitoringService').then(({ securityMonitoringService }) => {

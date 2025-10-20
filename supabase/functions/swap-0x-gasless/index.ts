@@ -1,16 +1,5 @@
-/**
- * 0x Gasless Swap Edge Function
- * Ethereum mainnet only (chainId = 1)
- * 
- * Operations: self_test, get_price, get_quote, submit_swap, get_status
- * 
- * Uses node-fetch for better TLS certificate handling in Deno runtime
- */
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-// @ts-ignore - npm module
-import fetch from 'npm:node-fetch@3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,23 +7,35 @@ const corsHeaders = {
 };
 
 // Platform fee configuration (MUST be an EOA)
-const PLATFORM_FEE_RECIPIENT = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835';
+const PLATFORM_FEE_RECIPIENT = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // User confirmed EOA
 const PLATFORM_FEE_BPS = 80; // 0.8%
-const DEFAULT_FEE_TOKEN_STRATEGY: 'buy' | 'sell' = 'buy';
 
-// Ethereum mainnet only
-const ETHEREUM_CHAIN_ID = 1;
-const ZERO_X_API_BASE = 'https://api.0x.org';
-
-// Ethereum token addresses
-const TOKEN_ADDRESSES: Record<string, string> = {
-  ETH: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-  WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-  USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-  XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
-  TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
-  BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'
+// Token addresses by chain
+const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
+  1: { // Ethereum
+    ETH: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
+    TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
+    BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'
+  },
+  42161: { // Arbitrum
+    ETH: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    XAUT: '0x40461291347e1ecbb09499f3371d3f17f10d7159', // Correct Arbitrum XAUT address
+    BTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f'
+  }
 };
+
+// Helper to get correct 0x API base URL for the chain
+function getZeroXSwapBaseUrl(chainId: number): string {
+  if (chainId === 1) {
+    return 'https://api.0x.org';
+  } else if (chainId === 42161) {
+    return 'https://arbitrum.api.0x.org';
+  }
+  throw new Error(`Unsupported chainId: ${chainId}`);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -55,605 +56,579 @@ serve(async (req) => {
     // Get authenticated user
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'unauthorized', message: 'Authentication required' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+      throw new Error('Unauthorized');
     }
 
     const { operation, ...params } = await req.json();
-    // Get 0x API key from environment (check both standard and VITE_ prefix)
-    const ZERO_X_API_KEY = Deno.env.get('ZERO_X_API_KEY') || Deno.env.get('VITE_ZERO_X_API_KEY');
+    const ZERO_X_API_KEY = Deno.env.get('ZERO_X_API_KEY');
     
+    // Validate API key is configured
     if (!ZERO_X_API_KEY || ZERO_X_API_KEY === 'your_0x_api_key_here') {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'missing_api_key',
-          message: '0x API key not configured. Contact support.'
+          error: '0x API key not configured. Please add ZERO_X_API_KEY to Supabase secrets.'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+    
+    // Log configuration status (without exposing full key)
+    console.log('🔧 0x API Configuration:', {
+      apiKeyConfigured: true,
+      apiKeyLength: ZERO_X_API_KEY.length,
+      platformFeeRecipient: PLATFORM_FEE_RECIPIENT,
+      platformFeeBps: PLATFORM_FEE_BPS,
+      feeRecipientIsEOA: true // User confirmed
+    });
+
+    if (operation === 'get_price') {
+      const { sellToken, buyToken, sellAmount, chainId } = params;
+      
+      // Validate chain is supported
+      const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
+      if (!availableChains.includes(chainId)) {
+        console.error('Unsupported chain:', { chainId, availableChains });
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'unsupported_chain',
+            message: `Chain ${chainId} is not supported. Available: ${availableChains.join(', ')}`
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      // Strip _ARB suffix if present (for Arbitrum tokens)
+      const cleanSellToken = sellToken.replace('_ARB', '');
+      const cleanBuyToken = buyToken.replace('_ARB', '');
+      
+      // Special case: XAUT is not supported on Arbitrum (no liquidity)
+      if (chainId === 42161 && (cleanSellToken === 'XAUT' || cleanBuyToken === 'XAUT')) {
+        console.warn('⚠️ XAUT swap requested on Arbitrum - not supported');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'no_route',
+            message: 'XAUT is not supported on Arbitrum (no liquidity). Please switch to Ethereum to trade XAUT.',
+            chainId,
+            sellToken,
+            buyToken
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanSellToken];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanBuyToken];
+
+      console.log('Indicative price token mapping:', {
+        sellToken: `${sellToken} -> ${cleanSellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${cleanBuyToken} -> ${buyTokenAddress}`,
+        chainId,
+        availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
+      });
+
+      if (!sellTokenAddress || !buyTokenAddress) {
+        console.error('Token not found:', { 
+          chainId, 
+          cleanSellToken, 
+          cleanBuyToken,
+          availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
+        });
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'token_not_found',
+            message: `Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      const queryParams = new URLSearchParams({
+        chainId: chainId.toString(), // ✅ Required by permit2 API
+        sellToken: sellTokenAddress,
+        buyToken: buyTokenAddress,
+        sellAmount: sellAmount,
+        slippagePercentage: '0.005',
+        swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // v2 parameter - EOA wallet
+        swapFeeBps: String(PLATFORM_FEE_BPS), // v2 parameter (0.8%)
+        swapFeeToken: buyTokenAddress // v2 parameter - fee collected in output token
+      });
+
+      const baseUrl = getZeroXSwapBaseUrl(chainId);
+      
+      // Phase 1B: Try multiple sources for Arbitrum
+      if (chainId === 42161) {
+        const sources = ['Algebra', 'Camelot', 'CamelotV3', 'Camelot_V3'];
+        const testedSources: string[] = [];
+        let lastError: any = null;
+        
+        for (const source of sources) {
+          const testParams = new URLSearchParams(queryParams);
+          testParams.append('includedSources', source);
+          const priceUrl = `${baseUrl}/swap/permit2/price?${testParams}`;
+          
+          console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum`, {
+            fullUrl: priceUrl,
+            sellToken: `${sellToken} -> ${sellTokenAddress}`,
+            buyToken: `${buyToken} -> ${buyTokenAddress}`
+          });
+          
+          try {
+            const response = await fetch(priceUrl, {
+              headers: {
+                '0x-api-key': ZERO_X_API_KEY,
+                '0x-version': 'v2' // Required for v2 API
+              }
+            });
+            
+            if (response.ok) {
+              console.log(`✅ 0x source "${source}" worked for Arbitrum!`);
+              const data = await response.json();
+              return new Response(JSON.stringify({ 
+                success: true,
+                price: data,
+                routeSource: source
+              }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+            
+            testedSources.push(source);
+            const errorBody = await response.text();
+            const requestId = response.headers.get('x-request-id');
+            lastError = { status: response.status, body: errorBody, requestId, source };
+            
+            console.log(`❌ 0x source "${source}" failed:`, {
+              status: response.status,
+              requestId,
+              body: errorBody.substring(0, 200)
+            });
+          } catch (err) {
+            testedSources.push(source);
+            console.error(`❌ 0x source "${source}" request failed:`, err);
+          }
+        }
+        
+        // All sources failed - return normalized 200 error
+        console.error('❌ All 0x sources failed for Arbitrum', { testedSources });
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'no_route',
+            message: `No liquidity for ${sellToken} → ${buyToken} swap on Arbitrum. Try a different pair or switch to Ethereum.`,
+            chainId,
+            sellToken,
+            buyToken,
+            testedSources,
+            requestId: lastError?.requestId
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      // Standard flow for non-Arbitrum
+      const priceUrl = `${baseUrl}/swap/permit2/price?${queryParams}`;
+      
+      console.log('🔍 0x v2 Permit2 Price Request:', {
+        chainId,
+        baseUrl,
+        endpoint: '/swap/permit2/price',
+        fullUrl: priceUrl,
+        sellToken: `${sellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${buyTokenAddress}`,
+        sellAmount,
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
+          '0x-version': 'v2'
+        }
+      });
+
+      const response = await fetch(priceUrl, {
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY,
+          '0x-version': 'v2' // Required for v2 API
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const requestId = response.headers.get('x-request-id');
+        
+        // Enhanced error logging
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = { raw: errorText };
+        }
+        
+        console.error('❌ 0x v2 price API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          requestUrl: priceUrl,
+          requestId,
+          headers: {
+            'content-type': response.headers.get('content-type'),
+            'x-0x-version': response.headers.get('x-0x-version')
+          },
+          errorDetails,
+          requestParams: {
+            chainId,
+            sellToken: sellTokenAddress,
+            buyToken: buyTokenAddress,
+            sellAmount
+          }
+        });
+        
+        // Normalize error response to 200 with details
+        const errorMsg = errorDetails.message || errorDetails.reason || errorText;
+        let userMessage = errorMsg;
+        
+        if (errorMsg.includes('no Route matched') || response.status === 404) {
+          userMessage = `No liquidity for ${sellToken} → ${buyToken} swap. Try a different pair or amount.`;
+        } else if (response.status === 401 || response.status === 403) {
+          userMessage = 'API authentication failed. Please contact support.';
+        } else if (response.status === 429) {
+          userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: response.status === 404 ? 'no_route' : 'api_error',
+            message: userMessage,
+            status: response.status,
+            requestId,
+            chainId,
+            sellToken,
+            buyToken
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      const price = await response.json();
+      console.log('✅ Indicative price received:', { 
+        buyAmount: price.buyAmount, 
+        price: price.price,
+        allowanceTarget: price.allowanceTarget // May be present in price response
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          price: {
+            ...price,
+            allowanceTarget: price.allowanceTarget // Pass through if present
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`🔧 Operation: ${operation}, User: ${user.id.substring(0, 8)}...`);
-
-    // ========== SELF TEST ==========
-    if (operation === 'self_test') {
-      const testResults: any = {
-        success: true,
-        chainId: ETHEREUM_CHAIN_ID,
-        apiKeyPresent: true,
-        tests: {}
-      };
-
-      try {
-        // Test /gasless/price endpoint
-        const priceUrl = `${ZERO_X_API_BASE}/gasless/price?${new URLSearchParams({
-          chainId: String(ETHEREUM_CHAIN_ID),
-          sellToken: TOKEN_ADDRESSES.USDC,
-          buyToken: TOKEN_ADDRESSES.WETH,
-          sellAmount: '1000000', // 1 USDC
-          slippageBps: '50',
-          swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
-          swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken: TOKEN_ADDRESSES.WETH
-        })}`;
-
-        console.log('📡 Price URL:', priceUrl);
-        const priceResponse = await fetch(priceUrl, {
-          headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
-        });
-
-        testResults.tests.price = {
-          endpoint: '/gasless/price',
-          status: priceResponse.status,
-          success: priceResponse.ok,
-          requestId: priceResponse.headers.get('x-request-id')
-        };
-
-        if (!priceResponse.ok) {
-          testResults.tests.price.error = await priceResponse.text();
-        }
-
-        // Test /gasless/quote endpoint
-        const quoteParams: Record<string, string> = {
-          chainId: String(ETHEREUM_CHAIN_ID),
-          sellToken: TOKEN_ADDRESSES.USDC,
-          buyToken: TOKEN_ADDRESSES.WETH,
-          sellAmount: '1000000',
-          taker: '0x0000000000000000000000000000000000000001',
-          slippageBps: '50',
-          swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
-          swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken: TOKEN_ADDRESSES.WETH
-        };
-
-        // Only add tradeSurplusRecipient if explicitly enabled
-        if (Deno.env.get('ENABLE_TRADE_SURPLUS') === 'true') {
-          quoteParams.tradeSurplusRecipient = '0x0000000000000000000000000000000000000001';
-        }
-
-        const quoteUrl = `${ZERO_X_API_BASE}/gasless/quote?${new URLSearchParams(quoteParams)}`;
-
-        console.log('📡 Quote URL:', quoteUrl);
-        const quoteResponse = await fetch(quoteUrl, {
-          headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
-        });
-
-        testResults.tests.quote = {
-          endpoint: '/gasless/quote',
-          status: quoteResponse.status,
-          success: quoteResponse.ok,
-          requestId: quoteResponse.headers.get('x-request-id')
-        };
-
-        if (!quoteResponse.ok) {
-          testResults.tests.quote.error = await quoteResponse.text();
-        }
-
-        return new Response(
-          JSON.stringify(testResults),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (error: any) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'self_test_failed',
-            message: error.message,
-            tests: testResults.tests
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-    }
-
-    // ========== GET PRICE ==========
-    if (operation === 'get_price') {
-      const { sellToken, buyToken, sellAmount, feeTokenStrategy } = params;
-      
-      if (!sellToken || !buyToken || !sellAmount) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'missing_parameters',
-            message: 'sellToken, buyToken, and sellAmount are required'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-
-      const strategy = feeTokenStrategy || DEFAULT_FEE_TOKEN_STRATEGY;
-      const swapFeeToken = strategy === 'sell' ? sellToken : buyToken;
-
-      console.log('💰 Fee Configuration:', {
-        recipient: PLATFORM_FEE_RECIPIENT,
-        bps: PLATFORM_FEE_BPS,
-        strategy,
-        feeToken: swapFeeToken
-      });
-
-      try {
-        const url = `${ZERO_X_API_BASE}/gasless/price?${new URLSearchParams({
-          chainId: String(ETHEREUM_CHAIN_ID),
-          sellToken,
-          buyToken,
-          sellAmount,
-          slippageBps: '50',
-          swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
-          swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken
-        })}`;
-
-        console.log('📡 Fetching price from 0x...', url);
-        const response = await fetch(url, {
-          headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
-        });
-
-        const requestId = response.headers.get('x-request-id');
-        console.log(`📡 0x Response: ${response.status}, requestId: ${requestId}`);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          const requestId = response.headers.get('x-request-id');
-          console.error('❌ 0x API Error:', errorText, 'Request ID:', requestId);
-          
-          let errorBody;
-          try {
-            errorBody = JSON.parse(errorText);
-          } catch {
-            errorBody = { message: errorText };
-          }
-          
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'api_error',
-              message: `0x API error: ${response.status}`,
-              details: errorBody,
-              requestId,
-              code: response.status
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-
-        const quote = await response.json();
-        
-        return new Response(
-          JSON.stringify({ success: true, quote, requestId }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (error: any) {
-        console.error('❌ Price fetch error:', error);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'fetch_failed',
-            message: error.message
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-    }
-
-    // ========== GET QUOTE ==========
     if (operation === 'get_quote') {
-      const { sellToken, buyToken, sellAmount, userAddress, feeTokenStrategy, includedSources, excludedSources } = params;
+      const { sellToken, buyToken, sellAmount, userAddress, chainId } = params;
       
-      if (!sellToken || !buyToken || !sellAmount || !userAddress) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'missing_parameters',
-            message: 'sellToken, buyToken, sellAmount, and userAddress are required'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
+      // Validate chain is supported
+      const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
+      if (!availableChains.includes(chainId)) {
+        console.error('Unsupported chain:', { chainId, availableChains });
+        throw new Error(`Unsupported chain: ${chainId}. Available: ${availableChains.join(', ')}`);
       }
+      
+      // Strip _ARB suffix if present (for Arbitrum tokens)
+      const cleanSellToken = sellToken.replace('_ARB', '');
+      const cleanBuyToken = buyToken.replace('_ARB', '');
+      
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanSellToken];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[cleanBuyToken];
 
-      const strategy = feeTokenStrategy || DEFAULT_FEE_TOKEN_STRATEGY;
-      const swapFeeToken = strategy === 'sell' ? sellToken : buyToken;
-
-      console.log('💰 Fee Configuration:', {
-        recipient: PLATFORM_FEE_RECIPIENT,
-        bps: PLATFORM_FEE_BPS,
-        strategy,
-        feeToken: swapFeeToken
+      console.log('Token mapping:', {
+        sellToken: `${sellToken} -> ${cleanSellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${cleanBuyToken} -> ${buyTokenAddress}`,
+        chainId,
+        availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
       });
 
-      try {
-        const queryParams: Record<string, string> = {
-          chainId: String(ETHEREUM_CHAIN_ID),
-          sellToken,
-          buyToken,
-          sellAmount,
-          taker: userAddress,
-          slippageBps: '50',
-          swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
-          swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken
-        };
-
-        // Only add tradeSurplusRecipient if explicitly enabled
-        if (Deno.env.get('ENABLE_TRADE_SURPLUS') === 'true') {
-          queryParams.tradeSurplusRecipient = PLATFORM_FEE_RECIPIENT;
-        }
-
-        if (includedSources && includedSources.length > 0) {
-          queryParams.includedSources = includedSources.join(',');
-        }
-        if (excludedSources && excludedSources.length > 0) {
-          queryParams.excludedSources = excludedSources.join(',');
-        }
-
-        const url = `${ZERO_X_API_BASE}/gasless/quote?${new URLSearchParams(queryParams)}`;
-
-        console.log('📡 Fetching quote from 0x...', url);
-        const response = await fetch(url, {
-          headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
+      if (!sellTokenAddress || !buyTokenAddress) {
+        console.error('Token not found:', { 
+          chainId, 
+          cleanSellToken, 
+          cleanBuyToken,
+          availableTokens: Object.keys(TOKEN_ADDRESSES[chainId] || {})
         });
+        throw new Error(`Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`);
+      }
 
-        const requestId = response.headers.get('x-request-id');
-        console.log(`📡 0x Response: ${response.status}, requestId: ${requestId}`);
+      const queryParams = new URLSearchParams({
+        chainId: chainId.toString(),
+        sellToken: sellTokenAddress,
+        buyToken: buyTokenAddress,
+        sellAmount: sellAmount,
+        taker: userAddress,
+        swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // EOA wallet
+        swapFeeBps: String(PLATFORM_FEE_BPS), // 0.8% platform fee
+        swapFeeToken: buyTokenAddress,
+        tradeSurplusRecipient: userAddress
+      });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          const requestId = response.headers.get('x-request-id');
-          console.error('❌ 0x API Error:', errorText, 'Request ID:', requestId);
-          
-          let errorBody;
-          try {
-            errorBody = JSON.parse(errorText);
-          } catch {
-            errorBody = { message: errorText };
-          }
-          
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'api_error',
-              message: `0x API error: ${response.status}`,
-              details: errorBody,
-              requestId,
-              code: response.status,
-              hint: response.status === 400 ? 'requote_and_resign' : undefined
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-
-        const quote = await response.json();
+      const baseUrl = getZeroXSwapBaseUrl(chainId);
+      
+      // Phase 1B: Try multiple sources for Arbitrum
+      if (chainId === 42161) {
+        const sources = ['Algebra', 'Camelot', 'CamelotV3', 'Camelot_V3'];
+        const testedSources: string[] = [];
+        let lastError: any = null;
         
-        console.log('📊 Quote details:', {
-          allowanceTarget: quote.allowanceTarget,
-          hasApproval: !!quote.approval,
-          hasTrade: !!quote.trade,
-          issues: quote.issues
-        });
-
-        console.log('💰 Fee breakdown:', {
-          integratorFee: quote.fees?.integratorFee,
-          zeroExFee: quote.fees?.zeroExFee,
-          gasFee: quote.fees?.gasFee
-        });
-
-        // CRITICAL: Only block on balance issues
-        // issues.allowance is informational in gasless v2 - approval payload will be present if needed
-        if (quote.issues?.balance) {
-          console.error('❌ Insufficient balance:', quote.issues.balance);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'insufficient_balance',
-              message: `Insufficient balance. Expected: ${quote.issues.balance.expected}, Actual: ${quote.issues.balance.actual}`,
-              details: quote.issues.balance,
-              requestId
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-
-        // Validate approval payload presence if allowance issue exists
-        if (quote.issues?.allowance) {
-          console.log('ℹ️ Approval required:', quote.issues.allowance);
+        for (const source of sources) {
+          const testParams = new URLSearchParams(queryParams);
+          testParams.append('includedSources', source);
+          const quoteUrl = `${baseUrl}/gasless/quote?${testParams}`;
           
-          if (!quote.approval) {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: 'missing_approval_payload',
-                message: '0x API did not return approval EIP-712 data. Try a different amount.',
-                details: quote.issues.allowance,
-                requestId
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
+          console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum gasless quote`, {
+            fullUrl: quoteUrl,
+            sellToken: `${sellToken} -> ${sellTokenAddress}`,
+            buyToken: `${buyToken} -> ${buyTokenAddress}`,
+            taker: userAddress
+          });
+          
+          try {
+            const response = await fetch(quoteUrl, {
+              headers: {
+                '0x-api-key': ZERO_X_API_KEY,
+                '0x-version': 'v2'
+              }
+            });
+            
+            if (response.ok) {
+              console.log(`✅ 0x gasless source "${source}" worked for Arbitrum!`);
+              const data = await response.json();
+              return new Response(JSON.stringify({ 
+                success: true,
+                quote: data,
+                routeSource: source
+              }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+            
+            testedSources.push(source);
+            const errorBody = await response.text();
+            const requestId = response.headers.get('x-request-id');
+            lastError = { status: response.status, body: errorBody, requestId, source };
+            
+            console.log(`❌ 0x gasless source "${source}" failed:`, {
+              status: response.status,
+              requestId,
+              body: errorBody.substring(0, 200)
+            });
+          } catch (err) {
+            testedSources.push(source);
+            console.error(`❌ 0x gasless source "${source}" request failed:`, err);
           }
-          
-          console.log('✅ Approval payload present');
         }
-
-        return new Response(
-          JSON.stringify({ success: true, quote, requestId }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (error: any) {
-        console.error('❌ Quote fetch error:', error);
+        
+        // All sources failed - return normalized 200 error for fallback
+        console.error('❌ All 0x gasless sources failed for Arbitrum - will fallback to Camelot V3', { testedSources });
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'fetch_failed',
-            message: error.message
+            error: 'no_route',
+            message: `No liquidity for ${sellToken} → ${buyToken} gasless swap on Arbitrum. Try a different pair or switch to Ethereum.`,
+            chainId,
+            sellToken,
+            buyToken,
+            testedSources,
+            requestId: lastError?.requestId,
+            fallbackToCamelot: true
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
-    }
-
-    // ========== SUBMIT SWAP ==========
-    if (operation === 'submit_swap') {
-      const { quote, signatures, quoteId, intentId } = params;
       
-      if (!quote || !signatures || !signatures.trade) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'missing_parameters',
-            message: 'quote, signatures.trade are required'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-
-      // Validate approval signature if quote has approval payload
-      if (quote.approval && !signatures.approval) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'missing_approval_signature',
-            message: 'Approval signature required but not provided'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-
-      console.log('📤 Submitting swap to 0x...');
-      console.log('🔏 Signatures:', {
-        hasApproval: !!signatures.approval,
-        hasTrade: !!signatures.trade
+      // Standard flow for non-Arbitrum
+      const quoteUrl = `${baseUrl}/gasless/quote?${queryParams}`;
+      
+      console.log('🔍 0x v2 Gasless Quote Request:', {
+        chainId,
+        baseUrl,
+        endpoint: '/gasless/quote',
+        fullUrl: quoteUrl,
+        sellToken: `${sellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${buyTokenAddress}`,
+        sellAmount,
+        userAddress,
+        swapFeeToken: buyTokenAddress,
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
+          '0x-version': 'v2'
+        }
       });
 
-      try {
-        const body: any = {
-          trade: {
-            ...quote.trade,
-            signature: signatures.trade,
-            signatureType: 2 // EIP-712
-          }
-        };
-
-        if (signatures.approval && quote.approval) {
-          body.approval = {
-            ...quote.approval,
-            signature: signatures.approval,
-            signatureType: 2
-          };
+      const response = await fetch(quoteUrl, {
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY,
+          '0x-version': 'v2'
         }
+      });
 
-        const url = `${ZERO_X_API_BASE}/gasless/submit`;
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            '0x-api-key': ZERO_X_API_KEY,
-            '0x-version': 'v2',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(body)
-        });
-
+      if (!response.ok) {
+        const errorText = await response.text();
         const requestId = response.headers.get('x-request-id');
-        const zid = response.headers.get('x-zid');
-        console.log(`📡 Submit Response: ${response.status}, requestId: ${requestId}, zid: ${zid}`);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ Submit Error:', errorText);
-          
-          let parsedError: any = {};
-          try {
-            parsedError = JSON.parse(errorText);
-          } catch {
-            parsedError = { message: errorText };
-          }
-
-          const errorMessage = parsedError.message || parsedError.name || errorText;
-          
-          // Enhanced gas estimation error detection
-          const isGasEstimationFailed = 
-            errorMessage.toLowerCase().includes('gas estimation failed') ||
-            errorMessage.toLowerCase().includes('could not estimate gas') ||
-            errorMessage.toLowerCase().includes('simulation failed') ||
-            errorMessage.toLowerCase().includes('gas required exceeds allowance') ||
-            parsedError.name === 'GAS_ESTIMATION_FAILED';
-
-          if (isGasEstimationFailed) {
-            console.error('❌ Gas estimation failed');
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: 'gas_estimation_failed',
-                message: errorMessage,
-                details: parsedError.data?.details,
-                requestId,
-                zid,
-                code: response.status,
-                hint: 'requote_and_resign'
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
-
-          // Check for stale signature
-          const isStaleSignature = 
-            errorMessage.toLowerCase().includes('stale') ||
-            errorMessage.toLowerCase().includes('expired') ||
-            errorMessage.toLowerCase().includes('invalid signature');
-
-          if (isStaleSignature) {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: 'stale_or_invalid_signature',
-                message: errorMessage,
-                details: parsedError.data?.details,
-                requestId,
-                zid,
-                code: response.status,
-                hint: 'requote_and_resign'
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
-
-          // Generic submit error
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'submit_failed',
-              message: errorMessage,
-              details: parsedError.data?.details,
-              requestId,
-              zid,
-              code: response.status
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
+        
+        // Enhanced error logging
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = { raw: errorText };
         }
-
-        const result = await response.json();
-        console.log('✅ Swap submitted:', result.tradeHash);
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            tradeHash: result.tradeHash,
-            requestId,
-            zid
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (error: any) {
-        console.error('❌ Submit error:', error);
+        
+        console.error('❌ 0x v2 gasless quote API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          requestUrl: quoteUrl,
+          requestId,
+          headers: {
+            'content-type': response.headers.get('content-type'),
+            'x-0x-version': response.headers.get('x-0x-version')
+          },
+          errorDetails,
+          requestParams: {
+            chainId,
+            sellToken: sellTokenAddress,
+            buyToken: buyTokenAddress,
+            swapFeeToken: buyTokenAddress,
+            taker: userAddress
+          }
+        });
+        
+        // Normalize error response to 200 with details
+        const errorMsg = errorDetails.message || errorDetails.reason || errorText;
+        let userMessage = errorMsg;
+        
+        if (errorMsg.includes('no Route matched') || response.status === 404) {
+          userMessage = `No liquidity for ${sellToken} → ${buyToken} gasless swap. Try a different pair or amount.`;
+        } else if (response.status === 401 || response.status === 403) {
+          userMessage = 'API authentication failed. Please contact support.';
+        } else if (response.status === 429) {
+          userMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        }
+        
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'submit_exception',
-            message: error.message
+            error: response.status === 404 ? 'no_route' : 'api_error',
+            message: userMessage,
+            status: response.status,
+            requestId,
+            chainId,
+            sellToken,
+            buyToken
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
+
+      const quote = await response.json();
+      console.log('✅ 0x v2 Gasless Quote Response:', {
+        buyAmount: quote.buyAmount,
+        chainId: quote.chainId,
+        allowanceTarget: quote.allowanceTarget, // ✅ Critical field
+        hasApproval: !!quote.approval,
+        hasTrade: !!quote.trade,
+        hasIssues: !!quote.issues?.allowance || !!quote.issues?.balance
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          quote: {
+            ...quote,
+            // Ensure allowanceTarget is explicitly passed
+            allowanceTarget: quote.allowanceTarget
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // ========== GET STATUS ==========
+    if (operation === 'submit_swap') {
+      const { quote, signature, quoteId, intentId } = params;
+
+      console.log('Submitting gasless swap to 0x');
+
+      const response = await fetch('https://api.0x.org/gasless/submit', {
+        method: 'POST',
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY,
+          '0x-version': 'v2',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chainId: quote.chainId,
+          quote,
+          signature,
+          quoteId,
+          intentId
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('0x submit error:', errorText);
+        throw new Error(`Failed to submit: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Swap submitted:', { tradeHash: result.tradeHash });
+
+      return new Response(
+        JSON.stringify({ success: true, result }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (operation === 'get_status') {
       const { tradeHash } = params;
-      
-      if (!tradeHash) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'missing_parameters',
-            message: 'tradeHash is required'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
 
-      try {
-        const url = `${ZERO_X_API_BASE}/gasless/status/${tradeHash}?chainId=${ETHEREUM_CHAIN_ID}`;
-        
-        const response = await fetch(url, {
-          headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
-        });
-
-        const requestId = response.headers.get('x-request-id');
-        console.log(`📡 Status Response: ${response.status}, requestId: ${requestId}`);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'status_check_failed',
-              message: `Failed to get status: ${response.status}`,
-              details: errorText,
-              requestId
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
+      const response = await fetch(`https://api.0x.org/gasless/status/${tradeHash}`, {
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY,
+          '0x-version': 'v2'
         }
+      });
 
-        const status = await response.json();
-        
-        return new Response(
-          JSON.stringify({ success: true, status, requestId }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (error: any) {
-        console.error('❌ Status check error:', error);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'status_exception',
-            message: error.message
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('0x status error:', errorText);
+        throw new Error(`Failed to get status: ${response.statusText}`);
       }
+
+      const status = await response.json();
+
+      return new Response(
+        JSON.stringify({ success: true, status }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Unknown operation
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'unknown_operation',
-        message: `Unknown operation: ${operation}`
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    );
+    throw new Error(`Unknown operation: ${operation}`);
 
-  } catch (error: any) {
-    console.error('❌ Edge function error:', error);
+  } catch (error) {
+    console.error('Edge function error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'server_error',
-        message: error.message
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     );
   }
 });

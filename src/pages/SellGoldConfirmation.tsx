@@ -1,14 +1,230 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Copy, Clock, TrendingDown, Loader2 } from "lucide-react";
+import { Quote } from "@/services/quoteEngine";
+import { useToast } from "@/hooks/use-toast";
+import { useTransactionExecution } from "@/hooks/useTransactionExecution";
+import { useMoonPaySell } from "@/hooks/useMoonPaySell";
 
 const SellGoldConfirmation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const { executeTransaction, loading: executionLoading } = useTransactionExecution();
+  const { initiateSell, loading: moonPayLoading } = useMoonPaySell();
+  const [isExecuting, setIsExecuting] = useState(false);
   
-  useEffect(() => {
-    navigate('/swap');
-  }, [navigate]);
-  
-  return null;
+  const quote = location.state?.quote as Quote;
+  const asset = location.state?.asset || 'GOLD';
+  const payoutMethod = location.state?.payoutMethod || 'usdc';
+
+  const handleCopyQuoteId = () => {
+    if (quote?.id) {
+      navigator.clipboard.writeText(quote.id);
+      toast({
+        title: "Copied!",
+        description: "Quote ID copied to clipboard",
+      });
+    }
+  };
+
+  const timeRemaining = quote ? Math.max(0, Math.floor((new Date(quote.expiresAt).getTime() - Date.now()) / 1000)) : 0;
+
+  const handleExecuteTransaction = async () => {
+    if (!quote) return;
+
+    setIsExecuting(true);
+    try {
+      if (payoutMethod === 'bank') {
+        // Handle MoonPay sell for bank payout
+        const result = await initiateSell({
+          amount: parseFloat(quote.outputAmount.toFixed(2)), // USD amount to receive
+          currency: 'USDC', // Sell USDC for USD
+          returnUrl: window.location.origin + '/offramp/return?sell=moonpay'
+        });
+
+        if (result.success && result.redirectUrl) {
+          // Redirect to MoonPay for bank details and processing
+          window.location.href = result.redirectUrl;
+        } else {
+          toast({
+            title: "MoonPay Sell Failed",
+            description: result.error || "Failed to initiate bank payout.",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Handle regular USDC transaction
+        const result = await executeTransaction(quote.id);
+        
+        if (result.success) {
+          toast({
+            title: "Sale Successful!",
+            description: "Your gold sale has been completed.",
+          });
+          navigate("/transactions/success", { 
+            state: { 
+              transaction: result,
+              type: 'sell',
+              asset
+            } 
+          });
+        } else {
+          toast({
+            title: "Sale Failed",
+            description: result.error || "Transaction could not be completed.",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Sale Failed",
+        description: "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  if (!quote) {
+    return (
+      <div className="flex flex-col h-screen bg-background">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-foreground mb-4">No Quote Found</h2>
+            <p className="text-muted-foreground mb-6">Please return to the amount page to generate a new quote.</p>
+            <Button onClick={() => navigate("/sell-gold/amount")}>
+              Back to Amount
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      {/* Header */}
+      <header className="flex-shrink-0 p-4">
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => navigate("/sell-gold/amount")}
+            className="text-foreground hover:bg-accent"
+          >
+            <ArrowLeft size={24} />
+          </Button>
+          <h1 className="text-xl font-bold text-foreground flex-1 text-center pr-6">Confirm Sale</h1>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-24">
+        {/* Quote Expiration Warning */}
+        {timeRemaining > 0 && (
+          <div className="bg-accent border border-border rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock size={16} />
+              <span className="text-sm">Quote expires in {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Quote Summary */}
+        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-destructive/10 rounded-full flex items-center justify-center">
+              <TrendingDown size={20} className="text-destructive" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground">Sale Summary</h2>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Selling</span>
+              <span className="text-foreground font-semibold">{quote.grams.toFixed(3)} grams {asset}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Gold Price</span>
+              <span className="text-foreground font-semibold">${quote.unitPriceUsd.toFixed(2)}/oz</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Gross Amount</span>
+              <span className="text-foreground font-semibold">${(quote.outputAmount + quote.feeUsd).toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Fee ({(quote.feeBps / 100).toFixed(1)}%)</span>
+              <span className="text-destructive font-semibold">-${quote.feeUsd.toFixed(2)}</span>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-foreground font-bold">You'll Receive</span>
+                <span className="text-foreground font-bold text-xl">${quote.outputAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Minimum Amount</span>
+              <span className="text-muted-foreground">${quote.minimumReceived.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground text-sm">Quote ID</span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs font-mono">{quote.id.slice(0, 8)}...</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyQuoteId}
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                >
+                  <Copy size={12} />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Risk Disclosure */}
+        <div className="bg-muted/30 rounded-xl p-4 mb-6">
+          <p className="text-sm text-muted-foreground">
+            Prices are subject to market fluctuations. The actual amount received may vary slightly due to slippage protection. This transaction cannot be reversed once confirmed.
+          </p>
+        </div>
+      </main>
+
+      {/* Confirm Button */}
+      <div className="fixed inset-x-0 bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t p-4">
+        <Button 
+          variant="destructive"
+          className="w-full h-14 font-bold text-lg rounded-xl"
+          disabled={timeRemaining === 0 || isExecuting || executionLoading || moonPayLoading}
+          onClick={handleExecuteTransaction}
+        >
+          {isExecuting || executionLoading || moonPayLoading ? (
+            <>
+              <Loader2 size={20} className="animate-spin mr-2" />
+              {payoutMethod === 'bank' ? 'Redirecting to MoonPay...' : 'Processing...'}
+            </>
+          ) : timeRemaining === 0 ? (
+            "Quote Expired"
+          ) : payoutMethod === 'bank' ? (
+            "Continue with MoonPay"
+          ) : (
+            "Confirm Sale"
+          )}
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 export default SellGoldConfirmation;
