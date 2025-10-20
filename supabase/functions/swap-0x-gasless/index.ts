@@ -17,11 +17,13 @@ const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
     USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     XAUT: '0x68749665FF8D2d112Fa859AA293F07A622782F38',
     TRZRY: '0x1c4C5978c94f103Ad371964A53B9f1305Bf8030B',
+    WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'
   },
   42161: { // Arbitrum
     ETH: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+    WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
     XAUT: '0x40461291347e1ecbb09499f3371d3f17f10d7159', // Correct Arbitrum XAUT address
     BTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f'
   }
@@ -276,12 +278,13 @@ serve(async (req) => {
         for (const source of sources) {
           const testParams = new URLSearchParams(queryParams);
           testParams.append('includedSources', source);
-          const priceUrl = `${baseUrl}/swap/permit2/price?${testParams}`;
+          const priceUrl = `${baseUrl}/gasless/price?${testParams}`; // ✅ Fixed: Use gasless endpoint
           
-          console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum`, {
+          console.log(`🧪 Phase 1B: Testing source "${source}" for Arbitrum gasless price`, {
             fullUrl: priceUrl,
             sellToken: `${sellToken} -> ${sellTokenAddress}`,
-            buyToken: `${buyToken} -> ${buyTokenAddress}`
+            buyToken: `${buyToken} -> ${buyTokenAddress}`,
+            includedSources: source
           });
           
           try {
@@ -977,6 +980,99 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, status }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ✅ New operation: get_permit2_quote for standard Permit2 quotes (non-gasless)
+    if (operation === 'get_permit2_quote') {
+      const { sellToken, buyToken, sellAmount, userAddress, chainId } = params;
+      
+      // Validate chain
+      const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
+      if (!availableChains.includes(chainId)) {
+        throw new Error(`Unsupported chain: ${chainId}. Available: ${availableChains.join(', ')}`);
+      }
+      
+      const sellTokenAddress = TOKEN_ADDRESSES[chainId]?.[sellToken];
+      const buyTokenAddress = TOKEN_ADDRESSES[chainId]?.[buyToken];
+      
+      if (!sellTokenAddress || !buyTokenAddress) {
+        throw new Error(`Token not supported on chain ${chainId}: ${sellToken} or ${buyToken}`);
+      }
+      
+      const queryParams = new URLSearchParams({
+        chainId: chainId.toString(),
+        sellToken: sellTokenAddress,
+        buyToken: buyTokenAddress,
+        sellAmount: sellAmount,
+        taker: userAddress,
+        slippagePercentage: '0.005',
+        swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
+        swapFeeBps: String(PLATFORM_FEE_BPS),
+        swapFeeToken: buyTokenAddress,
+        tradeSurplusRecipient: userAddress,
+        skipValidation: 'false'
+      });
+      
+      const baseUrl = getZeroXSwapBaseUrl(chainId);
+      const quoteUrl = `${baseUrl}/swap/permit2/quote?${queryParams}`;
+      
+      console.log('🔍 0x v2 Permit2 Quote Request:', {
+        endpoint: '/swap/permit2/quote',
+        chainId,
+        sellToken: `${sellToken} -> ${sellTokenAddress}`,
+        buyToken: `${buyToken} -> ${buyTokenAddress}`,
+        sellAmount,
+        userAddress
+      });
+      
+      const response = await fetch(quoteUrl, {
+        headers: {
+          '0x-api-key': ZERO_X_API_KEY,
+          '0x-version': 'v2'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        const requestId = response.headers.get('x-request-id');
+        
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = { message: errorText };
+        }
+        
+        console.error('❌ 0x permit2 quote error:', {
+          status: response.status,
+          requestId,
+          error: errorDetails
+        });
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'quote_failed',
+            message: errorDetails.message || errorText,
+            requestId
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const quote = await response.json();
+      console.log('✅ Permit2 quote received:', {
+        buyAmount: quote.buyAmount,
+        price: quote.price,
+        allowanceTarget: quote.allowanceTarget,
+        hasApproval: !!quote.approval,
+        hasTrade: !!quote.trade
+      });
+      
+      return new Response(
+        JSON.stringify({ success: true, quote }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

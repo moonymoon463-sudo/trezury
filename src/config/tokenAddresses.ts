@@ -33,11 +33,25 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     chain: 'ethereum',
     chainId: 1
   },
+  WETH: {
+    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    decimals: 18,
+    symbol: 'WETH',
+    chain: 'ethereum',
+    chainId: 1
+  },
   // Arbitrum tokens
   'USDC_ARB': {
     address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Native USDC on Arbitrum
     decimals: 6,
     symbol: 'USDC',
+    chain: 'arbitrum',
+    chainId: 42161
+  },
+  'WETH_ARB': {
+    address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+    decimals: 18,
+    symbol: 'WETH',
     chain: 'arbitrum',
     chainId: 42161
   }

@@ -196,6 +196,20 @@ class SwapService {
         if (error.message?.includes('insufficient_allowance')) {
           throw new Error('Token approval required. This should not happen in gasless flow.');
         }
+        
+        // Check if gasless completely unavailable - surface 0x requestId/zid
+        if (error.message?.includes('INTERNAL_SERVER_ERROR') || 
+            error.message?.includes('no_route') ||
+            error.message?.includes('Failed to get gasless quote')) {
+          console.warn('⚠️ Gasless route unavailable, surfacing error:', error.message);
+          
+          // Surface full error with 0x details for user awareness
+          throw new Error(
+            `Gasless swap unavailable: ${error.message}. ` +
+            `Please try again or contact support if the issue persists.`
+          );
+        }
+        
         throw error;
       }
 
