@@ -121,10 +121,10 @@ async function cacheFirst(request) {
 async function staleWhileRevalidate(request) {
   const cachedResponse = await caches.match(request);
   
-  const networkResponsePromise = fetch(request).then(networkResponse => {
+  const networkResponsePromise = fetch(request).then(async networkResponse => {
     if (networkResponse.ok) {
-      const cache = caches.open(DYNAMIC_CACHE);
-      cache.then(c => c.put(request, networkResponse.clone()));
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   }).catch(() => null);

@@ -136,7 +136,7 @@ class QuoteEngineService {
       .insert({
         id: quote.id,
         user_id: userId,
-        side: quote.side.toUpperCase(), // Convert to uppercase for database constraint
+        side: quote.side, // Keep lowercase as per database constraint
         input_asset: quote.inputAsset,
         output_asset: quote.outputAsset,
         input_amount: quote.inputAmount,
