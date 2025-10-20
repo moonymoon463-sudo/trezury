@@ -1,6 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { zeroXGaslessService, GaslessQuote } from "./zeroXGaslessService";
-import { zeroXSwapService } from "./zeroXSwapService";
 import { swapFeeService } from "./swapFeeService";
 import { walletSigningService } from "./walletSigningService";
 import { getTokenDecimals, getTokenChainId } from "@/config/tokenAddresses";
@@ -54,8 +52,20 @@ class SwapService {
       const decimals = getTokenDecimals(inputAsset);
       const sellAmount = ethers.parseUnits(inputAmount.toString(), decimals).toString();
 
-      // Fetch 0x indicative price (no balance check)
-      const priceResult = await zeroXSwapService.getPrice(inputAsset, outputAsset, sellAmount, chainId);
+      // Fetch 0x indicative price via edge function
+      const { data: priceResult, error } = await supabase.functions.invoke('swap-0x-gasless', {
+        body: {
+          operation: 'get_price',
+          sellToken: inputAsset,
+          buyToken: outputAsset,
+          sellAmount,
+          chainId
+        }
+      });
+
+      if (error || !priceResult) {
+        throw new Error(error?.message || 'Failed to get price quote');
+      }
       
       // Format output amount
       const buyDecimals = getTokenDecimals(outputAsset);
@@ -161,56 +171,6 @@ class SwapService {
       // Determine route/source from stored quote
       const routeData: any = JSON.parse(quoteData.route as string);
 
-      // If this quote was generated via Camelot V3, execute via Gelato relay
-      if (routeData?.source === 'camelot_v3') {
-        // Get user wallet address
-        const { data: onchainWallet } = await supabase
-          .from('onchain_addresses')
-          .select('address')
-          .eq('user_id', userId)
-          .single();
-
-        if (!onchainWallet?.address) {
-          throw new Error('Wallet not found');
-        }
-
-        // Resolve token addresses and amounts
-        const { getTokenAddress } = await import('@/config/tokenAddresses');
-        const inAddr = getTokenAddress(quoteData.input_asset);
-        const outAddr = getTokenAddress(quoteData.output_asset);
-
-        const inDecimals = getTokenDecimals(quoteData.input_asset);
-        const outDecimals = getTokenDecimals(quoteData.output_asset);
-
-        const amountIn = ethers.parseUnits(String(quoteData.input_amount), inDecimals).toString();
-        const minOutNum = Number(quoteData.output_amount) * 0.995; // 0.5% slippage
-        const amountOutMinimum = ethers.parseUnits(minOutNum.toFixed(outDecimals), outDecimals).toString();
-
-        // Submit Camelot swap via edge function (Gelato relay)
-        const { data, error } = await supabase.functions.invoke('blockchain-operations', {
-          body: {
-            operation: 'camelot_swap',
-            tokenIn: inAddr,
-            tokenOut: outAddr,
-            amountIn,
-            amountOutMinimum,
-            userAddress: onchainWallet.address,
-            quoteId
-          }
-        });
-
-        if (error) throw new Error(error.message || 'Camelot swap failed');
-        if (!data?.success) throw new Error(data?.error || 'Camelot swap failed');
-
-        return {
-          success: true,
-          gelatoTaskId: data.taskId
-        };
-      }
-
-      // Parse the stored gasless quote (0x)
-      const gaslessQuote: GaslessQuote = routeData as GaslessQuote;
-
       // Get user wallet address
       const { data: onchainWallet } = await supabase
         .from('onchain_addresses')
@@ -226,33 +186,35 @@ class SwapService {
       const intentId = crypto.randomUUID();
 
       try {
-        // ✅ CRITICAL: Check if approval is needed for allowanceTarget
-        // The allowanceTarget is the ONLY address we should approve
-        // This will be either:
-        // - AllowanceHolder contract (for standard permit2 flows)
-        // - Permit2 contract (0x000000000022D473030F116dDEE9F6B43aC78BA3)
-        // NEVER approve the Settler contract!
-        
-        if (gaslessQuote.allowanceTarget) {
-          console.log('✅ Swap using allowanceTarget:', {
-            allowanceTarget: gaslessQuote.allowanceTarget,
-            sellToken: gaslessQuote.sellToken,
-            sellAmount: gaslessQuote.sellAmount,
-            note: 'This is the ONLY address we approve for token transfers'
-          });
+        // Get firm quote with EIP-712 payloads via edge function
+        const chainId = getTokenChainId(quoteData.input_asset);
+        const { data: gaslessQuote, error: quoteError } = await supabase.functions.invoke('swap-0x-gasless', {
+          body: {
+            operation: 'get_quote',
+            sellToken: quoteData.input_asset,
+            buyToken: quoteData.output_asset,
+            sellAmount: ethers.parseUnits(
+              String(quoteData.input_amount),
+              getTokenDecimals(quoteData.input_asset)
+            ).toString(),
+            taker: onchainWallet.address,
+            chainId
+          }
+        });
+
+        if (quoteError || !gaslessQuote) {
+          throw new Error(quoteError?.message || 'Failed to get firm quote');
         }
         
-        // Sign the trade permit with user's wallet
-        let signature: string = '';
+        console.log('✅ Got firm quote with EIP-712 payloads');
+        
+        // Sign the permits with user's wallet
+        let approvalSignature: string | undefined;
+        let tradeSignature: string | undefined;
         
         if (gaslessQuote.approval) {
-          // ✅ Sign approval permit (EIP-712 signature for permit2)
-          console.log('📝 Signing approval permit for allowanceTarget:', {
-            allowanceTarget: gaslessQuote.allowanceTarget,
-            primaryType: gaslessQuote.approval.eip712.primaryType || 'PermitTransferFrom'
-          });
-          
-          signature = await walletSigningService.signTypedData(
+          console.log('📝 Signing approval permit');
+          approvalSignature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
             gaslessQuote.chainId,
@@ -260,15 +222,12 @@ class SwapService {
             gaslessQuote.approval.eip712.types,
             gaslessQuote.approval.eip712.message
           );
-          
           console.log('✅ Approval signature generated');
         }
         
         if (gaslessQuote.trade) {
-          // ✅ Sign trade permit (EIP-712 signature for trade execution)
           console.log('📝 Signing trade permit');
-          
-          signature = await walletSigningService.signTypedData(
+          tradeSignature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
             gaslessQuote.chainId,
@@ -276,81 +235,108 @@ class SwapService {
             gaslessQuote.trade.eip712.types,
             gaslessQuote.trade.eip712.message
           );
-          
           console.log('✅ Trade signature generated');
         }
 
-        if (!signature) {
-          throw new Error('No signature generated - quote may not require permits');
+        if (!approvalSignature && !tradeSignature) {
+          throw new Error('No signatures generated');
         }
 
-        // Submit to 0x gasless endpoint
-        const submitResult = await zeroXGaslessService.submitGaslessSwap(
-          gaslessQuote,
-          signature,
-          quoteId,
-          intentId
-        );
+        // Submit swap via edge function
+        const { data: submitResult, error: submitError } = await supabase.functions.invoke('swap-0x-gasless', {
+          body: {
+            operation: 'submit_swap',
+            quote: gaslessQuote,
+            approval: approvalSignature ? {
+              signature: approvalSignature,
+              ...gaslessQuote.approval
+            } : undefined,
+            trade: tradeSignature ? {
+              signature: tradeSignature,
+              ...gaslessQuote.trade
+            } : undefined
+          }
+        });
 
-        // Wait for completion (with timeout)
-        const statusResult = await zeroXGaslessService.waitForCompletion(
-          submitResult.tradeHash,
-          60, // 60 attempts
-          2000 // 2 seconds interval
-        );
-
-        if (statusResult.status === 'confirmed' && statusResult.transactions.length > 0) {
-          const txHash = statusResult.transactions[0].hash;
-
-          // Record transaction with proper schema + idempotency metadata
-          const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
-          
-          const { error: txError } = await supabase
-            .from('transactions')
-            .insert({
-              user_id: userId,
-              quote_id: quoteId, // ✅ Link to quote for idempotency
-              asset: quoteData.output_asset, // Asset received
-              type: 'swap',
-              status: 'completed',
-              quantity: quoteData.output_amount, // Output amount
-              unit_price_usd: quoteData.unit_price_usd || 0,
-              fee_usd: quoteData.fee_bps || 80,
-              transaction_hash: txHash,
-              input_asset: quoteData.input_asset,
-              output_asset: quoteData.output_asset,
-              metadata: {
-                chainId: gaslessQuote.chainId,
-                tradeHash: submitResult.tradeHash,
-                gasless: true,
-                quoteId,
-                idempotency_key: idempotencyKey, // ✅ Track idempotency
-                submission_timestamp: Date.now(),
-                quote_used: quoteId
-              },
-              created_at: new Date().toISOString()
-            });
-
-          // Record fee collection with proper transaction ID
-          const feeCalculation = swapFeeService.calculateSwapFee(
-            quoteData.input_amount,
-            quoteData.input_asset as any,
-            quoteData.output_asset as any
-          );
-
-          // Note: Fee recording uses the txHash as the transaction reference
-          await swapFeeService.recordSwapFeeCollection(userId, txHash, feeCalculation);
-
-          return {
-            success: true,
-            txHash,
-            tradeHash: submitResult.tradeHash,
-            intentId,
-            hash: txHash
-          };
-        } else {
-          throw new Error(`Swap failed with status: ${statusResult.status}`);
+        if (submitError || !submitResult?.tradeHash) {
+          throw new Error(submitError?.message || 'Failed to submit swap');
         }
+
+        console.log('✅ Swap submitted, tradeHash:', submitResult.tradeHash);
+
+        // Poll for completion via edge function
+        let statusResult;
+        for (let i = 0; i < 60; i++) {
+          const { data: status } = await supabase.functions.invoke('swap-0x-gasless', {
+            body: {
+              operation: 'get_status',
+              tradeHash: submitResult.tradeHash
+            }
+          });
+
+          if (status?.status === 'confirmed' && status.transactions?.length > 0) {
+            statusResult = status;
+            break;
+          }
+
+          if (status?.status === 'failed') {
+            throw new Error('Swap failed on-chain');
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        if (!statusResult) {
+          throw new Error('Swap status polling timeout');
+        }
+
+        const txHash = statusResult.transactions[0].hash;
+
+        // Record transaction with proper schema + idempotency metadata
+        const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
+        
+        await supabase
+          .from('transactions')
+          .insert({
+            user_id: userId,
+            quote_id: quoteId,
+            asset: quoteData.output_asset,
+            type: 'swap',
+            status: 'completed',
+            quantity: quoteData.output_amount,
+            unit_price_usd: quoteData.unit_price_usd || 0,
+            fee_usd: quoteData.fee_bps || 80,
+            transaction_hash: txHash,
+            input_asset: quoteData.input_asset,
+            output_asset: quoteData.output_asset,
+            metadata: {
+              chainId: gaslessQuote.chainId,
+              tradeHash: submitResult.tradeHash,
+              gasless: true,
+              quoteId,
+              idempotency_key: idempotencyKey,
+              submission_timestamp: Date.now(),
+              quote_used: quoteId
+            },
+            created_at: new Date().toISOString()
+          });
+
+        // Record fee collection
+        const feeCalculation = swapFeeService.calculateSwapFee(
+          quoteData.input_amount,
+          quoteData.input_asset as any,
+          quoteData.output_asset as any
+        );
+
+        await swapFeeService.recordSwapFeeCollection(userId, txHash, feeCalculation);
+
+        return {
+          success: true,
+          txHash,
+          tradeHash: submitResult.tradeHash,
+          intentId,
+          hash: txHash
+        };
       } catch (error) {
         console.error('Swap execution error:', error);
         throw error;
