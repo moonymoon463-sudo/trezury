@@ -333,9 +333,21 @@ class SwapService {
             intentId
           );
         } catch (error: any) {
-          // Auto-recovery for expired/stale quotes
-          if (error.message?.startsWith('EXPIRED:')) {
-            console.warn('⏱️ Quote expired during submission, refreshing and retrying...');
+          // Helper function to check if we should retry with fresh quote
+          const shouldRetryWithFreshQuote = (err: any) => {
+            const msg = err.message?.toLowerCase() || '';
+            return err.message?.startsWith('EXPIRED:') ||
+                   msg.includes('gas_estimation_failed') ||
+                   msg.includes('could not estimate gas') ||
+                   msg.includes('simulation failed');
+          };
+
+          // Auto-recovery for expired/stale quotes or gas estimation failures
+          if (shouldRetryWithFreshQuote(error)) {
+            console.warn('⏱️ Quote issue detected during submission, refreshing and retrying...', {
+              error: error.message,
+              reason: error.message?.startsWith('EXPIRED:') ? 'expired' : 'gas_estimation'
+            });
             
             // Fetch fresh quote
             const freshQuote = await zeroXGaslessService.getGaslessQuote(

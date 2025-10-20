@@ -183,6 +183,11 @@ class ZeroXGaslessService {
         code: data.code
       });
 
+      // Handle gas estimation failure with specific error type
+      if (errorType === 'gas_estimation_failed') {
+        throw new Error(`gas_estimation_failed: ${message}${requestId}`);
+      }
+
       // Throw specific errors for auto-recovery
       if (errorType === 'quote_expired' || errorType === 'stale_or_invalid_signature') {
         throw new Error(`EXPIRED:${message}${requestId}`);

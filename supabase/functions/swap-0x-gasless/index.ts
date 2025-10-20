@@ -9,6 +9,7 @@ const corsHeaders = {
 // Platform fee configuration (MUST be an EOA)
 const PLATFORM_FEE_RECIPIENT = '0xb46DA2C95D65e3F24B48653F1AaFe8BDA7c64835'; // User confirmed EOA
 const PLATFORM_FEE_BPS = 80; // 0.8%
+const PLATFORM_FEE_TOKEN_STRATEGY: 'buy' | 'sell' = 'buy'; // 'buy' = fee in output token, 'sell' = fee in input token
 
 // Token addresses by chain
 const TOKEN_ADDRESSES: Record<number, Record<string, string>> = {
@@ -254,6 +255,9 @@ serve(async (req) => {
         );
       }
 
+      // Choose fee token based on strategy
+      const feeTokenAddress = PLATFORM_FEE_TOKEN_STRATEGY === 'sell' ? sellTokenAddress : buyTokenAddress;
+      
       const queryParams = new URLSearchParams({
         chainId: chainId.toString(), // ✅ Required by permit2 API
         sellToken: sellTokenAddress,
@@ -262,7 +266,7 @@ serve(async (req) => {
         slippagePercentage: '0.005',
         swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // v2 parameter - EOA wallet
         swapFeeBps: String(PLATFORM_FEE_BPS), // v2 parameter (0.8%)
-        swapFeeToken: buyTokenAddress // v2 parameter - fee collected in output token
+        swapFeeToken: feeTokenAddress // v2 parameter - fee collected based on strategy
       });
 
       const baseUrl = getZeroXSwapBaseUrl(chainId);
@@ -348,12 +352,15 @@ serve(async (req) => {
         sellToken: `${sellToken} -> ${sellTokenAddress}`,
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
         sellAmount,
+        feeStrategy: PLATFORM_FEE_TOKEN_STRATEGY,
+        feeToken: feeTokenAddress,
         headers: {
           '0x-api-key': ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
           '0x-version': 'v2'
         }
       });
 
+      // Fetch with proper TLS configuration
       const response = await fetch(priceUrl, {
         headers: {
           '0x-api-key': ZERO_X_API_KEY,
@@ -484,6 +491,9 @@ serve(async (req) => {
       const finalIncludedSources = routeIncludedSources || defaultIncludedSources;
       const finalExcludedSources = routeExcludedSources || defaultExcludedSources;
 
+      // Choose fee token based on strategy
+      const feeTokenAddress = PLATFORM_FEE_TOKEN_STRATEGY === 'sell' ? sellTokenAddress : buyTokenAddress;
+
       const queryParams = new URLSearchParams({
         chainId: chainId.toString(),
         sellToken: sellTokenAddress,
@@ -492,7 +502,7 @@ serve(async (req) => {
         taker: userAddress,
         swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // EOA wallet
         swapFeeBps: String(PLATFORM_FEE_BPS), // 0.8% platform fee
-        swapFeeToken: buyTokenAddress,
+        swapFeeToken: feeTokenAddress, // Fee collected based on strategy
         tradeSurplusRecipient: userAddress
       });
 
@@ -593,7 +603,8 @@ serve(async (req) => {
         buyToken: `${buyToken} -> ${buyTokenAddress}`,
         sellAmount,
         userAddress,
-        swapFeeToken: buyTokenAddress,
+        feeStrategy: PLATFORM_FEE_TOKEN_STRATEGY,
+        swapFeeToken: feeTokenAddress,
         includedSources: finalIncludedSources,
         excludedSources: finalExcludedSources,
         headers: {
@@ -635,7 +646,8 @@ serve(async (req) => {
             chainId,
             sellToken: sellTokenAddress,
             buyToken: buyTokenAddress,
-            swapFeeToken: buyTokenAddress,
+            feeStrategy: PLATFORM_FEE_TOKEN_STRATEGY,
+            swapFeeToken: feeTokenAddress,
             taker: userAddress
           }
         });
@@ -668,6 +680,19 @@ serve(async (req) => {
       }
 
       const quote = await response.json();
+      
+      // Log fee configuration
+      console.log('💰 Fee Configuration:', {
+        recipient: PLATFORM_FEE_RECIPIENT,
+        bps: PLATFORM_FEE_BPS,
+        strategy: PLATFORM_FEE_TOKEN_STRATEGY,
+        feeToken: feeTokenAddress,
+        feeTokenSymbol: PLATFORM_FEE_TOKEN_STRATEGY === 'sell' ? sellToken : buyToken,
+        integratorFee: quote.fees?.integratorFee,
+        zeroExFee: quote.fees?.zeroExFee,
+        gasFee: quote.fees?.gasFee
+      });
+      
       console.log('✅ 0x v2 Gasless Quote Response:', {
         buyAmount: quote.buyAmount,
         chainId: quote.chainId, // Will be undefined from 0x API
@@ -677,48 +702,44 @@ serve(async (req) => {
         issues: quote.issues // ✅ Log full issues object
       });
 
-      // ✅ Check for blocking issues before returning quote
-      if (quote.issues) {
-        const { allowance, balance, simulationIncomplete, invalidSourcesPassed } = quote.issues;
+      // ✅ Check for BLOCKING issues - only balance issues block in gasless v2
+      if (quote.issues?.balance) {
+        console.error('❌ Insufficient balance:', quote.issues.balance);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'insufficient_balance',
+            message: `Insufficient balance. Expected: ${quote.issues.balance.expected}, Actual: ${quote.issues.balance.actual}`,
+            details: quote.issues.balance,
+            chainId,
+            sellToken,
+            buyToken
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      // ℹ️ Allowance issues are INFORMATIONAL in gasless v2 (handled via permit2)
+      // The quote.approval payload contains the EIP-712 signature data for permit
+      if (quote.issues?.allowance) {
+        console.log('ℹ️ Allowance issue detected (informational):', quote.issues.allowance);
+        console.log('📝 Quote includes approval payload for gasless permit:', !!quote.approval);
         
-        if (allowance) {
-          console.error('❌ Quote has allowance issue:', allowance);
+        // Validate that 0x provided the approval payload
+        if (!quote.approval) {
+          console.error('❌ Allowance issue detected but no approval payload provided by 0x API');
           return new Response(
             JSON.stringify({
               success: false,
-              error: 'insufficient_allowance',
-              message: `Insufficient token allowance. Please approve ${allowance.spender} to spend your tokens.`,
-              details: allowance,
+              error: 'missing_approval_payload',
+              message: '0x API did not return approval EIP-712 data. Try a different amount or token pair.',
+              details: quote.issues.allowance,
               chainId,
               sellToken,
               buyToken
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
-        }
-        
-        if (balance) {
-          console.error('❌ Quote has balance issue:', balance);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'insufficient_balance',
-              message: `Insufficient balance. Expected: ${balance.expected}, Actual: ${balance.actual}`,
-              details: balance,
-              chainId,
-              sellToken,
-              buyToken
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-        
-        if (simulationIncomplete) {
-          console.warn('⚠️ Quote simulation incomplete, proceeding with caution');
-        }
-        
-        if (invalidSourcesPassed && invalidSourcesPassed.length > 0) {
-          console.warn('⚠️ Invalid sources passed:', invalidSourcesPassed);
         }
       }
 
@@ -801,18 +822,54 @@ serve(async (req) => {
         );
       }
 
-      // ✅ Validate quote doesn't have blocking issues before submission
-      if (quote.issues?.allowance || quote.issues?.balance) {
-        console.error('❌ Cannot submit quote with unresolved issues:', quote.issues);
+      // ✅ CRITICAL FIX: Only block on balance issues, NOT allowance issues
+      // In gasless v2, allowance issues are handled via permit2 signatures
+      if (quote.issues?.balance) {
+        console.error('❌ Cannot submit quote with insufficient balance:', quote.issues.balance);
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'quote_validation_failed',
-            message: 'Quote has unresolved balance or allowance issues',
-            details: quote.issues
+            error: 'insufficient_balance',
+            message: `Insufficient balance. Expected: ${quote.issues.balance.expected}, Actual: ${quote.issues.balance.actual}`,
+            details: quote.issues.balance
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+      
+      // ℹ️ Validate approval signature when allowance issue exists
+      if (quote.issues?.allowance) {
+        console.log('ℹ️ Allowance issue present (will be handled via permit2):', quote.issues.allowance);
+        
+        // Validate approval EIP-712 payload exists
+        if (!quote.approval) {
+          console.error('❌ Allowance issue exists but no approval payload in quote');
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'missing_approval_payload',
+              message: '0x API did not return approval EIP-712 data. Please requote.',
+              details: quote.issues.allowance
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Validate approval signature was provided
+        if (!signatures.approval) {
+          console.error('❌ Approval signature missing but required');
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'missing_approval_signature',
+              message: 'Client did not provide approval signature. Please retry.',
+              details: quote.issues.allowance
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log('✅ Approval signature present, proceeding with gasless submission');
       }
 
       // ✅ Construct proper payload per 0x API docs with signatureType
@@ -892,13 +949,39 @@ serve(async (req) => {
             const errorMessage = parsedError.message || parsedError.name || errorText;
             const errorDetails = parsedError.data?.details;
             
+            // Enhanced gas estimation error detection
+            const isGasEstimationFailed = 
+              errorMessage.toLowerCase().includes('gas estimation failed') ||
+              errorMessage.toLowerCase().includes('could not estimate gas') ||
+              errorMessage.toLowerCase().includes('simulation failed') ||
+              errorMessage.toLowerCase().includes('gas required exceeds allowance') ||
+              parsedError.name === 'GAS_ESTIMATION_FAILED';
+            
             console.error('❌ 0x submit error:', {
               status: response.status,
               requestId,
               zid,
               error: errorText,
-              parsedError
+              parsedError,
+              isGasEstimationFailed
             });
+            
+            // Return gas estimation errors with specific hint
+            if (isGasEstimationFailed) {
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: 'gas_estimation_failed',
+                  message: errorMessage,
+                  details: errorDetails,
+                  requestId,
+                  zid,
+                  code: response.status,
+                  hint: 'requote_and_resign' // Client should retry with fresh quote
+                }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
             
             // Check for stale/invalid signature errors
             const isStale = errorMessage.toLowerCase().includes('expired') ||
