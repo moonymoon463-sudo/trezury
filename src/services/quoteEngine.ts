@@ -131,27 +131,44 @@ class QuoteEngineService {
   }
 
   private async saveQuote(quote: Quote, userId: string): Promise<void> {
+    // Validate required fields
+    if (!quote.id || !userId || !quote.side) {
+      throw new Error('Missing required quote fields');
+    }
+    
+    if (isNaN(quote.grams) || isNaN(quote.unitPriceUsd) || isNaN(quote.feeBps)) {
+      throw new Error('Invalid numeric values in quote');
+    }
+
     const { error } = await supabase
       .from('quotes')
       .insert({
         id: quote.id,
         user_id: userId,
-        side: quote.side, // Keep lowercase as per database constraint
+        side: quote.side,
         input_asset: quote.inputAsset,
         output_asset: quote.outputAsset,
-        input_amount: quote.inputAmount,
-        output_amount: quote.outputAmount,
-        grams: quote.grams,
-        unit_price_usd: quote.unitPriceUsd,
-        fee_bps: quote.feeBps,
+        input_amount: Number(quote.inputAmount),
+        output_amount: Number(quote.outputAmount),
+        grams: Number(quote.grams),
+        unit_price_usd: Number(quote.unitPriceUsd),
+        fee_bps: Math.round(quote.feeBps),
         expires_at: quote.expiresAt,
         route: quote.route
       });
 
     if (error) {
-      console.error('Failed to save quote:', error);
+      console.error('❌ Failed to save quote to Supabase:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        quote_id: quote.id
+      });
       throw new Error(`Failed to save quote: ${error.message}`);
     }
+    
+    console.log('✅ Quote saved successfully:', quote.id);
   }
 
   async getQuote(quoteId: string, userId: string): Promise<Quote | null> {

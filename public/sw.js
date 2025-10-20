@@ -122,10 +122,14 @@ async function staleWhileRevalidate(request) {
   const cachedResponse = await caches.match(request);
   
   const networkResponsePromise = fetch(request).then(async networkResponse => {
-    if (networkResponse.ok) {
+    // Clone immediately before any operations
+    const responseClone = networkResponse.clone();
+    
+    if (networkResponse.ok && request.method === 'GET') {
       const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
+      await cache.put(request, responseClone);
     }
+    
     return networkResponse;
   }).catch(() => null);
 
