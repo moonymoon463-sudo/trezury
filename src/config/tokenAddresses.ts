@@ -1,7 +1,7 @@
 // Centralized token address configuration for Ethereum mainnet
 // This ensures consistency across all services and makes it easy to add new tokens
 
-export type Chain = 'ethereum' | 'arbitrum';
+export type Chain = 'ethereum';
 
 export interface TokenConfig {
   address: string;
@@ -32,17 +32,7 @@ export const TOKEN_ADDRESSES: Record<string, TokenConfig> = {
     symbol: 'TRZRY',
     chain: 'ethereum',
     chainId: 1
-  },
-  // Arbitrum tokens
-  'USDC_ARB': {
-    address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Native USDC on Arbitrum
-    decimals: 6,
-    symbol: 'USDC',
-    chain: 'arbitrum',
-    chainId: 42161
   }
-  // Note: XAUT is not supported on Arbitrum due to lack of liquidity
-  // Use Ethereum mainnet for XAUT swaps
 };
 
 // Legacy compatibility: Map symbols to addresses (for services using old format)
