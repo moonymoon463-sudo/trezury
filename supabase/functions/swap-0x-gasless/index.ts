@@ -62,7 +62,8 @@ serve(async (req) => {
     }
 
     const { operation, ...params } = await req.json();
-    const ZERO_X_API_KEY = Deno.env.get('ZERO_X_API_KEY');
+    // Get 0x API key from environment (check both standard and VITE_ prefix)
+    const ZERO_X_API_KEY = Deno.env.get('ZERO_X_API_KEY') || Deno.env.get('VITE_ZERO_X_API_KEY');
     
     if (!ZERO_X_API_KEY || ZERO_X_API_KEY === 'your_0x_api_key_here') {
       return new Response(
@@ -93,11 +94,13 @@ serve(async (req) => {
           sellToken: TOKEN_ADDRESSES.USDC,
           buyToken: TOKEN_ADDRESSES.WETH,
           sellAmount: '1000000', // 1 USDC
+          slippageBps: '50',
           swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
           swapFeeBps: String(PLATFORM_FEE_BPS),
           swapFeeToken: TOKEN_ADDRESSES.WETH
         })}`;
 
+        console.log('📡 Price URL:', priceUrl);
         const priceResponse = await fetch(priceUrl, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
@@ -114,18 +117,26 @@ serve(async (req) => {
         }
 
         // Test /gasless/quote endpoint
-        const quoteUrl = `${ZERO_X_API_BASE}/gasless/quote?${new URLSearchParams({
+        const quoteParams: Record<string, string> = {
           chainId: String(ETHEREUM_CHAIN_ID),
           sellToken: TOKEN_ADDRESSES.USDC,
           buyToken: TOKEN_ADDRESSES.WETH,
           sellAmount: '1000000',
           taker: '0x0000000000000000000000000000000000000001',
+          slippageBps: '50',
           swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
           swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken: TOKEN_ADDRESSES.WETH,
-          tradeSurplusRecipient: '0x0000000000000000000000000000000000000001'
-        })}`;
+          swapFeeToken: TOKEN_ADDRESSES.WETH
+        };
 
+        // Only add tradeSurplusRecipient if explicitly enabled
+        if (Deno.env.get('ENABLE_TRADE_SURPLUS') === 'true') {
+          quoteParams.tradeSurplusRecipient = '0x0000000000000000000000000000000000000001';
+        }
+
+        const quoteUrl = `${ZERO_X_API_BASE}/gasless/quote?${new URLSearchParams(quoteParams)}`;
+
+        console.log('📡 Quote URL:', quoteUrl);
         const quoteResponse = await fetch(quoteUrl, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
@@ -189,13 +200,13 @@ serve(async (req) => {
           sellToken,
           buyToken,
           sellAmount,
+          slippageBps: '50',
           swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
           swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken,
-          slippagePercentage: '0.005'
+          swapFeeToken
         })}`;
 
-        console.log('📡 Fetching price from 0x...');
+        console.log('📡 Fetching price from 0x...', url);
         const response = await fetch(url, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
@@ -205,14 +216,22 @@ serve(async (req) => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('❌ 0x API Error:', errorText);
+          const requestId = response.headers.get('x-request-id');
+          console.error('❌ 0x API Error:', errorText, 'Request ID:', requestId);
+          
+          let errorBody;
+          try {
+            errorBody = JSON.parse(errorText);
+          } catch {
+            errorBody = { message: errorText };
+          }
           
           return new Response(
             JSON.stringify({
               success: false,
               error: 'api_error',
               message: `0x API error: ${response.status}`,
-              details: errorText,
+              details: errorBody,
               requestId,
               code: response.status
             }),
@@ -271,11 +290,16 @@ serve(async (req) => {
           buyToken,
           sellAmount,
           taker: userAddress,
+          slippageBps: '50',
           swapFeeRecipient: PLATFORM_FEE_RECIPIENT,
           swapFeeBps: String(PLATFORM_FEE_BPS),
-          swapFeeToken,
-          tradeSurplusRecipient: userAddress
+          swapFeeToken
         };
+
+        // Only add tradeSurplusRecipient if explicitly enabled
+        if (Deno.env.get('ENABLE_TRADE_SURPLUS') === 'true') {
+          queryParams.tradeSurplusRecipient = PLATFORM_FEE_RECIPIENT;
+        }
 
         if (includedSources && includedSources.length > 0) {
           queryParams.includedSources = includedSources.join(',');
@@ -286,7 +310,7 @@ serve(async (req) => {
 
         const url = `${ZERO_X_API_BASE}/gasless/quote?${new URLSearchParams(queryParams)}`;
 
-        console.log('📡 Fetching quote from 0x...');
+        console.log('📡 Fetching quote from 0x...', url);
         const response = await fetch(url, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
@@ -296,16 +320,25 @@ serve(async (req) => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('❌ 0x API Error:', errorText);
+          const requestId = response.headers.get('x-request-id');
+          console.error('❌ 0x API Error:', errorText, 'Request ID:', requestId);
+          
+          let errorBody;
+          try {
+            errorBody = JSON.parse(errorText);
+          } catch {
+            errorBody = { message: errorText };
+          }
           
           return new Response(
             JSON.stringify({
               success: false,
               error: 'api_error',
               message: `0x API error: ${response.status}`,
-              details: errorText,
+              details: errorBody,
               requestId,
-              code: response.status
+              code: response.status,
+              hint: response.status === 400 ? 'requote_and_resign' : undefined
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );

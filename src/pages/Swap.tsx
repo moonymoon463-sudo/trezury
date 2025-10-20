@@ -176,10 +176,11 @@ const Swap = () => {
     return 0;
   };
 
-  const formatAmount = (amount: string | undefined): string => {
+  const formatAmount = (amount: string | undefined, tokenSymbol?: 'USDC' | 'XAUT' | 'TRZRY'): string => {
     if (!amount) return '0';
     try {
-      const decimals = getTokenDecimals(fromAsset);
+      const symbol = tokenSymbol || fromAsset;
+      const decimals = getTokenDecimals(symbol);
       return parseFloat(ethers.formatUnits(amount, decimals)).toFixed(6);
     } catch {
       return amount;
@@ -187,7 +188,7 @@ const Swap = () => {
   };
 
   const exchangeRate = quote ? 
-    (parseFloat(formatAmount(quote.buyAmount)) / parseFloat(fromAmount)).toFixed(6) : 
+    (parseFloat(formatAmount(quote.buyAmount, toAsset)) / parseFloat(fromAmount)).toFixed(6) : 
     null;
 
   const isWalletReady = user && secureWalletAddress;
@@ -287,7 +288,7 @@ const Swap = () => {
                 <Input
                   type="text"
                   placeholder="0.00"
-                  value={quote ? formatAmount(quote.buyAmount) : ''}
+                  value={quote ? formatAmount(quote.buyAmount, toAsset) : ''}
                   disabled
                   className="flex-1 text-2xl h-14"
                 />
@@ -309,7 +310,7 @@ const Swap = () => {
               </div>
               {quote && (
                 <div className="text-xs text-muted-foreground">
-                  ≈ ${calculateUSDValue(toAsset, formatAmount(quote.buyAmount)).toFixed(2)} USD
+                  ≈ ${calculateUSDValue(toAsset, formatAmount(quote.buyAmount, toAsset)).toFixed(2)} USD
                 </div>
               )}
             </div>
@@ -325,7 +326,7 @@ const Swap = () => {
               {quote.fees?.integratorFee && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Platform Fee (0.8%)</span>
-                  <span>{formatAmount(quote.fees.integratorFee.amount)} {toAsset}</span>
+                  <span>{formatAmount(quote.fees.integratorFee.amount, toAsset)} {toAsset}</span>
                 </div>
               )}
               <div className="flex justify-between">

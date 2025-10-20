@@ -90,9 +90,10 @@ export const useGaslessSwap = () => {
 
       const { quote, password, userId, fromSymbol, toSymbol } = params;
 
-      // Check if quote is expired
+      // Check if quote is expired (with 30 second buffer)
       const now = Math.floor(Date.now() / 1000);
-      if (quote.expiry && now >= quote.expiry) {
+      const expiryBuffer = 30; // 30 seconds
+      if (quote.expiry && now >= quote.expiry - expiryBuffer) {
         throw new Error('Quote expired. Please generate a new quote.');
       }
 
