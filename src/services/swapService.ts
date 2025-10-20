@@ -53,7 +53,7 @@ class SwapService {
       const sellAmount = ethers.parseUnits(inputAmount.toString(), decimals).toString();
 
       // Fetch 0x indicative price via edge function
-      const { data: priceResult, error } = await supabase.functions.invoke('swap-0x-gasless', {
+      const { data: response, error } = await supabase.functions.invoke('swap-0x-gasless', {
         body: {
           operation: 'get_price',
           sellToken: inputAsset,
@@ -63,22 +63,43 @@ class SwapService {
         }
       });
 
-      if (error || !priceResult) {
-        throw new Error(error?.message || 'Failed to get price quote');
+      if (error) {
+        console.error('Edge function invocation error:', error);
+        throw new Error(error.message || 'Failed to invoke swap edge function');
       }
+
+      if (!response?.success) {
+        const errorMsg = response?.message || response?.error || 'Failed to get price quote';
+        console.error('0x API error:', { response });
+        throw new Error(errorMsg);
+      }
+
+      const priceData = response.price;
+      if (!priceData || !priceData.buyAmount) {
+        console.error('Invalid price response structure:', { response });
+        throw new Error('Invalid price response: missing buyAmount');
+      }
+
+      console.log('✅ Indicative price extracted:', {
+        buyAmount: priceData.buyAmount,
+        sellAmount: priceData.sellAmount
+      });
       
       // Format output amount
       const buyDecimals = getTokenDecimals(outputAsset);
-      const outputAmount = parseFloat(ethers.formatUnits(priceResult.buyAmount, buyDecimals));
+      const outputAmount = parseFloat(ethers.formatUnits(priceData.buyAmount, buyDecimals));
       const exchangeRate = outputAmount / inputAmount;
 
       // Calculate platform fee (0.8%)
       const platformFee = outputAmount * 0.008;
       const networkFee = 0;
 
-      // Return quote (no database save)
+      // Generate quote
+      const quoteId = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 30000).toISOString();
+      
       const quote: SwapQuote = {
-        id: crypto.randomUUID(),
+        id: quoteId,
         inputAsset,
         outputAsset,
         inputAmount,
@@ -87,10 +108,28 @@ class SwapService {
         platformFee,
         networkFee,
         estimatedTotal: outputAmount - platformFee,
-        routeDetails: JSON.stringify({ source: '0x_price', priceResult }),
-        expiresAt: new Date(Date.now() + 30000).toISOString(),
+        routeDetails: JSON.stringify({ source: '0x_price', priceData }),
+        expiresAt,
         chainId
       };
+
+      // Save quote to database for persistence
+      await supabase.from('quotes').insert({
+        id: quoteId,
+        user_id: userId,
+        input_asset: inputAsset,
+        output_asset: outputAsset,
+        input_amount: inputAmount,
+        output_amount: outputAmount,
+        fee_bps: 80,
+        expires_at: expiresAt,
+        side: 'buy',
+        grams: 0,
+        unit_price_usd: exchangeRate,
+        route: JSON.stringify({ source: '0x_price', priceData })
+      });
+
+      console.log('✅ Quote generated and saved:', { id: quoteId });
 
       return quote;
     } catch (error) {
@@ -188,7 +227,7 @@ class SwapService {
       try {
         // Get firm quote with EIP-712 payloads via edge function
         const chainId = getTokenChainId(quoteData.input_asset);
-        const { data: gaslessQuote, error: quoteError } = await supabase.functions.invoke('swap-0x-gasless', {
+        const { data: quoteResponse, error: quoteError } = await supabase.functions.invoke('swap-0x-gasless', {
           body: {
             operation: 'get_quote',
             sellToken: quoteData.input_asset,
@@ -197,16 +236,32 @@ class SwapService {
               String(quoteData.input_amount),
               getTokenDecimals(quoteData.input_asset)
             ).toString(),
-            taker: onchainWallet.address,
+            userAddress: onchainWallet.address,
             chainId
           }
         });
 
-        if (quoteError || !gaslessQuote) {
-          throw new Error(quoteError?.message || 'Failed to get firm quote');
+        if (quoteError) {
+          console.error('Edge function invocation error:', quoteError);
+          throw new Error(quoteError.message || 'Failed to invoke swap edge function for quote');
+        }
+
+        if (!quoteResponse?.success) {
+          const errorMsg = quoteResponse?.message || quoteResponse?.error || 'Failed to get firm quote';
+          console.error('0x Gasless API error:', { quoteResponse });
+          throw new Error(errorMsg);
+        }
+
+        const gaslessQuote = quoteResponse.quote;
+        if (!gaslessQuote) {
+          console.error('Invalid quote response structure:', { quoteResponse });
+          throw new Error('Invalid quote response: missing quote data');
         }
         
-        console.log('✅ Got firm quote with EIP-712 payloads');
+        console.log('✅ Got firm quote with EIP-712 payloads:', {
+          hasApproval: !!gaslessQuote.approval,
+          hasTrade: !!gaslessQuote.trade
+        });
         
         // Sign the permits with user's wallet
         let approvalSignature: string | undefined;
@@ -258,21 +313,36 @@ class SwapService {
           }
         });
 
-        if (submitError || !submitResult?.tradeHash) {
-          throw new Error(submitError?.message || 'Failed to submit swap');
+        if (submitError) {
+          console.error('Edge function invocation error:', submitError);
+          throw new Error(submitError.message || 'Failed to invoke swap edge function for submission');
         }
 
-        console.log('✅ Swap submitted, tradeHash:', submitResult.tradeHash);
+        if (!submitResult?.success) {
+          const errorMsg = submitResult?.message || submitResult?.error || 'Failed to submit swap';
+          console.error('0x Gasless submit error:', { submitResult });
+          throw new Error(errorMsg);
+        }
+
+        const tradeHash = submitResult.result?.tradeHash || submitResult.tradeHash;
+        if (!tradeHash) {
+          console.error('Invalid submit response:', { submitResult });
+          throw new Error('Invalid submit response: missing tradeHash');
+        }
+
+        console.log('✅ Swap submitted, tradeHash:', tradeHash);
 
         // Poll for completion via edge function
         let statusResult;
         for (let i = 0; i < 60; i++) {
-          const { data: status } = await supabase.functions.invoke('swap-0x-gasless', {
+          const { data: statusResponse } = await supabase.functions.invoke('swap-0x-gasless', {
             body: {
               operation: 'get_status',
-              tradeHash: submitResult.tradeHash
+              tradeHash
             }
           });
+
+          const status = statusResponse?.status || statusResponse;
 
           if (status?.status === 'confirmed' && status.transactions?.length > 0) {
             statusResult = status;
@@ -311,7 +381,7 @@ class SwapService {
             output_asset: quoteData.output_asset,
             metadata: {
               chainId: gaslessQuote.chainId,
-              tradeHash: submitResult.tradeHash,
+              tradeHash,
               gasless: true,
               quoteId,
               idempotency_key: idempotencyKey,
@@ -333,7 +403,7 @@ class SwapService {
         return {
           success: true,
           txHash,
-          tradeHash: submitResult.tradeHash,
+          tradeHash,
           intentId,
           hash: txHash
         };
