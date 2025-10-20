@@ -795,36 +795,17 @@ serve(async (req) => {
       }
 
       // ✅ Validate quote doesn't have blocking issues before submission
-      // Only block on balance issues; allowance is informational in gasless v2
-      if (quote.issues?.balance) {
-        console.error('❌ Insufficient balance:', quote.issues.balance);
+      if (quote.issues?.allowance || quote.issues?.balance) {
+        console.error('❌ Cannot submit quote with unresolved issues:', quote.issues);
         return new Response(
           JSON.stringify({
             success: false,
-            error: 'insufficient_balance',
-            message: 'Insufficient balance to execute swap',
-            details: quote.issues.balance
+            error: 'quote_validation_failed',
+            message: 'Quote has unresolved balance or allowance issues',
+            details: quote.issues
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      }
-
-      // If allowance issue exists but approval signature is missing, reject
-      if (quote.issues?.allowance && quote.approval && !signatures.approval) {
-        console.error('❌ Approval signature required but not provided');
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'missing_approval_signature',
-            message: 'Approval signature required for this swap but was not provided'
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Log allowance issue as informational (not blocking in gasless v2)
-      if (quote.issues?.allowance) {
-        console.log('ℹ️ Quote has allowance issue (informational for gasless v2):', quote.issues.allowance);
       }
 
       // ✅ Construct proper payload per 0x API docs with signatureType
