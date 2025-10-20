@@ -178,13 +178,26 @@ class SwapService {
         excludedSources: ['FluidLite', 'RingSwap']
       } : undefined;
 
-      const gaslessQuote = await zeroXGaslessService.getGaslessQuote(
-        quote.inputAsset,
-        quote.outputAsset,
-        sellAmount,
-        onchainWallet.address,
-        routeOptions
-      );
+      // Get gasless quote with proper error handling for balance/allowance issues
+      let gaslessQuote;
+      try {
+        gaslessQuote = await zeroXGaslessService.getGaslessQuote(
+          quote.inputAsset,
+          quote.outputAsset,
+          sellAmount,
+          onchainWallet.address,
+          routeOptions
+        );
+      } catch (error: any) {
+        // Handle balance/allowance issues from edge function
+        if (error.message?.includes('insufficient_balance')) {
+          throw new Error('Insufficient balance to complete swap. Please check your wallet balance.');
+        }
+        if (error.message?.includes('insufficient_allowance')) {
+          throw new Error('Token approval required. This should not happen in gasless flow.');
+        }
+        throw error;
+      }
 
       console.log('✅ Fresh gasless quote obtained:', {
         buyAmount: gaslessQuote.buyAmount,

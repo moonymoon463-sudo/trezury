@@ -674,8 +674,53 @@ serve(async (req) => {
         allowanceTarget: quote.allowanceTarget,
         hasApproval: !!quote.approval,
         hasTrade: !!quote.trade,
-        hasIssues: !!quote.issues?.allowance || !!quote.issues?.balance
+        issues: quote.issues // ✅ Log full issues object
       });
+
+      // ✅ Check for blocking issues before returning quote
+      if (quote.issues) {
+        const { allowance, balance, simulationIncomplete, invalidSourcesPassed } = quote.issues;
+        
+        if (allowance) {
+          console.error('❌ Quote has allowance issue:', allowance);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'insufficient_allowance',
+              message: `Insufficient token allowance. Please approve ${allowance.spender} to spend your tokens.`,
+              details: allowance,
+              chainId,
+              sellToken,
+              buyToken
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        
+        if (balance) {
+          console.error('❌ Quote has balance issue:', balance);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'insufficient_balance',
+              message: `Insufficient balance. Expected: ${balance.expected}, Actual: ${balance.actual}`,
+              details: balance,
+              chainId,
+              sellToken,
+              buyToken
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        
+        if (simulationIncomplete) {
+          console.warn('⚠️ Quote simulation incomplete, proceeding with caution');
+        }
+        
+        if (invalidSourcesPassed && invalidSourcesPassed.length > 0) {
+          console.warn('⚠️ Invalid sources passed:', invalidSourcesPassed);
+        }
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -751,6 +796,20 @@ serve(async (req) => {
             error: 'quote_expired',
             message: 'Approval deadline has passed. Please refresh and try again.',
             code: 400
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // ✅ Validate quote doesn't have blocking issues before submission
+      if (quote.issues?.allowance || quote.issues?.balance) {
+        console.error('❌ Cannot submit quote with unresolved issues:', quote.issues);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'quote_validation_failed',
+            message: 'Quote has unresolved balance or allowance issues',
+            details: quote.issues
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
