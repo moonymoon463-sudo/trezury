@@ -4,15 +4,13 @@
  * 
  * Operations: self_test, get_price, get_quote, submit_swap, get_status
  * 
- * REQUIRED ENVIRONMENT VARIABLES:
- * - ZERO_X_API_KEY: Your 0x API key
- * - DENO_TLS_CA_STORE: Set to "system,mozilla" to trust system certificates
- *   (Configure in Supabase Dashboard > Edge Functions > Environment Variables)
+ * Uses node-fetch for better TLS certificate handling in Deno runtime
  */
 
-import "jsr:@std/dotenv/load";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+// @ts-ignore - npm module
+import fetch from 'npm:node-fetch@3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,29 +25,6 @@ const DEFAULT_FEE_TOKEN_STRATEGY: 'buy' | 'sell' = 'buy';
 // Ethereum mainnet only
 const ETHEREUM_CHAIN_ID = 1;
 const ZERO_X_API_BASE = 'https://api.0x.org';
-
-// Helper function to make 0x API calls with proper certificate handling
-async function fetch0xAPI(url: string, options: RequestInit = {}) {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      // @ts-ignore - Deno-specific option for certificate validation
-      caCerts: undefined, // Use system CA store
-    });
-    return response;
-  } catch (error: any) {
-    // Enhanced TLS error detection
-    if (error.message?.includes('certificate') || 
-        error.message?.includes('TLS') || 
-        error.message?.includes('UnknownIssuer')) {
-      throw new Error(
-        `TLS Certificate Error: ${error.message}. ` +
-        `Please ensure DENO_TLS_CA_STORE environment variable is set to "system,mozilla" in Supabase Edge Function settings.`
-      );
-    }
-    throw error;
-  }
-}
 
 // Ethereum token addresses
 const TOKEN_ADDRESSES: Record<string, string> = {
@@ -123,7 +98,7 @@ serve(async (req) => {
           swapFeeToken: TOKEN_ADDRESSES.WETH
         })}`;
 
-        const priceResponse = await fetch0xAPI(priceUrl, {
+        const priceResponse = await fetch(priceUrl, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
 
@@ -151,7 +126,7 @@ serve(async (req) => {
           tradeSurplusRecipient: '0x0000000000000000000000000000000000000001'
         })}`;
 
-        const quoteResponse = await fetch0xAPI(quoteUrl, {
+        const quoteResponse = await fetch(quoteUrl, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
 
@@ -221,7 +196,7 @@ serve(async (req) => {
         })}`;
 
         console.log('📡 Fetching price from 0x...');
-        const response = await fetch0xAPI(url, {
+        const response = await fetch(url, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
 
@@ -312,7 +287,7 @@ serve(async (req) => {
         const url = `${ZERO_X_API_BASE}/gasless/quote?${new URLSearchParams(queryParams)}`;
 
         console.log('📡 Fetching quote from 0x...');
-        const response = await fetch0xAPI(url, {
+        const response = await fetch(url, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
 
@@ -455,7 +430,7 @@ serve(async (req) => {
         }
 
         const url = `${ZERO_X_API_BASE}/gasless/submit`;
-        const response = await fetch0xAPI(url, {
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             '0x-api-key': ZERO_X_API_KEY,
@@ -587,7 +562,7 @@ serve(async (req) => {
       try {
         const url = `${ZERO_X_API_BASE}/gasless/status/${tradeHash}?chainId=${ETHEREUM_CHAIN_ID}`;
         
-        const response = await fetch0xAPI(url, {
+        const response = await fetch(url, {
           headers: { '0x-api-key': ZERO_X_API_KEY, '0x-version': 'v2' }
         });
 
