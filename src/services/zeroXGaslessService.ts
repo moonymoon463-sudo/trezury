@@ -188,6 +188,11 @@ class ZeroXGaslessService {
         throw new Error(`EXPIRED:${message}${requestId}`);
       }
 
+      // Throw specific error for gas estimation failures to trigger retry
+      if (errorType === 'gas_estimation_failed') {
+        throw new Error(`gas_estimation_failed: ${message}${requestId}`);
+      }
+
       throw new Error(`${message}${requestId}`);
     }
 

@@ -351,6 +351,8 @@ class SwapService {
           const shouldRetryWithFreshQuote = 
             error.message?.startsWith('EXPIRED:') ||
             error.message?.includes('gas_estimation_failed') ||
+            error.message?.includes('could not estimate gas') ||
+            error.message?.includes('simulation failed') ||
             error.message?.includes('stale_or_invalid_signature');
           
           if (shouldRetryWithFreshQuote) {
