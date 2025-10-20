@@ -337,39 +337,25 @@ const Swap = () => {
       } else {
         console.error('❌ Swap failed:', result.error);
         
-        // ✅ Enhanced error messages with 0x details preservation
+        // Enhanced error messages
         let errorMessage = result.error || "Swap execution failed";
         
-        // Parse for requestId/zid if present in error
-        const requestIdMatch = errorMessage.match(/requestId[:\s]+([a-f0-9-]+)/i);
-        const zidMatch = errorMessage.match(/zid[:\s]+([a-f0-9-]+)/i);
-        let debugInfo = '';
-        if (requestIdMatch || zidMatch) {
-          debugInfo = ` (${requestIdMatch ? `requestId: ${requestIdMatch[1]}` : ''}${zidMatch ? `, zid: ${zidMatch[1]}` : ''})`;
-        }
-        
-        // Map specific errors to user-friendly messages
         if (errorMessage.includes("password")) {
           errorMessage = "Invalid wallet password. Please try again.";
-        } else if (errorMessage.includes("insufficient_balance") || errorMessage.includes("Insufficient balance")) {
-          errorMessage = "Insufficient balance for swap. Please check your wallet.";
+        } else if (errorMessage.includes("insufficient")) {
+          errorMessage = "Insufficient balance for swap and gas fees";
         } else if (errorMessage.includes("slippage")) {
           errorMessage = "Price moved too much - try again with higher slippage";
-        } else if (errorMessage.includes("gas_estimation_failed")) {
-          errorMessage = "Gas estimation failed. The swap was automatically retried - please try again if the issue persists.";
+        } else if (errorMessage.includes("gas")) {
+          errorMessage = "Gas estimation failed - please try again";
         } else if (errorMessage.includes("Too Many Requests") || errorMessage.includes("rate") || errorMessage.includes("throttle")) {
           errorMessage = "Network is busy. Please wait 30 seconds and try again.";
-        } else if (errorMessage.includes("no_route") || errorMessage.includes("No liquidity")) {
-          // Keep the original no liquidity message - it's already descriptive
-        } else if (!errorMessage.includes("gasless") && !errorMessage.includes("0x")) {
-          // For generic errors, keep them but add context
-          errorMessage = `Swap failed: ${errorMessage}`;
         }
         
         toast({
           variant: "destructive",
           title: "Swap Failed", 
-          description: errorMessage + debugInfo
+          description: errorMessage
         });
         setLoading(false);
       }

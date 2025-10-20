@@ -178,7 +178,7 @@ class SwapService {
         excludedSources: ['FluidLite', 'RingSwap']
       } : undefined;
 
-      // Get gasless quote with proper error handling for balance issues
+      // Get gasless quote with proper error handling for balance/allowance issues
       let gaslessQuote;
       try {
         gaslessQuote = await zeroXGaslessService.getGaslessQuote(
@@ -189,27 +189,13 @@ class SwapService {
           routeOptions
         );
       } catch (error: any) {
-        // Handle balance issues from edge function
+        // Handle balance/allowance issues from edge function
         if (error.message?.includes('insufficient_balance')) {
           throw new Error('Insufficient balance to complete swap. Please check your wallet balance.');
         }
-        
-        // ✅ Don't block on allowance issues - they're informational for gasless v2
-        // The quote.approval signature will handle the permit2 flow
-        
-        // Check if gasless completely unavailable - surface 0x requestId/zid
-        if (error.message?.includes('INTERNAL_SERVER_ERROR') || 
-            error.message?.includes('no_route') ||
-            error.message?.includes('Failed to get gasless quote')) {
-          console.warn('⚠️ Gasless route unavailable, surfacing error:', error.message);
-          
-          // Surface full error with 0x details for user awareness
-          throw new Error(
-            `Gasless swap unavailable: ${error.message}. ` +
-            `Please try again or contact support if the issue persists.`
-          );
+        if (error.message?.includes('insufficient_allowance')) {
+          throw new Error('Token approval required. This should not happen in gasless flow.');
         }
-        
         throw error;
       }
 
@@ -347,33 +333,17 @@ class SwapService {
             intentId
           );
         } catch (error: any) {
-          // ✅ Auto-recovery for expired/stale quotes AND gas estimation failures
-          const shouldRetryWithFreshQuote = 
-            error.message?.startsWith('EXPIRED:') ||
-            error.message?.includes('gas_estimation_failed') ||
-            error.message?.includes('stale_or_invalid_signature');
-          
-          if (shouldRetryWithFreshQuote) {
-            console.warn('⏱️ Quote stale or gas estimation failed, refreshing and retrying...', {
-              error: error.message,
-              isXAUTSwap,
-              currentRouteOptions: routeOptions
-            });
+          // Auto-recovery for expired/stale quotes
+          if (error.message?.startsWith('EXPIRED:')) {
+            console.warn('⏱️ Quote expired during submission, refreshing and retrying...');
             
-            // For XAUT or gas estimation errors, enforce strict RFQ-only routing on retry
-            const retryRouteOptions = (isXAUTSwap || error.message?.includes('gas_estimation_failed')) 
-              ? { includedSources: ['0x_RFQ'], excludedSources: ['FluidLite', 'RingSwap'] }
-              : routeOptions;
-            
-            console.log('🔄 Retry route options:', retryRouteOptions);
-            
-            // Fetch fresh quote with potentially stricter routing
+            // Fetch fresh quote
             const freshQuote = await zeroXGaslessService.getGaslessQuote(
               quote.inputAsset,
               quote.outputAsset,
               sellAmount,
               onchainWallet.address,
-              retryRouteOptions
+              routeOptions
             );
 
             // Re-sign with fresh quote

@@ -108,7 +108,7 @@ class ZeroXSwapService {
   }
 
   /**
-   * Get a quote from 0x Swap API via edge function (secure, no VITE key exposure)
+   * Get a quote from 0x Swap API with our platform fee included
    */
   async getQuote(
     sellToken: string,
@@ -116,42 +116,72 @@ class ZeroXSwapService {
     sellAmount: string,
     userAddress: string
   ): Promise<ZeroXQuote> {
-    console.log('🔍 Fetching 0x permit2 quote via edge function:', {
+    const sellTokenAddress = this.getTokenAddress(sellToken);
+    const buyTokenAddress = this.getTokenAddress(buyToken);
+
+    const params = new URLSearchParams({
+      chainId: '1', // ✅ Always 1 for Ethereum mainnet in this service
+      sellToken: sellTokenAddress,
+      buyToken: buyTokenAddress,
+      sellAmount: sellAmount,
+      taker: userAddress, // v2 parameter
+      slippagePercentage: '0.005', // 0.5% slippage (0x recommends 0.5-1%)
+      swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // v2 parameter - EOA wallet
+      swapFeeBps: String(PLATFORM_FEE_BPS), // v2 parameter (0.8% platform fee)
+      swapFeeToken: buyTokenAddress, // v2 parameter - fee collected in output token
+      tradeSurplusRecipient: userAddress, // v2 parameter - optional but recommended
+      skipValidation: 'false'
+    });
+
+    console.log('🔍 0x v2 Permit2 Quote Request:', {
+      endpoint: '/swap/permit2/quote',
+      chainId: '1',
       sellToken,
       buyToken,
       sellAmount,
-      userAddress
-    });
-
-    const { data, error } = await supabase.functions.invoke('swap-0x-gasless', {
-      body: {
-        operation: 'get_permit2_quote',
-        sellToken,
-        buyToken,
-        sellAmount,
-        userAddress,
-        chainId: 1 // Ethereum mainnet
+      userAddress,
+      headers: {
+        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY ? '✅ Present' : '❌ Missing',
+        '0x-version': 'v2'
       }
     });
 
-    if (error) {
-      console.error('Edge function error:', error);
-      throw new Error(`Failed to get quote: ${error.message}`);
-    }
-
-    if (!data.success) {
-      throw new Error(data.error || data.message || 'Failed to get quote');
-    }
-
-    console.log('✅ 0x permit2 quote received:', {
-      buyAmount: data.quote.buyAmount,
-      price: data.quote.price,
-      allowanceTarget: data.quote.allowanceTarget,
-      hasApproval: !!data.quote.approval,
-      hasTrade: !!data.quote.trade
+    const response = await fetch(`${this.ZERO_X_API_URL}/swap/permit2/quote?${params}`, {
+      headers: {
+        '0x-api-key': import.meta.env.VITE_ZERO_X_API_KEY || '',
+        '0x-version': 'v2' // Required for v2 API
+      }
     });
 
-    return data.quote;
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorObj;
+      try {
+        errorObj = JSON.parse(errorText);
+      } catch {
+        errorObj = { message: errorText };
+      }
+      
+      console.error('0x API v2 error:', {
+        status: response.status,
+        requestId: response.headers.get('x-request-id'),
+        error: errorObj
+      });
+      
+      throw new Error(errorObj.message || errorText);
+    }
+
+    const quote = await response.json();
+    console.log('✅ 0x quote received:', {
+      buyAmount: quote.buyAmount,
+      price: quote.price,
+      allowanceTarget: quote.allowanceTarget, // ✅ Critical field
+      hasApproval: !!quote.approval,
+      hasTrade: !!quote.trade,
+      sources: quote.sources
+    });
+
+    return quote;
   }
 
   /**
