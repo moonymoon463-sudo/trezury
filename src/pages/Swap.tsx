@@ -675,34 +675,6 @@ const Swap = () => {
           </div>
         </div>
 
-        {/* Quote Error Message */}
-        {quoteError && fromAmount && parseFloat(fromAmount) > 0 && (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg md:p-3">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="text-yellow-500 flex-shrink-0 mt-0.5" size={18} />
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-yellow-500 mb-1">Quote Unavailable</h4>
-                <p className="text-xs text-yellow-500/80">{quoteError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setAutoQuote(null);
-                    setQuoteError(null);
-                    // Trigger re-fetch by updating amount slightly
-                    const currentAmount = parseFloat(fromAmount);
-                    setFromAmount(String(currentAmount + 0.000001));
-                    setTimeout(() => setFromAmount(String(currentAmount)), 100);
-                  }}
-                  className="mt-2 gap-2"
-                >
-                  <RefreshCw size={14} />
-                  Retry Quote
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Trading Details */}
         <div className="space-y-2 flex-1 overflow-y-auto md:space-y-1.5">
