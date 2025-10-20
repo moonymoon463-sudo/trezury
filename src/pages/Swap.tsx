@@ -269,7 +269,7 @@ const Swap = () => {
       
       toast({
         title: "Quote Generated",
-        description: `Quote valid for 10 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${getDisplayName(toAsset)} (minus ~${estimatedFee.toFixed(4)} ${getDisplayName(toAsset)} relay fee)`
+        description: `Quote valid for ~2 minutes. You'll receive ≈${newQuote.outputAmount.toFixed(6)} ${getDisplayName(toAsset)} (minus ~${estimatedFee.toFixed(4)} ${getDisplayName(toAsset)} relay fee)`
       });
     } catch (error) {
       console.error('Quote generation error:', error);

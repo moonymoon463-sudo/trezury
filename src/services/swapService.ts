@@ -94,9 +94,9 @@ class SwapService {
       const platformFee = outputAmount * 0.008;
       const networkFee = 0;
 
-      // Generate quote
+      // Generate quote with 2-minute expiry
       const quoteId = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 30000).toISOString();
+      const expiresAt = new Date(Date.now() + 120000).toISOString(); // 2 minutes
       
       const quote: SwapQuote = {
         id: quoteId,

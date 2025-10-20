@@ -557,9 +557,24 @@ serve(async (req) => {
     }
 
     if (operation === 'submit_swap') {
-      const { quote, signature, quoteId, intentId } = params;
+      const { quote, approval, trade, quoteId, intentId } = params;
 
-      console.log('Submitting gasless swap to 0x');
+      // Build submit body with approval/trade signatures
+      const submitBody: any = {
+        chainId: quote.chainId,
+        quote,
+        ...(approval ? { approval: { ...approval, signature: approval.signature } } : {}),
+        ...(trade ? { trade: { ...trade, signature: trade.signature } } : {}),
+        quoteId,
+        intentId
+      };
+
+      console.log('📤 Submitting gasless swap to 0x', {
+        chainId: submitBody.chainId,
+        hasApproval: !!submitBody.approval,
+        hasTrade: !!submitBody.trade,
+        quoteId
+      });
 
       const response = await fetch('https://api.0x.org/gasless/submit', {
         method: 'POST',
@@ -568,26 +583,45 @@ serve(async (req) => {
           '0x-version': 'v2',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          chainId: quote.chainId,
-          quote,
-          signature,
-          quoteId,
-          intentId
-        })
+        body: JSON.stringify(submitBody)
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('0x submit error:', errorText);
-        throw new Error(`Failed to submit: ${response.statusText}`);
+        const requestId = response.headers.get('x-request-id');
+        
+        console.error('❌ 0x gasless submit error:', {
+          status: response.status,
+          requestId,
+          body: errorText.substring(0, 200)
+        });
+        
+        // Normalize error response to 200 for better UI handling
+        let errorDetails;
+        try {
+          errorDetails = JSON.parse(errorText);
+        } catch {
+          errorDetails = { raw: errorText };
+        }
+        
+        const errorMsg = errorDetails.message || errorDetails.reason || errorText;
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'api_error',
+            message: errorMsg || `Submit failed: ${response.statusText}`,
+            status: response.status,
+            requestId
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
       }
 
       const result = await response.json();
-      console.log('Swap submitted:', { tradeHash: result.tradeHash });
+      console.log('✅ Swap submitted successfully:', { tradeHash: result.tradeHash });
 
       return new Response(
-        JSON.stringify({ success: true, result }),
+        JSON.stringify({ success: true, result, tradeHash: result.tradeHash }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
