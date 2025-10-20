@@ -684,20 +684,10 @@ serve(async (req) => {
       if (quote.issues) {
         const { allowance, balance, simulationIncomplete, invalidSourcesPassed } = quote.issues;
         
+        // ✅ Log allowance issue but DON'T block - it's informational for gasless v2
+        // The presence of quote.approval means we'll include the approval signature
         if (allowance) {
-          console.error('❌ Quote has allowance issue:', allowance);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: 'insufficient_allowance',
-              message: `Insufficient token allowance. Please approve ${allowance.spender} to spend your tokens.`,
-              details: allowance,
-              chainId,
-              sellToken,
-              buyToken
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
+          console.log('ℹ️ Quote has allowance issue (will include approval signature):', allowance);
         }
         
         if (balance) {
@@ -894,6 +884,7 @@ serve(async (req) => {
             
             const errorMessage = parsedError.message || parsedError.name || errorText;
             const errorDetails = parsedError.data?.details;
+            const errorReason = parsedError.data?.details?.reason || '';
             
             console.error('❌ 0x submit error:', {
               status: response.status,
@@ -903,22 +894,30 @@ serve(async (req) => {
               parsedError
             });
             
+            // ✅ Detect gas estimation failures (normalized for retry)
+            const isGasEstimationFailed = 
+              errorMessage.toLowerCase().includes('gas_estimation_failed') ||
+              errorMessage.toLowerCase().includes('could not estimate gas') ||
+              errorMessage.toLowerCase().includes('simulation failed') ||
+              errorReason.toLowerCase().includes('gas estimation');
+            
             // Check for stale/invalid signature errors
             const isStale = errorMessage.toLowerCase().includes('expired') ||
                           errorMessage.toLowerCase().includes('stale') ||
                           errorMessage.toLowerCase().includes('invalid nonce') ||
                           errorMessage.toLowerCase().includes('invalid signature');
             
+            // Return normalized error with requestId/zid
             return new Response(
               JSON.stringify({
                 success: false,
-                error: isStale ? 'stale_or_invalid_signature' : 'submit_failed',
+                error: isGasEstimationFailed ? 'gas_estimation_failed' : (isStale ? 'stale_or_invalid_signature' : 'submit_failed'),
                 message: errorMessage,
                 details: errorDetails,
                 requestId,
                 zid,
                 code: response.status,
-                hint: isStale ? 'requote_and_resign' : undefined
+                hint: (isGasEstimationFailed || isStale) ? 'requote_and_resign' : undefined
               }),
               { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
