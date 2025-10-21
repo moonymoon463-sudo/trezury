@@ -114,7 +114,7 @@ class SwapService {
       };
 
       // Save quote to database for persistence
-      await supabase.from('quotes').insert({
+      const { error: insertError } = await supabase.from('quotes').insert({
         id: quoteId,
         user_id: userId,
         input_asset: inputAsset,
@@ -123,11 +123,16 @@ class SwapService {
         output_amount: outputAmount,
         fee_bps: 80,
         expires_at: expiresAt,
-        side: 'buy',
+        side: 'SWAP',
         grams: 0,
         unit_price_usd: exchangeRate,
-        route: JSON.stringify({ source: '0x_price', priceData })
+        route: { source: '0x_price', priceData }
       });
+
+      if (insertError) {
+        console.error('❌ Failed to save quote to Supabase:', insertError);
+        throw new Error(`Failed to save quote: ${insertError.message}`);
+      }
 
       console.log('✅ Quote generated and saved:', { id: quoteId });
 
