@@ -4,6 +4,23 @@ import { walletSigningService } from "./walletSigningService";
 import { getTokenDecimals, getTokenChainId } from "@/config/tokenAddresses";
 import { ethers } from "ethers";
 
+// Utility to sanitize objects for JSON serialization (remove BigInt, undefined)
+function sanitizeForJson(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(sanitizeForJson);
+  if (typeof obj === 'object') {
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        sanitized[key] = sanitizeForJson(value);
+      }
+    }
+    return sanitized;
+  }
+  return obj;
+}
+
 export interface SwapQuote {
   id: string;
   inputAsset: string;
@@ -217,7 +234,7 @@ class SwapService {
         ? JSON.parse(quoteData.route) 
         : quoteData.route;
 
-      // Get user wallet address
+      // Get user wallet address and chain ID
       const { data: onchainWallet } = await supabase
         .from('onchain_addresses')
         .select('address')
@@ -228,12 +245,27 @@ class SwapService {
         throw new Error('Wallet not found');
       }
 
+      const chainId = getTokenChainId(quoteData.input_asset);
+
+      // Pre-submit wallet/password validation
+      console.log('🔐 Verifying wallet password matches on-chain address...');
+      try {
+        const derivedWallet = await walletSigningService.getWalletForSigning(userId, walletPassword, chainId);
+        if (derivedWallet.address.toLowerCase() !== onchainWallet.address.toLowerCase()) {
+          throw new Error('Wallet password does not match your wallet address. Please use the correct password.');
+        }
+        console.log('✅ Wallet password validated');
+      } catch (err) {
+        console.error('❌ Wallet validation failed:', err);
+        throw new Error('Wallet password does not match your wallet address. Please use the correct password.');
+      }
+
       // Create transaction record
       const intentId = crypto.randomUUID();
 
       try {
         // Get firm quote with EIP-712 payloads via edge function
-        const chainId = getTokenChainId(quoteData.input_asset);
+        console.log('📝 Requesting firm quote from 0x...');
         const { data: quoteResponse, error: quoteError } = await supabase.functions.invoke('swap-0x-gasless', {
           body: {
             operation: 'get_quote',
@@ -265,9 +297,10 @@ class SwapService {
           throw new Error('Invalid quote response: missing quote data');
         }
         
-        console.log('✅ Got firm quote with EIP-712 payloads:', {
+        console.log('✅ got_quote - Firm quote received:', {
           hasApproval: !!gaslessQuote.approval,
-          hasTrade: !!gaslessQuote.trade
+          hasTrade: !!gaslessQuote.trade,
+          chainId: gaslessQuote.chainId
         });
         
         // Sign the permits with user's wallet
@@ -275,7 +308,7 @@ class SwapService {
         let tradeSignature: string | undefined;
         
         if (gaslessQuote.approval) {
-          console.log('📝 Signing approval permit');
+          console.log('📝 signing_approval');
           approvalSignature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
@@ -288,7 +321,7 @@ class SwapService {
         }
         
         if (gaslessQuote.trade) {
-          console.log('📝 Signing trade permit');
+          console.log('📝 signing_trade');
           tradeSignature = await walletSigningService.signTypedData(
             userId,
             walletPassword,
@@ -304,19 +337,27 @@ class SwapService {
           throw new Error('No signatures generated');
         }
 
-        // Submit swap via edge function
+        // Sanitize payloads to remove BigInt and undefined values
+        const sanitizedQuote = sanitizeForJson(gaslessQuote);
+        const sanitizedApproval = approvalSignature ? sanitizeForJson({
+          signature: approvalSignature,
+          ...gaslessQuote.approval
+        }) : undefined;
+        const sanitizedTrade = tradeSignature ? sanitizeForJson({
+          signature: tradeSignature,
+          ...gaslessQuote.trade
+        }) : undefined;
+
+        console.log('📤 submit_invoked - Submitting swap with explicit chainId:', chainId);
+        
+        // Submit swap via edge function with explicit chainId
         const { data: submitResult, error: submitError } = await supabase.functions.invoke('swap-0x-gasless', {
           body: {
             operation: 'submit_swap',
-            quote: gaslessQuote,
-            approval: approvalSignature ? {
-              signature: approvalSignature,
-              ...gaslessQuote.approval
-            } : undefined,
-            trade: tradeSignature ? {
-              signature: tradeSignature,
-              ...gaslessQuote.trade
-            } : undefined
+            chainId, // Explicit chainId
+            quote: sanitizedQuote,
+            approval: sanitizedApproval,
+            trade: sanitizedTrade
           }
         });
 
@@ -328,7 +369,18 @@ class SwapService {
         if (!submitResult?.success) {
           const errorMsg = submitResult?.message || submitResult?.error || 'Failed to submit swap';
           console.error('0x Gasless submit error:', { submitResult });
-          throw new Error(errorMsg);
+          
+          // Improve error mapping
+          let userFacingError = errorMsg;
+          if (errorMsg.toLowerCase().includes('signature')) {
+            userFacingError = 'Invalid wallet password or wallet mismatch. Please try again.';
+          } else if (submitResult?.status === 401 || submitResult?.status === 403) {
+            userFacingError = 'API authentication failed. Please contact support.';
+          } else if (submitResult?.status === 404 || errorMsg.toLowerCase().includes('no route')) {
+            userFacingError = 'No liquidity available for this swap. Try a different amount or pair.';
+          }
+          
+          throw new Error(userFacingError);
         }
 
         const tradeHash = submitResult.result?.tradeHash || submitResult.tradeHash;
@@ -337,10 +389,11 @@ class SwapService {
           throw new Error('Invalid submit response: missing tradeHash');
         }
 
-        console.log('✅ Swap submitted, tradeHash:', tradeHash);
+        console.log('✅ submit_ok - Swap submitted, tradeHash:', tradeHash);
 
         // Poll for completion via edge function
         let statusResult;
+        console.log('⏳ Polling for transaction confirmation...');
         for (let i = 0; i < 60; i++) {
           const { data: statusResponse } = await supabase.functions.invoke('swap-0x-gasless', {
             body: {
@@ -353,10 +406,12 @@ class SwapService {
 
           if (status?.status === 'confirmed' && status.transactions?.length > 0) {
             statusResult = status;
+            console.log('✅ status_poll_ok - Transaction confirmed!');
             break;
           }
 
           if (status?.status === 'failed') {
+            console.error('❌ status_failed - Swap failed on-chain');
             throw new Error('Swap failed on-chain');
           }
 
@@ -372,6 +427,7 @@ class SwapService {
         // Record transaction with proper schema + idempotency metadata
         const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
         
+        console.log('💾 Recording transaction to database...');
         await supabase
           .from('transactions')
           .insert({
@@ -383,7 +439,8 @@ class SwapService {
             quantity: quoteData.output_amount,
             unit_price_usd: quoteData.unit_price_usd || 0,
             fee_usd: quoteData.fee_bps || 80,
-            transaction_hash: txHash,
+            tx_hash: txHash, // Fixed: was transaction_hash
+            chain: 'ethereum',
             input_asset: quoteData.input_asset,
             output_asset: quoteData.output_asset,
             metadata: {

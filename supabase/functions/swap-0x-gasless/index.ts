@@ -557,11 +557,14 @@ serve(async (req) => {
     }
 
     if (operation === 'submit_swap') {
-      const { quote, approval, trade, quoteId, intentId } = params;
+      const { quote, approval, trade, quoteId, intentId, chainId: paramChainId } = params;
+
+      // Use explicit chainId from params, fallback to quote.chainId, then default to 1
+      const resolvedChainId = paramChainId ?? quote.chainId ?? 1;
 
       // Build submit body with approval/trade signatures
       const submitBody: any = {
-        chainId: quote.chainId,
+        chainId: resolvedChainId,
         quote,
         ...(approval ? { approval: { ...approval, signature: approval.signature } } : {}),
         ...(trade ? { trade: { ...trade, signature: trade.signature } } : {}),
@@ -570,7 +573,9 @@ serve(async (req) => {
       };
 
       console.log('📤 Submitting gasless swap to 0x', {
-        chainId: submitBody.chainId,
+        paramChainId,
+        quoteChainId: quote.chainId,
+        resolvedChainId,
         hasApproval: !!submitBody.approval,
         hasTrade: !!submitBody.trade,
         quoteId
