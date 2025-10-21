@@ -234,16 +234,29 @@ class SwapService {
         ? JSON.parse(quoteData.route) 
         : quoteData.route;
 
-      // Get user wallet address and chain ID
-      const { data: onchainWallet } = await supabase
+      // Get user's primary/preferred wallet address using same logic as secureWalletService
+      const { data: wallets } = await supabase
         .from('onchain_addresses')
-        .select('address')
+        .select('address, setup_method, created_at, is_primary')
         .eq('user_id', userId)
-        .single();
+        .order('created_at', { ascending: true });
 
-      if (!onchainWallet?.address) {
+      if (!wallets || wallets.length === 0) {
         throw new Error('Wallet not found');
       }
+
+      // Select primary wallet or earliest with preferred setup method
+      const primaryWallet = wallets.find(w => w.is_primary);
+      const preferredWallet = wallets.find(w => 
+        ['imported_key', 'legacy', 'user_password'].includes(w.setup_method || '')
+      );
+      const selectedWallet = primaryWallet || preferredWallet || wallets[0];
+
+      if (!selectedWallet?.address) {
+        throw new Error('Wallet not found');
+      }
+
+      const walletAddress = selectedWallet.address;
 
       const chainId = getTokenChainId(quoteData.input_asset);
 
@@ -251,13 +264,17 @@ class SwapService {
       console.log('🔐 Verifying wallet password matches on-chain address...');
       try {
         const derivedWallet = await walletSigningService.getWalletForSigning(userId, walletPassword, chainId);
-        if (derivedWallet.address.toLowerCase() !== onchainWallet.address.toLowerCase()) {
-          throw new Error('Wallet password does not match your wallet address. Please use the correct password.');
+        if (derivedWallet.address.toLowerCase() !== walletAddress.toLowerCase()) {
+          throw new Error('Wrong wallet password. If you changed your account password after creating this wallet, please use your old password or contact support to rotate your wallet encryption.');
         }
         console.log('✅ Wallet password validated');
       } catch (err) {
         console.error('❌ Wallet validation failed:', err);
-        throw new Error('Wallet password does not match your wallet address. Please use the correct password.');
+        const errorMsg = err instanceof Error ? err.message : 'Wallet password validation failed';
+        if (errorMsg.includes('Encrypted wallet not found')) {
+          throw new Error('Wrong wallet password. If you changed your account password after creating this wallet, please use your old password or contact support to rotate your wallet encryption.');
+        }
+        throw new Error(errorMsg);
       }
 
       // Create transaction record
@@ -275,7 +292,7 @@ class SwapService {
               String(quoteData.input_amount),
               getTokenDecimals(quoteData.input_asset)
             ).toString(),
-            userAddress: onchainWallet.address,
+            userAddress: walletAddress,
             chainId
           }
         });

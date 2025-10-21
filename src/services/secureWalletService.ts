@@ -823,6 +823,72 @@ class SecureWalletService {
       console.error('Failed to log security event:', error);
     }
   }
+
+  /**
+   * Rotate wallet encryption - re-encrypt with new password
+   * Use this when user changes their account password
+   */
+  async rotateWalletEncryption(
+    userId: string,
+    oldPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Get existing encrypted wallet
+      const { data: existingWallet } = await supabase
+        .from('encrypted_wallet_keys')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!existingWallet?.encrypted_private_key) {
+        return {
+          success: false,
+          error: 'No encrypted wallet found. You may be using a deterministic wallet.'
+        };
+      }
+
+      // Decrypt with old password
+      const privateKey = await this.decryptPrivateKey(userId, oldPassword);
+
+      // Re-encrypt with new password
+      const { encryptedKey, iv, salt } = await this.encryptPrivateKey(
+        privateKey,
+        newPassword
+      );
+
+      // Update database
+      await supabase
+        .from('encrypted_wallet_keys')
+        .update({
+          encrypted_private_key: encryptedKey,
+          encryption_iv: iv,
+          encryption_salt: salt,
+          encryption_method: 'password_based',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+
+      // Log security event
+      await this.logSecurityEvent(userId, 'wallet_encryption_rotated', true, {
+        timestamp: Date.now()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to rotate wallet encryption:', error);
+      
+      await this.logSecurityEvent(userId, 'wallet_encryption_rotation_failed', false, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now()
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to rotate encryption'
+      };
+    }
+  }
 }
 
 export const secureWalletService = new SecureWalletService();

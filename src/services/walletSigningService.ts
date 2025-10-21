@@ -40,6 +40,100 @@ class WalletSigningService {
   }
 
   /**
+   * Get private key - tries decryption first, falls back to derivation
+   * This handles both encrypted wallets and deterministic wallets
+   */
+  private async getPrivateKey(
+    userId: string,
+    userPassword: string
+  ): Promise<string> {
+    // Try to get encrypted wallet first
+    try {
+      const { data } = await supabase
+        .from('encrypted_wallet_keys')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (data?.encrypted_private_key) {
+        // Decrypt with password or legacy userId
+        return await this.decryptPrivateKey(userId, userPassword);
+      }
+    } catch (error) {
+      console.warn('Failed to decrypt wallet, falling back to derivation:', error);
+    }
+
+    // Fallback to deterministic derivation
+    return await this.derivePrivateKey(userId, userPassword);
+  }
+
+  /**
+   * Decrypt private key from database
+   */
+  private async decryptPrivateKey(
+    userId: string,
+    password: string
+  ): Promise<string> {
+    const { data, error } = await supabase
+      .from('encrypted_wallet_keys')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data) {
+      throw new Error('Encrypted wallet not found');
+    }
+    
+    const salt = new Uint8Array(
+      atob(data.encryption_salt).split('').map(c => c.charCodeAt(0))
+    );
+    const iv = new Uint8Array(
+      atob(data.encryption_iv).split('').map(c => c.charCodeAt(0))
+    );
+    
+    // Determine decryption password
+    let decryptionPassword: string;
+    if (data.encryption_method === 'legacy_userid') {
+      decryptionPassword = userId;
+    } else {
+      decryptionPassword = password;
+    }
+    
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(decryptionPassword),
+      'PBKDF2',
+      false,
+      ['deriveBits', 'deriveKey']
+    );
+    
+    const key = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: this.KDF_ITERATIONS,
+        hash: 'SHA-256'
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+    
+    const encryptedData = new Uint8Array(
+      atob(data.encrypted_private_key).split('').map(c => c.charCodeAt(0))
+    );
+    
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv },
+      key,
+      encryptedData
+    );
+    
+    return new TextDecoder().decode(decrypted);
+  }
+
+  /**
    * Derive private key from userId + password using PBKDF2
    */
   private async derivePrivateKey(
@@ -86,7 +180,7 @@ class WalletSigningService {
     userPassword: string,
     chainId: number
   ): Promise<ethers.Wallet> {
-    const privateKey = await this.derivePrivateKey(userId, userPassword);
+    const privateKey = await this.getPrivateKey(userId, userPassword);
     
     const rpcUrl = chainId === 42161 
       ? 'https://arb1.arbitrum.io/rpc'
