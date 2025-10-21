@@ -145,7 +145,7 @@ class QuoteEngineService {
       .insert({
         id: quote.id,
         user_id: userId,
-        side: quote.side,
+        side: quote.side.toUpperCase(),
         input_asset: quote.inputAsset,
         output_asset: quote.outputAsset,
         input_amount: Number(quote.inputAmount),
