@@ -212,8 +212,10 @@ class SwapService {
         throw new Error('Quote has expired. Please generate a new quote.');
       }
 
-      // Determine route/source from stored quote
-      const routeData: any = JSON.parse(quoteData.route as string);
+      // Determine route/source from stored quote (handle both string and object formats)
+      const routeData: any = typeof quoteData.route === 'string' 
+        ? JSON.parse(quoteData.route) 
+        : quoteData.route;
 
       // Get user wallet address
       const { data: onchainWallet } = await supabase
