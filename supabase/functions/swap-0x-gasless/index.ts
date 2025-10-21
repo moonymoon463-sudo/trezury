@@ -146,6 +146,10 @@ serve(async (req) => {
         );
       }
 
+      // Platform fee: ensure fee token is not native (0xEeee...) - use actual ERC-20
+      const isNative = (addr: string) => addr?.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+      const feeToken = !isNative(buyTokenAddress) ? buyTokenAddress : TOKEN_ADDRESSES[chainId].USDC;
+
       const queryParams = new URLSearchParams({
         chainId: chainId.toString(), // ✅ Required by permit2 API
         sellToken: sellTokenAddress,
@@ -154,7 +158,7 @@ serve(async (req) => {
         slippagePercentage: '0.005',
         swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // v2 parameter - EOA wallet
         swapFeeBps: String(PLATFORM_FEE_BPS), // v2 parameter (0.8%)
-        swapFeeToken: buyTokenAddress // v2 parameter - fee collected in output token
+        swapFeeToken: feeToken // v2 parameter - fee collected in ERC-20 output token
       });
 
       const baseUrl = getZeroXSwapBaseUrl(chainId);
@@ -332,6 +336,18 @@ serve(async (req) => {
     if (operation === 'get_quote') {
       const { sellToken, buyToken, sellAmount, userAddress, chainId } = params;
       
+      // Validate required fields
+      if (!userAddress) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'missing_param',
+          message: 'userAddress (taker) required for gasless quote'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        });
+      }
+      
       // Validate chain is supported
       const availableChains = Object.keys(TOKEN_ADDRESSES).map(Number);
       if (!availableChains.includes(chainId)) {
@@ -363,6 +379,10 @@ serve(async (req) => {
         throw new Error(`Token not supported on chain ${chainId}: ${cleanSellToken} or ${cleanBuyToken}`);
       }
 
+      // Platform fee: ensure fee token is not native (0xEeee...) - use actual ERC-20
+      const isNative = (addr: string) => addr?.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+      const feeToken = !isNative(buyTokenAddress) ? buyTokenAddress : TOKEN_ADDRESSES[chainId].USDC;
+
       const queryParams = new URLSearchParams({
         chainId: chainId.toString(),
         sellToken: sellTokenAddress,
@@ -371,7 +391,7 @@ serve(async (req) => {
         taker: userAddress,
         swapFeeRecipient: PLATFORM_FEE_RECIPIENT, // EOA wallet
         swapFeeBps: String(PLATFORM_FEE_BPS), // 0.8% platform fee
-        swapFeeToken: buyTokenAddress,
+        swapFeeToken: feeToken, // Fee collected in ERC-20 output token
         tradeSurplusRecipient: userAddress
       });
 
@@ -559,6 +579,29 @@ serve(async (req) => {
     if (operation === 'submit_swap') {
       const { quote, approval, trade, quoteId, intentId, chainId: paramChainId } = params;
 
+      // Validate required fields
+      if (!quote) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'missing_quote',
+          message: 'Quote object required for submit'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        });
+      }
+
+      if (!approval && !trade) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'missing_signatures',
+          message: 'Approval or trade signatures required for submit'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        });
+      }
+
       // Use explicit chainId from params, fallback to quote.chainId, then default to 1
       const resolvedChainId = paramChainId ?? quote.chainId ?? 1;
 
@@ -581,7 +624,13 @@ serve(async (req) => {
         quoteId
       });
 
-      const response = await fetch('https://api.0x.org/gasless/submit', {
+      // Use chain-specific base URL for submit
+      const baseUrl = getZeroXSwapBaseUrl(resolvedChainId);
+      const submitUrl = `${baseUrl}/gasless/submit`;
+
+      console.log(`📤 Submitting to: ${submitUrl}`);
+
+      const response = await fetch(submitUrl, {
         method: 'POST',
         headers: {
           '0x-api-key': ZERO_X_API_KEY,
@@ -632,9 +681,27 @@ serve(async (req) => {
     }
 
     if (operation === 'get_status') {
-      const { tradeHash } = params;
+      const { tradeHash, chainId } = params;
+      const statusChainId = chainId ?? 1; // Use caller's chainId or default to mainnet
 
-      const response = await fetch(`https://api.0x.org/gasless/status/${tradeHash}`, {
+      if (!tradeHash) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'missing_trade_hash',
+          message: 'tradeHash required for status check'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        });
+      }
+
+      // Use chain-specific base URL for status
+      const baseUrl = getZeroXSwapBaseUrl(statusChainId);
+      const statusUrl = `${baseUrl}/gasless/status/${tradeHash}`;
+
+      console.log(`🔍 Checking status at: ${statusUrl} (chainId: ${statusChainId})`);
+
+      const response = await fetch(statusUrl, {
         headers: {
           '0x-api-key': ZERO_X_API_KEY,
           '0x-version': 'v2'

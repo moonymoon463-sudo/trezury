@@ -395,12 +395,13 @@ class SwapService {
         let statusResult;
         console.log('⏳ Polling for transaction confirmation...');
         for (let i = 0; i < 60; i++) {
-          const { data: statusResponse } = await supabase.functions.invoke('swap-0x-gasless', {
-            body: {
-              operation: 'get_status',
-              tradeHash
-            }
-          });
+        const { data: statusResponse } = await supabase.functions.invoke('swap-0x-gasless', {
+          body: {
+            operation: 'get_status',
+            tradeHash,
+            chainId // Pass chainId for cross-chain status checks
+          }
+        });
 
           const status = statusResponse?.status || statusResponse;
 
