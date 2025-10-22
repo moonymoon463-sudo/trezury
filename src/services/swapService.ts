@@ -356,15 +356,25 @@ class SwapService {
           throw new Error('No signatures generated');
         }
 
-        // Prepare submit payload - keep quote structure, add signed signatures
+        // Build submit payload according to 0x API spec
+        // approval/trade.signature must be an object (not a string)
         const submitApproval = approvalSignature ? {
           ...gaslessQuote.approval,
-          signature: approvalSignature  // Replace with actual signature string
+          signature: {
+            type: 'eip712',
+            signature: approvalSignature,
+            // also include signatureType for safety if the API expects this key
+            signatureType: gaslessQuote.approval?.type || 'eip712'
+          }
         } : undefined;
 
         const submitTrade = tradeSignature ? {
           ...gaslessQuote.trade,
-          signature: tradeSignature  // Replace with actual signature string
+          signature: {
+            type: 'eip712',
+            signature: tradeSignature,
+            signatureType: gaslessQuote.trade?.type || 'eip712'
+          }
         } : undefined;
 
         console.log('📤 submit_invoked - Submitting swap with explicit chainId:', chainId);
