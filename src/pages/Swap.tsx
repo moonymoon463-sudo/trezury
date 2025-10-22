@@ -51,6 +51,8 @@ const Swap = () => {
   const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
   const [useGasless, setUseGasless] = useState(true); // Default to gasless
   const [gelatoFeeEstimate, setGelatoFeeEstimate] = useState<number>(0);
+  const [swapStatus, setSwapStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+  const [swapMessage, setSwapMessage] = useState<string>('');
   
   const { prices: cryptoPrices, loading: cryptoPricesLoading } = useCryptoPrices();
   const { price: goldPrice, loading: goldPriceLoading } = useGoldPrice();
@@ -296,13 +298,8 @@ const Swap = () => {
     try {
       setLoading(true);
       setShowPasswordPrompt(false);
-      
-      // Show processing toast in real-time
-      toast({
-        title: "Processing Swap... ⏳",
-        description: "Signing transaction and submitting to blockchain",
-        duration: 10000,
-      });
+      setSwapStatus('processing');
+      setSwapMessage('Signing and submitting transaction...');
       
       // Execute the swap transaction with wallet password (or gasless)
       console.log(`🔄 Executing ${useGasless ? 'GASLESS' : 'traditional'} swap transaction...`);
@@ -311,24 +308,23 @@ const Swap = () => {
       if (result.success) {
         console.log('✅ Swap completed successfully');
         
-        // Celebratory success notification with emoji
-        toast({
-          title: "Swap Complete! 😊",
-          description: `Successfully swapped ${fromAmount} ${fromAsset} to ${toAsset}`,
-          duration: 5000,
-        });
+        setSwapStatus('success');
+        setSwapMessage(`Successfully swapped ${fromAmount} ${fromAsset} to ${toAsset}! 😊`);
         
         // Refresh balances to show updated amounts
         await refreshBalances();
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setSwapStatus('idle');
+          setSwapMessage('');
+        }, 5000);
         
         // Reset form
         setFromAmount('');
         setQuote(null);
         setAutoQuote(null);
         setLoading(false);
-        
-        // Optional: Navigate to transactions to see the completed swap
-        // navigate('/transactions');
       } else {
         console.error('❌ Swap failed:', result.error);
         
@@ -347,20 +343,15 @@ const Swap = () => {
           errorMessage = "Network is busy. Please wait 30 seconds and try again.";
         }
         
-        toast({
-          variant: "destructive",
-          title: "Swap Failed", 
-          description: errorMessage
-        });
+        setSwapStatus('failed');
+        setSwapMessage(errorMessage);
         setLoading(false);
       }
     } catch (error) {
       console.error('Swap execution error:', error);
-      toast({
-        variant: "destructive",
-        title: "Swap Error",
-        description: "Failed to execute swap"
-      });
+      const errorMsg = error instanceof Error ? error.message : 'Failed to execute swap';
+      setSwapStatus('failed');
+      setSwapMessage(errorMsg);
       setLoading(false);
     }
   };
@@ -404,6 +395,54 @@ const Swap = () => {
       className="flex flex-col h-full overflow-hidden"
     >
       <div className="flex-1 flex flex-col px-4 sm:px-5 py-4 space-y-3 md:px-6 md:py-3 md:space-y-3 max-w-none w-full md:max-w-4xl mx-auto">
+        {/* Status Banner */}
+        {swapStatus !== 'idle' && (
+          <div 
+            className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+              swapStatus === 'processing' 
+                ? 'bg-blue-500/10 border-blue-500/50 animate-pulse' 
+                : swapStatus === 'success'
+                ? 'bg-green-500/10 border-green-500/50'
+                : 'bg-red-500/10 border-red-500/50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {swapStatus === 'processing' && (
+                  <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />
+                )}
+                {swapStatus === 'success' && (
+                  <div className="text-2xl">✅</div>
+                )}
+                {swapStatus === 'failed' && (
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                )}
+                <div>
+                  <p className={`font-semibold ${
+                    swapStatus === 'processing' ? 'text-blue-500' :
+                    swapStatus === 'success' ? 'text-green-500' : 'text-red-500'
+                  }`}>
+                    {swapStatus === 'processing' ? 'Processing Swap...' :
+                     swapStatus === 'success' ? 'Swap Successful!' : 'Swap Failed'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{swapMessage}</p>
+                </div>
+              </div>
+              {swapStatus === 'failed' && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    setSwapStatus('idle');
+                    setSwapMessage('');
+                  }}
+                >
+                  Dismiss
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
         {/* Network Display */}
         <div className="bg-card p-4 rounded-xl border-2 border-primary/20 md:p-3">
           <div className="flex items-center justify-between">
