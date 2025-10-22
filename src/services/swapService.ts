@@ -422,8 +422,9 @@ class SwapService {
         throw new Error('Invalid quote response: missing quote data');
       }
 
-      // Validate chainId in quote
-      gaslessQuote.chainId = validateChainId(gaslessQuote.chainId, 'gaslessQuote');
+      // CRITICAL: 0x API doesn't return chainId in quote, so we must set it explicitly
+      // This ensures chainId is always available for signing and submission
+      gaslessQuote.chainId = chainId;
       
       logSwapEvent('firm_quote_received', {
         chainId: gaslessQuote.chainId,
