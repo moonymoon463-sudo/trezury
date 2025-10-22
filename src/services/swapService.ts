@@ -357,24 +357,15 @@ class SwapService {
         }
 
         // Build submit payload according to 0x API spec
-        // approval/trade.signature must be an object (not a string)
+        // approval/trade.signature must be an object containing the hex signature string
         const submitApproval = approvalSignature ? {
           ...gaslessQuote.approval,
-          signature: {
-            type: 'eip712',
-            signature: approvalSignature,
-            // also include signatureType for safety if the API expects this key
-            signatureType: gaslessQuote.approval?.type || 'eip712'
-          }
+          signature: { signature: approvalSignature, signatureType: 2 }
         } : undefined;
 
         const submitTrade = tradeSignature ? {
           ...gaslessQuote.trade,
-          signature: {
-            type: 'eip712',
-            signature: tradeSignature,
-            signatureType: gaslessQuote.trade?.type || 'eip712'
-          }
+          signature: { signature: tradeSignature, signatureType: 2 }
         } : undefined;
 
         console.log('📤 submit_invoked - Submitting swap with explicit chainId:', chainId);
