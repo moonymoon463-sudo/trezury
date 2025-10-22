@@ -606,15 +606,48 @@ serve(async (req) => {
       let resolvedChainId = Number(paramChainId ?? quote.chainId ?? 1);
       if (!Number.isFinite(resolvedChainId) || isNaN(resolvedChainId)) {
         resolvedChainId = 1;
+        console.warn('⚠️ Invalid chainId received, defaulting to 1:', { paramChainId, quoteChainId: quote.chainId });
       }
 
-      // Build submit body - pass approval/trade as-is from client
+      // Ensure numeric fields in signatures are actual numbers
+      const coerceSignatureNumbers = (sig: any) => {
+        if (!sig) return sig;
+        return {
+          ...sig,
+          signature: sig.signature ? {
+            ...sig.signature,
+            v: Number(sig.signature.v),
+            signatureType: Number(sig.signature.signatureType)
+          } : sig.signature
+        };
+      };
+
+      // Build submit body with numeric coercion
       const submitBody: any = {
         chainId: resolvedChainId,
         quote,
-        ...(approval ? { approval } : {}),
-        ...(trade ? { trade } : {})
+        ...(approval ? { approval: coerceSignatureNumbers(approval) } : {}),
+        ...(trade ? { trade: coerceSignatureNumbers(trade) } : {})
       };
+
+      // Log signature structure for debugging
+      if (approval?.signature) {
+        console.log('📝 Approval signature coerced:', {
+          v: submitBody.approval.signature.v,
+          vType: typeof submitBody.approval.signature.v,
+          signatureType: submitBody.approval.signature.signatureType,
+          signatureTypeType: typeof submitBody.approval.signature.signatureType
+        });
+      }
+
+      if (trade?.signature) {
+        console.log('📝 Trade signature coerced:', {
+          v: submitBody.trade.signature.v,
+          vType: typeof submitBody.trade.signature.v,
+          signatureType: submitBody.trade.signature.signatureType,
+          signatureTypeType: typeof submitBody.trade.signature.signatureType
+        });
+      }
 
       console.log('📤 Submitting gasless swap to 0x', {
         paramChainId,
@@ -690,7 +723,14 @@ serve(async (req) => {
     }
 
     if (operation === 'get_status') {
-      const { tradeHash, chainId } = params;
+      const { tradeHash, chainId: rawChainId } = params;
+      
+      // Validate and normalize chainId (handle NaN/undefined)
+      let chainId = Number(rawChainId);
+      if (!Number.isFinite(chainId) || isNaN(chainId) || chainId <= 0) {
+        chainId = 1; // Default to Ethereum mainnet
+        console.warn('⚠️ Invalid chainId in get_status, defaulting to 1:', rawChainId);
+      }
       const statusChainId = chainId ?? 1; // Use caller's chainId or default to mainnet
 
       if (!tradeHash) {

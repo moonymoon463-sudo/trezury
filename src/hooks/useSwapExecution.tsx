@@ -8,7 +8,7 @@ export interface SwapExecutionOptions {
 export const useSwapExecution = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gelatoTaskId, setGelatoTaskId] = useState<string | null>(null);
+  const [tradeHash, setTradeHash] = useState<string | null>(null);
 
   const executeSwap = async (
     quoteId: string, 
@@ -32,8 +32,8 @@ export const useSwapExecution = () => {
         setError(result.error || 'Swap execution failed');
       }
 
-      if (result.gelatoTaskId) {
-        setGelatoTaskId(result.gelatoTaskId);
+      if (result.tradeHash) {
+        setTradeHash(result.tradeHash);
       }
 
       return result;
@@ -53,6 +53,6 @@ export const useSwapExecution = () => {
     executeSwap,
     loading,
     error,
-    gelatoTaskId
+    tradeHash
   };
 };

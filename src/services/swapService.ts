@@ -4,7 +4,92 @@ import { walletSigningService } from "./walletSigningService";
 import { getTokenDecimals, getTokenChainId } from "@/config/tokenAddresses";
 import { ethers } from "ethers";
 
-// Utility to sanitize objects for JSON serialization (remove BigInt, undefined)
+// ===========================
+// Type Definitions
+// ===========================
+
+interface EIP712Signature {
+  r: string;
+  s: string;
+  v: number;
+  signatureType: 2;
+}
+
+interface TokenPermissions {
+  token: string;
+  amount: string;
+}
+
+interface Permit2Approval {
+  eip712: {
+    domain: any;
+    types: any;
+    message: any;
+  };
+  signature?: EIP712Signature;
+}
+
+interface Permit2Trade {
+  eip712: {
+    domain: any;
+    types: any;
+    message: any;
+  };
+  signature?: EIP712Signature;
+}
+
+interface ZeroXGaslessQuote {
+  chainId: number;
+  buyAmount: string;
+  sellAmount: string;
+  approval: Permit2Approval;
+  trade: Permit2Trade;
+  allowanceTarget?: string;
+}
+
+interface SwapSubmitPayload {
+  operation: 'submit_swap';
+  chainId: number;
+  quote: ZeroXGaslessQuote;
+  approval?: Permit2Approval;
+  trade?: Permit2Trade;
+  quoteId: string;
+}
+
+interface SwapStatusResult {
+  status: 'pending' | 'confirmed' | 'failed';
+  transactions: Array<{ hash: string }>;
+}
+
+export interface SwapQuote {
+  id: string;
+  inputAsset: string;
+  outputAsset: string;
+  inputAmount: number;
+  outputAmount: number;
+  exchangeRate: number;
+  platformFee: number;
+  networkFee: number;
+  estimatedTotal: number;
+  routeDetails: string;
+  expiresAt: string;
+  chainId: number;
+}
+
+export interface SwapResult {
+  success: boolean;
+  txHash?: string;
+  error?: string;
+  tradeHash?: string;
+}
+
+// ===========================
+// Utility Functions
+// ===========================
+
+/**
+ * Sanitize objects for JSON serialization (remove BigInt, undefined)
+ */
 function sanitizeForJson(obj: any): any {
   if (obj === null || obj === undefined) return null;
   if (typeof obj === 'bigint') return obj.toString();
@@ -21,41 +106,61 @@ function sanitizeForJson(obj: any): any {
   return obj;
 }
 
-export interface SwapQuote {
-  id: string;
-  inputAsset: string;
-  outputAsset: string;
-  inputAmount: number;
-  outputAmount: number;
-  exchangeRate: number;
-  platformFee: number;
-  networkFee: number;
-  estimatedTotal: number;
-  routeDetails: string;
-  expiresAt: string;
-  chainId: number;
-  // Legacy properties for backward compatibility
-  route?: any;
-  fee?: number;
-  minimumReceived?: number;
+/**
+ * Parse EIP-712 signature into 0x API v2 format
+ * Returns { r, s, v, signatureType: 2 } with v as a number
+ */
+function parseSignatureToZeroXFormat(signature: string): EIP712Signature {
+  const sig = ethers.Signature.from(signature);
+  
+  // Ensure v is a number (27 or 28 for Ethereum signatures)
+  const v = typeof sig.v === 'number' ? sig.v : parseInt(String(sig.v), 10);
+  
+  if (isNaN(v) || (v !== 27 && v !== 28)) {
+    throw new Error(`Invalid signature v value: ${v}. Expected 27 or 28.`);
+  }
+  
+  return {
+    r: sig.r,
+    s: sig.s,
+    v,
+    signatureType: 2 // EIP-712 signature type for 0x
+  };
 }
 
-export interface SwapResult {
-  success: boolean;
-  txHash?: string;
-  error?: string;
-  tradeHash?: string;
-  gelatoTaskId?: string;
-  // Legacy properties for backward compatibility
-  intentId?: string;
-  requiresReconciliation?: boolean;
-  hash?: string;
-  requiresImport?: boolean;
+/**
+ * Validate and normalize chainId
+ * Ensures chainId is always a valid number, never NaN or undefined
+ */
+function validateChainId(chainId: any, context: string): number {
+  const normalized = Number(chainId);
+  
+  if (!Number.isFinite(normalized) || isNaN(normalized) || normalized <= 0) {
+    throw new Error(`Invalid chainId in ${context}: ${chainId}. Must be a positive number.`);
+  }
+  
+  return normalized;
 }
+
+/**
+ * Log structured swap event for debugging
+ */
+function logSwapEvent(
+  stage: string,
+  data: Record<string, any>,
+  level: 'info' | 'warn' | 'error' = 'info'
+) {
+  const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : '✅';
+  console[level](`${prefix} [SWAP:${stage}]`, data);
+}
+
+// ===========================
+// Swap Service Implementation
+// ===========================
 
 class SwapService {
   /**
-   * Generate a swap quote using 0x indicative price (no balance check, no DB save)
+   * Generate a swap quote using 0x indicative price
    */
   async generateSwapQuote(
     inputAsset: string,
@@ -64,12 +169,31 @@ class SwapService {
     userId: string
   ): Promise<SwapQuote> {
     try {
-      // Get chain ID and format amount for 0x API
-      const chainId = getTokenChainId(inputAsset);
+      // Validate inputs
+      if (!inputAsset || !outputAsset) {
+        throw new Error('Input and output assets are required');
+      }
+      if (inputAmount <= 0) {
+        throw new Error('Input amount must be positive');
+      }
+
+      // Get chain configuration
+      const chainId = validateChainId(
+        getTokenChainId(inputAsset),
+        'generateSwapQuote'
+      );
       const decimals = getTokenDecimals(inputAsset);
       const sellAmount = ethers.parseUnits(inputAmount.toString(), decimals).toString();
 
-      // Fetch 0x indicative price via edge function
+      logSwapEvent('quote_request', {
+        inputAsset,
+        outputAsset,
+        inputAmount,
+        chainId,
+        sellAmount
+      });
+
+      // Fetch indicative price from 0x via edge function
       const { data: response, error } = await supabase.functions.invoke('swap-0x-gasless', {
         body: {
           operation: 'get_price',
@@ -81,40 +205,33 @@ class SwapService {
       });
 
       if (error) {
-        console.error('Edge function invocation error:', error);
-        throw new Error(error.message || 'Failed to invoke swap edge function');
+        logSwapEvent('quote_error', { error: error.message }, 'error');
+        throw new Error(error.message || 'Failed to fetch swap quote');
       }
 
       if (!response?.success) {
         const errorMsg = response?.message || response?.error || 'Failed to get price quote';
-        console.error('0x API error:', { response });
+        logSwapEvent('quote_failed', { response }, 'error');
         throw new Error(errorMsg);
       }
 
       const priceData = response.price;
-      if (!priceData || !priceData.buyAmount) {
-        console.error('Invalid price response structure:', { response });
+      if (!priceData?.buyAmount) {
+        logSwapEvent('invalid_price_response', { response }, 'error');
         throw new Error('Invalid price response: missing buyAmount');
       }
 
-      console.log('✅ Indicative price extracted:', {
-        buyAmount: priceData.buyAmount,
-        sellAmount: priceData.sellAmount
-      });
-      
-      // Format output amount
+      // Calculate output amount and fees
       const buyDecimals = getTokenDecimals(outputAsset);
       const outputAmount = parseFloat(ethers.formatUnits(priceData.buyAmount, buyDecimals));
       const exchangeRate = outputAmount / inputAmount;
-
-      // Calculate platform fee (0.8%)
-      const platformFee = outputAmount * 0.008;
-      const networkFee = 0;
+      const platformFee = outputAmount * 0.008; // 0.8% platform fee
+      const networkFee = 0; // Gasless swaps have no user-facing network fee
 
       // Generate quote with 2-minute expiry
       const quoteId = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 120000).toISOString(); // 2 minutes
-      
+      const expiresAt = new Date(Date.now() + 120000).toISOString();
+
       const quote: SwapQuote = {
         id: quoteId,
         inputAsset,
@@ -130,7 +247,7 @@ class SwapService {
         chainId
       };
 
-      // Save quote to database for persistence
+      // Save quote to database
       const { error: insertError } = await supabase.from('quotes').insert({
         id: quoteId,
         user_id: userId,
@@ -147,15 +264,17 @@ class SwapService {
       });
 
       if (insertError) {
-        console.error('❌ Failed to save quote to Supabase:', insertError);
+        logSwapEvent('quote_save_error', { error: insertError.message }, 'error');
         throw new Error(`Failed to save quote: ${insertError.message}`);
       }
 
-      console.log('✅ Quote generated and saved:', { id: quoteId });
+      logSwapEvent('quote_generated', { quoteId, outputAmount, platformFee });
 
       return quote;
     } catch (error) {
-      console.error('Error generating swap quote:', error);
+      logSwapEvent('quote_exception', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }, 'error');
       throw error;
     }
   }
@@ -167,10 +286,12 @@ class SwapService {
     quoteId: string,
     userId: string,
     walletPassword: string,
-    useGasless: boolean = true // Always true with 0x Gasless
+    useGasless: boolean = true
   ): Promise<SwapResult> {
     try {
-      // ✅ PHASE 2: IDEMPOTENCY CHECK
+      logSwapEvent('execute_start', { quoteId, userId });
+
+      // ===== IDEMPOTENCY CHECK =====
       const { data: existingSwap } = await supabase
         .from('transactions')
         .select('id, status, metadata')
@@ -178,30 +299,19 @@ class SwapService {
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (existingSwap) {
-        // If swap already in progress or completed, reject with idempotency
-        if (['pending', 'completed'].includes(existingSwap.status)) {
-          console.warn(`⚠️ Idempotency: Swap already exists for quote ${quoteId}`, {
-            swapId: existingSwap.id,
-            status: existingSwap.status
-          });
-          
-          // Log idempotency rejection
-          import('@/utils/productionMonitoring').then(({ logSwapEvent }) => {
-            logSwapEvent(quoteId, userId, 'idempotency_rejected', {
-              existingSwapId: existingSwap.id,
-              existingStatus: existingSwap.status
-            });
-          });
-          
-          return {
-            success: false,
-            error: 'Swap already in progress for this quote. Please generate a new quote.'
-          };
-        }
+      if (existingSwap && ['pending', 'completed'].includes(existingSwap.status)) {
+        logSwapEvent('idempotency_rejected', {
+          quoteId,
+          existingStatus: existingSwap.status
+        }, 'warn');
+        
+        return {
+          success: false,
+          error: 'Swap already in progress for this quote. Please generate a new quote.'
+        };
       }
 
-      // Fetch the quote
+      // ===== FETCH QUOTE =====
       const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
         .select('*')
@@ -213,28 +323,16 @@ class SwapService {
         throw new Error('Quote not found or expired');
       }
 
-      // ✅ PHASE 3: QUOTE EXPIRATION MONITORING
+      // ===== QUOTE EXPIRATION CHECK =====
       if (new Date() > new Date(quoteData.expires_at)) {
-        console.warn(`⏱️ Quote expired: ${quoteId}`);
-        
-        import('@/utils/productionMonitoring').then(({ logSwapEvent }) => {
-          logSwapEvent(quoteId, userId, 'swap_failed', {
-            reason: 'quote_expired',
-            expiresAt: quoteData.expires_at,
-            attemptedAt: new Date().toISOString(),
-            timeSinceExpiry: Date.now() - new Date(quoteData.expires_at).getTime()
-          });
-        });
-        
+        logSwapEvent('quote_expired', {
+          quoteId,
+          expiresAt: quoteData.expires_at
+        }, 'warn');
         throw new Error('Quote has expired. Please generate a new quote.');
       }
 
-      // Determine route/source from stored quote (handle both string and object formats)
-      const routeData: any = typeof quoteData.route === 'string' 
-        ? JSON.parse(quoteData.route) 
-        : quoteData.route;
-
-      // Get user's primary/preferred wallet address using same logic as secureWalletService
+      // ===== GET USER WALLET =====
       const { data: wallets } = await supabase
         .from('onchain_addresses')
         .select('address, setup_method, created_at, is_primary')
@@ -245,7 +343,6 @@ class SwapService {
         throw new Error('Wallet not found');
       }
 
-      // Select primary wallet or earliest with preferred setup method
       const primaryWallet = wallets.find(w => w.is_primary);
       const preferredWallet = wallets.find(w => 
         ['imported_key', 'legacy', 'user_password'].includes(w.setup_method || '')
@@ -257,33 +354,44 @@ class SwapService {
       }
 
       const walletAddress = selectedWallet.address;
+      const chainId = validateChainId(
+        getTokenChainId(quoteData.input_asset),
+        'executeSwap'
+      );
 
-      const chainId = getTokenChainId(quoteData.input_asset);
+      logSwapEvent('wallet_selected', { walletAddress, chainId });
 
-      // Pre-submit wallet/password validation
-      console.log('🔐 Verifying wallet password matches on-chain address...');
+      // ===== VALIDATE WALLET PASSWORD =====
       try {
-        const derivedWallet = await walletSigningService.getWalletForSigning(userId, walletPassword, chainId);
+        const derivedWallet = await walletSigningService.getWalletForSigning(
+          userId,
+          walletPassword,
+          chainId
+        );
+        
         if (derivedWallet.address.toLowerCase() !== walletAddress.toLowerCase()) {
-          throw new Error('Wrong wallet password. If you changed your account password after creating this wallet, please use your old password or contact support to rotate your wallet encryption.');
+          throw new Error('Wallet password mismatch');
         }
-        console.log('✅ Wallet password validated');
+        
+        logSwapEvent('wallet_validated', { walletAddress });
       } catch (err) {
-        console.error('❌ Wallet validation failed:', err);
+        logSwapEvent('wallet_validation_failed', {
+          error: err instanceof Error ? err.message : 'Unknown error'
+        }, 'error');
+        
         const errorMsg = err instanceof Error ? err.message : 'Wallet password validation failed';
         if (errorMsg.includes('Encrypted wallet not found')) {
-          throw new Error('Wrong wallet password. If you changed your account password after creating this wallet, please use your old password or contact support to rotate your wallet encryption.');
+          throw new Error('Wrong wallet password. Please use your wallet encryption password.');
         }
         throw new Error(errorMsg);
       }
 
-      // Create transaction record
-      const intentId = crypto.randomUUID();
-
-      try {
-        // Get firm quote with EIP-712 payloads via edge function
-        console.log('📝 Requesting firm quote from 0x...');
-        const { data: quoteResponse, error: quoteError } = await supabase.functions.invoke('swap-0x-gasless', {
+      // ===== GET FIRM QUOTE =====
+      logSwapEvent('requesting_firm_quote', { chainId });
+      
+      const { data: quoteResponse, error: firmQuoteError } = await supabase.functions.invoke(
+        'swap-0x-gasless',
+        {
           body: {
             operation: 'get_quote',
             sellToken: quoteData.input_asset,
@@ -295,224 +403,251 @@ class SwapService {
             userAddress: walletAddress,
             chainId
           }
-        });
-
-        if (quoteError) {
-          console.error('Edge function invocation error:', quoteError);
-          throw new Error(quoteError.message || 'Failed to invoke swap edge function for quote');
         }
+      );
 
-        if (!quoteResponse?.success) {
-          const errorMsg = quoteResponse?.message || quoteResponse?.error || 'Failed to get firm quote';
-          console.error('0x Gasless API error:', { quoteResponse });
-          throw new Error(errorMsg);
-        }
+      if (firmQuoteError) {
+        logSwapEvent('firm_quote_error', { error: firmQuoteError.message }, 'error');
+        throw new Error(firmQuoteError.message || 'Failed to get firm quote');
+      }
 
-        const gaslessQuote = quoteResponse.quote;
-        if (!gaslessQuote) {
-          console.error('Invalid quote response structure:', { quoteResponse });
-          throw new Error('Invalid quote response: missing quote data');
-        }
+      if (!quoteResponse?.success) {
+        const errorMsg = quoteResponse?.message || quoteResponse?.error || 'Failed to get firm quote';
+        logSwapEvent('firm_quote_failed', { quoteResponse }, 'error');
+        throw new Error(errorMsg);
+      }
+
+      const gaslessQuote: ZeroXGaslessQuote = quoteResponse.quote;
+      if (!gaslessQuote) {
+        throw new Error('Invalid quote response: missing quote data');
+      }
+
+      // Validate chainId in quote
+      gaslessQuote.chainId = validateChainId(gaslessQuote.chainId, 'gaslessQuote');
+      
+      logSwapEvent('firm_quote_received', {
+        chainId: gaslessQuote.chainId,
+        hasApproval: !!gaslessQuote.approval,
+        hasTrade: !!gaslessQuote.trade
+      });
+
+      // ===== SIGN PERMITS =====
+      let approvalSignature: string | undefined;
+      let tradeSignature: string | undefined;
+
+      if (gaslessQuote.approval?.eip712) {
+        logSwapEvent('signing_approval', { chainId: gaslessQuote.chainId });
         
-        console.log('✅ got_quote - Firm quote received:', {
-          hasApproval: !!gaslessQuote.approval,
-          hasTrade: !!gaslessQuote.trade,
-          chainId: gaslessQuote.chainId,
-          approvalKeys: gaslessQuote.approval ? Object.keys(gaslessQuote.approval) : [],
-          tradeKeys: gaslessQuote.trade ? Object.keys(gaslessQuote.trade) : []
-        });
+        approvalSignature = await walletSigningService.signTypedData(
+          userId,
+          walletPassword,
+          gaslessQuote.chainId,
+          gaslessQuote.approval.eip712.domain,
+          gaslessQuote.approval.eip712.types,
+          gaslessQuote.approval.eip712.message
+        );
         
-        // Sign the permits with user's wallet
-        let approvalSignature: string | undefined;
-        let tradeSignature: string | undefined;
+        logSwapEvent('approval_signed', { signatureLength: approvalSignature.length });
+      }
+
+      if (gaslessQuote.trade?.eip712) {
+        logSwapEvent('signing_trade', { chainId: gaslessQuote.chainId });
         
-        if (gaslessQuote.approval) {
-          console.log('📝 signing_approval');
-          approvalSignature = await walletSigningService.signTypedData(
-            userId,
-            walletPassword,
-            gaslessQuote.chainId,
-            gaslessQuote.approval.eip712.domain,
-            gaslessQuote.approval.eip712.types,
-            gaslessQuote.approval.eip712.message
-          );
-          console.log('✅ Approval signature generated');
-        }
+        tradeSignature = await walletSigningService.signTypedData(
+          userId,
+          walletPassword,
+          gaslessQuote.chainId,
+          gaslessQuote.trade.eip712.domain,
+          gaslessQuote.trade.eip712.types,
+          gaslessQuote.trade.eip712.message
+        );
         
-        if (gaslessQuote.trade) {
-          console.log('📝 signing_trade');
-          tradeSignature = await walletSigningService.signTypedData(
-            userId,
-            walletPassword,
-            gaslessQuote.chainId,
-            gaslessQuote.trade.eip712.domain,
-            gaslessQuote.trade.eip712.types,
-            gaslessQuote.trade.eip712.message
-          );
-          console.log('✅ Trade signature generated');
-        }
+        logSwapEvent('trade_signed', { signatureLength: tradeSignature.length });
+      }
 
-        if (!approvalSignature && !tradeSignature) {
-          throw new Error('No signatures generated');
-        }
+      if (!approvalSignature && !tradeSignature) {
+        throw new Error('No signatures generated');
+      }
 
-        // Build submit payload according to 0x API spec
-        // approval/trade.signature must be an object containing the hex signature string
-        const submitApproval = approvalSignature ? {
-          ...gaslessQuote.approval,
-          signature: (() => {
-            const sig = ethers.Signature.from(approvalSignature);
-            return { r: sig.r, s: sig.s, v: sig.v, signatureType: 2 };
-          })()
-        } : undefined;
-
-        const submitTrade = tradeSignature ? {
-          ...gaslessQuote.trade,
-          signature: (() => {
-            const sig = ethers.Signature.from(tradeSignature!);
-            return { r: sig.r, s: sig.s, v: sig.v, signatureType: 2 };
-          })()
-        } : undefined;
-
-        console.log('📤 submit_invoked - Submitting swap with explicit chainId:', chainId);
-        
-        // Submit swap via edge function with explicit chainId
-        const { data: submitResult, error: submitError } = await supabase.functions.invoke('swap-0x-gasless', {
-          body: {
-            operation: 'submit_swap',
-            chainId,
-            quote: sanitizeForJson(gaslessQuote),
-            approval: submitApproval ? sanitizeForJson(submitApproval) : undefined,
-            trade: submitTrade ? sanitizeForJson(submitTrade) : undefined,
-            quoteId
+      // ===== BUILD SUBMIT PAYLOAD =====
+      const submitApproval: Permit2Approval | undefined = approvalSignature
+        ? {
+            ...gaslessQuote.approval,
+            signature: parseSignatureToZeroXFormat(approvalSignature)
           }
-        });
+        : undefined;
 
-        if (submitError) {
-          console.error('Edge function invocation error:', submitError);
-          throw new Error(submitError.message || 'Failed to invoke swap edge function for submission');
-        }
-
-        if (!submitResult?.success) {
-          const errorMsg = submitResult?.message || submitResult?.error || 'Failed to submit swap';
-          console.error('0x Gasless submit error:', { submitResult });
-          
-          // Improve error mapping
-          let userFacingError = errorMsg;
-          if (errorMsg.toLowerCase().includes('signature')) {
-            userFacingError = 'Invalid wallet password or wallet mismatch. Please try again.';
-          } else if (submitResult?.status === 401 || submitResult?.status === 403) {
-            userFacingError = 'API authentication failed. Please contact support.';
-          } else if (submitResult?.status === 404 || errorMsg.toLowerCase().includes('no route')) {
-            userFacingError = 'No liquidity available for this swap. Try a different amount or pair.';
+      const submitTrade: Permit2Trade | undefined = tradeSignature
+        ? {
+            ...gaslessQuote.trade,
+            signature: parseSignatureToZeroXFormat(tradeSignature)
           }
-          
-          throw new Error(userFacingError);
+        : undefined;
+
+      // Log signature structure for debugging
+      if (submitApproval?.signature) {
+        logSwapEvent('approval_signature_parsed', {
+          r: submitApproval.signature.r.substring(0, 10) + '...',
+          s: submitApproval.signature.s.substring(0, 10) + '...',
+          v: submitApproval.signature.v,
+          vType: typeof submitApproval.signature.v,
+          signatureType: submitApproval.signature.signatureType
+        });
+      }
+
+      if (submitTrade?.signature) {
+        logSwapEvent('trade_signature_parsed', {
+          r: submitTrade.signature.r.substring(0, 10) + '...',
+          s: submitTrade.signature.s.substring(0, 10) + '...',
+          v: submitTrade.signature.v,
+          vType: typeof submitTrade.signature.v,
+          signatureType: submitTrade.signature.signatureType
+        });
+      }
+
+      // ===== SUBMIT SWAP =====
+      logSwapEvent('submitting_swap', { chainId });
+
+      const submitPayload: SwapSubmitPayload = {
+        operation: 'submit_swap',
+        chainId,
+        quote: sanitizeForJson(gaslessQuote),
+        approval: submitApproval ? sanitizeForJson(submitApproval) : undefined,
+        trade: submitTrade ? sanitizeForJson(submitTrade) : undefined,
+        quoteId
+      };
+
+      const { data: submitResult, error: submitError } = await supabase.functions.invoke(
+        'swap-0x-gasless',
+        { body: submitPayload }
+      );
+
+      if (submitError) {
+        logSwapEvent('submit_error', { error: submitError.message }, 'error');
+        throw new Error(submitError.message || 'Failed to submit swap');
+      }
+
+      if (!submitResult?.success) {
+        const errorMsg = submitResult?.message || submitResult?.error || 'Failed to submit swap';
+        logSwapEvent('submit_failed', { submitResult }, 'error');
+        
+        // Map common errors to user-friendly messages
+        let userFacingError = errorMsg;
+        if (errorMsg.toLowerCase().includes('signature') || errorMsg.toLowerCase().includes('invalid input')) {
+          userFacingError = 'Invalid signature format. Please try again.';
+        } else if (submitResult?.status === 401 || submitResult?.status === 403) {
+          userFacingError = 'API authentication failed. Please contact support.';
+        } else if (submitResult?.status === 404 || errorMsg.toLowerCase().includes('no route')) {
+          userFacingError = 'No liquidity available for this swap. Try a different amount or pair.';
         }
+        
+        throw new Error(userFacingError);
+      }
 
-        const tradeHash = submitResult.result?.tradeHash || submitResult.tradeHash;
-        if (!tradeHash) {
-          console.error('Invalid submit response:', { submitResult });
-          throw new Error('Invalid submit response: missing tradeHash');
-        }
+      const tradeHash = submitResult.result?.tradeHash || submitResult.tradeHash;
+      if (!tradeHash) {
+        logSwapEvent('submit_missing_tradehash', { submitResult }, 'error');
+        throw new Error('Invalid submit response: missing tradeHash');
+      }
 
-        console.log('✅ submit_ok - Swap submitted, tradeHash:', tradeHash);
+      logSwapEvent('swap_submitted', { tradeHash });
 
-        // Poll for completion via edge function
-        let statusResult;
-        console.log('⏳ Polling for transaction confirmation...');
-        for (let i = 0; i < 60; i++) {
+      // ===== POLL FOR CONFIRMATION =====
+      let statusResult: SwapStatusResult | undefined;
+      const maxPolls = 60;
+      const pollInterval = 2000; // 2 seconds
+
+      logSwapEvent('polling_start', { tradeHash, chainId });
+
+      for (let i = 0; i < maxPolls; i++) {
         const { data: statusResponse } = await supabase.functions.invoke('swap-0x-gasless', {
           body: {
             operation: 'get_status',
             tradeHash,
-            chainId // Pass chainId for cross-chain status checks
+            chainId
           }
         });
 
-          const status = statusResponse?.status || statusResponse;
+        const status = statusResponse?.status || statusResponse;
 
-          if (status?.status === 'confirmed' && status.transactions?.length > 0) {
-            statusResult = status;
-            console.log('✅ status_poll_ok - Transaction confirmed!');
-            break;
-          }
-
-          if (status?.status === 'failed') {
-            console.error('❌ status_failed - Swap failed on-chain');
-            throw new Error('Swap failed on-chain');
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        if (status?.status === 'confirmed' && status.transactions?.length > 0) {
+          statusResult = status;
+          logSwapEvent('swap_confirmed', { txHash: status.transactions[0].hash });
+          break;
         }
 
-        if (!statusResult) {
-          throw new Error('Swap status polling timeout');
+        if (status?.status === 'failed') {
+          logSwapEvent('swap_failed_onchain', { tradeHash }, 'error');
+          throw new Error('Swap failed on-chain');
         }
 
-        const txHash = statusResult.transactions[0].hash;
-
-        // Record transaction with proper schema + idempotency metadata
-        const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
-        
-        console.log('💾 Recording transaction to database...');
-        await supabase
-          .from('transactions')
-          .insert({
-            user_id: userId,
-            quote_id: quoteId,
-            asset: quoteData.output_asset,
-            type: 'swap',
-            status: 'completed',
-            quantity: quoteData.output_amount,
-            unit_price_usd: quoteData.unit_price_usd || 0,
-            fee_usd: quoteData.fee_bps || 80,
-            tx_hash: txHash, // Fixed: was transaction_hash
-            chain: 'ethereum',
-            input_asset: quoteData.input_asset,
-            output_asset: quoteData.output_asset,
-            metadata: {
-              chainId: gaslessQuote.chainId,
-              tradeHash,
-              gasless: true,
-              quoteId,
-              idempotency_key: idempotencyKey,
-              submission_timestamp: Date.now(),
-              quote_used: quoteId
-            },
-            created_at: new Date().toISOString()
-          });
-
-        // Record fee collection
-        const feeCalculation = swapFeeService.calculateSwapFee(
-          quoteData.input_amount,
-          quoteData.input_asset as any,
-          quoteData.output_asset as any
-        );
-
-        await swapFeeService.recordSwapFeeCollection(userId, txHash, feeCalculation);
-
-        return {
-          success: true,
-          txHash,
-          tradeHash,
-          intentId,
-          hash: txHash
-        };
-      } catch (error) {
-        console.error('Swap execution error:', error);
-        throw error;
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
+
+      if (!statusResult) {
+        logSwapEvent('polling_timeout', { tradeHash }, 'error');
+        throw new Error('Swap status polling timeout');
+      }
+
+      const txHash = statusResult.transactions[0].hash;
+
+      // ===== RECORD TRANSACTION =====
+      logSwapEvent('recording_transaction', { txHash, quoteId });
+
+      const idempotencyKey = `swap_${quoteId}_${Date.now()}`;
+
+      await supabase.from('transactions').insert({
+        user_id: userId,
+        quote_id: quoteId,
+        asset: quoteData.output_asset,
+        type: 'swap',
+        status: 'completed',
+        quantity: quoteData.output_amount,
+        unit_price_usd: quoteData.unit_price_usd || 0,
+        fee_usd: quoteData.fee_bps || 80,
+        tx_hash: txHash,
+        chain: 'ethereum',
+        input_asset: quoteData.input_asset,
+        output_asset: quoteData.output_asset,
+        metadata: {
+          chainId: gaslessQuote.chainId,
+          tradeHash,
+          gasless: true,
+          quoteId,
+          idempotency_key: idempotencyKey,
+          submission_timestamp: Date.now(),
+          quote_used: quoteId
+        }
+      });
+
+      // ===== RECORD FEES =====
+      const feeCalculation = swapFeeService.calculateSwapFee(
+        quoteData.input_amount,
+        quoteData.input_asset as any,
+        quoteData.output_asset as any
+      );
+
+      await swapFeeService.recordSwapFeeCollection(userId, txHash, feeCalculation);
+
+      logSwapEvent('swap_complete', { txHash, tradeHash });
+
+      return {
+        success: true,
+        txHash,
+        tradeHash
+      };
     } catch (error) {
-      console.error('Swap execution error:', error);
+      logSwapEvent('execute_exception', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      }, 'error');
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Swap execution failed'
       };
     }
   }
-
-
 }
 
 export const swapService = new SwapService();
