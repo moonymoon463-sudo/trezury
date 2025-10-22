@@ -360,12 +360,18 @@ class SwapService {
         // approval/trade.signature must be an object containing the hex signature string
         const submitApproval = approvalSignature ? {
           ...gaslessQuote.approval,
-          signature: { signature: approvalSignature, signatureType: 2 }
+          signature: (() => {
+            const sig = ethers.Signature.from(approvalSignature);
+            return { r: sig.r, s: sig.s, v: sig.v, signatureType: 2 };
+          })()
         } : undefined;
 
         const submitTrade = tradeSignature ? {
           ...gaslessQuote.trade,
-          signature: { signature: tradeSignature, signatureType: 2 }
+          signature: (() => {
+            const sig = ethers.Signature.from(tradeSignature!);
+            return { r: sig.r, s: sig.s, v: sig.v, signatureType: 2 };
+          })()
         } : undefined;
 
         console.log('📤 submit_invoked - Submitting swap with explicit chainId:', chainId);
