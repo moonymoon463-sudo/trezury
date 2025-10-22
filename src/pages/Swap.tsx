@@ -297,21 +297,38 @@ const Swap = () => {
       setLoading(true);
       setShowPasswordPrompt(false);
       
+      // Show processing toast in real-time
+      toast({
+        title: "Processing Swap... ⏳",
+        description: "Signing transaction and submitting to blockchain",
+        duration: 10000,
+      });
+      
       // Execute the swap transaction with wallet password (or gasless)
       console.log(`🔄 Executing ${useGasless ? 'GASLESS' : 'traditional'} swap transaction...`);
       const result = await swapService.executeSwap(quote.id, user.id, walletPassword, useGasless);
       
       if (result.success) {
         console.log('✅ Swap completed successfully');
+        
+        // Celebratory success notification with emoji
         toast({
-          title: "Swap Successful! 🎉",
-          description: "Transaction completed successfully",
+          title: "Swap Complete! 😊",
+          description: `Successfully swapped ${fromAmount} ${fromAsset} to ${toAsset}`,
+          duration: 5000,
         });
+        
+        // Refresh balances to show updated amounts
         await refreshBalances();
+        
+        // Reset form
         setFromAmount('');
         setQuote(null);
         setAutoQuote(null);
         setLoading(false);
+        
+        // Optional: Navigate to transactions to see the completed swap
+        // navigate('/transactions');
       } else {
         console.error('❌ Swap failed:', result.error);
         

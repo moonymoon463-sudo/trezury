@@ -555,39 +555,100 @@ class SwapService {
 
       // ===== POLL FOR CONFIRMATION =====
       let statusResult: SwapStatusResult | undefined;
-      const maxPolls = 60;
+      const maxPolls = 60; // 2 minutes total
       const pollInterval = 2000; // 2 seconds
 
-      logSwapEvent('polling_start', { tradeHash, chainId });
+      logSwapEvent('polling_start', { tradeHash, chainId, maxPolls, pollIntervalMs: pollInterval });
 
       for (let i = 0; i < maxPolls; i++) {
-        const { data: statusResponse } = await supabase.functions.invoke('swap-0x-gasless', {
-          body: {
-            operation: 'get_status',
-            tradeHash,
-            chainId
+        const pollAttempt = i + 1;
+        
+        try {
+          const { data: statusResponse, error: statusError } = await supabase.functions.invoke('swap-0x-gasless', {
+            body: {
+              operation: 'get_status',
+              tradeHash,
+              chainId
+            }
+          });
+
+          if (statusError) {
+            logSwapEvent('polling_error', { 
+              attempt: pollAttempt, 
+              error: statusError.message 
+            }, 'warn');
+            // Continue polling despite errors
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            continue;
           }
-        });
 
-        const status = statusResponse?.status || statusResponse;
+          // Handle nested response structure correctly
+          // Response can be: { status: {...} } or { success: true, status: {...} }
+          const statusData = statusResponse?.status || statusResponse?.result || statusResponse;
 
-        if (status?.status === 'confirmed' && status.transactions?.length > 0) {
-          statusResult = status;
-          logSwapEvent('swap_confirmed', { txHash: status.transactions[0].hash });
-          break;
-        }
+          if (!statusData) {
+            logSwapEvent('polling_no_data', { attempt: pollAttempt }, 'warn');
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            continue;
+          }
 
-        if (status?.status === 'failed') {
-          logSwapEvent('swap_failed_onchain', { tradeHash }, 'error');
-          throw new Error('Swap failed on-chain');
+          logSwapEvent('polling_response', { 
+            attempt: pollAttempt,
+            status: statusData.status,
+            hasTransactions: !!statusData.transactions?.length
+          });
+
+          // Check for confirmed status
+          if (statusData.status === 'confirmed' && statusData.transactions?.length > 0) {
+            statusResult = statusData;
+            logSwapEvent('swap_confirmed', { 
+              attempt: pollAttempt,
+              txHash: statusData.transactions[0].hash,
+              totalPollTime: pollAttempt * pollInterval / 1000 + 's'
+            });
+            break;
+          }
+
+          // Check for failed status
+          if (statusData.status === 'failed') {
+            logSwapEvent('swap_failed_onchain', { 
+              attempt: pollAttempt,
+              tradeHash 
+            }, 'error');
+            throw new Error('Swap failed on-chain. Please try again.');
+          }
+
+          // Log pending status
+          if (statusData.status === 'pending') {
+            logSwapEvent('polling_pending', { 
+              attempt: pollAttempt,
+              remainingPolls: maxPolls - pollAttempt
+            });
+          }
+
+        } catch (pollError) {
+          // If it's a thrown error (like failed status), re-throw it
+          if (pollError instanceof Error && pollError.message.includes('failed on-chain')) {
+            throw pollError;
+          }
+          
+          // Otherwise log and continue polling
+          logSwapEvent('polling_exception', { 
+            attempt: pollAttempt,
+            error: pollError instanceof Error ? pollError.message : 'Unknown error'
+          }, 'warn');
         }
 
         await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
 
       if (!statusResult) {
-        logSwapEvent('polling_timeout', { tradeHash }, 'error');
-        throw new Error('Swap status polling timeout');
+        logSwapEvent('polling_timeout', { 
+          tradeHash, 
+          maxAttempts: maxPolls,
+          totalTime: maxPolls * pollInterval / 1000 + 's'
+        }, 'error');
+        throw new Error('Transaction is taking longer than expected. Please check your transaction history.');
       }
 
       const txHash = statusResult.transactions[0].hash;
