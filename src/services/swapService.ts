@@ -317,7 +317,9 @@ class SwapService {
         console.log('✅ got_quote - Firm quote received:', {
           hasApproval: !!gaslessQuote.approval,
           hasTrade: !!gaslessQuote.trade,
-          chainId: gaslessQuote.chainId
+          chainId: gaslessQuote.chainId,
+          approvalKeys: gaslessQuote.approval ? Object.keys(gaslessQuote.approval) : [],
+          tradeKeys: gaslessQuote.trade ? Object.keys(gaslessQuote.trade) : []
         });
         
         // Sign the permits with user's wallet
@@ -354,16 +356,16 @@ class SwapService {
           throw new Error('No signatures generated');
         }
 
-        // Sanitize payloads to remove BigInt and undefined values
-        const sanitizedQuote = sanitizeForJson(gaslessQuote);
-        const sanitizedApproval = approvalSignature ? sanitizeForJson({
-          signature: approvalSignature,
-          ...gaslessQuote.approval
-        }) : undefined;
-        const sanitizedTrade = tradeSignature ? sanitizeForJson({
-          signature: tradeSignature,
-          ...gaslessQuote.trade
-        }) : undefined;
+        // Prepare submit payload - keep quote structure, add signed signatures
+        const submitApproval = approvalSignature ? {
+          ...gaslessQuote.approval,
+          signature: approvalSignature  // Replace with actual signature string
+        } : undefined;
+
+        const submitTrade = tradeSignature ? {
+          ...gaslessQuote.trade,
+          signature: tradeSignature  // Replace with actual signature string
+        } : undefined;
 
         console.log('📤 submit_invoked - Submitting swap with explicit chainId:', chainId);
         
@@ -371,10 +373,11 @@ class SwapService {
         const { data: submitResult, error: submitError } = await supabase.functions.invoke('swap-0x-gasless', {
           body: {
             operation: 'submit_swap',
-            chainId, // Explicit chainId
-            quote: sanitizedQuote,
-            approval: sanitizedApproval,
-            trade: sanitizedTrade
+            chainId,
+            quote: sanitizeForJson(gaslessQuote),
+            approval: submitApproval ? sanitizeForJson(submitApproval) : undefined,
+            trade: submitTrade ? sanitizeForJson(submitTrade) : undefined,
+            quoteId
           }
         });
 

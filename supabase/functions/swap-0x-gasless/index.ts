@@ -605,14 +605,11 @@ serve(async (req) => {
       // Use explicit chainId from params, fallback to quote.chainId, then default to 1
       const resolvedChainId = paramChainId ?? quote.chainId ?? 1;
 
-      // Build submit body with approval/trade signatures
+      // Build submit body - pass approval/trade as-is from client
       const submitBody: any = {
-        chainId: resolvedChainId,
         quote,
-        ...(approval ? { approval: { ...approval, signature: approval.signature } } : {}),
-        ...(trade ? { trade: { ...trade, signature: trade.signature } } : {}),
-        quoteId,
-        intentId
+        ...(approval ? { approval } : {}),
+        ...(trade ? { trade } : {})
       };
 
       console.log('📤 Submitting gasless swap to 0x', {
@@ -621,7 +618,10 @@ serve(async (req) => {
         resolvedChainId,
         hasApproval: !!submitBody.approval,
         hasTrade: !!submitBody.trade,
-        quoteId
+        approvalStructure: approval ? Object.keys(approval) : [],
+        tradeStructure: trade ? Object.keys(trade) : [],
+        approvalSignatureType: approval?.signature ? typeof approval.signature : 'none',
+        tradeSignatureType: trade?.signature ? typeof trade.signature : 'none'
       });
 
       // Use chain-specific base URL for submit
@@ -629,6 +629,11 @@ serve(async (req) => {
       const submitUrl = `${baseUrl}/gasless/submit`;
 
       console.log(`📤 Submitting to: ${submitUrl}`);
+      console.log('📤 Submit body sample:', {
+        hasQuote: !!submitBody.quote,
+        approvalKeys: submitBody.approval ? Object.keys(submitBody.approval) : [],
+        tradeKeys: submitBody.trade ? Object.keys(submitBody.trade) : []
+      });
 
       const response = await fetch(submitUrl, {
         method: 'POST',
