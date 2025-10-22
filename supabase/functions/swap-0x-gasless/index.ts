@@ -603,10 +603,14 @@ serve(async (req) => {
       }
 
       // Use explicit chainId from params, fallback to quote.chainId, then default to 1
-      const resolvedChainId = paramChainId ?? quote.chainId ?? 1;
+      let resolvedChainId = Number(paramChainId ?? quote.chainId ?? 1);
+      if (!Number.isFinite(resolvedChainId) || isNaN(resolvedChainId)) {
+        resolvedChainId = 1;
+      }
 
       // Build submit body - pass approval/trade as-is from client
       const submitBody: any = {
+        chainId: resolvedChainId,
         quote,
         ...(approval ? { approval } : {}),
         ...(trade ? { trade } : {})
