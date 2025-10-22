@@ -192,7 +192,7 @@ class WalletSigningService {
 
   /**
    * Sign EIP-712 typed data
-   * ✅ PHASE 3: SIGNATURE MONITORING
+   * Automatically sanitizes types to avoid ethers v6 ambiguity errors
    */
   async signTypedData(
     userId: string,
@@ -202,28 +202,61 @@ class WalletSigningService {
     types: any,
     message: any
   ): Promise<string> {
+    // Helper: build minimal types set based on message shape
+    const buildSanitizedTypes = (rawTypes: any, value: any) => {
+      const t = { ...rawTypes };
+      // Remove EIP712Domain if present (ethers v6 expects it omitted)
+      if (t.EIP712Domain) delete t.EIP712Domain;
+
+      // Detect primary type by message keys
+      const isPermit2 = (value && typeof value === 'object' && 'permitted' in value && 'spender' in value);
+      const isPermit = (value && typeof value === 'object' && 'owner' in value && 'spender' in value && 'value' in value);
+
+      if (isPermit2 && (t.PermitTransferFrom || t.PermitSingle)) {
+        // Keep only PermitTransferFrom (v2) and its dependency TokenPermissions
+        const keep: any = {};
+        if (t.TokenPermissions) keep.TokenPermissions = t.TokenPermissions;
+        if (t.PermitTransferFrom) keep.PermitTransferFrom = t.PermitTransferFrom;
+        return keep;
+      }
+
+      if (isPermit && t.Permit) {
+        // Legacy ERC-2612 Permit
+        return { Permit: t.Permit };
+      }
+
+      // Default: return rawTypes without EIP712Domain
+      return t;
+    };
+
     try {
       const wallet = await this.getWalletForSigning(userId, userPassword, chainId);
-      const signature = await wallet.signTypedData(domain, types, message);
-      
+      const sanitizedTypes = buildSanitizedTypes(types, message);
+
+      // Some domains include a non-numeric chainId, ensure numeric
+      const sanitizedDomain = { ...domain };
+      if (sanitizedDomain.chainId && typeof sanitizedDomain.chainId === 'string') {
+        sanitizedDomain.chainId = Number(sanitizedDomain.chainId);
+      }
+
+      const signature = await wallet.signTypedData(sanitizedDomain, sanitizedTypes, message);
+
       // ✅ Log successful signature
       supabase.from('signature_attempts').insert({
         user_id: userId,
         success: true,
         chain_id: chainId,
         metadata: {
-          domain: domain.name,
-          timestamp: Date.now()
-        }
+          domain: domain?.name ?? 'unknown',
+          timestamp: Date.now(),
+        },
       }).then();
-      
+
       return signature;
     } catch (error) {
-      // ✅ MONITOR FAILED SIGNATURES
       console.error('❌ Signature failed:', error);
-      
       const errorMessage = error instanceof Error ? error.message : 'Unknown signature error';
-      
+
       // Log to database
       supabase.from('signature_attempts').insert({
         user_id: userId,
@@ -231,26 +264,22 @@ class WalletSigningService {
         chain_id: chainId,
         error_message: errorMessage,
         metadata: {
-          domain: domain.name,
+          domain: domain?.name ?? 'unknown',
           timestamp: Date.now(),
-          error_type: error instanceof Error ? error.name : 'UnknownError'
-        }
+          error_type: error instanceof Error ? error.name : 'UnknownError',
+        },
       }).then();
-      
-      // Alert on repeated failures
+
+      // Security monitoring hook (best-effort)
       import('@/services/securityMonitoringService').then(({ securityMonitoringService }) => {
         securityMonitoringService.logSecurityEvent({
           event_type: 'signature_failure',
           severity: 'medium',
           user_id: userId,
-          event_data: {
-            chainId,
-            error: errorMessage,
-            timestamp: Date.now()
-          }
+          event_data: { chainId, error: errorMessage, timestamp: Date.now() },
         });
       }).catch();
-      
+
       throw error;
     }
   }
