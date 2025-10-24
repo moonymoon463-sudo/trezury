@@ -94,7 +94,7 @@ const TradingDashboard = () => {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="relative">
               <AurumLogo className="h-20 w-20" />
-              <h1 className="absolute left-full ml-6 top-1/2 -translate-y-1/2 translate-y-1 text-base font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
+              <h1 className="absolute left-full ml-12 top-1/2 -translate-y-1/2 translate-y-1 text-sm font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent whitespace-nowrap">
                 Trading Dashboard
               </h1>
             </div>
