@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
+// Note: We'll lazy-load lightweight-charts to avoid bundler interop issues
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
@@ -23,107 +23,145 @@ const TIMEFRAMES = [
 
 const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: TradingViewChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const chartRef = useRef<any>(null);
+  const candleSeriesRef = useRef<any>(null);
+  const volumeSeriesRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!chartContainerRef.current || candles.length === 0) return;
+    let disposed = false;
+    let cleanup: (() => void) | null = null;
 
-    // Create chart instance
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { color: 'transparent' },
-        textColor: 'hsl(43, 65%, 55%)', // aurum color
-      },
-      grid: {
-        vertLines: { color: 'rgba(212, 175, 55, 0.1)' },
-        horzLines: { color: 'rgba(212, 175, 55, 0.1)' },
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: 500,
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-        borderColor: 'rgba(212, 175, 55, 0.2)',
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(212, 175, 55, 0.2)',
-      },
-      crosshair: {
-        horzLine: {
-          color: 'hsl(43, 65%, 55%)',
-          labelBackgroundColor: 'hsl(43, 65%, 55%)',
-        },
-        vertLine: {
-          color: 'hsl(43, 65%, 55%)',
-          labelBackgroundColor: 'hsl(43, 65%, 55%)',
-        },
-      },
-    });
+    const init = async () => {
+      if (!chartContainerRef.current || candles.length === 0) return;
 
-    // Add candlestick series
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: 'hsl(142, 76%, 36%)', // status-success green
-      downColor: 'hsl(0, 84%, 60%)', // status-error red
-      borderUpColor: 'hsl(142, 76%, 36%)',
-      borderDownColor: 'hsl(0, 84%, 60%)',
-      wickUpColor: 'hsl(142, 76%, 36%)',
-      wickDownColor: 'hsl(0, 84%, 60%)',
-    });
-
-    // Add volume histogram series
-    const volumeSeries = chart.addHistogramSeries({
-      color: 'rgba(212, 175, 55, 0.3)',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: '',
-    });
-
-    // Transform data to chart format
-    const chartData = candles.map((candle) => ({
-      time: candle.timestamp as any,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-    }));
-
-    const volumeData = candles.map((candle) => ({
-      time: candle.timestamp as any,
-      value: candle.volume,
-      color: candle.close > candle.open 
-        ? 'rgba(16, 185, 129, 0.5)' // green with transparency
-        : 'rgba(239, 68, 68, 0.5)', // red with transparency
-    }));
-
-    candleSeries.setData(chartData);
-    volumeSeries.setData(volumeData);
-
-    // Fit content to view
-    chart.timeScale().fitContent();
-
-    // Store refs
-    chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
-    volumeSeriesRef.current = volumeSeries;
-
-    // Handle resize
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
+      // Try ESM import first
+      let lib: any = null;
+      try {
+        lib = await import('lightweight-charts');
+      } catch (e) {
+        console.warn('[TradingViewChart] ESM import failed, falling back to CDN', e);
       }
+
+      // Fallback to CDN UMD build if needed
+      if (!lib || typeof (lib as any).createChart !== 'function') {
+        await new Promise<void>((resolve, reject) => {
+          const existing = document.querySelector('script[data-lwc-cdn="true"]') as HTMLScriptElement | null;
+          if (existing) return resolve();
+          const s = document.createElement('script');
+          s.src = 'https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js';
+          s.async = true;
+          s.setAttribute('data-lwc-cdn', 'true');
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
+          document.head.appendChild(s);
+        });
+        lib = (window as any).LightweightCharts;
+      }
+
+      if (disposed) return;
+
+      // Create chart instance
+      const chart = (lib as any).createChart(chartContainerRef.current, {
+        layout: {
+          background: { color: 'transparent' },
+          textColor: 'hsl(43, 65%, 55%)', // aurum color
+        },
+        grid: {
+          vertLines: { color: 'rgba(212, 175, 55, 0.1)' },
+          horzLines: { color: 'rgba(212, 175, 55, 0.1)' },
+        },
+        width: chartContainerRef.current.clientWidth,
+        height: 500,
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          borderColor: 'rgba(212, 175, 55, 0.2)',
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(212, 175, 55, 0.2)',
+        },
+        crosshair: {
+          horzLine: {
+            color: 'hsl(43, 65%, 55%)',
+            labelBackgroundColor: 'hsl(43, 65%, 55%)',
+          },
+          vertLine: {
+            color: 'hsl(43, 65%, 55%)',
+            labelBackgroundColor: 'hsl(43, 65%, 55%)',
+          },
+        },
+      });
+
+      // Add candlestick series
+      const candleSeries = chart.addCandlestickSeries({
+        upColor: 'hsl(142, 76%, 36%)', // status-success green
+        downColor: 'hsl(0, 84%, 60%)', // status-error red
+        borderUpColor: 'hsl(142, 76%, 36%)',
+        borderDownColor: 'hsl(0, 84%, 60%)',
+        wickUpColor: 'hsl(142, 76%, 36%)',
+        wickDownColor: 'hsl(0, 84%, 60%)',
+      });
+
+      // Add volume histogram series
+      const volumeSeries = chart.addHistogramSeries({
+        color: 'rgba(212, 175, 55, 0.3)',
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: '',
+      });
+
+      // Transform data to chart format
+      const chartData = candles.map((candle) => ({
+        time: candle.timestamp as any,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+      }));
+
+      const volumeData = candles.map((candle) => ({
+        time: candle.timestamp as any,
+        value: candle.volume,
+        color: candle.close > candle.open 
+          ? 'rgba(16, 185, 129, 0.5)' // green with transparency
+          : 'rgba(239, 68, 68, 0.5)', // red with transparency
+      }));
+
+      candleSeries.setData(chartData);
+      volumeSeries.setData(volumeData);
+
+      // Fit content to view
+      chart.timeScale().fitContent();
+
+      // Store refs
+      chartRef.current = chart;
+      candleSeriesRef.current = candleSeries;
+      volumeSeriesRef.current = volumeSeries;
+
+      // Handle resize
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+          });
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      cleanup = () => {
+        window.removeEventListener('resize', handleResize);
+        chart.remove();
+      };
     };
 
-    window.addEventListener('resize', handleResize);
+    init();
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
+      disposed = true;
+      if (cleanup) cleanup();
     };
   }, [candles]);
 
