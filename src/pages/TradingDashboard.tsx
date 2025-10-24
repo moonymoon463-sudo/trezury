@@ -200,7 +200,7 @@ const TradingDashboard = () => {
       <aside className="flex flex-col w-64 bg-[#211d12] border-r border-[#463c25] p-4">
         {/* Logo & Title */}
         <div className="flex items-center gap-3 mb-8">
-          <AurumLogo className="h-10 w-10" />
+          <AurumLogo className="h-16 w-16" />
           <div className="flex flex-col">
             <h1 className="text-white text-lg font-bold leading-normal">Trezury</h1>
             <p className="text-[#c6b795] text-sm font-normal leading-normal">Trading Dashboard</p>
