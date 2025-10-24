@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { useDydxMarkets } from '@/hooks/useDydxMarkets';
 import { useDydxCandles } from '@/hooks/useDydxCandles';
-import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown } from 'lucide-react';
+import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
@@ -20,7 +21,15 @@ const TradingDashboard = () => {
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
   const [leverage, setLeverage] = useState(1);
   const [chartResolution, setChartResolution] = useState<string>('1HOUR');
+  const [walletType, setWalletType] = useState<'internal' | 'external'>('internal');
+  const [copied, setCopied] = useState(false);
+  
+  // External wallet (MetaMask)
   const { wallet, connectWallet } = useWalletConnection();
+  
+  // Internal wallet (secure wallet)
+  const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
+  
   const { toast } = useToast();
 
   // Real dYdX market data
@@ -58,6 +67,29 @@ const TradingDashboard = () => {
     }
   };
 
+  const handleRefreshBalances = async () => {
+    await refreshBalances();
+    toast({
+      title: "Balances Updated",
+      description: "Your wallet balances have been refreshed.",
+    });
+  };
+
+  const copyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({
+      title: "Address Copied",
+      description: "Wallet address copied to clipboard",
+    });
+  };
+
+  // Get current wallet data based on selection
+  const currentWalletAddress = walletType === 'internal' ? internalAddress : wallet.address;
+  const currentWalletBalance = walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0');
+  const isCurrentWalletConnected = walletType === 'internal' ? internalConnected : wallet.isConnected;
+
   const chartResolutionMap: Record<string, string> = {
     '1m': '1MIN',
     '5m': '5MINS',
@@ -86,22 +118,105 @@ const TradingDashboard = () => {
             <WalletIcon className="h-5 w-5 text-white" />
             <p className="text-white text-sm font-medium leading-normal">Portfolio Overview</p>
           </div>
-          <div className="pl-6 text-sm space-y-1">
-            <div className="flex justify-between items-center text-white">
-              <span>Balance:</span>
-              <span className="font-semibold">$1,234,567.89</span>
-            </div>
-            <div className="flex justify-between items-center text-[#c6b795]">
-              <span>Open Trades:</span>
-              <span>5</span>
-            </div>
+          
+          {/* Wallet Type Toggle */}
+          <div className="flex gap-1 bg-[#211d12] rounded-lg p-1">
+            <button
+              onClick={() => setWalletType('internal')}
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                walletType === 'internal' 
+                  ? 'bg-[#e6b951] text-black' 
+                  : 'text-[#c6b795] hover:text-white'
+              }`}
+            >
+              Internal Wallet
+            </button>
+            <button
+              onClick={() => setWalletType('external')}
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                walletType === 'external' 
+                  ? 'bg-[#e6b951] text-black' 
+                  : 'text-[#c6b795] hover:text-white'
+              }`}
+            >
+              External Wallet
+            </button>
           </div>
-          <Button className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold">
-            Deposit
-          </Button>
-          <Button variant="outline" className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold">
-            Withdraw
-          </Button>
+
+          {/* Wallet Info */}
+          {isCurrentWalletConnected ? (
+            <>
+              <div className="pl-3 space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#c6b795] text-xs">Address:</span>
+                    <button
+                      onClick={() => currentWalletAddress && copyAddress(currentWalletAddress)}
+                      className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
+                    >
+                      {currentWalletAddress?.slice(0, 6)}...{currentWalletAddress?.slice(-4)}
+                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#c6b795] text-sm">Balance:</span>
+                    <span className="text-white font-semibold">
+                      ${currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {walletType === 'internal' && balances.length > 0 && (
+                    <div className="space-y-1 pt-2 border-t border-[#463c25]">
+                      {balances.map((balance) => (
+                        <div key={balance.asset} className="flex justify-between items-center text-xs">
+                          <span className="text-[#c6b795]">{balance.asset}:</span>
+                          <span className="text-white">{balance.amount.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {walletType === 'internal' && (
+                <Button
+                  onClick={handleRefreshBalances}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-[#c6b795] hover:text-white hover:bg-[#463c25]"
+                  disabled={internalLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${internalLoading ? 'animate-spin' : ''}`} />
+                  Refresh Balances
+                </Button>
+              )}
+
+              <Button className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold">
+                Deposit
+              </Button>
+              <Button variant="outline" className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold">
+                Withdraw
+              </Button>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-center py-4">
+                <p className="text-[#c6b795] text-sm mb-3">
+                  {walletType === 'internal' 
+                    ? 'Internal wallet not set up' 
+                    : 'External wallet not connected'}
+                </p>
+                {walletType === 'external' && (
+                  <Button
+                    onClick={handleConnectWallet}
+                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                  >
+                    <WalletIcon className="h-4 w-4 mr-2" />
+                    Connect MetaMask
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Assets List */}
@@ -170,8 +285,12 @@ const TradingDashboard = () => {
       <main className="flex-1 flex flex-col p-6 relative bg-[#211d12]">
         {/* Top Stats */}
         <div className="absolute top-6 right-6 z-10 flex gap-4 p-2 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50">
-          {wallet.isConnected && (
+          {isCurrentWalletConnected && (
             <>
+              <div className="flex flex-col items-center px-2">
+                <p className="text-[#c6b795] text-xs font-medium">Wallet Type</p>
+                <p className="text-white text-base font-bold capitalize">{walletType}</p>
+              </div>
               <div className="flex flex-col items-center px-2">
                 <p className="text-[#c6b795] text-xs font-medium">Live P&L</p>
                 <p className="text-green-400 text-base font-bold">+$1,234.56</p>
@@ -423,16 +542,24 @@ const TradingDashboard = () => {
             <div className="space-y-2 pt-4 border-t border-[#463c25]">
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Total:</span>
-                <span className="text-white font-semibold">1,313.57 USDT</span>
+                <span className="text-white font-semibold">
+                  {currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Available:</span>
-                <span className="text-white font-semibold">1,234,567.89 USDT</span>
+                <span className="text-white font-semibold">
+                  {currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[#c6b795]">Source:</span>
+                <span className="text-[#e6b951] font-semibold capitalize">{walletType}</span>
               </div>
             </div>
 
             {/* Confirm Button */}
-            {wallet.isConnected ? (
+            {isCurrentWalletConnected ? (
               <Button
                 className={`w-full h-12 font-bold text-lg ${
                   tradeMode === 'buy' 
@@ -445,11 +572,12 @@ const TradingDashboard = () => {
               </Button>
             ) : (
               <Button
-                onClick={handleConnectWallet}
+                onClick={walletType === 'external' ? handleConnectWallet : undefined}
                 className="w-full h-12 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-lg"
+                disabled={walletType === 'internal'}
               >
                 <WalletIcon className="h-5 w-5 mr-2" />
-                Connect Wallet
+                {walletType === 'external' ? 'Connect External Wallet' : 'Set Up Internal Wallet'}
               </Button>
             )}
           </div>
