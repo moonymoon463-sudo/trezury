@@ -30,12 +30,20 @@ export const useDydxTrading = (walletAddress?: string) => {
     }
   }, [walletAddress, toast]);
 
-  const placeOrder = useCallback(async (order: OrderRequest): Promise<OrderResponse> => {
+  const placeOrder = useCallback(async (order: OrderRequest & { password: string }): Promise<OrderResponse> => {
     if (!walletAddress || !accountInfo) {
       return {
         success: false,
         error: 'Wallet not connected or account info not loaded',
         errorCode: 'NO_WALLET'
+      };
+    }
+
+    if (!order.password) {
+      return {
+        success: false,
+        error: 'Password required for trading',
+        errorCode: 'NO_PASSWORD'
       };
     }
 
@@ -101,9 +109,9 @@ export const useDydxTrading = (walletAddress?: string) => {
     }
   }, [walletAddress, accountInfo, toast, loadAccountInfo]);
 
-  const cancelOrder = useCallback(async (orderId: string): Promise<boolean> => {
+  const cancelOrder = useCallback(async (orderId: string, password: string): Promise<boolean> => {
     try {
-      const success = await dydxTradingService.cancelOrder(orderId);
+      const success = await dydxTradingService.cancelOrder(orderId, password);
       
       if (success) {
         toast({

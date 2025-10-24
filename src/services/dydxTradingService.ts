@@ -107,31 +107,20 @@ class DydxTradingService {
     };
   }
 
-  async placeMarketOrder(request: OrderRequest): Promise<OrderResponse> {
+  async placeMarketOrder(request: OrderRequest & { password: string }): Promise<OrderResponse> {
     try {
       const { data, error } = await supabase.functions.invoke('dydx-trading', {
         body: {
           operation: 'place_order',
-          params: {
-            ...request,
-            type: 'MARKET'
-          }
+          params: { ...request, type: 'MARKET', password: request.password }
         }
       });
 
       if (error) {
-        return {
-          success: false,
-          error: error.message,
-          errorCode: 'EXECUTION_ERROR'
-        };
+        return { success: false, error: error.message, errorCode: 'EXECUTION_ERROR' };
       }
 
-      return {
-        success: true,
-        order: data.order,
-        txHash: data.txHash
-      };
+      return { success: true, order: data.order, txHash: data.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Market order failed:', err);
       return {
@@ -142,39 +131,24 @@ class DydxTradingService {
     }
   }
 
-  async placeLimitOrder(request: OrderRequest): Promise<OrderResponse> {
+  async placeLimitOrder(request: OrderRequest & { password: string }): Promise<OrderResponse> {
     if (!request.price) {
-      return {
-        success: false,
-        error: 'Limit orders require a price',
-        errorCode: 'INVALID_PRICE'
-      };
+      return { success: false, error: 'Limit orders require a price', errorCode: 'INVALID_PRICE' };
     }
 
     try {
       const { data, error } = await supabase.functions.invoke('dydx-trading', {
         body: {
           operation: 'place_order',
-          params: {
-            ...request,
-            type: 'LIMIT'
-          }
+          params: { ...request, type: 'LIMIT', password: request.password }
         }
       });
 
       if (error) {
-        return {
-          success: false,
-          error: error.message,
-          errorCode: 'EXECUTION_ERROR'
-        };
+        return { success: false, error: error.message, errorCode: 'EXECUTION_ERROR' };
       }
 
-      return {
-        success: true,
-        order: data.order,
-        txHash: data.txHash
-      };
+      return { success: true, order: data.order, txHash: data.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Limit order failed:', err);
       return {
@@ -185,15 +159,11 @@ class DydxTradingService {
     }
   }
 
-  async cancelOrder(orderId: string): Promise<boolean> {
+  async cancelOrder(orderId: string, password: string): Promise<boolean> {
     try {
       const { error } = await supabase.functions.invoke('dydx-trading', {
-        body: {
-          operation: 'cancel_order',
-          params: { orderId }
-        }
+        body: { operation: 'cancel_order', params: { orderId, password } }
       });
-
       return !error;
     } catch (err) {
       console.error('[DydxTradingService] Cancel order failed:', err);
@@ -218,28 +188,17 @@ class DydxTradingService {
     }
   }
 
-  async closePosition(market: string, size?: number): Promise<OrderResponse> {
+  async closePosition(market: string, password: string, size?: number): Promise<OrderResponse> {
     try {
       const { data, error } = await supabase.functions.invoke('dydx-trading', {
-        body: {
-          operation: 'close_position',
-          params: { market, size }
-        }
+        body: { operation: 'close_position', params: { market, size, password } }
       });
 
       if (error) {
-        return {
-          success: false,
-          error: error.message,
-          errorCode: 'EXECUTION_ERROR'
-        };
+        return { success: false, error: error.message, errorCode: 'EXECUTION_ERROR' };
       }
 
-      return {
-        success: true,
-        order: data.order,
-        txHash: data.txHash
-      };
+      return { success: true, order: data.order, txHash: data.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Close position failed:', err);
       return {
