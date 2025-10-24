@@ -265,7 +265,7 @@ const TradingDashboard = () => {
           )}
 
           {/* Chart Section with TradingView */}
-          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black min-h-[500px]">
+          <div className="flex-1 p-4 bg-gradient-to-br from-zinc-950 to-black overflow-hidden flex flex-col min-h-0">
             {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
               <TradingViewChart
                 symbol={selectedAsset}
@@ -274,7 +274,7 @@ const TradingDashboard = () => {
                 onResolutionChange={setChartResolution}
               />
             ) : selectedAsset ? (
-              <Card className="h-full bg-black/60 border-aurum/20">
+              <Card className="flex-1 bg-black/60 border-aurum/20">
                 <CardContent className="h-full flex items-center justify-center">
                   <div className="text-center">
                     <BarChart3 className="h-24 w-24 mx-auto mb-4 text-aurum/40" />
@@ -286,7 +286,7 @@ const TradingDashboard = () => {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="h-full bg-black/60 border-aurum/20">
+              <Card className="flex-1 bg-black/60 border-aurum/20">
                 <CardContent className="h-full flex items-center justify-center">
                   <div className="text-center">
                     <BarChart3 className="h-24 w-24 mx-auto mb-4 text-aurum/40" />

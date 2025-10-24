@@ -59,7 +59,8 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
 
       if (disposed) return;
 
-      // Create chart instance
+      // Create chart instance with responsive sizing
+      const containerHeight = chartContainerRef.current.clientHeight || 400;
       const chart = (lib as any).createChart(chartContainerRef.current, {
         layout: {
           background: { color: 'transparent' },
@@ -70,7 +71,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
           horzLines: { color: 'rgba(212, 175, 55, 0.1)' },
         },
         width: chartContainerRef.current.clientWidth,
-        height: 500,
+        height: containerHeight,
         timeScale: {
           timeVisible: true,
           secondsVisible: false,
@@ -183,11 +184,11 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full gap-3">
       {/* Timeframe Selector */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Timeframe:</span>
+          <span className="text-xs font-medium text-muted-foreground">Timeframe:</span>
           <div className="flex gap-1">
             {TIMEFRAMES.map((tf) => (
               <Button
@@ -198,8 +199,8 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
                 disabled={isLoading}
                 className={
                   resolution === tf.value
-                    ? 'bg-aurum text-black hover:bg-aurum-glow'
-                    : 'border-aurum/20 text-aurum hover:bg-aurum/10'
+                    ? 'bg-aurum text-black hover:bg-aurum-glow h-7 text-xs'
+                    : 'border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs'
                 }
               >
                 {tf.label}
@@ -207,16 +208,16 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
             ))}
           </div>
         </div>
-        <div className="text-sm font-medium text-aurum">
+        <div className="text-sm font-semibold text-aurum">
           {symbol}
         </div>
       </div>
 
       {/* Chart Container */}
-      <div className="relative">
+      <div className="relative flex-1 min-h-0">
         <div 
           ref={chartContainerRef} 
-          className="w-full h-[500px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
