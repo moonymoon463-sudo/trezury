@@ -33,6 +33,7 @@ const TradingDashboard = () => {
   const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
@@ -177,6 +178,16 @@ const TradingDashboard = () => {
       setOrderSize('');
       setLimitPrice('');
       refreshAccount();
+    }
+  };
+
+  const handleTradingModeChange = (mode: 'spot' | 'leverage') => {
+    setTradingMode(mode);
+    // Auto-select first asset in the new mode
+    if (mode === 'spot') {
+      setSelectedAsset('XAUT');
+    } else {
+      setSelectedAsset('BTC-USD');
     }
   };
 
@@ -338,7 +349,9 @@ const TradingDashboard = () => {
         </div>
 
         {/* Assets List */}
-        <p className="text-[#c6b795] text-xs font-bold uppercase tracking-wider px-3 mb-2">Assets</p>
+        <p className="text-[#c6b795] text-xs font-bold uppercase tracking-wider px-3 mb-2">
+          {tradingMode === 'spot' ? 'Spot Assets' : 'Leverage Assets'}
+        </p>
         <div className="flex flex-col gap-1 flex-1 overflow-y-auto">
           {marketsLoading ? (
             <>
@@ -348,7 +361,7 @@ const TradingDashboard = () => {
             </>
           ) : (
             <>
-              {leverageAssets.map((asset) => (
+              {tradingMode === 'leverage' && leverageAssets.map((asset) => (
                 <button
                   key={asset.symbol}
                   onClick={() => setSelectedAsset(asset.symbol)}
@@ -367,7 +380,7 @@ const TradingDashboard = () => {
                   </span>
                 </button>
               ))}
-              {spotAssets.map((asset) => (
+              {tradingMode === 'spot' && spotAssets.map((asset) => (
                 <button
                   key={asset.symbol}
                   onClick={() => setSelectedAsset(asset.symbol)}
@@ -427,10 +440,24 @@ const TradingDashboard = () => {
 
         {/* Top Navigation Tabs */}
         <div className="flex border-b border-[#463c25] gap-8 mb-6">
-          <button className="flex flex-col items-center justify-center border-b-[3px] border-b-[#e6b951] text-white pb-[13px] pt-2">
+          <button 
+            onClick={() => handleTradingModeChange('spot')}
+            className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-2 ${
+              tradingMode === 'spot' 
+                ? 'border-b-[#e6b951] text-white' 
+                : 'border-b-transparent text-[#c6b795] hover:text-white'
+            }`}
+          >
             <p className="text-sm font-bold leading-normal tracking-[0.015em]">Spot</p>
           </button>
-          <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#c6b795] pb-[13px] pt-2 hover:text-white">
+          <button 
+            onClick={() => handleTradingModeChange('leverage')}
+            className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-2 ${
+              tradingMode === 'leverage' 
+                ? 'border-b-[#e6b951] text-white' 
+                : 'border-b-transparent text-[#c6b795] hover:text-white'
+            }`}
+          >
             <p className="text-sm font-bold leading-normal tracking-[0.015em]">Leverage</p>
           </button>
           <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#c6b795] pb-[13px] pt-2 hover:text-white">
