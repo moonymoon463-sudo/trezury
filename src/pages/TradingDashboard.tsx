@@ -262,7 +262,7 @@ const TradingDashboard = () => {
           )}
 
           {/* TradingView Chart */}
-          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black">
+          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black min-h-[400px]">
             <TradingViewChart symbol={selectedAsset} />
           </div>
         </div>

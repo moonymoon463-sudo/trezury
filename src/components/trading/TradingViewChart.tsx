@@ -95,7 +95,14 @@ export const TradingViewChart = ({ symbol }: TradingViewChartProps) => {
 
   // Update chart data when candles change
   useEffect(() => {
-    if (!seriesRef.current || !candles.length) return;
+    if (!seriesRef.current || !candles.length) {
+      console.log('[TradingViewChart] No data to display:', { hasRef: !!seriesRef.current, candlesLength: candles.length });
+      return;
+    }
+
+    console.log('[TradingViewChart] Updating chart with', candles.length, 'candles');
+    console.log('[TradingViewChart] First candle:', candles[0]);
+    console.log('[TradingViewChart] Last candle:', candles[candles.length - 1]);
 
     const formattedData = candles.map(candle => ({
       time: candle.timestamp as any,
@@ -105,8 +112,15 @@ export const TradingViewChart = ({ symbol }: TradingViewChartProps) => {
       close: candle.close,
     }));
 
+    // Validate timestamp format (should be in seconds, 10 digits)
+    const firstTimestamp = formattedData[0]?.time;
+    if (firstTimestamp && firstTimestamp.toString().length !== 10) {
+      console.error('[TradingViewChart] Invalid timestamp format! Expected seconds (10 digits), got:', firstTimestamp);
+    }
+
     seriesRef.current.setData(formattedData);
     chartRef.current?.timeScale().fitContent();
+    console.log('[TradingViewChart] Chart updated successfully');
   }, [candles]);
 
   if (!symbol) {

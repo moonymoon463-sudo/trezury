@@ -23,7 +23,20 @@ export const useDydxCandles = (
     const loadCandles = async () => {
       try {
         setLoading(true);
+        console.log('[useDydxCandles] Fetching candles:', { symbol, resolution, limit });
         const data = await dydxMarketService.getCandles(symbol, resolution, limit);
+        console.log('[useDydxCandles] Received', data.length, 'candles');
+        
+        // Validate data
+        if (data.length > 0) {
+          const sample = data[0];
+          console.log('[useDydxCandles] Sample candle:', sample);
+          
+          if (!sample.timestamp || !sample.open || !sample.high || !sample.low || !sample.close) {
+            console.error('[useDydxCandles] Invalid candle data structure:', sample);
+          }
+        }
+        
         if (mounted) {
           setCandles(data);
           setError(null);
