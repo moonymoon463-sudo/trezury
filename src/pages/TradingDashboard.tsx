@@ -10,9 +10,11 @@ import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useDydxMarkets } from '@/hooks/useDydxMarkets';
 import { useDydxOrderbook } from '@/hooks/useDydxOrderbook';
 import { useDydxPositions } from '@/hooks/useDydxPositions';
+import { useDydxCandles } from '@/hooks/useDydxCandles';
 import { ArrowLeft, Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Activity, Settings, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import TradingViewChart from '@/components/trading/TradingViewChart';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -20,6 +22,7 @@ const TradingDashboard = () => {
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('buy');
   const [leverage, setLeverage] = useState(1);
+  const [chartResolution, setChartResolution] = useState<string>('1HOUR');
   const { wallet, connectWallet, disconnectWallet, connecting } = useWalletConnection();
   const { toast } = useToast();
 
@@ -27,6 +30,7 @@ const TradingDashboard = () => {
   const { markets, loading: marketsLoading } = useDydxMarkets();
   const { orderbook, loading: orderbookLoading } = useDydxOrderbook(selectedAsset);
   const { positions } = useDydxPositions(wallet.address);
+  const { candles, loading: candlesLoading } = useDydxCandles(selectedAsset, chartResolution, 200);
 
   // Filter leverage assets (BTC, ETH, SOL from dYdX)
   const leverageAssets = markets.filter(m => 
@@ -260,19 +264,40 @@ const TradingDashboard = () => {
             </div>
           )}
 
-          {/* Chart Placeholder */}
-          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black">
-            <Card className="h-full bg-black/60 border-aurum/20">
-              <CardContent className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <BarChart3 className="h-24 w-24 mx-auto mb-4 text-aurum/40" />
-                  <h3 className="text-xl font-semibold text-aurum mb-2">TradingView Chart</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    Real-time price charts with advanced technical indicators will be integrated here using TradingView's charting library.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Chart Section with TradingView */}
+          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black min-h-[500px]">
+            {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
+              <TradingViewChart
+                symbol={selectedAsset}
+                candles={candles}
+                resolution={chartResolution}
+                onResolutionChange={setChartResolution}
+              />
+            ) : selectedAsset ? (
+              <Card className="h-full bg-black/60 border-aurum/20">
+                <CardContent className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <BarChart3 className="h-24 w-24 mx-auto mb-4 text-aurum/40" />
+                    <h3 className="text-xl font-semibold text-aurum mb-2">Spot Trading Chart</h3>
+                    <p className="text-muted-foreground max-w-md">
+                      Chart for {selectedAsset} will be integrated with spot market data.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="h-full bg-black/60 border-aurum/20">
+                <CardContent className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <BarChart3 className="h-24 w-24 mx-auto mb-4 text-aurum/40" />
+                    <h3 className="text-xl font-semibold text-aurum mb-2">Select an Asset</h3>
+                    <p className="text-muted-foreground max-w-md">
+                      Choose a trading pair from the left sidebar to view its chart.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 

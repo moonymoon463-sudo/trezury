@@ -116,7 +116,7 @@ serve(async (req) => {
 
         result = {
           candles: (data.candles || []).map((c: any) => ({
-            timestamp: new Date(c.startedAt).getTime(),
+            timestamp: Math.floor(new Date(c.startedAt).getTime() / 1000), // Convert to seconds for lightweight-charts
             open: parseFloat(c.open),
             high: parseFloat(c.high),
             low: parseFloat(c.low),
