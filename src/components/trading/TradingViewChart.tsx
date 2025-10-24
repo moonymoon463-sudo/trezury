@@ -29,32 +29,30 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     let disposed = false;
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
       if (!chartContainerRef.current || candles.length === 0) return;
 
-      // Try ESM import first
-      let lib: any = null;
-      try {
-        lib = await import('lightweight-charts');
-      } catch (e) {
-        console.warn('[TradingViewChart] ESM import failed, falling back to CDN', e);
-      }
-
-      // Fallback to CDN UMD build if needed
-      if (!lib || typeof (lib as any).createChart !== 'function') {
+      // Load lightweight-charts from CDN (ensures correct ChartApi)
+      let lib: any = (window as any).LightweightCharts;
+      if (!lib) {
         await new Promise<void>((resolve, reject) => {
           const existing = document.querySelector('script[data-lwc-cdn="true"]') as HTMLScriptElement | null;
-          if (existing) return resolve();
-          const s = document.createElement('script');
-          s.src = 'https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js';
-          s.async = true;
-          s.setAttribute('data-lwc-cdn', 'true');
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
-          document.head.appendChild(s);
+          if (existing) {
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('Failed to load lightweight-charts CDN')), { once: true });
+          } else {
+            const s = document.createElement('script');
+            s.src = 'https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js';
+            s.async = true;
+            s.setAttribute('data-lwc-cdn', 'true');
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
+            document.head.appendChild(s);
+          }
         });
         lib = (window as any).LightweightCharts;
       }
@@ -218,7 +216,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
       <div className="relative">
         <div 
           ref={chartContainerRef} 
-          className="w-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-[500px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
