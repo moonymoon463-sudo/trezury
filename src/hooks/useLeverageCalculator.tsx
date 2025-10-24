@@ -21,8 +21,8 @@ export const useLeverageCalculator = ({
   availableBalance
 }: UseLeverageCalculatorProps) => {
   
-  const maxPositionSize = useMemo(() => {
-    if (!orderPrice || leverage <= 0) {
+  const maxPositionSize = useMemo((): PositionSize => {
+    if (!orderPrice || leverage <= 0 || availableBalance <= 0) {
       return {
         maxSize: 0,
         recommendedSize: 0,
@@ -30,11 +30,19 @@ export const useLeverageCalculator = ({
       };
     }
     
-    return dydxTradingService.calculatePositionSize(
-      availableBalance,
-      orderPrice,
-      leverage
-    );
+    // CORRECTED FORMULA: Position Size = (Available Margin × Leverage) / Price
+    // Example: $1,000 margin × 10x leverage / $50,000 BTC price = 0.2 BTC
+    const notionalValue = availableBalance * leverage; // Total buying power
+    const maxSize = notionalValue / orderPrice; // Convert to asset quantity
+    
+    // Recommended size is 80% of max to leave buffer for price movements
+    const recommendedSize = maxSize * 0.8;
+    
+    return {
+      maxSize: Number(maxSize.toFixed(8)),
+      recommendedSize: Number(recommendedSize.toFixed(8)),
+      basedOnLeverage: leverage
+    };
   }, [availableBalance, orderPrice, leverage]);
 
   const liquidationPrice = useMemo(() => {

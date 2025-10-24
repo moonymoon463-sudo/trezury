@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,10 +15,16 @@ import { useToast } from '@/hooks/use-toast';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
+import { DydxWalletSetup } from '@/components/trading/DydxWalletSetup';
+import { DepositUSDC } from '@/components/trading/DepositUSDC';
+import { dydxWalletService } from '@/services/dydxWalletService';
+import { useAuth } from '@/hooks/useAuth';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
+  const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
@@ -26,6 +32,10 @@ const TradingDashboard = () => {
   const [chartResolution, setChartResolution] = useState<string>('1HOUR');
   const [walletType, setWalletType] = useState<'internal' | 'external'>('internal');
   const [copied, setCopied] = useState(false);
+  const [hasDydxWallet, setHasDydxWallet] = useState(false);
+  const [dydxBalance, setDydxBalance] = useState(0);
+  
+  const { user } = useAuth();
   
   // External wallet (MetaMask)
   const { wallet, connectWallet } = useWalletConnection();
@@ -34,6 +44,19 @@ const TradingDashboard = () => {
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
   const { toast } = useToast();
+
+  // Check for dYdX wallet on component mount
+  useEffect(() => {
+    if (user) {
+      checkDydxWallet();
+    }
+  }, [user]);
+
+  const checkDydxWallet = async () => {
+    if (!user) return;
+    const hasWallet = await dydxWalletService.hasWallet(user.id);
+    setHasDydxWallet(hasWallet);
+  };
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();

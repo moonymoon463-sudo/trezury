@@ -827,6 +827,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dydx_wallets: {
+        Row: {
+          created_at: string
+          dydx_address: string
+          encrypted_mnemonic: string
+          encryption_iv: string
+          encryption_salt: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dydx_address: string
+          encrypted_mnemonic: string
+          encryption_iv: string
+          encryption_salt: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dydx_address?: string
+          encrypted_mnemonic?: string
+          encryption_iv?: string
+          encryption_salt?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       educational_content: {
         Row: {
           category: string
@@ -1756,6 +1786,7 @@ export type Database = {
           data_classification: string | null
           date_of_birth: string | null
           dob_encrypted: string | null
+          dydx_address: string | null
           email: string
           encryption_metadata: Json | null
           first_name: string | null
@@ -1779,6 +1810,7 @@ export type Database = {
           data_classification?: string | null
           date_of_birth?: string | null
           dob_encrypted?: string | null
+          dydx_address?: string | null
           email: string
           encryption_metadata?: Json | null
           first_name?: string | null
@@ -1802,6 +1834,7 @@ export type Database = {
           data_classification?: string | null
           date_of_birth?: string | null
           dob_encrypted?: string | null
+          dydx_address?: string | null
           email?: string
           encryption_metadata?: Json | null
           first_name?: string | null
