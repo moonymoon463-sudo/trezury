@@ -15,6 +15,8 @@
     "@capacitor/cli": "^7.4.3",
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
+    "@cosmjs/crypto": "^0.36.2",
+    "@cosmjs/proto-signing": "^0.36.2",
     "@dydxprotocol/v4-client-js": "^3.0.7",
     "@gelatonetwork/relay-sdk": "^5.6.0",
     "@hookform/resolvers": "^3.10.0",
