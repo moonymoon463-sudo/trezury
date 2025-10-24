@@ -92,7 +92,7 @@ const TradingDashboard = () => {
 
           {/* Centered Logo */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
-            <AurumLogo className="h-12 w-12" />
+            <AurumLogo className="h-16 w-16" />
             <h1 className="text-sm font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
               Trading Dashboard
             </h1>
