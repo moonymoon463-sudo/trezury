@@ -10,13 +10,20 @@ import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { useDydxMarkets } from '@/hooks/useDydxMarkets';
 import { useDydxCandles } from '@/hooks/useDydxCandles';
+import { useDydxWallet } from '@/hooks/useDydxWallet';
+import { useDydxAccount } from '@/hooks/useDydxAccount';
+import { useDydxTrading } from '@/hooks/useDydxTrading';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
 import { DydxWalletSetup } from '@/components/trading/DydxWalletSetup';
 import { DepositUSDC } from '@/components/trading/DepositUSDC';
+import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
+import { OrderHistory } from '@/components/trading/OrderHistory';
+import { PositionManager } from '@/components/trading/PositionManager';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -25,17 +32,19 @@ const TradingDashboard = () => {
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
   const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
   const [leverage, setLeverage] = useState(1);
+  const [orderSize, setOrderSize] = useState('');
+  const [limitPrice, setLimitPrice] = useState('');
   const [chartResolution, setChartResolution] = useState<string>('1HOUR');
   const [walletType, setWalletType] = useState<'internal' | 'external'>('internal');
   const [copied, setCopied] = useState(false);
-  const [hasDydxWallet, setHasDydxWallet] = useState(false);
-  const [dydxBalance, setDydxBalance] = useState(0);
   
   const { user } = useAuth();
+  const { getPassword } = useTradingPasswordContext();
   
   // External wallet (MetaMask)
   const { wallet, connectWallet } = useWalletConnection();
@@ -43,20 +52,28 @@ const TradingDashboard = () => {
   // Internal wallet (secure wallet) - automatically loads existing wallet from gold app
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
+  // dYdX wallet and account
+  const { hasDydxWallet, dydxAddress, loading: dydxWalletLoading, refresh: refreshDydxWallet } = useDydxWallet();
+  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useDydxAccount(dydxAddress || undefined, true);
+  
+  // dYdX trading
+  const { placeOrder, orderLoading } = useDydxTrading(dydxAddress || undefined);
+  
   const { toast } = useToast();
 
-  // Check for dYdX wallet on component mount
+  // Show dYdX wallet setup if user doesn't have one
   useEffect(() => {
-    if (user) {
-      checkDydxWallet();
+    if (user && !dydxWalletLoading && !hasDydxWallet) {
+      setShowDydxWalletSetup(true);
     }
-  }, [user]);
+  }, [user, hasDydxWallet, dydxWalletLoading]);
 
-  const checkDydxWallet = async () => {
-    if (!user) return;
-    const hasWallet = await dydxWalletService.hasWallet(user.id);
-    setHasDydxWallet(hasWallet);
-  };
+  // Show deposit modal if dYdX wallet exists but balance is 0
+  useEffect(() => {
+    if (hasDydxWallet && accountInfo && accountInfo.equity === 0) {
+      setShowDepositModal(true);
+    }
+  }, [hasDydxWallet, accountInfo]);
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
@@ -120,10 +137,53 @@ const TradingDashboard = () => {
     });
   };
 
-  // Get current wallet data based on selection
-  const currentWalletAddress = walletType === 'internal' ? internalAddress : wallet.address;
-  const currentWalletBalance = walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0');
-  const isCurrentWalletConnected = walletType === 'internal' ? internalConnected : wallet.isConnected;
+  // Get current wallet data based on selection (use dYdX account for trading)
+  const currentWalletAddress = dydxAddress || (walletType === 'internal' ? internalAddress : wallet.address);
+  const currentWalletBalance = accountInfo?.equity || (walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0'));
+  const availableBalance = accountInfo?.freeCollateral || currentWalletBalance;
+  const isCurrentWalletConnected = hasDydxWallet && !!dydxAddress;
+
+  const handlePlaceOrder = async () => {
+    if (!selectedAsset || !orderSize) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing Information',
+        description: 'Please enter order size'
+      });
+      return;
+    }
+
+    setShowPasswordDialog(true);
+  };
+
+  const handlePasswordUnlock = async (password: string) => {
+    setShowPasswordDialog(false);
+
+    if (!selectedAsset) return;
+
+    const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
+
+    const response = await placeOrder({
+      market: selectedAsset,
+      side: tradeMode === 'buy' ? 'BUY' : 'SELL',
+      type: orderType === 'market' ? 'MARKET' : 'LIMIT',
+      size: parseFloat(orderSize),
+      price: orderType === 'limit' ? parseFloat(limitPrice) : currentPrice,
+      leverage,
+      password
+    });
+
+    if (response.success) {
+      setOrderSize('');
+      setLimitPrice('');
+      refreshAccount();
+    }
+  };
+
+  const currentPrices = markets.reduce((acc, market) => {
+    acc[market.symbol] = market.price;
+    return acc;
+  }, {} as Record<string, number>);
 
   const chartResolutionMap: Record<string, string> = {
     '1m': '1MIN',
@@ -527,9 +587,11 @@ const TradingDashboard = () => {
               <label className="text-[#c6b795] text-sm font-medium mb-2 block">Price (USDT)</label>
               <input
                 type="text"
-                value="Market"
+                value={orderType === 'market' ? 'Market' : limitPrice}
+                onChange={(e) => setLimitPrice(e.target.value)}
                 disabled={orderType === 'market'}
-                className="w-full px-4 py-3 bg-[#211d12] border border-[#463c25] rounded-lg text-white"
+                placeholder="0.00"
+                className="w-full px-4 py-3 bg-[#211d12] border border-[#463c25] rounded-lg text-white focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
               />
             </div>
 
@@ -539,6 +601,8 @@ const TradingDashboard = () => {
               <input
                 type="number"
                 placeholder="0.00"
+                value={orderSize}
+                onChange={(e) => setOrderSize(e.target.value)}
                 className="w-full px-4 py-3 bg-[#211d12] border border-[#463c25] rounded-lg text-white focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
               />
               {/* Percentage Buttons */}
@@ -607,7 +671,7 @@ const TradingDashboard = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Available:</span>
                 <span className="text-white font-semibold">
-                  {currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  {availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -619,43 +683,49 @@ const TradingDashboard = () => {
             {/* Confirm Button */}
             {isCurrentWalletConnected ? (
               <Button
+                onClick={handlePlaceOrder}
                 className={`w-full h-12 font-bold text-lg ${
                   tradeMode === 'buy' 
                     ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
                     : 'bg-red-600 hover:bg-red-700 text-white'
                 }`}
-                disabled={!selectedAsset}
+                disabled={!selectedAsset || !orderSize || orderLoading}
               >
-                Confirm {tradeMode === 'buy' ? 'Buy' : 'Sell'}
+                {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
               </Button>
             ) : (
               <Button
-                onClick={walletType === 'external' ? handleConnectWallet : () => setShowInternalWalletSetup(true)}
+                onClick={() => setShowDydxWalletSetup(true)}
                 className="w-full h-12 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-lg"
               >
-                {walletType === 'external' ? (
-                  <>
-                    <WalletIcon className="h-5 w-5 mr-2" />
-                    Connect External Wallet
-                  </>
-                ) : (
-                  <>
-                    <Shield className="h-5 w-5 mr-2" />
-                    Create Internal Wallet
-                  </>
-                )}
+                <Shield className="h-5 w-5 mr-2" />
+                Set Up Trading Wallet
               </Button>
             )}
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="text-center py-12">
-              <TrendingUpDown className="h-16 w-16 mx-auto mb-4 text-[#e6b951]/40" />
-              <h3 className="text-lg font-semibold text-white mb-2">No Open Positions</h3>
-              <p className="text-[#c6b795] text-sm">
-                Your open positions will appear here.
-              </p>
-            </div>
+            {dydxAddress ? (
+              <>
+                <PositionManager address={dydxAddress} currentPrices={currentPrices} />
+                <OrderHistory address={dydxAddress} />
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <TrendingUpDown className="h-16 w-16 mx-auto mb-4 text-[#e6b951]/40" />
+                <h3 className="text-lg font-semibold text-white mb-2">No Trading Wallet</h3>
+                <p className="text-[#c6b795] text-sm mb-4">
+                  Set up your dYdX trading wallet to view positions.
+                </p>
+                <Button
+                  onClick={() => setShowDydxWalletSetup(true)}
+                  className="bg-[#e6b951] hover:bg-[#d4a840] text-black"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Set Up Trading Wallet
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </aside>
@@ -675,6 +745,50 @@ const TradingDashboard = () => {
           <SecureWalletSetup onWalletCreated={handleInternalWalletCreated} />
         </DialogContent>
       </Dialog>
+
+      {/* dYdX Wallet Setup Dialog */}
+      <Dialog open={showDydxWalletSetup} onOpenChange={setShowDydxWalletSetup}>
+        <DialogContent className="bg-[#2a251a] border-[#463c25]">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[#e6b951]" />
+              Set Up Trading Wallet
+            </DialogTitle>
+            <DialogDescription className="text-[#c6b795]">
+              Create your dYdX trading wallet to start trading with leverage.
+            </DialogDescription>
+          </DialogHeader>
+          <DydxWalletSetup 
+            onComplete={() => {
+              setShowDydxWalletSetup(false);
+              refreshDydxWallet();
+            }} 
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Deposit USDC Dialog */}
+      <Dialog open={showDepositModal} onOpenChange={setShowDepositModal}>
+        <DialogContent className="bg-[#2a251a] border-[#463c25]">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#e6b951]" />
+              Deposit USDC
+            </DialogTitle>
+            <DialogDescription className="text-[#c6b795]">
+              Deposit testnet USDC to your trading wallet to start trading.
+            </DialogDescription>
+          </DialogHeader>
+          <DepositUSDC onDepositComplete={refreshAccount} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Unlock Dialog */}
+      <PasswordUnlockDialog
+        open={showPasswordDialog}
+        onUnlock={handlePasswordUnlock}
+        onCancel={() => setShowPasswordDialog(false)}
+      />
     </div>
   );
 };

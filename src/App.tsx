@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PWAProvider } from "@/hooks/usePWA";
+import { TradingPasswordProvider } from "@/contexts/TradingPasswordContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -150,6 +151,7 @@ const AppRoutes = () => {
       <Route path="/admin/referrals" element={<ProtectedRoute><AdminReferrals /></ProtectedRoute>} />
       <Route path="/admin/airdrops" element={<ProtectedRoute><AdminAirdrops /></ProtectedRoute>} />
       <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
+      <Route path="/trading-dashboard" element={<ProtectedRoute><TradingDashboard /></ProtectedRoute>} />
       <Route path="/moonpay/callback" element={<ProtectedRoute><MoonPayCallback /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -159,25 +161,27 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <PWAProvider>
-        <SessionHealthMonitor />
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AssistantProvider>
-              <ScrollToTop />
-              <AppRoutes />
-              <FloatingAssistant />
-              <AssistantDrawer />
-              <InstallPrompt />
-              <UpdatePrompt />
-              <OfflineIndicator />
-              <SupabaseHealthIndicator />
-            </AssistantProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </PWAProvider>
+      <TradingPasswordProvider>
+        <PWAProvider>
+          <SessionHealthMonitor />
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AssistantProvider>
+                <ScrollToTop />
+                <AppRoutes />
+                <FloatingAssistant />
+                <AssistantDrawer />
+                <InstallPrompt />
+                <UpdatePrompt />
+                <OfflineIndicator />
+                <SupabaseHealthIndicator />
+              </AssistantProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </PWAProvider>
+      </TradingPasswordProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
