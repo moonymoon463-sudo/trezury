@@ -5,34 +5,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/loading-skeleton';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { useDydxMarkets } from '@/hooks/useDydxMarkets';
+import { useDydxOrderbook } from '@/hooks/useDydxOrderbook';
+import { useDydxPositions } from '@/hooks/useDydxPositions';
 import { ArrowLeft, Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Activity, Settings, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState('BTC');
+  const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('buy');
   const [leverage, setLeverage] = useState(1);
   const { wallet, connectWallet, disconnectWallet, connecting } = useWalletConnection();
   const { toast } = useToast();
 
-  const leverageAssets = [
-    { symbol: 'BTC', name: 'Bitcoin', price: 43250.50, change24h: 2.34, leverageAvailable: true },
-    { symbol: 'ETH', name: 'Ethereum', price: 2245.75, change24h: -1.23, leverageAvailable: true },
-    { symbol: 'SOL', name: 'Solana', price: 98.45, change24h: 5.67, leverageAvailable: true },
-  ];
+  // Real dYdX market data
+  const { markets, loading: marketsLoading } = useDydxMarkets();
+  const { orderbook, loading: orderbookLoading } = useDydxOrderbook(selectedAsset);
+  const { positions } = useDydxPositions(wallet.address);
 
+  // Filter leverage assets (BTC, ETH, SOL from dYdX)
+  const leverageAssets = markets.filter(m => 
+    ['BTC-USD', 'ETH-USD', 'SOL-USD'].includes(m.symbol)
+  );
+
+  // Spot trading assets (mock for now)
   const spotAssets = [
     { symbol: 'XAUT', name: 'Tether Gold', price: 2050.30, change24h: 0.12, leverageAvailable: false },
     { symbol: 'PAXG', name: 'PAX Gold', price: 2048.90, change24h: 0.15, leverageAvailable: false },
     { symbol: 'TRZ', name: 'Trezury Token', price: 1.05, change24h: 1.89, leverageAvailable: false },
   ];
 
-  const allAssets = [...leverageAssets, ...spotAssets];
-  const currentAsset = allAssets.find(a => a.symbol === selectedAsset);
+  const currentAsset = leverageAssets.find(a => a.symbol === selectedAsset) || spotAssets.find(a => a.symbol === selectedAsset);
 
   const handleConnectWallet = async () => {
     try {
@@ -119,29 +127,37 @@ const TradingDashboard = () => {
             
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Leverage Trading (5x)</h3>
-              {leverageAssets.map((asset) => (
-                <button
-                  key={asset.symbol}
-                  onClick={() => setSelectedAsset(asset.symbol)}
-                  className={`w-full p-3 rounded-lg text-left transition-all ${
-                    selectedAsset === asset.symbol
-                      ? 'bg-gradient-to-r from-aurum/20 to-aurum-glow/20 border border-aurum/40'
-                      : 'bg-zinc-900/50 border border-zinc-800 hover:border-aurum/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold">{asset.symbol}</span>
-                    <Badge variant={asset.change24h > 0 ? "default" : "destructive"} className="text-xs">
-                      {asset.change24h > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                      {Math.abs(asset.change24h)}%
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">{asset.name}</div>
-                  <div className="text-lg font-semibold text-aurum mt-1">
-                    ${asset.price.toLocaleString()}
-                  </div>
-                </button>
-              ))}
+              {marketsLoading ? (
+                <>
+                  <Skeleton className="h-24 rounded-lg" />
+                  <Skeleton className="h-24 rounded-lg" />
+                  <Skeleton className="h-24 rounded-lg" />
+                </>
+              ) : (
+                leverageAssets.map((asset) => (
+                  <button
+                    key={asset.symbol}
+                    onClick={() => setSelectedAsset(asset.symbol)}
+                    className={`w-full p-3 rounded-lg text-left transition-all ${
+                      selectedAsset === asset.symbol
+                        ? 'bg-gradient-to-r from-aurum/20 to-aurum-glow/20 border border-aurum/40'
+                        : 'bg-zinc-900/50 border border-zinc-800 hover:border-aurum/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold">{asset.symbol}</span>
+                      <Badge variant={asset.changePercent24h > 0 ? "default" : "destructive"} className="text-xs">
+                        {asset.changePercent24h > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                        {Math.abs(asset.changePercent24h).toFixed(2)}%
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground">{asset.name}</div>
+                    <div className="text-lg font-semibold text-aurum mt-1">
+                      ${asset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </button>
+                ))
+              )}
 
               <Separator className="my-4 bg-aurum/20" />
 
@@ -178,18 +194,71 @@ const TradingDashboard = () => {
           <div className="p-6 border-b border-aurum/20">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-aurum">{currentAsset?.symbol}</h2>
-                <p className="text-muted-foreground">{currentAsset?.name}</p>
+                <h2 className="text-3xl font-bold text-aurum">{selectedAsset || 'Select Asset'}</h2>
+                <p className="text-muted-foreground">{currentAsset ? (currentAsset as any).name : 'Choose an asset to trade'}</p>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold">${currentAsset?.price.toLocaleString()}</div>
-                <div className={`flex items-center justify-end gap-1 ${currentAsset && currentAsset.change24h > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {currentAsset && currentAsset.change24h > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                  <span>{currentAsset?.change24h}% (24h)</span>
+              {currentAsset && 'price' in currentAsset && (
+                <div className="text-right">
+                  <div className="text-3xl font-bold">
+                    ${currentAsset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`flex items-center justify-end gap-1 ${
+                    ('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 
+                      ? 'text-green-500' 
+                      : 'text-red-500'
+                  }`}>
+                    {('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 
+                      ? <TrendingUp className="h-4 w-4" /> 
+                      : <TrendingDown className="h-4 w-4" />
+                    }
+                    <span>
+                      {('changePercent24h' in currentAsset 
+                        ? currentAsset.changePercent24h.toFixed(2) 
+                        : (currentAsset as any).change24h
+                      )}% (24h)
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
+
+          {/* Orderbook Preview */}
+          {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
+            <div className="p-6 border-b border-aurum/20 bg-black/20">
+              <h3 className="text-sm font-semibold text-aurum mb-3">Live Order Book</h3>
+              {orderbookLoading ? (
+                <Skeleton className="h-40 rounded-lg" />
+              ) : orderbook ? (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2 font-semibold">BIDS</div>
+                    <div className="space-y-1">
+                      {orderbook.bids.slice(0, 5).map((bid, i) => (
+                        <div key={i} className="flex justify-between py-1 px-2 rounded bg-green-500/5">
+                          <span className="text-green-500 font-mono">${parseFloat(bid.price).toLocaleString()}</span>
+                          <span className="text-muted-foreground font-mono">{parseFloat(bid.size).toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2 font-semibold">ASKS</div>
+                    <div className="space-y-1">
+                      {orderbook.asks.slice(0, 5).map((ask, i) => (
+                        <div key={i} className="flex justify-between py-1 px-2 rounded bg-red-500/5">
+                          <span className="text-red-500 font-mono">${parseFloat(ask.price).toLocaleString()}</span>
+                          <span className="text-muted-foreground font-mono">{parseFloat(ask.size).toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">No orderbook data available</p>
+              )}
+            </div>
+          )}
 
           {/* Chart Placeholder */}
           <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black">
@@ -230,7 +299,7 @@ const TradingDashboard = () => {
                 </div>
 
                 {/* Leverage Slider (only for leverage assets) */}
-                {currentAsset?.leverageAvailable && (
+                {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
                   <Card className="bg-zinc-900/50 border-aurum/20">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center justify-between">
@@ -266,7 +335,7 @@ const TradingDashboard = () => {
                       className="w-full px-4 py-3 bg-zinc-900 border border-aurum/20 rounded-lg focus:border-aurum focus:ring-1 focus:ring-aurum"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-aurum font-semibold">
-                      {currentAsset?.symbol}
+                      {selectedAsset?.split('-')[0] || 'USD'}
                     </span>
                   </div>
                 </div>
@@ -311,7 +380,7 @@ const TradingDashboard = () => {
                       : 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-600'
                   }`}
                 >
-                  {!wallet.isConnected ? 'Connect Wallet First' : `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${currentAsset?.symbol}`}
+                  {!wallet.isConnected ? 'Connect Wallet First' : `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${selectedAsset?.split('-')[0] || 'Asset'}`}
                 </Button>
               </div>
             </Tabs>
@@ -320,12 +389,39 @@ const TradingDashboard = () => {
             <Separator className="my-6 bg-aurum/20" />
             <Card className="bg-zinc-900/50 border-aurum/20">
               <CardHeader>
-                <CardTitle className="text-sm text-aurum">Portfolio</CardTitle>
+                <CardTitle className="text-sm text-aurum">Open Positions</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  {wallet.isConnected ? 'No open positions' : 'Connect wallet to view portfolio'}
-                </p>
+                {!wallet.isConnected ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Connect wallet to view positions
+                  </p>
+                ) : positions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No open positions
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {positions.map((pos, i) => (
+                      <div key={i} className="p-3 border border-aurum/20 rounded-lg bg-black/40">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-semibold text-aurum">{pos.market}</div>
+                            <div className={`text-xs ${pos.side === 'LONG' ? 'text-green-500' : 'text-red-500'}`}>
+                              {pos.side} {pos.size}
+                            </div>
+                          </div>
+                          <div className={`text-sm font-semibold ${pos.unrealizedPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {pos.unrealizedPnl >= 0 ? '+' : ''}${pos.unrealizedPnl.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Entry: ${pos.entryPrice.toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
