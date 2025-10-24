@@ -11,11 +11,11 @@ import { useDydxMarkets } from '@/hooks/useDydxMarkets';
 import { useDydxOrderbook } from '@/hooks/useDydxOrderbook';
 import { useDydxPositions } from '@/hooks/useDydxPositions';
 import { useDydxCandles } from '@/hooks/useDydxCandles';
-import { ArrowLeft, Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Activity, Settings, LogOut } from 'lucide-react';
+import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Activity, Settings, LogOut } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import TradingViewChart from '@/components/trading/TradingViewChart';
-import AurumLogo from '@/components/AurumLogo';
+import StandardHeader from '@/components/StandardHeader';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -78,58 +78,41 @@ const TradingDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-950 to-black text-foreground">
-      {/* Header */}
-      <header className="border-b border-aurum/20 bg-black/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="relative flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="text-aurum hover:text-aurum-glow">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-            </Link>
-          </div>
-
-          {/* Centered Logo */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
-            <AurumLogo className="h-20 w-20" />
-            <h1 className="text-base font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
-              Trading Dashboard
-            </h1>
-          </div>
-
-          {/* Wallet Connection */}
-          <div className="flex items-center gap-4">
-            {wallet.isConnected ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-aurum text-aurum px-4 py-2">
-                  <Activity className="h-3 w-3 mr-2" />
-                  {formatAddress(wallet.address!)}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDisconnect}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
+      <StandardHeader
+        title="Trading Dashboard"
+        showBackButton={true}
+        backPath="/"
+        rightActions={
+          wallet.isConnected ? (
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="border-aurum text-aurum px-2 py-1 text-xs">
+                <Activity className="h-3 w-3 mr-1" />
+                {formatAddress(wallet.address!)}
+              </Badge>
               <Button
-                onClick={() => setShowWalletModal(true)}
-                className="bg-gradient-to-r from-aurum to-aurum-glow text-black font-semibold hover:from-aurum-glow hover:to-aurum"
+                variant="ghost"
+                size="sm"
+                onClick={handleDisconnect}
+                className="p-1 text-muted-foreground hover:text-destructive"
               >
-                <WalletIcon className="h-4 w-4 mr-2" />
-                Connect Wallet
+                <LogOut className="h-3 w-3" />
               </Button>
-            )}
-          </div>
-        </div>
-      </header>
+            </div>
+          ) : (
+            <Button
+              onClick={() => setShowWalletModal(true)}
+              size="sm"
+              className="bg-gradient-to-r from-aurum to-aurum-glow text-black font-semibold hover:from-aurum-glow hover:to-aurum text-xs px-3 py-1"
+            >
+              <WalletIcon className="h-3 w-3 mr-1" />
+              Connect
+            </Button>
+          )
+        }
+      />
 
       {/* Main Trading Interface */}
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex h-[calc(100vh-3rem)] sm:h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-4rem)] mt-12 sm:mt-14 lg:mt-16">
         {/* Left Sidebar - Asset Selector */}
         <div className="w-80 border-r border-aurum/20 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="p-4">
