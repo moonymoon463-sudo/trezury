@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
@@ -83,8 +83,8 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
     });
 
     // Transform data to chart format
-    const chartData: CandlestickData[] = candles.map((candle) => ({
-      time: candle.timestamp as Time,
+    const chartData = candles.map((candle) => ({
+      time: candle.timestamp as any,
       open: candle.open,
       high: candle.high,
       low: candle.low,
@@ -92,7 +92,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
     }));
 
     const volumeData = candles.map((candle) => ({
-      time: candle.timestamp as Time,
+      time: candle.timestamp as any,
       value: candle.volume,
       color: candle.close > candle.open 
         ? 'rgba(16, 185, 129, 0.5)' // green with transparency
