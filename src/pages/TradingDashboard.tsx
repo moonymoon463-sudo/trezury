@@ -5,17 +5,20 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { useDydxMarkets } from '@/hooks/useDydxMarkets';
 import { useDydxCandles } from '@/hooks/useDydxCandles';
-import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check } from 'lucide-react';
+import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
+import SecureWalletSetup from '@/components/SecureWalletSetup';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
@@ -27,7 +30,7 @@ const TradingDashboard = () => {
   // External wallet (MetaMask)
   const { wallet, connectWallet } = useWalletConnection();
   
-  // Internal wallet (secure wallet)
+  // Internal wallet (secure wallet) - automatically loads existing wallet from gold app
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
   const { toast } = useToast();
@@ -82,6 +85,15 @@ const TradingDashboard = () => {
     toast({
       title: "Address Copied",
       description: "Wallet address copied to clipboard",
+    });
+  };
+
+  const handleInternalWalletCreated = async (address: string) => {
+    setShowInternalWalletSetup(false);
+    await refreshBalances();
+    toast({
+      title: "Internal Wallet Ready",
+      description: "Your secure wallet has been set up successfully!",
     });
   };
 
@@ -144,7 +156,13 @@ const TradingDashboard = () => {
           </div>
 
           {/* Wallet Info */}
-          {isCurrentWalletConnected ? (
+          {internalLoading && walletType === 'internal' ? (
+            <div className="pl-3 space-y-2">
+              <Skeleton className="h-4 w-full bg-[#463c25]/30" />
+              <Skeleton className="h-4 w-3/4 bg-[#463c25]/30" />
+              <Skeleton className="h-4 w-1/2 bg-[#463c25]/30" />
+            </div>
+          ) : isCurrentWalletConnected ? (
             <>
               <div className="pl-3 space-y-3">
                 <div className="space-y-1">
@@ -166,9 +184,9 @@ const TradingDashboard = () => {
                   </div>
                   {walletType === 'internal' && balances.length > 0 && (
                     <div className="space-y-1 pt-2 border-t border-[#463c25]">
-                      {balances.map((balance) => (
-                        <div key={balance.asset} className="flex justify-between items-center text-xs">
-                          <span className="text-[#c6b795]">{balance.asset}:</span>
+                      {balances.filter(b => b.amount > 0).map((balance) => (
+                        <div key={`${balance.asset}-${balance.chain}`} className="flex justify-between items-center text-xs">
+                          <span className="text-[#c6b795]">{balance.asset} ({balance.chain}):</span>
                           <span className="text-white">{balance.amount.toFixed(4)}</span>
                         </div>
                       ))}
@@ -200,19 +218,36 @@ const TradingDashboard = () => {
           ) : (
             <div className="space-y-3">
               <div className="text-center py-4">
-                <p className="text-[#c6b795] text-sm mb-3">
-                  {walletType === 'internal' 
-                    ? 'Internal wallet not set up' 
-                    : 'External wallet not connected'}
-                </p>
-                {walletType === 'external' && (
-                  <Button
-                    onClick={handleConnectWallet}
-                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
-                  >
-                    <WalletIcon className="h-4 w-4 mr-2" />
-                    Connect MetaMask
-                  </Button>
+                {walletType === 'internal' ? (
+                  <>
+                    <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
+                    <p className="text-white text-sm font-semibold mb-1">No Internal Wallet Found</p>
+                    <p className="text-[#c6b795] text-xs mb-3">
+                      Create your secure internal wallet to start trading
+                    </p>
+                    <Button
+                      onClick={() => setShowInternalWalletSetup(true)}
+                      className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Create Internal Wallet
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <WalletIcon className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
+                    <p className="text-white text-sm font-semibold mb-1">External Wallet Not Connected</p>
+                    <p className="text-[#c6b795] text-xs mb-3">
+                      Connect MetaMask to trade with your external wallet
+                    </p>
+                    <Button
+                      onClick={handleConnectWallet}
+                      className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    >
+                      <WalletIcon className="h-4 w-4 mr-2" />
+                      Connect MetaMask
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -572,12 +607,20 @@ const TradingDashboard = () => {
               </Button>
             ) : (
               <Button
-                onClick={walletType === 'external' ? handleConnectWallet : undefined}
+                onClick={walletType === 'external' ? handleConnectWallet : () => setShowInternalWalletSetup(true)}
                 className="w-full h-12 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-lg"
-                disabled={walletType === 'internal'}
               >
-                <WalletIcon className="h-5 w-5 mr-2" />
-                {walletType === 'external' ? 'Connect External Wallet' : 'Set Up Internal Wallet'}
+                {walletType === 'external' ? (
+                  <>
+                    <WalletIcon className="h-5 w-5 mr-2" />
+                    Connect External Wallet
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-5 w-5 mr-2" />
+                    Create Internal Wallet
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -593,6 +636,22 @@ const TradingDashboard = () => {
           </div>
         )}
       </aside>
+
+      {/* Internal Wallet Setup Dialog */}
+      <Dialog open={showInternalWalletSetup} onOpenChange={setShowInternalWalletSetup}>
+        <DialogContent className="bg-[#2a251a] border-[#463c25]">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[#e6b951]" />
+              Create Your Internal Wallet
+            </DialogTitle>
+            <DialogDescription className="text-[#c6b795]">
+              Set up your secure internal wallet instantly. If you already have a wallet from the gold app, it will be automatically loaded.
+            </DialogDescription>
+          </DialogHeader>
+          <SecureWalletSetup onWalletCreated={handleInternalWalletCreated} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
