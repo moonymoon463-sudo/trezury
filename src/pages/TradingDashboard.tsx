@@ -446,7 +446,7 @@ const TradingDashboard = () => {
           <div className="mb-4">
             <div className="flex items-baseline gap-4">
               <p className="text-[#c6b795] text-sm font-medium">{selectedAsset}</p>
-              <h2 className="text-white text-5xl font-bold">
+              <h2 className="text-white text-5xl font-outfit font-light tracking-tight">
                 {currentAsset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <div className="flex items-center gap-1">
