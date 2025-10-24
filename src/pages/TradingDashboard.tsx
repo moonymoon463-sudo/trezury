@@ -15,6 +15,7 @@ import { ArrowLeft, Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, A
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import TradingViewChart from '@/components/trading/TradingViewChart';
+import AurumLogo from '@/components/AurumLogo';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -79,7 +80,7 @@ const TradingDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-950 to-black text-foreground">
       {/* Header */}
       <header className="border-b border-aurum/20 bg-black/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-4">
             <Link to="/">
               <Button variant="ghost" size="sm" className="text-aurum hover:text-aurum-glow">
@@ -87,9 +88,12 @@ const TradingDashboard = () => {
                 Back
               </Button>
             </Link>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
-              Trezury Trading Dashboard
-            </h1>
+            <div className="flex items-center gap-3">
+              <AurumLogo className="h-8 w-8" />
+              <h1 className="text-lg font-semibold bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
+                Trading Dashboard
+              </h1>
+            </div>
           </div>
 
           {/* Wallet Connection */}
