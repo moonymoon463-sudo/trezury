@@ -1,5 +1,4 @@
-import type { DydxPosition } from '@/types/dydx';
-import type { OrderRequest, PositionRisk } from '@/types/dydx-trading';
+import type { DydxPositionDB, OrderRequest, PositionRisk } from '@/types/dydx-trading';
 
 interface RiskLimits {
   maxLeverageByMarket: Record<string, number>;
@@ -71,7 +70,7 @@ class DydxRiskManager {
   }
 
   assessPositionRisk(
-    position: DydxPosition,
+    position: DydxPositionDB,
     currentPrice: number,
     maintenanceMargin: number = 0.03
   ): PositionRisk {
@@ -131,7 +130,7 @@ class DydxRiskManager {
   }
 
   shouldTriggerLiquidationAlert(
-    position: DydxPosition,
+    position: DydxPositionDB,
     currentPrice: number
   ): boolean {
     const risk = this.assessPositionRisk(position, currentPrice);

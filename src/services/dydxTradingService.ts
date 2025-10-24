@@ -4,12 +4,13 @@ import type {
   LeverageConfig,
   OrderRequest,
   DydxOrder,
-  DydxPosition,
+  DydxPositionDB,
   MarginRequirement,
   PositionSize,
   LeverageValidation,
   OrderResponse
 } from '@/types/dydx-trading';
+import type { DydxPosition } from '@/types/dydx';
 
 class DydxTradingService {
   private cache = new Map<string, { data: any; expires: number }>();
@@ -200,7 +201,7 @@ class DydxTradingService {
     }
   }
 
-  async getOpenPositions(address: string): Promise<DydxPosition[]> {
+  async getOpenPositions(address: string): Promise<DydxPositionDB[]> {
     try {
       const { data, error } = await supabase
         .from('dydx_positions')
@@ -210,7 +211,7 @@ class DydxTradingService {
         .order('opened_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data as any[]) || [];
     } catch (err) {
       console.error('[DydxTradingService] Failed to get positions:', err);
       return [];
@@ -264,8 +265,8 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      this.setCache(cacheKey, data || [], 10);
-      return data || [];
+      this.setCache(cacheKey, (data as any[]) || [], 10);
+      return (data as any[]) || [];
     } catch (err) {
       console.error('[DydxTradingService] Failed to get order history:', err);
       return [];

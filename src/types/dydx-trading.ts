@@ -93,3 +93,21 @@ export interface PositionSize {
   recommendedSize: number;
   basedOnLeverage: number;
 }
+
+// Database position type (snake_case to match DB schema)
+export interface DydxPositionDB {
+  id: string;
+  user_id: string;
+  address: string;
+  market: string;
+  side: 'LONG' | 'SHORT';
+  size: number;
+  entry_price: number;
+  leverage: number;
+  unrealized_pnl: number;
+  realized_pnl: number;
+  liquidation_price: number;
+  opened_at: string;
+  closed_at?: string;
+  status: 'OPEN' | 'CLOSED' | 'LIQUIDATED';
+}

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { dydxTradingService } from '@/services/dydxTradingService';
 import { dydxRiskManager } from '@/services/dydxRiskManager';
-import type { DydxPosition } from '@/types/dydx';
+import type { DydxPositionDB } from '@/types/dydx-trading';
 import { TrendingUp, TrendingDown, AlertTriangle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,7 +15,7 @@ interface PositionManagerProps {
 }
 
 export const PositionManager: React.FC<PositionManagerProps> = ({ address, currentPrices }) => {
-  const [positions, setPositions] = useState<DydxPosition[]>([]);
+  const [positions, setPositions] = useState<DydxPositionDB[]>([]);
   const [loading, setLoading] = useState(false);
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
   const { toast } = useToast();
@@ -72,7 +72,7 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
     }
   };
 
-  const PositionRow = ({ position }: { position: DydxPosition }) => {
+  const PositionRow = ({ position }: { position: DydxPositionDB }) => {
     const currentPrice = currentPrices[position.market] || position.entry_price;
     const pnl = position.side === 'LONG'
       ? (currentPrice - position.entry_price) * position.size
