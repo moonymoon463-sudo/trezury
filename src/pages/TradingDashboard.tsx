@@ -546,7 +546,7 @@ const TradingDashboard = () => {
               <div>
                 <label className="text-[#c6b795] text-sm font-medium mb-2 block">Leverage</label>
                 <div className="flex gap-2 mb-2">
-                  {['1x', '25x', '50x', '75x', '100x'].map((lvg) => (
+                  {['1x', '5x', '10x', '15x', '20x'].map((lvg) => (
                     <Button
                       key={lvg}
                       size="sm"
@@ -564,7 +564,7 @@ const TradingDashboard = () => {
                 <input
                   type="range"
                   min="1"
-                  max="100"
+                  max="20"
                   step="1"
                   value={leverage}
                   onChange={(e) => setLeverage(Number(e.target.value))}
