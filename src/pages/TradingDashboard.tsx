@@ -80,7 +80,7 @@ const TradingDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-950 to-black text-foreground">
       {/* Header */}
       <header className="border-b border-aurum/20 bg-black/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-3">
+        <div className="relative flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-4">
             <Link to="/">
               <Button variant="ghost" size="sm" className="text-aurum hover:text-aurum-glow">
@@ -88,12 +88,14 @@ const TradingDashboard = () => {
                 Back
               </Button>
             </Link>
-            <div className="flex items-center gap-3">
-              <AurumLogo className="h-8 w-8" />
-              <h1 className="text-lg font-semibold bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
-                Trading Dashboard
-              </h1>
-            </div>
+          </div>
+
+          {/* Centered Logo */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+            <AurumLogo className="h-12 w-12" />
+            <h1 className="text-sm font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
+              Trading Dashboard
+            </h1>
           </div>
 
           {/* Wallet Connection */}
