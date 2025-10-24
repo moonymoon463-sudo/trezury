@@ -8,6 +8,7 @@ import { dydxRiskManager } from '@/services/dydxRiskManager';
 import type { DydxPositionDB } from '@/types/dydx-trading';
 import { TrendingUp, TrendingDown, AlertTriangle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 
 interface PositionManagerProps {
   address?: string;
@@ -19,6 +20,7 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
   const [loading, setLoading] = useState(false);
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
   const { toast } = useToast();
+  const { getPassword } = useTradingPasswordContext();
 
   useEffect(() => {
     if (!address) return;
@@ -41,9 +43,19 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
   }, [address]);
 
   const handleClosePosition = async (market: string) => {
+    const password = getPassword();
+    if (!password) {
+      toast({
+        variant: 'destructive',
+        title: 'Session Locked',
+        description: 'Please unlock your trading session first'
+      });
+      return;
+    }
+
     setClosingPosition(market);
     try {
-      const response = await dydxTradingService.closePosition(market);
+      const response = await dydxTradingService.closePosition(market, password);
       if (response.success) {
         toast({
           title: 'Position Closed',

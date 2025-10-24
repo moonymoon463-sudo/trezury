@@ -7,6 +7,8 @@ import { dydxTradingService } from '@/services/dydxTradingService';
 import type { DydxOrder } from '@/types/dydx-trading';
 import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderHistoryProps {
   address?: string;
@@ -15,6 +17,8 @@ interface OrderHistoryProps {
 export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
   const [orders, setOrders] = useState<DydxOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const { getPassword } = useTradingPasswordContext();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!address) return;
@@ -115,7 +119,18 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
           <Button
             size="sm"
             variant="destructive"
-            onClick={() => dydxTradingService.cancelOrder(order.id)}
+            onClick={async () => {
+              const password = getPassword();
+              if (!password) {
+                toast({
+                  variant: 'destructive',
+                  title: 'Session Locked',
+                  description: 'Please unlock your trading session first'
+                });
+                return;
+              }
+              await dydxTradingService.cancelOrder(order.id, password);
+            }}
           >
             Cancel Order
           </Button>
