@@ -15,10 +15,15 @@ interface SecureWalletSetupProps {
 const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }) => {
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const handleCreateWallet = async () => {
+    // Wait for auth to finish loading before checking user
+    if (authLoading) {
+      return;
+    }
+
     if (!user?.id) {
       toast({
         variant: "destructive",
@@ -73,6 +78,46 @@ const SecureWalletSetup: React.FC<SecureWalletSetupProps> = ({ onWalletCreated }
             <Shield className="h-4 w-4" />
             <AlertDescription className="text-sm">
               Your private keys are never stored anywhere. You'll need your account password for transactions.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show loading state while auth is loading
+  if (authLoading) {
+    return (
+      <Card className="w-full max-w-md mx-auto bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Lock className="h-5 w-5" />
+            Create Your Wallet
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show authentication error only if not loading and no user
+  if (!authLoading && !user?.id) {
+    return (
+      <Card className="w-full max-w-md mx-auto bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Lock className="h-5 w-5" />
+            Authentication Required
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert variant="destructive">
+            <AlertDescription>
+              Please log in to create a wallet
             </AlertDescription>
           </Alert>
         </CardContent>
