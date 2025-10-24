@@ -91,9 +91,9 @@ const TradingDashboard = () => {
           </div>
 
           {/* Centered Logo */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
-            <AurumLogo className="h-20 w-20" />
-            <h1 className="text-base font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent">
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-end gap-6">
+            <AurumLogo className="h-28 w-28" />
+            <h1 className="text-lg font-medium bg-gradient-to-r from-aurum via-aurum-glow to-aurum bg-clip-text text-transparent pb-1.5">
               Trading Dashboard
             </h1>
           </div>
