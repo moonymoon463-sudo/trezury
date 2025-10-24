@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TradingViewChart } from '@/components/trading/TradingViewChart';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -261,9 +260,19 @@ const TradingDashboard = () => {
             </div>
           )}
 
-          {/* TradingView Chart */}
-          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black min-h-[400px]">
-            <TradingViewChart symbol={selectedAsset} />
+          {/* Chart Placeholder */}
+          <div className="flex-1 p-6 bg-gradient-to-br from-zinc-950 to-black">
+            <Card className="h-full bg-black/60 border-aurum/20">
+              <CardContent className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <BarChart3 className="h-24 w-24 mx-auto mb-4 text-aurum/40" />
+                  <h3 className="text-xl font-semibold text-aurum mb-2">TradingView Chart</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    Real-time price charts with advanced technical indicators will be integrated here using TradingView's charting library.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
