@@ -14,6 +14,7 @@ import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { SessionHealthMonitor } from "@/components/SessionHealthMonitor";
 import { SupabaseHealthIndicator } from "@/components/SupabaseHealthIndicator";
 import { AssistantProvider } from "@/contexts/AssistantContext";
+import { TradingPasswordProvider } from "@/contexts/TradingPasswordContext";
 import { FloatingAssistant } from "@/components/assistant/FloatingAssistant";
 import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
 import LandingPage from "@/components/LandingPage";
@@ -166,14 +167,16 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <AssistantProvider>
-              <ScrollToTop />
-              <AppRoutes />
-              <FloatingAssistant />
-              <AssistantDrawer />
-              <InstallPrompt />
-              <UpdatePrompt />
-              <OfflineIndicator />
-              <SupabaseHealthIndicator />
+              <TradingPasswordProvider>
+                <ScrollToTop />
+                <AppRoutes />
+                <FloatingAssistant />
+                <AssistantDrawer />
+                <InstallPrompt />
+                <UpdatePrompt />
+                <OfflineIndicator />
+                <SupabaseHealthIndicator />
+              </TradingPasswordProvider>
             </AssistantProvider>
           </BrowserRouter>
         </TooltipProvider>
