@@ -222,11 +222,65 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
       </div>
 
       {viewMode === 'full' ? (
-        <ScrollArea className="h-[350px]">
-          <div className="pr-2">
-            {orderbookContent}
+        <div className="space-y-0">
+          {/* Header */}
+          <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground mb-1 px-1">
+            <div>Price</div>
+            <div className="text-right">Size</div>
+            <div className="text-right">Total</div>
           </div>
-        </ScrollArea>
+
+          {/* Asks Section - Scrollable */}
+          <ScrollArea className="h-[160px]">
+            <div className="pr-2">
+              {[...asks].reverse().map((ask) => {
+                const depthPercent = (ask.total / maxAskTotal) * 100;
+                return (
+                  <OrderBookRow
+                    key={`ask-${ask.price}`}
+                    price={ask.price}
+                    size={ask.size}
+                    total={ask.total}
+                    type="ask"
+                    depthPercent={depthPercent}
+                    isSelected={selectedPrice === parseFloat(ask.price)}
+                    onSelect={handlePriceSelect}
+                  />
+                );
+              })}
+            </div>
+          </ScrollArea>
+
+          {/* Spread - Fixed */}
+          <div className="text-center py-1 border-y border-[#463c25] my-0.5 bg-[#211d12]/30">
+            <div className="text-xs font-bold text-[#e6b951]">
+              ${parseFloat(asks[0]?.price || '0').toFixed(2)} 
+              <span className="text-[9px] text-muted-foreground mx-1">|</span>
+              ${parseFloat(bids[0]?.price || '0').toFixed(2)}
+            </div>
+          </div>
+
+          {/* Bids Section - Scrollable */}
+          <ScrollArea className="h-[160px]">
+            <div className="pr-2">
+              {bids.map((bid) => {
+                const depthPercent = (bid.total / maxBidTotal) * 100;
+                return (
+                  <OrderBookRow
+                    key={`bid-${bid.price}`}
+                    price={bid.price}
+                    size={bid.size}
+                    total={bid.total}
+                    type="bid"
+                    depthPercent={depthPercent}
+                    isSelected={selectedPrice === parseFloat(bid.price)}
+                    onSelect={handlePriceSelect}
+                  />
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </div>
       ) : (
         orderbookContent
       )}
