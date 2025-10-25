@@ -26,6 +26,7 @@ import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
 import { OrderHistory } from '@/components/trading/OrderHistory';
 import { PositionManager } from '@/components/trading/PositionManager';
+import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -671,6 +672,13 @@ const TradingDashboard = () => {
             </div>
           )}
         </div>
+
+        {/* Open Positions Table */}
+        {hasDydxWallet && dydxAddress && (
+          <div className="mb-2 flex-shrink-0">
+            <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
+          </div>
+        )}
 
         {/* AI Insights Section - Compact */}
         <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
