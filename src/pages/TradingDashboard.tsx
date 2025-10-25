@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -82,6 +82,7 @@ const TradingDashboard = () => {
   
   // WEPS Mock Data
   const { phase, bioState, confidence, volatility } = useWepsMockData(selectedAsset || "BTC-USD");
+  const wepsSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Show dYdX wallet setup if user doesn't have one
   useEffect(() => {
@@ -563,7 +564,7 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-3 relative bg-[#211d12] overflow-hidden">
+      <main className="flex-1 flex flex-col p-3 relative bg-[#211d12] overflow-y-auto">
         {/* Top Stats */}
         <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-2 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
@@ -609,7 +610,7 @@ const TradingDashboard = () => {
           <button className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
             <p className="text-xs font-bold">Analytics</p>
           </button>
-          <button className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
+          <button onClick={() => wepsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
             <p className="text-xs font-bold">AI Insights</p>
           </button>
         </div>
@@ -694,7 +695,8 @@ const TradingDashboard = () => {
         )}
 
         {/* WEPS Insights Section */}
-        <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
+        <div ref={wepsSectionRef}>
+          <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
           <div className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white text-lg font-semibold flex items-center gap-2">
@@ -744,6 +746,7 @@ const TradingDashboard = () => {
             </div>
           </div>
         </Card>
+        </div>
 
         {/* WEPS Evolution Log */}
         <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
