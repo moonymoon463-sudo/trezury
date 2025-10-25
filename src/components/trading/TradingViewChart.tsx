@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
 import { Loader2 } from 'lucide-react';
+import { SpiralOverlay } from '@/components/SpiralOverlay';
 
 interface TradingViewChartProps {
   symbol: string;
@@ -13,6 +14,7 @@ interface TradingViewChartProps {
   loading?: boolean;
   error?: string | null;
   onLoadMore?: () => void;
+  phase?: string;
 }
 
 const TIMEFRAMES = [
@@ -24,7 +26,7 @@ const TIMEFRAMES = [
   { label: '1d', value: '1DAY' },
 ];
 
-const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loading, error, onLoadMore }: TradingViewChartProps) => {
+const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loading, error, onLoadMore, phase = "Neutral" }: TradingViewChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
@@ -341,6 +343,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
       {/* Chart Container */}
       <div className="relative flex-1">
+        <SpiralOverlay phase={phase} />
         <div 
           ref={chartContainerRef} 
           className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"

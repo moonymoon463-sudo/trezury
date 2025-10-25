@@ -30,6 +30,7 @@ import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { useAuth } from '@/hooks/useAuth';
+import { useWepsMockData } from '@/hooks/useWepsMockData';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -72,6 +73,9 @@ const TradingDashboard = () => {
   const { placeOrder, orderLoading } = useDydxTrading(dydxAddress || undefined);
   
   const { toast } = useToast();
+  
+  // WEPS Mock Data
+  const { phase, bioState, confidence, volatility } = useWepsMockData(selectedAsset || "BTC-USD");
 
   // Show dYdX wallet setup if user doesn't have one
   useEffect(() => {
@@ -651,6 +655,7 @@ const TradingDashboard = () => {
               loading={candlesLoading}
               error={candlesError}
               onLoadMore={loadMore}
+              phase={phase}
             />
           ) : selectedAsset ? (
             <div className="h-full flex items-center justify-center">
@@ -682,20 +687,67 @@ const TradingDashboard = () => {
           </div>
         )}
 
-        {/* AI Insights Section - Compact */}
+        {/* WEPS Insights Section */}
         <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
-          <div className="p-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <h3 className="text-white text-xs font-semibold">AI Insights</h3>
-              <Badge className="bg-[#e6b951]/20 text-[#e6b951] text-[10px] px-1.5 py-0">
-                Live
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-[#e6b951]" />
+                WEPS Mode – Bio-Adaptive Insights
+              </h3>
+              <Badge className="bg-[#e6b951]/20 text-[#e6b951]">
+                Confidence {(confidence * 100).toFixed(1)}%
               </Badge>
             </div>
-            <div className="bg-[#1a1712] rounded p-2 border border-[#463c25]">
-              <p className="text-[#c6b795] text-[10px] leading-relaxed">
-                Market rhythm suggests energy buildup — possible BTC long in 12h window.
-              </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Phase</p>
+                <p className="text-white font-bold">{phase}</p>
+              </div>
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Bio State</p>
+                <p className="text-white font-bold">{bioState}</p>
+              </div>
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Volatility</p>
+                <p className="text-white font-bold">{(volatility * 100).toFixed(1)}%</p>
+              </div>
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Mode</p>
+                <p
+                  className={`font-bold ${
+                    bioState === "Aggressive"
+                      ? "text-green-400"
+                      : bioState === "Defensive"
+                      ? "text-red-400"
+                      : "text-[#e6b951]"
+                  }`}
+                >
+                  {bioState}
+                </p>
+              </div>
             </div>
+
+            <div className="text-[#c6b795] text-sm leading-relaxed bg-[#1a1712] border border-[#463c25] rounded-lg p-3">
+              {phase === "Growth" && "Market rhythm expanding — bias toward long positions."}
+              {phase === "Decay" && "Volatility fading — tighten risk exposure."}
+              {phase === "Rebirth" && "Momentum reversal forming — early entry opportunity."}
+              {phase === "Death" && "Entropy spike detected — stay defensive."}
+              {phase === "Neutral" && "Awaiting phase confirmation."}
+            </div>
+          </div>
+        </Card>
+
+        {/* WEPS Evolution Log */}
+        <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
+          <div className="p-4">
+            <h3 className="text-white text-lg font-semibold mb-2">WEPS Evolution Log</h3>
+            <ul className="space-y-2 text-sm text-[#c6b795]">
+              <li>🧬 10:42 — Mutation event: volatility sensitivity +5%</li>
+              <li>🌊 09:15 — Phase bias shifted: Growth → Rebirth</li>
+              <li>⚡ 08:10 — Confidence threshold recalibrated</li>
+            </ul>
           </div>
         </Card>
       </main>
