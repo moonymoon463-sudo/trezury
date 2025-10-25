@@ -172,6 +172,9 @@ serve(async (req) => {
 
         console.log(`[dYdX] Sanitized ${sanitizedCandles.length}/${data.candles?.length || 0} candles for ${market}`);
 
+        // Sort ascending by timestamp (required by lightweight-charts)
+        sanitizedCandles.sort((a: any, b: any) => a.timestamp - b.timestamp);
+
         result = { candles: sanitizedCandles };
         setCache(cacheKey, result, 30); // Cache for 30 seconds
         break;

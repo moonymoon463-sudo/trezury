@@ -156,9 +156,12 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
       );
 
-      console.log("[Chart Debug] First candle:", candles[0], "Invalid candles:", candles.length - validCandles.length);
+      // Sort ascending by timestamp (required by lightweight-charts)
+      const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
 
-      const chartData = validCandles.map((candle) => ({
+      console.log("[Chart Debug] First candle:", sortedCandles[0], "Invalid candles:", candles.length - validCandles.length);
+
+      const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
         ),
@@ -168,7 +171,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         close: candle.close,
       }));
 
-      const volumeData = validCandles
+      const volumeData = sortedCandles
         .filter(c => c.volume != null)
         .map((candle) => ({
           time: Math.floor(
@@ -231,7 +234,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [candles]);
+  }, [symbol, resolution, onLoadMore]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
@@ -242,7 +245,10 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
     );
 
-    const chartData = validCandles.map((candle) => ({
+    // Sort ascending by timestamp (required by lightweight-charts)
+    const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+
+    const chartData = sortedCandles.map((candle) => ({
       time: Math.floor(
         candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
       ),
@@ -252,7 +258,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       close: candle.close,
     }));
 
-    const volumeData = validCandles
+    const volumeData = sortedCandles
       .filter(c => c.volume != null)
       .map((candle) => ({
         time: Math.floor(

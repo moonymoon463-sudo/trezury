@@ -37,7 +37,9 @@ export const useDydxCandles = (
         console.log('[useDydxCandles] Received candles:', data?.length || 0, 'candles');
         
         if (mounted) {
-          setCandles(data || []);
+          // Ensure ascending order
+          const sortedData = (data || []).sort((a, b) => a.timestamp - b.timestamp);
+          setCandles(sortedData);
           setError(null);
           setHasMore(data && data.length >= limit);
         }
@@ -73,28 +75,30 @@ export const useDydxCandles = (
       (data) => {
         console.log('[useDydxCandles] WebSocket candle update:', data);
         setCandles(prev => {
-          // Update or append the latest candle
+          // The WebSocket service now sends normalized data with numeric timestamp
+          if (!data || !data.timestamp) return prev;
+          
           const newCandles = [...prev];
-          if (data && data.startedAt) {
-            const timestamp = new Date(data.startedAt).getTime() / 1000;
-            const existingIndex = newCandles.findIndex(c => c.timestamp === timestamp);
-            
-            const newCandle: DydxCandle = {
-              timestamp,
-              open: parseFloat(data.open) || 0,
-              high: parseFloat(data.high) || 0,
-              low: parseFloat(data.low) || 0,
-              close: parseFloat(data.close) || 0,
-              volume: parseFloat(data.baseTokenVolume) || 0,
-            };
+          const existingIndex = newCandles.findIndex(c => c.timestamp === data.timestamp);
+          
+          const newCandle: DydxCandle = {
+            timestamp: data.timestamp,
+            open: data.open,
+            high: data.high,
+            low: data.low,
+            close: data.close,
+            volume: data.volume,
+          };
 
-            if (existingIndex >= 0) {
-              newCandles[existingIndex] = newCandle;
-            } else {
-              newCandles.push(newCandle);
-              newCandles.sort((a, b) => a.timestamp - b.timestamp);
-            }
+          if (existingIndex >= 0) {
+            // Update existing candle
+            newCandles[existingIndex] = newCandle;
+          } else {
+            // Append new candle and maintain ascending order
+            newCandles.push(newCandle);
+            newCandles.sort((a, b) => a.timestamp - b.timestamp);
           }
+          
           return newCandles;
         });
       }
