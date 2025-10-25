@@ -1,4 +1,4 @@
-import { useMemo, useState, memo } from 'react';
+import { useMemo, useState, memo, useEffect } from 'react';
 import { useDydxOrderbook } from '@/hooks/useDydxOrderbook';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -89,7 +89,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
 
     return {
       bids: bidsWithTotal,
-      asks: asksWithTotal.reverse(),
+      asks: asksWithTotal,
       spread,
       spreadPercent
     };
@@ -101,7 +101,21 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   };
 
   const maxBidTotal = bids[bids.length - 1]?.total || 1;
-  const maxAskTotal = asks[0]?.total || 1;
+  const maxAskTotal = asks[asks.length - 1]?.total || 1;
+
+  useEffect(() => {
+    if (orderbook) {
+      console.log('[OrderBook] Data update:', {
+        market: orderbook.market,
+        bidsCount: orderbook.bids.length,
+        asksCount: orderbook.asks.length,
+        bestBid: orderbook.bids[0]?.price,
+        bestAsk: orderbook.asks[0]?.price,
+        viewMode,
+        depth
+      });
+    }
+  }, [orderbook, viewMode, depth]);
 
   if (loading) {
     return (
@@ -129,15 +143,21 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const orderbookContent = (
     <>
       {/* Header */}
-      <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground mb-1 px-1">
+      <div className="grid grid-cols-3 gap-2 text-[10px] md:text-xs text-muted-foreground mb-2 px-1">
         <div>Price</div>
         <div className="text-right">Size</div>
         <div className="text-right">Total</div>
       </div>
 
-      {/* Asks (Sells) - Red */}
-      <div className="mb-1">
-        {asks.map((ask, idx) => {
+      {/* SELL ORDERS Section Header */}
+      <div className="flex items-center gap-2 mb-1 px-1">
+        <div className="text-[10px] font-semibold text-red-500 uppercase">Sell Orders (Asks)</div>
+        <div className="flex-1 h-px bg-red-500/20"></div>
+      </div>
+
+      {/* Asks (Sells) - Red - Reversed to show highest first, best ask closest to spread */}
+      <div className="mb-2">
+        {[...asks].reverse().map((ask, idx) => {
           const depthPercent = (ask.total / maxAskTotal) * 100;
           return (
             <OrderBookRow
@@ -155,10 +175,24 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
       </div>
 
       {/* Current Price / Spread */}
-      <div className="text-center py-1 border-y border-[#463c25] my-1">
-        <div className="text-xs font-bold text-[#e6b951]">
-          ${parseFloat(asks[asks.length - 1]?.price || '0').toFixed(2)}
+      <div className="text-center py-2 border-y border-[#463c25] my-2 bg-[#211d12]/50">
+        <div className="text-[10px] text-muted-foreground mb-0.5">Best Ask</div>
+        <div className="text-xs font-bold text-red-500">
+          ${parseFloat(asks[0]?.price || '0').toFixed(2)}
         </div>
+        <div className="text-[9px] text-muted-foreground my-1">
+          ↕ Spread: ${spread.toFixed(2)} ({spreadPercent.toFixed(3)}%)
+        </div>
+        <div className="text-xs font-bold text-green-500">
+          ${parseFloat(bids[0]?.price || '0').toFixed(2)}
+        </div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">Best Bid</div>
+      </div>
+
+      {/* BUY ORDERS Section Header */}
+      <div className="flex items-center gap-2 mt-2 mb-1 px-1">
+        <div className="text-[10px] font-semibold text-green-500 uppercase">Buy Orders (Bids)</div>
+        <div className="flex-1 h-px bg-green-500/20"></div>
       </div>
 
       {/* Bids (Buys) - Green */}
@@ -206,7 +240,9 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
 
       {viewMode === 'full' ? (
         <ScrollArea className="h-[400px]">
-          {orderbookContent}
+          <div className="pr-4">
+            {orderbookContent}
+          </div>
         </ScrollArea>
       ) : (
         orderbookContent
