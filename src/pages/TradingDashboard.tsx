@@ -245,6 +245,7 @@ const TradingDashboard = () => {
           </div>
           
           {/* Wallet Type Toggle */}
+          <p className="text-[#c6b795] text-xs font-medium px-1 mb-1">Wallets</p>
           <div className="flex gap-0.5 bg-[#211d12] rounded-lg p-1">
             <button
               onClick={() => setWalletType('trading')}
@@ -254,7 +255,7 @@ const TradingDashboard = () => {
                   : 'text-[#c6b795] hover:text-white'
               }`}
             >
-              Trading Wallet
+              Trading
             </button>
             <button
               onClick={() => setWalletType('internal')}
@@ -264,7 +265,7 @@ const TradingDashboard = () => {
                   : 'text-[#c6b795] hover:text-white'
               }`}
             >
-              Internal Wallet
+              Internal
             </button>
             <button
               onClick={() => setWalletType('external')}
@@ -274,7 +275,7 @@ const TradingDashboard = () => {
                   : 'text-[#c6b795] hover:text-white'
               }`}
             >
-              External Wallet
+              External
             </button>
           </div>
 
