@@ -156,12 +156,12 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   };
 
   const SortableHeader = ({ field, label, tooltip }: { field: SortField; label: string; tooltip: string }) => (
-    <TableHead className="text-[#c6b795] cursor-pointer hover:text-white transition-colors" onClick={() => handleSort(field)}>
+    <TableHead className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors text-xs font-medium" onClick={() => handleSort(field)}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <span>{label}</span>
-            <ArrowUpDown className="h-3 w-3" />
+            <ArrowUpDown className="h-3 w-3 opacity-50" />
           </div>
         </TooltipTrigger>
         <TooltipContent>
@@ -212,30 +212,30 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   }
 
   return (
-    <Card className="bg-[#2a251a] border-[#463c25]">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-white font-semibold text-sm">Open Positions</h3>
-          <Badge variant="outline" className="text-[#e6b951] border-[#e6b951]/30">
+    <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-foreground font-semibold text-base">Open Positions</h3>
+          <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
             {sortedPositions.length} Position{sortedPositions.length !== 1 ? 's' : ''}
           </Badge>
         </div>
 
         <TooltipProvider>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-3">
             <Table>
               <TableHeader>
-                <TableRow className="border-[#463c25] hover:bg-transparent">
+                <TableRow className="border-border/50 hover:bg-transparent">
                   <SortableHeader 
                     field="market" 
                     label="Asset Pair" 
                     tooltip="The trading pair for this position"
                   />
 
-                  <TableHead className="text-[#c6b795]">
+                  <TableHead className="text-muted-foreground text-xs font-medium">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="cursor-help">Entry Price</span>
+                        <span className="cursor-help">Entry</span>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>The price at which the position was opened</p>
@@ -243,10 +243,10 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     </Tooltip>
                   </TableHead>
 
-                  <TableHead className="text-[#c6b795]">
+                  <TableHead className="text-muted-foreground text-xs font-medium">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="cursor-help">Current Price</span>
+                        <span className="cursor-help">Current</span>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>The current market price of the asset</p>
@@ -256,7 +256,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
 
                   <SortableHeader 
                     field="size" 
-                    label="Position Size" 
+                    label="Size" 
                     tooltip="Amount of the asset held in this position"
                   />
 
@@ -268,14 +268,14 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
 
                   <SortableHeader 
                     field="pnl" 
-                    label="Unrealized P&L" 
+                    label="P&L" 
                     tooltip="Profit and Loss that would be realized if closed now"
                   />
 
-                  <TableHead className="text-[#c6b795]">
+                  <TableHead className="text-muted-foreground text-xs font-medium">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="cursor-help">Margin Required</span>
+                        <span className="cursor-help">Margin</span>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>The amount of collateral required to maintain this position</p>
@@ -285,11 +285,11 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
 
                   <SortableHeader 
                     field="liquidation" 
-                    label="Liquidation Price" 
+                    label="Liq. Price" 
                     tooltip="Price at which the position will be automatically liquidated"
                   />
 
-                  <TableHead className="text-[#c6b795]">Action</TableHead>
+                  <TableHead className="text-muted-foreground text-xs font-medium">Action</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -322,74 +322,74 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     distanceToLiquidation < 30 ? 'medium' : 'low';
 
                   return (
-                    <TableRow key={`${position.market}-${index}`} className="border-[#463c25] hover:bg-[#463c25]/20">
-                      <TableCell className="font-medium text-white">
+                    <TableRow key={`${position.market}-${index}`} className="border-border/30 hover:bg-accent/5">
+                      <TableCell className="font-semibold text-foreground py-3">
                         <div className="flex items-center gap-2">
-                          {position.market}
+                          <span className="text-sm">{position.market}</span>
                           <Badge
                             variant={position.side === 'LONG' ? 'default' : 'destructive'}
-                            className="text-[10px] px-1.5 py-0"
+                            className="text-[10px] px-1.5 py-0.5 font-medium"
                           >
                             {position.side}
                           </Badge>
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-white">
+                      <TableCell className="text-muted-foreground text-sm py-3">
                         ${position.entryPrice.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-white">
+                      <TableCell className="text-foreground text-sm font-medium py-3">
                         ${currentPrice.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-white">
+                      <TableCell className="text-muted-foreground text-sm py-3">
                         {position.size.toLocaleString(undefined, {
                           minimumFractionDigits: 4,
                           maximumFractionDigits: 4,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-white">
-                        <Badge variant="outline" className="text-[#e6b951] border-[#e6b951]/30">
+                      <TableCell className="py-3">
+                        <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 font-medium">
                           {leverage}x
                         </Badge>
                       </TableCell>
 
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <div className={`flex items-center gap-1 font-semibold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
-                            {isProfit ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      <TableCell className="py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <div className={`flex items-center gap-1 font-semibold text-sm ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                            {isProfit ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                             {isProfit ? '+' : ''}${pnl.toFixed(2)}
                           </div>
-                          <span className={`text-xs ${isProfit ? 'text-green-400/70' : 'text-red-400/70'}`}>
+                          <span className={`text-[11px] font-medium ${isProfit ? 'text-green-500/60' : 'text-red-500/60'}`}>
                             {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
                           </span>
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-white">
+                      <TableCell className="text-muted-foreground text-sm py-3">
                         ${marginRequired.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-white">
+                      <TableCell className="py-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-foreground text-sm font-medium">
                             ${liquidationPrice.toLocaleString(undefined, {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}
                           </span>
-                          <div className="flex items-center gap-1 mt-0.5">
+                          <div className="flex items-center gap-1.5">
                             <div
                               className={`h-1.5 w-1.5 rounded-full ${
                                 riskLevel === 'critical'
@@ -401,25 +401,25 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                                   : 'bg-green-500'
                               }`}
                             />
-                            <span className="text-[10px] text-[#c6b795]">
+                            <span className="text-[10px] text-muted-foreground font-medium">
                               {distanceToLiquidation.toFixed(1)}% away
                             </span>
                           </div>
                         </div>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="py-3">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => handleClosePosition(position.market)}
                           disabled={closingPosition === position.market}
-                          className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-950/20"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
                           {closingPosition === position.market ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <X className="h-3 w-3" />
+                            <X className="h-3.5 w-3.5" />
                           )}
                         </Button>
                       </TableCell>
