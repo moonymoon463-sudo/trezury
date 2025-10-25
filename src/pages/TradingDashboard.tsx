@@ -564,9 +564,9 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-3 relative bg-[#211d12] overflow-y-auto">
+      <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-hidden">
         {/* Top Stats */}
-        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-2 ml-auto flex-shrink-0">
+        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-1.5 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
             <>
               <div className="flex flex-col items-center px-1.5">
@@ -586,7 +586,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Top Navigation Tabs */}
-        <div className="flex border-b border-[#463c25] gap-6 mb-2 flex-shrink-0">
+        <div className="flex border-b border-[#463c25] gap-6 mb-1.5 flex-shrink-0">
           <button 
             onClick={() => handleTradingModeChange('spot')}
             className={`flex flex-col items-center justify-center border-b-2 pb-2 pt-1 ${
@@ -617,10 +617,10 @@ const TradingDashboard = () => {
 
         {/* Price Display */}
         {currentAsset && 'price' in currentAsset && (
-          <div className="mb-2 flex-shrink-0">
+          <div className="mb-1.5 flex-shrink-0">
             <div className="flex items-baseline gap-2">
               <p className="text-[#c6b795] text-xs font-medium">{selectedAsset}</p>
-              <h2 className="text-white text-2xl font-outfit font-light tracking-tight">
+              <h2 className="text-white text-xl font-outfit font-light tracking-tight">
                 {currentAsset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <Badge variant={('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? "default" : "destructive"} className="text-xs">
@@ -635,7 +635,7 @@ const TradingDashboard = () => {
         )}
 
         {/* Chart Controls */}
-        <div className="flex items-center gap-1 mb-2 flex-shrink-0">
+        <div className="flex items-center gap-1 mb-1.5 flex-shrink-0">
           <div className="flex gap-0.5">
             {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval) => (
               <Button
@@ -652,7 +652,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Chart Section */}
-        <div className="flex-1 min-h-[350px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
+        <div className="flex-1 min-h-[450px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
