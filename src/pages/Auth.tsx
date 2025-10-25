@@ -47,9 +47,7 @@ const Auth = () => {
 
   // Redirect if already authenticated
   if (user && !loading) {
-    const returnUrl = searchParams.get('return');
-    const safeReturn = returnUrl && !returnUrl.startsWith('/auth') ? returnUrl : '/';
-    return <Navigate to={safeReturn} replace />;
+    return <Navigate to="/" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -62,9 +60,7 @@ const Auth = () => {
 
     const { error } = await signIn(email, password);
     if (!error) {
-      const returnUrl = searchParams.get('return');
-      const safeReturn = returnUrl && !returnUrl.startsWith('/auth') ? returnUrl : '/';
-      window.location.href = safeReturn;
+      setMode('welcome');
     }
     setIsSubmitting(false);
   };
@@ -121,9 +117,7 @@ const Auth = () => {
     }
     
     if (!error) {
-      const returnUrl = searchParams.get('return');
-      const safeReturn = returnUrl && !returnUrl.startsWith('/auth') ? returnUrl : '/';
-      window.location.href = safeReturn;
+      setMode('welcome');
     }
     setIsSubmitting(false);
   };

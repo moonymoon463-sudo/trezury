@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,8 +29,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
+  const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
@@ -60,24 +62,19 @@ const TradingDashboard = () => {
   
   const { toast } = useToast();
 
-  // Derive a single onboarding step from all state
-  const onboardingStep = useMemo(() => {
-    console.log('[Onboarding]', { 
-      user: !!user, 
-      internal: !!internalAddress, 
-      dydx: hasDydxWallet, 
-      dydxLoading: dydxWalletLoading,
-      equity: accountInfo?.equity 
-    });
-    
-    if (!user) return 'auth';
-    if (!internalAddress && !internalLoading) return 'internal';
-    if (!hasDydxWallet && !dydxWalletLoading) return 'dydx';
-    if (hasDydxWallet && accountInfo && accountInfo.equity === 0) return 'deposit';
-    if (hasDydxWallet && (accountLoading || dydxWalletLoading)) return 'loading';
-    if (hasDydxWallet && accountInfo) return 'trade';
-    return 'loading';
-  }, [user, internalAddress, internalLoading, hasDydxWallet, dydxWalletLoading, accountInfo, accountLoading]);
+  // Show dYdX wallet setup if user doesn't have one
+  useEffect(() => {
+    if (user && !dydxWalletLoading && !hasDydxWallet) {
+      setShowDydxWalletSetup(true);
+    }
+  }, [user, hasDydxWallet, dydxWalletLoading]);
+
+  // Show deposit modal if dYdX wallet exists but balance is 0
+  useEffect(() => {
+    if (hasDydxWallet && accountInfo && accountInfo.equity === 0) {
+      setShowDepositModal(true);
+    }
+  }, [hasDydxWallet, accountInfo]);
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
@@ -142,12 +139,12 @@ const TradingDashboard = () => {
   };
 
   const handleInternalWalletCreated = async (address: string) => {
+    setShowInternalWalletSetup(false);
     await refreshBalances();
     toast({
       title: "Internal Wallet Ready",
-      description: "Your secure wallet has been set up successfully! Next: Create trading wallet",
+      description: "Your secure wallet has been set up successfully!",
     });
-    // Step will automatically advance to 'dydx' via the useMemo
   };
 
   // Get current wallet data based on selection (use dYdX account for trading)
@@ -157,15 +154,6 @@ const TradingDashboard = () => {
   const isCurrentWalletConnected = hasDydxWallet && !!dydxAddress;
 
   const handlePlaceOrder = async () => {
-    if (onboardingStep !== 'trade') {
-      toast({
-        variant: 'destructive',
-        title: 'Setup Required',
-        description: 'Please complete wallet setup before trading'
-      });
-      return;
-    }
-
     if (!selectedAsset || !orderSize) {
       toast({
         variant: 'destructive',
@@ -340,7 +328,13 @@ const TradingDashboard = () => {
                     <p className="text-[#c6b795] text-xs mb-3">
                       Create your secure internal wallet to start trading
                     </p>
-                    <p className="text-[#e6b951] text-xs font-semibold mb-2">Step 1: A setup wizard will guide you</p>
+                    <Button
+                      onClick={() => setShowInternalWalletSetup(true)}
+                      className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Create Internal Wallet
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -709,99 +703,98 @@ const TradingDashboard = () => {
                 {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
               </Button>
             ) : (
-              <div className="text-center py-6 text-sm text-[#c6b795]">
-                <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
-                <p className="mb-2">Complete wallet setup to start trading</p>
-                {onboardingStep === 'internal' && <p className="text-[#e6b951] font-semibold">Step 1: Create Internal Wallet</p>}
-                {onboardingStep === 'dydx' && <p className="text-[#e6b951] font-semibold">Step 2: Create Trading Wallet</p>}
-                {onboardingStep === 'deposit' && <p className="text-[#e6b951] font-semibold">Step 3: Deposit Funds</p>}
-              </div>
+              <Button
+                onClick={() => setShowDydxWalletSetup(true)}
+                className="w-full h-11 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-base"
+              >
+                <Shield className="h-5 w-5 mr-2" />
+                Set Up Trading Wallet
+              </Button>
             )}
           </div>
         ) : (
           <div className="space-y-3">
-            {hasDydxWallet && dydxAddress ? (
-              <PositionManager address={dydxAddress} currentPrices={currentPrices} />
+            {dydxAddress ? (
+              <>
+                <PositionManager address={dydxAddress} currentPrices={currentPrices} />
+                <OrderHistory address={dydxAddress} />
+              </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="text-center py-12">
                 <TrendingUpDown className="h-16 w-16 mx-auto mb-4 text-[#e6b951]/40" />
                 <h3 className="text-lg font-semibold text-white mb-2">No Trading Wallet</h3>
                 <p className="text-[#c6b795] text-sm mb-4">
                   Set up your dYdX trading wallet to view positions.
                 </p>
+                <Button
+                  onClick={() => setShowDydxWalletSetup(true)}
+                  className="bg-[#e6b951] hover:bg-[#d4a840] text-black"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Set Up Trading Wallet
+                </Button>
               </div>
             )}
           </div>
         )}
       </aside>
 
-      {/* Internal Wallet Setup Dialog - Step 1 */}
-      <Dialog open={onboardingStep === 'internal'} onOpenChange={() => {}}>
-        <DialogContent className="bg-[#2a251a] border-[#463c25]" onInteractOutside={(e) => e.preventDefault()}>
+      {/* Internal Wallet Setup Dialog */}
+      <Dialog open={showInternalWalletSetup} onOpenChange={setShowInternalWalletSetup}>
+        <DialogContent className="bg-[#2a251a] border-[#463c25]">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Shield className="h-5 w-5 text-[#e6b951]" />
-              Step 1 of 3: Create Your Internal Wallet
+              Create Your Internal Wallet
             </DialogTitle>
             <DialogDescription className="text-[#c6b795]">
-              This wallet will hold your funds securely on the blockchain.
+              Set up your secure internal wallet instantly. If you already have a wallet from the gold app, it will be automatically loaded.
             </DialogDescription>
           </DialogHeader>
           <SecureWalletSetup onWalletCreated={handleInternalWalletCreated} />
         </DialogContent>
       </Dialog>
 
-      {/* dYdX Wallet Setup Dialog - Step 2 */}
-      <Dialog open={onboardingStep === 'dydx'} onOpenChange={() => {}}>
-        <DialogContent className="bg-[#2a251a] border-[#463c25]" onInteractOutside={(e) => e.preventDefault()}>
+      {/* dYdX Wallet Setup Dialog */}
+      <Dialog open={showDydxWalletSetup} onOpenChange={setShowDydxWalletSetup}>
+        <DialogContent className="bg-[#2a251a] border-[#463c25]">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Shield className="h-5 w-5 text-[#e6b951]" />
-              Step 2 of 3: Set Up Trading Wallet
+              Set Up Trading Wallet
             </DialogTitle>
             <DialogDescription className="text-[#c6b795]">
-              Create your dYdX trading wallet to access leverage trading.
+              Create your dYdX trading wallet to start trading with leverage.
             </DialogDescription>
           </DialogHeader>
           <DydxWalletSetup 
             onComplete={() => {
+              setShowDydxWalletSetup(false);
               refreshDydxWallet();
-              toast({
-                title: "Trading Wallet Created",
-                description: "Next: Deposit funds to start trading"
-              });
             }} 
           />
         </DialogContent>
       </Dialog>
 
-      {/* Deposit USDC Dialog - Step 3 */}
-      <Dialog open={onboardingStep === 'deposit'} onOpenChange={() => {}}>
-        <DialogContent className="bg-[#2a251a] border-[#463c25]" onInteractOutside={(e) => e.preventDefault()}>
+      {/* Deposit USDC Dialog */}
+      <Dialog open={showDepositModal} onOpenChange={setShowDepositModal}>
+        <DialogContent className="bg-[#2a251a] border-[#463c25]">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-[#e6b951]" />
-              Step 3 of 3: Deposit USDC
+              Deposit USDC
             </DialogTitle>
             <DialogDescription className="text-[#c6b795]">
               Deposit testnet USDC to your trading wallet to start trading.
             </DialogDescription>
           </DialogHeader>
-          <DepositUSDC 
-            onDepositComplete={() => {
-              refreshAccount();
-              toast({
-                title: "Ready to Trade!",
-                description: "Your account is now fully set up"
-              });
-            }}
-          />
+          <DepositUSDC onDepositComplete={refreshAccount} />
         </DialogContent>
       </Dialog>
 
       {/* Password Unlock Dialog */}
       <PasswordUnlockDialog
-        open={showPasswordDialog && onboardingStep === 'trade'}
+        open={showPasswordDialog}
         onUnlock={handlePasswordUnlock}
         onCancel={() => setShowPasswordDialog(false)}
       />
