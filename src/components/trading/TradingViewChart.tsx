@@ -66,7 +66,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       const chart = (lib as any).createChart(chartContainerRef.current, {
         layout: {
           background: { color: 'transparent' },
-          textColor: 'hsl(43, 65%, 55%)', // aurum color
+          textColor: '#D4AF37', // aurum color
         },
         grid: {
           vertLines: { color: 'rgba(212, 175, 55, 0.1)' },
@@ -84,24 +84,24 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         },
         crosshair: {
           horzLine: {
-            color: 'hsl(43, 65%, 55%)',
-            labelBackgroundColor: 'hsl(43, 65%, 55%)',
+            color: '#D4AF37',
+            labelBackgroundColor: '#D4AF37',
           },
           vertLine: {
-            color: 'hsl(43, 65%, 55%)',
-            labelBackgroundColor: 'hsl(43, 65%, 55%)',
+            color: '#D4AF37',
+            labelBackgroundColor: '#D4AF37',
           },
         },
       });
 
       // Add candlestick series
       const candleSeries = chart.addCandlestickSeries({
-        upColor: 'hsl(142, 76%, 36%)', // status-success green
-        downColor: 'hsl(0, 84%, 60%)', // status-error red
-        borderUpColor: 'hsl(142, 76%, 36%)',
-        borderDownColor: 'hsl(0, 84%, 60%)',
-        wickUpColor: 'hsl(142, 76%, 36%)',
-        wickDownColor: 'hsl(0, 84%, 60%)',
+        upColor: '#16B976', // status-success green
+        downColor: '#EF4444', // status-error red
+        borderUpColor: '#16B976',
+        borderDownColor: '#EF4444',
+        wickUpColor: '#16B976',
+        wickDownColor: '#EF4444',
       });
 
       // Add volume histogram series
