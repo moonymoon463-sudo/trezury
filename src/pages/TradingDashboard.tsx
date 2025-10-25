@@ -51,13 +51,19 @@ const TradingDashboard = () => {
   const [copied, setCopied] = useState(false);
   
   const { user, loading: authLoading } = useAuth();
-  
-  // Defensive auth check - should never reach here due to ProtectedRoute, but just in case
-  if (!user && !authLoading) {
-    window.location.href = '/auth?return=/trading-dashboard';
-    return null;
-  }
   const { getPassword } = useTradingPasswordContext();
+  
+  // Show loading state while auth initializes
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading Trading Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
   
   // External wallet (MetaMask)
   const { wallet, connectWallet } = useWalletConnection();

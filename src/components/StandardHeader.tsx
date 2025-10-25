@@ -22,7 +22,7 @@ interface StandardHeaderProps {
 const StandardHeader: React.FC<StandardHeaderProps> = ({
   title,
   showBackButton = false,
-  backPath = "/",
+  backPath = "back",
   onBack,
   showRefreshButton = false,
   onRefresh,

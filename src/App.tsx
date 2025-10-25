@@ -99,11 +99,12 @@ const AppRoutes = () => {
     );
   }
 
-  // Show app routes for authenticated users
-  return (
-    <Routes>
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/auth" element={<Index />} />
+    // Show app routes for authenticated users
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/gold" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+        <Route path="/auth" element={<LandingPage />} />
       <Route path="/buy-sell-hub" element={<ProtectedRoute><BuySellHub /></ProtectedRoute>} />
       <Route path="/buy-gold" element={<ProtectedRoute><BuyGold /></ProtectedRoute>} />
       <Route path="/buy-gold/amount" element={<ProtectedRoute><BuyGoldAmount /></ProtectedRoute>} />

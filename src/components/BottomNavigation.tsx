@@ -15,7 +15,7 @@ const BottomNavigation = () => {
       id: "home",
       label: "Home",
       icon: Home,
-      path: "/",
+      path: "/gold",
     },
     {
       id: "buy-sell",
@@ -50,7 +50,7 @@ const BottomNavigation = () => {
   ];
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
+    if (path === "/gold") return location.pathname === "/" || location.pathname === "/gold";
     return location.pathname.startsWith(path);
   };
 
