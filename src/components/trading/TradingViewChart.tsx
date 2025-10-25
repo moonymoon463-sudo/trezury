@@ -38,20 +38,45 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     const init = async () => {
       if (!chartContainerRef.current || candles.length === 0) return;
 
-      // Load lightweight-charts from CDN (ensures correct ChartApi)
+      console.log("[TradingViewChart] Initializing chart", {
+        candles: candles.slice(0, 3),
+        containerHeight: chartContainerRef.current?.clientHeight,
+        lightweightChartsReady: !!(window as any).LightweightCharts,
+        firstTimestamp: candles[0]?.timestamp,
+        isMilliseconds: candles[0]?.timestamp > 1e12
+      });
+
+      // Load lightweight-charts from CDN with retry logic
       let lib: any = (window as any).LightweightCharts;
       if (!lib) {
         await new Promise<void>((resolve, reject) => {
           const existing = document.querySelector('script[data-lwc-cdn="true"]') as HTMLScriptElement | null;
           if (existing) {
-            existing.addEventListener('load', () => resolve(), { once: true });
-            existing.addEventListener('error', () => reject(new Error('Failed to load lightweight-charts CDN')), { once: true });
+            // Wait for existing script to load
+            const checkLib = () => {
+              if ((window as any).LightweightCharts) {
+                resolve();
+              } else {
+                setTimeout(checkLib, 100);
+              }
+            };
+            checkLib();
           } else {
             const s = document.createElement('script');
             s.src = 'https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js';
             s.async = true;
             s.setAttribute('data-lwc-cdn', 'true');
-            s.onload = () => resolve();
+            s.onload = () => {
+              // Double-check lib is available after load
+              const checkLib = () => {
+                if ((window as any).LightweightCharts) {
+                  resolve();
+                } else {
+                  setTimeout(checkLib, 50);
+                }
+              };
+              checkLib();
+            };
             s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
             document.head.appendChild(s);
           }
@@ -104,18 +129,28 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         wickDownColor: '#EF4444',
       });
 
-      // Add volume histogram series
+      // Add volume histogram series with dedicated scale
       const volumeSeries = chart.addHistogramSeries({
         color: 'rgba(212, 175, 55, 0.3)',
         priceFormat: {
           type: 'volume',
         },
-        priceScaleId: '',
+        priceScaleId: 'volume', // Explicit scale ID
       });
 
-      // Transform data to chart format
+      // Configure volume scale to be at bottom 20% of chart
+      chart.priceScale('volume').applyOptions({
+        scaleMargins: {
+          top: 0.8,
+          bottom: 0,
+        },
+      });
+
+      // Transform data to chart format with timestamp validation
       const chartData = candles.map((candle) => ({
-        time: candle.timestamp as any,
+        time: Math.floor(
+          candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+        ),
         open: candle.open,
         high: candle.high,
         low: candle.low,
@@ -123,7 +158,9 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       }));
 
       const volumeData = candles.map((candle) => ({
-        time: candle.timestamp as any,
+        time: Math.floor(
+          candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+        ),
         value: candle.volume,
         color: candle.close > candle.open 
           ? 'rgba(16, 185, 129, 0.5)' // green with transparency
@@ -164,6 +201,36 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       disposed = true;
       if (cleanup) cleanup();
     };
+  }, [candles]);
+
+  // Update existing chart when candles change (without remounting)
+  useEffect(() => {
+    if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+    if (candles.length === 0) return;
+
+    const chartData = candles.map((candle) => ({
+      time: Math.floor(
+        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+      ),
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }));
+
+    const volumeData = candles.map((candle) => ({
+      time: Math.floor(
+        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+      ),
+      value: candle.volume,
+      color: candle.close > candle.open 
+        ? 'rgba(16, 185, 129, 0.5)'
+        : 'rgba(239, 68, 68, 0.5)',
+    }));
+
+    candleSeriesRef.current.setData(chartData);
+    volumeSeriesRef.current.setData(volumeData);
+    chartRef.current.timeScale().fitContent();
   }, [candles]);
 
   const handleTimeframeChange = (newResolution: string) => {
@@ -231,10 +298,10 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       </div>
 
       {/* Chart Container */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-[500px]">
         <div 
           ref={chartContainerRef} 
-          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-full min-h-[500px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
