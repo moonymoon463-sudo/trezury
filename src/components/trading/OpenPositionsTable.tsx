@@ -32,7 +32,38 @@ type SortField = 'market' | 'size' | 'pnl' | 'leverage' | 'liquidation';
 type SortDirection = 'asc' | 'desc';
 
 export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTableProps) => {
-  const { positions, loading, error } = useDydxPositions(address);
+  // Mock data for now
+  const mockPositions: DydxPosition[] = [
+    {
+      market: 'BTC-USD',
+      side: 'LONG',
+      size: 0.5,
+      entryPrice: 95000,
+      unrealizedPnl: 2500,
+      realizedPnl: 0
+    },
+    {
+      market: 'ETH-USD',
+      side: 'SHORT',
+      size: 2.5,
+      entryPrice: 3500,
+      unrealizedPnl: -450,
+      realizedPnl: 0
+    },
+    {
+      market: 'SOL-USD',
+      side: 'LONG',
+      size: 50,
+      entryPrice: 180,
+      unrealizedPnl: 1200,
+      realizedPnl: 0
+    }
+  ];
+
+  const positions = mockPositions;
+  const loading = false;
+  const error = null;
+
   const { toast } = useToast();
   const { getPassword } = useTradingPasswordContext();
   const [sortField, setSortField] = useState<SortField>('market');
