@@ -58,7 +58,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
 
-  const depth = viewMode === 'compact' ? 7 : 25;
+  const depth = viewMode === 'compact' ? 3 : 25;
 
   const { bids, asks, spread, spreadPercent } = useMemo(() => {
     if (!orderbook) return { bids: [], asks: [], spread: 0, spreadPercent: 0 };
