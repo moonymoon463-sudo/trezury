@@ -21,6 +21,8 @@ import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
 import { DydxWalletSetup } from '@/components/trading/DydxWalletSetup';
 import { DepositUSDC } from '@/components/trading/DepositUSDC';
+import { DepositModal } from '@/components/trading/DepositModal';
+import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
 import { OrderHistory } from '@/components/trading/OrderHistory';
 import { PositionManager } from '@/components/trading/PositionManager';
@@ -32,6 +34,7 @@ const TradingDashboard = () => {
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
   const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
@@ -264,47 +267,41 @@ const TradingDashboard = () => {
             </button>
           </div>
 
-          {/* Wallet Info */}
-          {internalLoading && walletType === 'internal' ? (
-            <div className="pl-3 space-y-2">
-              <Skeleton className="h-4 w-full bg-[#463c25]/30" />
-              <Skeleton className="h-4 w-3/4 bg-[#463c25]/30" />
-              <Skeleton className="h-4 w-1/2 bg-[#463c25]/30" />
-            </div>
-          ) : isCurrentWalletConnected ? (
-            <>
-              <div className="pl-3 space-y-3">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#c6b795] text-xs">Address:</span>
-                    <button
-                      onClick={() => currentWalletAddress && copyAddress(currentWalletAddress)}
-                      className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
-                    >
-                      {currentWalletAddress?.slice(0, 6)}...{currentWalletAddress?.slice(-4)}
-                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                    </button>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#c6b795] text-sm">Balance:</span>
-                    <span className="text-white font-semibold">
-                      ${currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  {walletType === 'internal' && balances.length > 0 && (
-                    <div className="space-y-1 pt-2 border-t border-[#463c25]">
-                      {balances.filter(b => b.amount > 0).map((balance) => (
-                        <div key={`${balance.asset}-${balance.chain}`} className="flex justify-between items-center text-xs">
-                          <span className="text-[#c6b795]">{balance.asset} ({balance.chain}):</span>
-                          <span className="text-white">{balance.amount.toFixed(4)}</span>
-                        </div>
-                      ))}
+          {/* Wallet Info - Always show wallet type selector */}
+          {walletType === 'internal' ? (
+            internalAddress ? (
+              <>
+                <div className="pl-3 space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#c6b795] text-xs">Internal Address:</span>
+                      <button
+                        onClick={() => internalAddress && copyAddress(internalAddress)}
+                        className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
+                      >
+                        {internalAddress?.slice(0, 6)}...{internalAddress?.slice(-4)}
+                        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      </button>
                     </div>
-                  )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#c6b795] text-sm">Balance:</span>
+                      <span className="text-white font-semibold">
+                        ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {balances.length > 0 && (
+                      <div className="space-y-1 pt-2 border-t border-[#463c25]">
+                        {balances.filter(b => b.amount > 0).map((balance) => (
+                          <div key={`${balance.asset}-${balance.chain}`} className="flex justify-between items-center text-xs">
+                            <span className="text-[#c6b795]">{balance.asset}:</span>
+                            <span className="text-white">{balance.amount.toFixed(4)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              {walletType === 'internal' && (
+                
                 <Button
                   onClick={handleRefreshBalances}
                   variant="ghost"
@@ -315,51 +312,107 @@ const TradingDashboard = () => {
                   <RefreshCw className={`h-4 w-4 mr-2 ${internalLoading ? 'animate-spin' : ''}`} />
                   Refresh Balances
                 </Button>
-              )}
 
-              <Button className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold">
-                Deposit
-              </Button>
-              <Button variant="outline" className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold">
-                Withdraw
-              </Button>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-center py-4">
-                {walletType === 'internal' ? (
+                {hasDydxWallet && (
                   <>
-                    <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
-                    <p className="text-white text-sm font-semibold mb-1">No Internal Wallet Found</p>
-                    <p className="text-[#c6b795] text-xs mb-3">
-                      Create your secure internal wallet to start trading
-                    </p>
-                    <Button
-                      onClick={() => setShowInternalWalletSetup(true)}
-                      className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    <Button 
+                      onClick={() => setShowDepositModal(true)}
+                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold"
                     >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Create Internal Wallet
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Deposit to Trading
                     </Button>
-                  </>
-                ) : (
-                  <>
-                    <WalletIcon className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
-                    <p className="text-white text-sm font-semibold mb-1">External Wallet Not Connected</p>
-                    <p className="text-[#c6b795] text-xs mb-3">
-                      Connect MetaMask to trade with your external wallet
-                    </p>
-                    <Button
-                      onClick={handleConnectWallet}
-                      className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    <Button 
+                      onClick={() => setShowWithdrawModal(true)}
+                      variant="outline" 
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold"
                     >
-                      <WalletIcon className="h-4 w-4 mr-2" />
-                      Connect MetaMask
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Withdraw from Trading
                     </Button>
                   </>
                 )}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-center py-4">
+                  <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
+                  <p className="text-white text-sm font-semibold mb-1">No Internal Wallet Found</p>
+                  <p className="text-[#c6b795] text-xs mb-3">
+                    Create your secure internal wallet to start trading
+                  </p>
+                  <Button
+                    onClick={() => setShowInternalWalletSetup(true)}
+                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Create Internal Wallet
+                  </Button>
+                </div>
               </div>
-            </div>
+            )
+          ) : (
+            wallet.isConnected ? (
+              <>
+                <div className="pl-3 space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#c6b795] text-xs">External Address:</span>
+                      <button
+                        onClick={() => wallet.address && copyAddress(wallet.address)}
+                        className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
+                      >
+                        {wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}
+                        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#c6b795] text-sm">Balance:</span>
+                      <span className="text-white font-semibold">
+                        {wallet.balance} ETH
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {hasDydxWallet && (
+                  <>
+                    <Button 
+                      onClick={() => setShowDepositModal(true)}
+                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Deposit to Trading
+                    </Button>
+                    <Button 
+                      onClick={() => setShowWithdrawModal(true)}
+                      variant="outline" 
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold"
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Withdraw from Trading
+                    </Button>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-center py-4">
+                  <WalletIcon className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
+                  <p className="text-white text-sm font-semibold mb-1">External Wallet Not Connected</p>
+                  <p className="text-[#c6b795] text-xs mb-3">
+                    Connect MetaMask to trade with your external wallet
+                  </p>
+                  <Button
+                    onClick={handleConnectWallet}
+                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                  >
+                    <WalletIcon className="h-4 w-4 mr-2" />
+                    Connect MetaMask
+                  </Button>
+                </div>
+              </div>
+            )
           )}
         </div>
 
@@ -803,6 +856,34 @@ const TradingDashboard = () => {
         open={showPasswordDialog}
         onUnlock={handlePasswordUnlock}
         onCancel={() => setShowPasswordDialog(false)}
+      />
+
+      {/* Deposit Modal */}
+      <DepositModal
+        isOpen={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        dydxAddress={dydxAddress || ''}
+        internalAddress={internalAddress}
+        externalAddress={wallet.address}
+        onDepositComplete={() => {
+          refreshAccount();
+          refreshBalances();
+          setShowDepositModal(false);
+        }}
+      />
+
+      {/* Withdraw Modal */}
+      <WithdrawModal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        dydxAddress={dydxAddress || ''}
+        availableBalance={accountInfo?.freeCollateral || 0}
+        internalAddress={internalAddress}
+        onWithdrawComplete={() => {
+          refreshAccount();
+          refreshBalances();
+          setShowWithdrawModal(false);
+        }}
       />
     </div>
   );
