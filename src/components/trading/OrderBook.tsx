@@ -1,19 +1,70 @@
-import { useMemo } from 'react';
+import { useMemo, useState, memo } from 'react';
 import { useDydxOrderbook } from '@/hooks/useDydxOrderbook';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface OrderBookProps {
   symbol: string | null;
+  onPriceSelect?: (price: number) => void;
 }
 
-export const OrderBook = ({ symbol }: OrderBookProps) => {
+interface OrderBookRowProps {
+  price: string;
+  size: string;
+  total: number;
+  type: 'bid' | 'ask';
+  depthPercent: number;
+  isSelected: boolean;
+  onSelect: (price: number) => void;
+}
+
+const OrderBookRow = memo(({ price, size, total, type, depthPercent, isSelected, onSelect }: OrderBookRowProps) => {
+  const priceNum = parseFloat(price);
+  const sizeNum = parseFloat(size);
+  
+  return (
+    <div 
+      onClick={() => onSelect(priceNum)}
+      className={cn(
+        "relative mb-0.5 cursor-pointer transition-colors hover:bg-[#463c25]/20",
+        isSelected && "bg-[#463c25]/40"
+      )}
+    >
+      <div 
+        className={cn(
+          "absolute inset-0 rounded",
+          type === 'ask' ? "bg-red-500/10" : "bg-green-500/10"
+        )}
+        style={{ width: `${depthPercent}%` }}
+      />
+      <div className="relative grid grid-cols-3 gap-2 text-[11px] px-1 py-0.5">
+        <div className={cn(
+          "font-medium",
+          type === 'ask' ? "text-red-500" : "text-green-500"
+        )}>
+          {priceNum.toFixed(2)}
+        </div>
+        <div className="text-right text-foreground">{sizeNum.toFixed(4)}</div>
+        <div className="text-right text-muted-foreground">{total.toFixed(4)}</div>
+      </div>
+    </div>
+  );
+});
+
+export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const { orderbook, loading } = useDydxOrderbook(symbol);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
+  const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
+
+  const depth = viewMode === 'compact' ? 7 : 25;
 
   const { bids, asks, spread, spreadPercent } = useMemo(() => {
     if (!orderbook) return { bids: [], asks: [], spread: 0, spreadPercent: 0 };
 
-    const topBids = orderbook.bids.slice(0, 7);
-    const topAsks = orderbook.asks.slice(0, 7);
+    const topBids = orderbook.bids.slice(0, depth);
+    const topAsks = orderbook.asks.slice(0, depth);
 
     // Calculate spread
     const bestBid = parseFloat(topBids[0]?.price || '0');
@@ -42,7 +93,12 @@ export const OrderBook = ({ symbol }: OrderBookProps) => {
       spread,
       spreadPercent
     };
-  }, [orderbook]);
+  }, [orderbook, depth]);
+
+  const handlePriceSelect = (price: number) => {
+    setSelectedPrice(price);
+    onPriceSelect?.(price);
+  };
 
   const maxBidTotal = bids[bids.length - 1]?.total || 1;
   const maxAskTotal = asks[0]?.total || 1;
@@ -70,15 +126,8 @@ export const OrderBook = ({ symbol }: OrderBookProps) => {
     );
   }
 
-  return (
-    <div className="bg-[#2a251a] border border-[#463c25] rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold text-foreground">Order Book</h3>
-        <div className="text-[10px] text-muted-foreground">
-          Spread: <span className="text-foreground">${spread.toFixed(2)}</span> ({spreadPercent.toFixed(3)}%)
-        </div>
-      </div>
-
+  const orderbookContent = (
+    <>
       {/* Header */}
       <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground mb-1 px-1">
         <div>Price</div>
@@ -91,17 +140,16 @@ export const OrderBook = ({ symbol }: OrderBookProps) => {
         {asks.map((ask, idx) => {
           const depthPercent = (ask.total / maxAskTotal) * 100;
           return (
-            <div key={`ask-${idx}`} className="relative mb-0.5">
-              <div 
-                className="absolute inset-0 bg-red-500/10 rounded"
-                style={{ width: `${depthPercent}%` }}
-              />
-              <div className="relative grid grid-cols-3 gap-2 text-[11px] px-1 py-0.5">
-                <div className="text-red-500 font-medium">{parseFloat(ask.price).toFixed(2)}</div>
-                <div className="text-right text-foreground">{parseFloat(ask.size).toFixed(4)}</div>
-                <div className="text-right text-muted-foreground">{ask.total.toFixed(4)}</div>
-              </div>
-            </div>
+            <OrderBookRow
+              key={`ask-${ask.price}`}
+              price={ask.price}
+              size={ask.size}
+              total={ask.total}
+              type="ask"
+              depthPercent={depthPercent}
+              isSelected={selectedPrice === parseFloat(ask.price)}
+              onSelect={handlePriceSelect}
+            />
           );
         })}
       </div>
@@ -118,20 +166,51 @@ export const OrderBook = ({ symbol }: OrderBookProps) => {
         {bids.map((bid, idx) => {
           const depthPercent = (bid.total / maxBidTotal) * 100;
           return (
-            <div key={`bid-${idx}`} className="relative mb-0.5">
-              <div 
-                className="absolute inset-0 bg-green-500/10 rounded"
-                style={{ width: `${depthPercent}%` }}
-              />
-              <div className="relative grid grid-cols-3 gap-2 text-[11px] px-1 py-0.5">
-                <div className="text-green-500 font-medium">{parseFloat(bid.price).toFixed(2)}</div>
-                <div className="text-right text-foreground">{parseFloat(bid.size).toFixed(4)}</div>
-                <div className="text-right text-muted-foreground">{bid.total.toFixed(4)}</div>
-              </div>
-            </div>
+            <OrderBookRow
+              key={`bid-${bid.price}`}
+              price={bid.price}
+              size={bid.size}
+              total={bid.total}
+              type="bid"
+              depthPercent={depthPercent}
+              isSelected={selectedPrice === parseFloat(bid.price)}
+              onSelect={handlePriceSelect}
+            />
           );
         })}
       </div>
+    </>
+  );
+
+  return (
+    <div className="bg-[#2a251a] border border-[#463c25] rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-foreground">Order Book</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode(viewMode === 'compact' ? 'full' : 'compact')}
+            className="h-5 px-2 text-[10px] bg-[#463c25]/30 border-[#635636] hover:bg-[#463c25]/50"
+          >
+            {viewMode === 'compact' ? 'Full' : 'Compact'}
+          </Button>
+          <span className="text-[10px] text-muted-foreground">
+            Depth: {depth}
+          </span>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          Spread: <span className="text-foreground">${spread.toFixed(2)}</span> ({spreadPercent.toFixed(3)}%)
+        </div>
+      </div>
+
+      {viewMode === 'full' ? (
+        <ScrollArea className="h-[400px]">
+          {orderbookContent}
+        </ScrollArea>
+      ) : (
+        orderbookContent
+      )}
     </div>
   );
 };

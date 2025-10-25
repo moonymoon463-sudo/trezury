@@ -1,10 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import type { DydxOrderbook } from '@/types/dydx';
+
+// Throttle function to limit update frequency
+const throttle = <T extends (...args: any[]) => void>(func: T, delay: number): T => {
+  let lastCall = 0;
+  return ((...args: any[]) => {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      func(...args);
+    }
+  }) as T;
+};
 
 export const useDydxOrderbook = (symbol: string | null) => {
   const [orderbook, setOrderbook] = useState<DydxOrderbook | null>(null);
   const [loading, setLoading] = useState(true);
+  const throttledSetOrderbook = useRef(
+    throttle((book: DydxOrderbook) => {
+      setOrderbook(book);
+      setLoading(false);
+    }, 300) // Update max every 300ms
+  ).current;
 
   useEffect(() => {
     if (!symbol) {
@@ -20,8 +38,7 @@ export const useDydxOrderbook = (symbol: string | null) => {
       symbol,
       (updatedOrderbook) => {
         if (mounted) {
-          setOrderbook(updatedOrderbook);
-          setLoading(false);
+          throttledSetOrderbook(updatedOrderbook);
         }
       }
     );
