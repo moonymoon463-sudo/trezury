@@ -835,22 +835,6 @@ const TradingDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Deposit USDC Dialog */}
-      <Dialog open={showDepositModal} onOpenChange={setShowDepositModal}>
-        <DialogContent className="bg-[#2a251a] border-[#463c25]">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-[#e6b951]" />
-              Deposit USDC
-            </DialogTitle>
-            <DialogDescription className="text-[#c6b795]">
-              Deposit testnet USDC to your trading wallet to start trading.
-            </DialogDescription>
-          </DialogHeader>
-          <DepositUSDC onDepositComplete={refreshAccount} />
-        </DialogContent>
-      </Dialog>
-
       {/* Password Unlock Dialog */}
       <PasswordUnlockDialog
         open={showPasswordDialog}
