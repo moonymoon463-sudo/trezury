@@ -564,9 +564,9 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-hidden">
+      <main className="flex-1 flex flex-col p-3 relative bg-[#211d12] overflow-y-auto">
         {/* Top Stats */}
-        <div className="flex gap-2 p-1 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-1.5 ml-auto flex-shrink-0">
+        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-2 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
             <>
               <div className="flex flex-col items-center px-1.5">
@@ -586,7 +586,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Top Navigation Tabs */}
-        <div className="flex border-b border-[#463c25] gap-6 mb-1.5 flex-shrink-0">
+        <div className="flex border-b border-[#463c25] gap-6 mb-2 flex-shrink-0">
           <button 
             onClick={() => handleTradingModeChange('spot')}
             className={`flex flex-col items-center justify-center border-b-2 pb-2 pt-1 ${
@@ -615,12 +615,12 @@ const TradingDashboard = () => {
           </button>
         </div>
 
-        {/* Price Display + Chart Controls Row */}
-        <div className="flex items-center justify-between mb-1.5 flex-shrink-0">
-          {currentAsset && 'price' in currentAsset && (
+        {/* Price Display */}
+        {currentAsset && 'price' in currentAsset && (
+          <div className="mb-2 flex-shrink-0">
             <div className="flex items-baseline gap-2">
               <p className="text-[#c6b795] text-xs font-medium">{selectedAsset}</p>
-              <h2 className="text-white text-xl font-outfit font-light tracking-tight">
+              <h2 className="text-white text-2xl font-outfit font-light tracking-tight">
                 {currentAsset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <Badge variant={('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? "default" : "destructive"} className="text-xs">
@@ -631,10 +631,11 @@ const TradingDashboard = () => {
                 )}%
               </Badge>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Chart Controls */}
-          <div className="flex items-center gap-1">
+        {/* Chart Controls */}
+        <div className="flex items-center gap-1 mb-2 flex-shrink-0">
           <div className="flex gap-0.5">
             {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval) => (
               <Button
@@ -647,14 +648,11 @@ const TradingDashboard = () => {
                 {interval}
               </Button>
             ))}
-            </div>
           </div>
         </div>
 
-        {/* Chart + Positions Combined Section */}
-        <div className="flex-1 flex flex-col gap-1.5 overflow-hidden">
-          {/* Chart Section */}
-          <div className="flex-1 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25]">
+        {/* Chart Section */}
+        <div className="flex-1 min-h-[350px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -685,29 +683,94 @@ const TradingDashboard = () => {
                   Choose a trading pair from the left sidebar to view its chart.
                 </p>
               </div>
-              </div>
-            )}
-          </div>
-
-          {/* Open Positions Table - Compact */}
-          {hasDydxWallet && dydxAddress && (
-            <div className="h-32 flex-shrink-0">
-              <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
             </div>
           )}
         </div>
+
+        {/* Open Positions Table */}
+        {hasDydxWallet && dydxAddress && (
+          <div className="mb-2 flex-shrink-0">
+            <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
+          </div>
+        )}
+
+        {/* WEPS Insights Section */}
+        <div ref={wepsSectionRef}>
+          <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-[#e6b951]" />
+                WEPS Mode – Bio-Adaptive Insights
+              </h3>
+              <Badge className="bg-[#e6b951]/20 text-[#e6b951]">
+                Confidence {(confidence * 100).toFixed(1)}%
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Phase</p>
+                <p className="text-white font-bold">{phase}</p>
+              </div>
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Bio State</p>
+                <p className="text-white font-bold">{bioState}</p>
+              </div>
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Volatility</p>
+                <p className="text-white font-bold">{(volatility * 100).toFixed(1)}%</p>
+              </div>
+              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
+                <p className="text-[#c6b795] mb-1">Mode</p>
+                <p
+                  className={`font-bold ${
+                    bioState === "Aggressive"
+                      ? "text-green-400"
+                      : bioState === "Defensive"
+                      ? "text-red-400"
+                      : "text-[#e6b951]"
+                  }`}
+                >
+                  {bioState}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-[#c6b795] text-sm leading-relaxed bg-[#1a1712] border border-[#463c25] rounded-lg p-3">
+              {phase === "Growth" && "Market rhythm expanding — bias toward long positions."}
+              {phase === "Decay" && "Volatility fading — tighten risk exposure."}
+              {phase === "Rebirth" && "Momentum reversal forming — early entry opportunity."}
+              {phase === "Death" && "Entropy spike detected — stay defensive."}
+              {phase === "Neutral" && "Awaiting phase confirmation."}
+            </div>
+          </div>
+        </Card>
+        </div>
+
+        {/* WEPS Evolution Log */}
+        <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
+          <div className="p-4">
+            <h3 className="text-white text-lg font-semibold mb-2">WEPS Evolution Log</h3>
+            <ul className="space-y-2 text-sm text-[#c6b795]">
+              <li>🧬 10:42 — Mutation event: volatility sensitivity +5%</li>
+              <li>🌊 09:15 — Phase bias shifted: Growth → Rebirth</li>
+              <li>⚡ 08:10 — Confidence threshold recalibrated</li>
+            </ul>
+          </div>
+        </Card>
       </main>
 
       {/* Right Sidebar - Order Panel */}
-      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 overflow-y-auto flex-shrink-0">
-        <h2 className="text-white text-base font-bold mb-2">Order Panel</h2>
+      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-4 overflow-y-auto flex-shrink-0">
+        <h2 className="text-white text-lg font-bold mb-3">Order Panel</h2>
 
         {/* Order Book */}
-        <div className="mb-2">
+        <div className="mb-4">
           <OrderBook symbol={selectedAsset} />
         </div>
 
-        <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-2">
+        <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-3">
           <TabsList className="grid w-full grid-cols-3 bg-[#211d12]">
             <TabsTrigger value="buy" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">Buy</TabsTrigger>
             <TabsTrigger value="sell" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Sell</TabsTrigger>
@@ -716,10 +779,10 @@ const TradingDashboard = () => {
         </Tabs>
 
         {tradeMode !== 'positions' ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {/* Order Type */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Order Type</label>
               <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
                 <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white">
                   <SelectValue placeholder="Market Order" />
@@ -734,7 +797,7 @@ const TradingDashboard = () => {
 
             {/* Price */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Price (USDT)</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Price (USDT)</label>
               <input
                 type="text"
                 value={orderType === 'market' ? 'Market' : limitPrice}
@@ -747,7 +810,7 @@ const TradingDashboard = () => {
 
             {/* Order Size */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
               <input
                 type="number"
                 placeholder="0.00"
@@ -781,7 +844,7 @@ const TradingDashboard = () => {
             {/* Leverage */}
             {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Leverage</label>
+                <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Leverage</label>
                 <div className="flex gap-1.5 mb-2">
                   {['1x', '5x', '10x', '15x', '20x'].map((lvg) => (
                     <Button
@@ -811,7 +874,7 @@ const TradingDashboard = () => {
             )}
 
             {/* Total and Available */}
-            <div className="space-y-1 pt-2 border-t border-[#463c25]">
+            <div className="space-y-1.5 pt-3 border-t border-[#463c25]">
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Total:</span>
                 <span className="text-white font-semibold">
