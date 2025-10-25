@@ -63,8 +63,12 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const { bids, asks, spread, spreadPercent } = useMemo(() => {
     if (!orderbook) return { bids: [], asks: [], spread: 0, spreadPercent: 0 };
 
-    const topBids = orderbook.bids.slice(0, depth);
-    const topAsks = orderbook.asks.slice(0, depth);
+    // Defensive sorting before slicing (service should already sort, but be robust)
+    const bidsSorted = [...orderbook.bids].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+    const asksSorted = [...orderbook.asks].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    
+    const topBids = bidsSorted.slice(0, depth);
+    const topAsks = asksSorted.slice(0, depth);
 
     // Calculate spread
     const bestBid = parseFloat(topBids[0]?.price || '0');

@@ -17,9 +17,22 @@ const throttle = <T extends (...args: any[]) => void>(func: T, delay: number): T
 export const useDydxOrderbook = (symbol: string | null) => {
   const [orderbook, setOrderbook] = useState<DydxOrderbook | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastNonEmpty = useRef<DydxOrderbook | null>(null);
+  
   const throttledSetOrderbook = useRef(
     throttle((book: DydxOrderbook) => {
+      // Prevent empty flash by ignoring updates with no orders if we have a good state
+      if ((book.bids.length === 0 && book.asks.length === 0) && lastNonEmpty.current) {
+        return;
+      }
+      
       setOrderbook(book);
+      
+      // Save last good state
+      if (book.bids.length > 0 || book.asks.length > 0) {
+        lastNonEmpty.current = book;
+      }
+      
       setLoading(false);
     }, 300) // Update max every 300ms
   ).current;

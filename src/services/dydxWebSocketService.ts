@@ -13,6 +13,7 @@ class DydxWebSocketService {
   private tradeSubscriptions = new Map<string, Set<TradeCallback>>();
   private candleSubscriptions = new Map<string, Set<CandleCallback>>();
   private isConnecting = false;
+  private orderbookState = new Map<string, { bids: Map<number, string>; asks: Map<number, string> }>();
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) return;
@@ -115,10 +116,54 @@ class DydxWebSocketService {
     const { channel, id, contents } = message;
 
     if (channel === 'v4_orderbook') {
+      // Get or initialize state for this market
+      const state = this.orderbookState.get(id) ?? { bids: new Map(), asks: new Map() };
+
+      // Merge bids (delta updates)
+      if (Array.isArray(contents.bids)) {
+        for (const [p, s] of contents.bids) {
+          const price = Number(p);
+          const size = String(s);
+          if (!isFinite(price)) continue;
+          if (Number(size) <= 0) {
+            state.bids.delete(price);
+          } else {
+            state.bids.set(price, size);
+          }
+        }
+      }
+
+      // Merge asks (delta updates)
+      if (Array.isArray(contents.asks)) {
+        for (const [p, s] of contents.asks) {
+          const price = Number(p);
+          const size = String(s);
+          if (!isFinite(price)) continue;
+          if (Number(size) <= 0) {
+            state.asks.delete(price);
+          } else {
+            state.asks.set(price, size);
+          }
+        }
+      }
+
+      // Rebuild sorted arrays from merged state
+      const bidsArr = Array.from(state.bids.entries())
+        .map(([price, size]) => ({ price: price.toString(), size }))
+        .sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+
+      const asksArr = Array.from(state.asks.entries())
+        .map(([price, size]) => ({ price: price.toString(), size }))
+        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+
+      // Save state
+      this.orderbookState.set(id, state);
+
+      // Emit merged orderbook
       const orderbook: DydxOrderbook = {
         market: id,
-        bids: contents.bids?.map((b: any) => ({ price: b[0], size: b[1] })) || [],
-        asks: contents.asks?.map((a: any) => ({ price: a[0], size: a[1] })) || [],
+        bids: bidsArr,
+        asks: asksArr,
         lastUpdated: Date.now(),
       };
 
