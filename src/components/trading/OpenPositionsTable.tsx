@@ -155,12 +155,19 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
     }
   };
 
-  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+  const SortableHeader = ({ field, label, tooltip }: { field: SortField; label: string; tooltip: string }) => (
     <TableHead className="text-[#c6b795] cursor-pointer hover:text-white transition-colors" onClick={() => handleSort(field)}>
-      <div className="flex items-center gap-1">
-        {children}
-        <ArrowUpDown className="h-3 w-3" />
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1">
+            <span>{label}</span>
+            <ArrowUpDown className="h-3 w-3" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
     </TableHead>
   );
 
@@ -219,77 +226,68 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
             <Table>
               <TableHeader>
                 <TableRow className="border-[#463c25] hover:bg-transparent">
-                  <SortableHeader field="market">
-                    <TooltipTrigger asChild>
-                      <span>Asset Pair</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>The trading pair for this position</p>
-                    </TooltipContent>
-                  </SortableHeader>
+                  <SortableHeader 
+                    field="market" 
+                    label="Asset Pair" 
+                    tooltip="The trading pair for this position"
+                  />
 
                   <TableHead className="text-[#c6b795]">
-                    <TooltipTrigger asChild>
-                      <span>Entry Price</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>The price at which the position was opened</p>
-                    </TooltipContent>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">Entry Price</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The price at which the position was opened</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableHead>
 
                   <TableHead className="text-[#c6b795]">
-                    <TooltipTrigger asChild>
-                      <span>Current Price</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>The current market price of the asset</p>
-                    </TooltipContent>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">Current Price</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The current market price of the asset</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableHead>
 
-                  <SortableHeader field="size">
-                    <TooltipTrigger asChild>
-                      <span>Position Size</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Amount of the asset held in this position</p>
-                    </TooltipContent>
-                  </SortableHeader>
+                  <SortableHeader 
+                    field="size" 
+                    label="Position Size" 
+                    tooltip="Amount of the asset held in this position"
+                  />
 
-                  <SortableHeader field="leverage">
-                    <TooltipTrigger asChild>
-                      <span>Leverage</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>The leverage multiplier used for this position</p>
-                    </TooltipContent>
-                  </SortableHeader>
+                  <SortableHeader 
+                    field="leverage" 
+                    label="Leverage" 
+                    tooltip="The leverage multiplier used for this position"
+                  />
 
-                  <SortableHeader field="pnl">
-                    <TooltipTrigger asChild>
-                      <span>Unrealized P&L</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Profit and Loss that would be realized if closed now</p>
-                    </TooltipContent>
-                  </SortableHeader>
+                  <SortableHeader 
+                    field="pnl" 
+                    label="Unrealized P&L" 
+                    tooltip="Profit and Loss that would be realized if closed now"
+                  />
 
                   <TableHead className="text-[#c6b795]">
-                    <TooltipTrigger asChild>
-                      <span>Margin Required</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>The amount of collateral required to maintain this position</p>
-                    </TooltipContent>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help">Margin Required</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The amount of collateral required to maintain this position</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </TableHead>
 
-                  <SortableHeader field="liquidation">
-                    <TooltipTrigger asChild>
-                      <span>Liquidation Price</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Price at which the position will be automatically liquidated</p>
-                    </TooltipContent>
-                  </SortableHeader>
+                  <SortableHeader 
+                    field="liquidation" 
+                    label="Liquidation Price" 
+                    tooltip="Price at which the position will be automatically liquidated"
+                  />
 
                   <TableHead className="text-[#c6b795]">Action</TableHead>
                 </TableRow>
