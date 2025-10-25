@@ -13,9 +13,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useDydxPositions } from '@/hooks/useDydxPositions';
 import type { DydxPosition } from '@/types/dydx';
 import { dydxTradingService } from '@/services/dydxTradingService';
@@ -69,6 +80,10 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   const [sortField, setSortField] = useState<SortField>('market');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<DydxPosition | null>(null);
+  const [closeOrderType, setCloseOrderType] = useState<'MARKET' | 'LIMIT'>('MARKET');
+  const [closeLimitPrice, setCloseLimitPrice] = useState('');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -118,7 +133,16 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
     });
   }, [positions, sortField, sortDirection, currentPrices]);
 
-  const handleClosePosition = async (market: string) => {
+  const openCloseDialog = (position: DydxPosition) => {
+    setSelectedPosition(position);
+    setCloseOrderType('MARKET');
+    setCloseLimitPrice('');
+    setCloseDialogOpen(true);
+  };
+
+  const handleClosePosition = async () => {
+    if (!selectedPosition) return;
+
     const password = getPassword();
     if (!password) {
       toast({
@@ -129,13 +153,31 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
       return;
     }
 
-    setClosingPosition(market);
+    if (closeOrderType === 'LIMIT' && !closeLimitPrice) {
+      toast({
+        variant: 'destructive',
+        title: 'Price Required',
+        description: 'Please enter a limit price',
+      });
+      return;
+    }
+
+    setClosingPosition(selectedPosition.market);
+    setCloseDialogOpen(false);
+    
     try {
-      const response = await dydxTradingService.closePosition(market, password);
+      const response = await dydxTradingService.closePosition(
+        selectedPosition.market, 
+        password,
+        undefined,
+        closeOrderType,
+        closeOrderType === 'LIMIT' ? parseFloat(closeLimitPrice) : undefined
+      );
+      
       if (response.success) {
         toast({
           title: 'Position Closed',
-          description: `Successfully closed ${market} position`,
+          description: `Successfully closed ${selectedPosition.market} position with ${closeOrderType} order`,
         });
       } else {
         toast({
@@ -412,7 +454,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleClosePosition(position.market)}
+                          onClick={() => openCloseDialog(position)}
                           disabled={closingPosition === position.market}
                           className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                         >
@@ -431,6 +473,59 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
           </div>
         </TooltipProvider>
       </div>
+
+      <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Close Position</DialogTitle>
+            <DialogDescription>
+              Choose how you want to close your {selectedPosition?.market} position
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <RadioGroup value={closeOrderType} onValueChange={(value) => setCloseOrderType(value as 'MARKET' | 'LIMIT')}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="MARKET" id="market" />
+                <Label htmlFor="market" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Market Order</div>
+                  <div className="text-xs text-muted-foreground">Close immediately at current market price</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="LIMIT" id="limit" />
+                <Label htmlFor="limit" className="flex-1 cursor-pointer">
+                  <div className="font-medium">Limit Order</div>
+                  <div className="text-xs text-muted-foreground">Close at a specific price or better</div>
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {closeOrderType === 'LIMIT' && (
+              <div className="space-y-2">
+                <Label htmlFor="limitPrice">Limit Price</Label>
+                <Input
+                  id="limitPrice"
+                  type="number"
+                  step="0.01"
+                  placeholder="Enter price"
+                  value={closeLimitPrice}
+                  onChange={(e) => setCloseLimitPrice(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleClosePosition}>
+              Close Position
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

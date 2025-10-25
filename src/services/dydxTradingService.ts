@@ -188,10 +188,19 @@ class DydxTradingService {
     }
   }
 
-  async closePosition(market: string, password: string, size?: number): Promise<OrderResponse> {
+  async closePosition(
+    market: string, 
+    password: string, 
+    size?: number,
+    orderType: 'MARKET' | 'LIMIT' = 'MARKET',
+    price?: number
+  ): Promise<OrderResponse> {
     try {
       const { data, error } = await supabase.functions.invoke('dydx-trading', {
-        body: { operation: 'close_position', params: { market, size, password } }
+        body: { 
+          operation: 'close_position', 
+          params: { market, size, password, orderType, price } 
+        }
       });
 
       if (error) {
