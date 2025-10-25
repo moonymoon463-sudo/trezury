@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PWAProvider } from "@/hooks/usePWA";
 import { TradingPasswordProvider } from "@/contexts/TradingPasswordContext";
@@ -92,10 +92,9 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/trading-dashboard" element={<TradingDashboard />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
-        <Route path="*" element={<LandingPage />} />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     );
   }
@@ -105,6 +104,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/auth" element={<Index />} />
+      <Route path="/trading-dashboard" element={<ProtectedRoute><TradingDashboard /></ProtectedRoute>} />
       <Route path="/buy-sell-hub" element={<ProtectedRoute><BuySellHub /></ProtectedRoute>} />
       <Route path="/buy-gold" element={<ProtectedRoute><BuyGold /></ProtectedRoute>} />
       <Route path="/buy-gold/amount" element={<ProtectedRoute><BuyGoldAmount /></ProtectedRoute>} />
