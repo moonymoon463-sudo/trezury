@@ -28,13 +28,13 @@ const OrderBookRow = memo(({ price, size, total, type, depthPercent, isSelected,
     <div 
       onClick={() => onSelect(priceNum)}
       className={cn(
-        "relative mb-0.5 cursor-pointer transition-colors hover:bg-[#463c25]/20",
+        "relative cursor-pointer transition-colors hover:bg-[#463c25]/20",
         isSelected && "bg-[#463c25]/40"
       )}
     >
       <div 
         className={cn(
-          "absolute inset-0 rounded",
+          "absolute inset-0",
           type === 'ask' ? "bg-red-500/10" : "bg-green-500/10"
         )}
         style={{ width: `${depthPercent}%` }}
@@ -143,20 +143,14 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const orderbookContent = (
     <>
       {/* Header */}
-      <div className="grid grid-cols-3 gap-2 text-[10px] md:text-xs text-muted-foreground mb-2 px-1">
+      <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground mb-1 px-1">
         <div>Price</div>
         <div className="text-right">Size</div>
         <div className="text-right">Total</div>
       </div>
 
-      {/* SELL ORDERS Section Header */}
-      <div className="flex items-center gap-2 mb-1 px-1">
-        <div className="text-[10px] font-semibold text-red-500 uppercase">Sell Orders (Asks)</div>
-        <div className="flex-1 h-px bg-red-500/20"></div>
-      </div>
-
       {/* Asks (Sells) - Red - Reversed to show highest first, best ask closest to spread */}
-      <div className="mb-2">
+      <div>
         {[...asks].reverse().map((ask, idx) => {
           const depthPercent = (ask.total / maxAskTotal) * 100;
           return (
@@ -174,29 +168,17 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
         })}
       </div>
 
-      {/* Current Price / Spread */}
-      <div className="text-center py-2 border-y border-[#463c25] my-2 bg-[#211d12]/50">
-        <div className="text-[10px] text-muted-foreground mb-0.5">Best Ask</div>
-        <div className="text-xs font-bold text-red-500">
-          ${parseFloat(asks[0]?.price || '0').toFixed(2)}
-        </div>
-        <div className="text-[9px] text-muted-foreground my-1">
-          ↕ Spread: ${spread.toFixed(2)} ({spreadPercent.toFixed(3)}%)
-        </div>
-        <div className="text-xs font-bold text-green-500">
+      {/* Current Price / Spread - Compact */}
+      <div className="text-center py-1 border-y border-[#463c25] my-0.5 bg-[#211d12]/30">
+        <div className="text-xs font-bold text-[#e6b951]">
+          ${parseFloat(asks[0]?.price || '0').toFixed(2)} 
+          <span className="text-[9px] text-muted-foreground mx-1">|</span>
           ${parseFloat(bids[0]?.price || '0').toFixed(2)}
         </div>
-        <div className="text-[10px] text-muted-foreground mt-0.5">Best Bid</div>
-      </div>
-
-      {/* BUY ORDERS Section Header */}
-      <div className="flex items-center gap-2 mt-2 mb-1 px-1">
-        <div className="text-[10px] font-semibold text-green-500 uppercase">Buy Orders (Bids)</div>
-        <div className="flex-1 h-px bg-green-500/20"></div>
       </div>
 
       {/* Bids (Buys) - Green */}
-      <div className="mt-1">
+      <div>
         {bids.map((bid, idx) => {
           const depthPercent = (bid.total / maxBidTotal) * 100;
           return (
@@ -217,30 +199,27 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   );
 
   return (
-    <div className="bg-[#2a251a] border border-[#463c25] rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+    <div className="bg-[#2a251a] border border-[#463c25] rounded-lg p-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
           <h3 className="text-xs font-semibold text-foreground">Order Book</h3>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setViewMode(viewMode === 'compact' ? 'full' : 'compact')}
-            className="h-5 px-2 text-[10px] bg-[#463c25]/30 border-[#635636] hover:bg-[#463c25]/50"
+            className="h-5 px-1.5 text-[9px] bg-[#463c25]/30 border-[#635636] hover:bg-[#463c25]/50"
           >
             {viewMode === 'compact' ? 'Full' : 'Compact'}
           </Button>
-          <span className="text-[10px] text-muted-foreground">
-            Depth: {depth}
-          </span>
         </div>
-        <div className="text-[10px] text-muted-foreground">
-          Spread: <span className="text-foreground">${spread.toFixed(2)}</span> ({spreadPercent.toFixed(3)}%)
+        <div className="text-[9px] text-muted-foreground">
+          ${spread.toFixed(2)} ({spreadPercent.toFixed(3)}%)
         </div>
       </div>
 
       {viewMode === 'full' ? (
-        <ScrollArea className="h-[400px]">
-          <div className="pr-4">
+        <ScrollArea className="h-[350px]">
+          <div className="pr-2">
             {orderbookContent}
           </div>
         </ScrollArea>
