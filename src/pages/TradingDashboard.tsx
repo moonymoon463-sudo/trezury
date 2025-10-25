@@ -44,7 +44,7 @@ const TradingDashboard = () => {
   const [orderSize, setOrderSize] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [chartResolution, setChartResolution] = useState<string>('1HOUR');
-  const [walletType, setWalletType] = useState<'internal' | 'external'>('internal');
+  const [walletType, setWalletType] = useState<'trading' | 'internal' | 'external'>('trading');
   const [copied, setCopied] = useState(false);
   
   const { user, loading: authLoading } = useAuth();
@@ -246,8 +246,18 @@ const TradingDashboard = () => {
           {/* Wallet Type Toggle */}
           <div className="flex gap-1 bg-[#211d12] rounded-lg p-1">
             <button
+              onClick={() => setWalletType('trading')}
+              className={`flex-1 px-2 py-2 rounded-md text-xs font-medium transition-colors ${
+                walletType === 'trading' 
+                  ? 'bg-[#e6b951] text-black' 
+                  : 'text-[#c6b795] hover:text-white'
+              }`}
+            >
+              Trading Wallet
+            </button>
+            <button
               onClick={() => setWalletType('internal')}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 px-2 py-2 rounded-md text-xs font-medium transition-colors ${
                 walletType === 'internal' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
@@ -257,7 +267,7 @@ const TradingDashboard = () => {
             </button>
             <button
               onClick={() => setWalletType('external')}
-              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+              className={`flex-1 px-2 py-2 rounded-md text-xs font-medium transition-colors ${
                 walletType === 'external' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
@@ -268,8 +278,8 @@ const TradingDashboard = () => {
           </div>
 
           {/* Wallet Info - Always show wallet type selector */}
-          {walletType === 'internal' ? (
-            internalAddress ? (
+          {walletType === 'trading' ? (
+            hasDydxWallet && dydxAddress ? (
               <>
                 <div className="pl-3 space-y-3">
                   <div className="space-y-1">
@@ -333,9 +343,72 @@ const TradingDashboard = () => {
               <div className="space-y-3">
                 <div className="text-center py-4">
                   <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
+                  <p className="text-white text-sm font-semibold mb-1">No Trading Wallet Found</p>
+                  <p className="text-[#c6b795] text-xs mb-3">
+                    Create your dYdX trading wallet to start trading
+                  </p>
+                  <Button
+                    onClick={() => setShowDydxWalletSetup(true)}
+                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Create Trading Wallet
+                  </Button>
+                </div>
+              </div>
+            )
+          ) : walletType === 'internal' ? (
+            internalAddress ? (
+              <>
+                <div className="pl-3 space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#c6b795] text-xs">Internal Address:</span>
+                      <button
+                        onClick={() => internalAddress && copyAddress(internalAddress)}
+                        className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
+                      >
+                        {internalAddress?.slice(0, 6)}...{internalAddress?.slice(-4)}
+                        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#c6b795] text-sm">Balance:</span>
+                      <span className="text-white font-semibold">
+                        ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {balances.length > 0 && (
+                      <div className="space-y-1 pt-2 border-t border-[#463c25]">
+                        {balances.filter(b => b.amount > 0).map((balance) => (
+                          <div key={`${balance.asset}-${balance.chain}`} className="flex justify-between items-center text-xs">
+                            <span className="text-[#c6b795]">{balance.asset}:</span>
+                            <span className="text-white">{balance.amount.toFixed(4)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={handleRefreshBalances}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-[#c6b795] hover:text-white hover:bg-[#463c25]"
+                  disabled={internalLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${internalLoading ? 'animate-spin' : ''}`} />
+                  Refresh Balances
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-center py-4">
+                  <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
                   <p className="text-white text-sm font-semibold mb-1">No Internal Wallet Found</p>
                   <p className="text-[#c6b795] text-xs mb-3">
-                    Create your secure internal wallet to start trading
+                    Create your secure internal wallet
                   </p>
                   <Button
                     onClick={() => setShowInternalWalletSetup(true)}
