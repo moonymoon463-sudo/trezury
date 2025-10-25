@@ -146,8 +146,14 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         },
       });
 
-      // Transform data to chart format with timestamp validation
-      const chartData = candles.map((candle) => ({
+      // Transform data to chart format with timestamp validation and null filtering
+      const validCandles = candles.filter(
+        c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+      );
+
+      console.log("[Chart Debug] First candle:", candles[0], "Invalid candles:", candles.length - validCandles.length);
+
+      const chartData = validCandles.map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
         ),
@@ -157,15 +163,17 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         close: candle.close,
       }));
 
-      const volumeData = candles.map((candle) => ({
-        time: Math.floor(
-          candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-        ),
-        value: candle.volume,
-        color: candle.close > candle.open 
-          ? 'rgba(16, 185, 129, 0.5)' // green with transparency
-          : 'rgba(239, 68, 68, 0.5)', // red with transparency
-      }));
+      const volumeData = validCandles
+        .filter(c => c.volume != null)
+        .map((candle) => ({
+          time: Math.floor(
+            candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+          ),
+          value: candle.volume,
+          color: candle.close > candle.open 
+            ? 'rgba(16, 185, 129, 0.5)' // green with transparency
+            : 'rgba(239, 68, 68, 0.5)', // red with transparency
+        }));
 
       candleSeries.setData(chartData);
       volumeSeries.setData(volumeData);
@@ -208,7 +216,11 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
     if (candles.length === 0) return;
 
-    const chartData = candles.map((candle) => ({
+    const validCandles = candles.filter(
+      c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+    );
+
+    const chartData = validCandles.map((candle) => ({
       time: Math.floor(
         candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
       ),
@@ -218,15 +230,17 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       close: candle.close,
     }));
 
-    const volumeData = candles.map((candle) => ({
-      time: Math.floor(
-        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-      ),
-      value: candle.volume,
-      color: candle.close > candle.open 
-        ? 'rgba(16, 185, 129, 0.5)'
-        : 'rgba(239, 68, 68, 0.5)',
-    }));
+    const volumeData = validCandles
+      .filter(c => c.volume != null)
+      .map((candle) => ({
+        time: Math.floor(
+          candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+        ),
+        value: candle.volume,
+        color: candle.close > candle.open 
+          ? 'rgba(16, 185, 129, 0.5)'
+          : 'rgba(239, 68, 68, 0.5)',
+      }));
 
     candleSeriesRef.current.setData(chartData);
     volumeSeriesRef.current.setData(volumeData);
