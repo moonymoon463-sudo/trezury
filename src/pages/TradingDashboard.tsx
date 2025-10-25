@@ -748,21 +748,10 @@ const TradingDashboard = () => {
         </Card>
         </div>
 
-        {/* WEPS Evolution Log */}
-        <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
-          <div className="p-4">
-            <h3 className="text-white text-lg font-semibold mb-2">WEPS Evolution Log</h3>
-            <ul className="space-y-2 text-sm text-[#c6b795]">
-              <li>🧬 10:42 — Mutation event: volatility sensitivity +5%</li>
-              <li>🌊 09:15 — Phase bias shifted: Growth → Rebirth</li>
-              <li>⚡ 08:10 — Confidence threshold recalibrated</li>
-            </ul>
-          </div>
-        </Card>
       </main>
 
       {/* Right Sidebar - Order Panel */}
-      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
+      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 overflow-y-auto flex-shrink-0 flex flex-col">
         <h2 className="text-white text-base font-bold mb-2">Order Panel</h2>
 
         {/* Order Book - Fixed Height with Internal Scroll */}
@@ -926,6 +915,18 @@ const TradingDashboard = () => {
             )}
           </div>
         )}
+
+        {/* WEPS Evolution Log */}
+        <Card className="bg-[#211d12] border-[#463c25] mt-3 flex-shrink-0">
+          <div className="p-3">
+            <h3 className="text-white text-sm font-semibold mb-2">WEPS Evolution Log</h3>
+            <ul className="space-y-2 text-xs text-[#c6b795]">
+              <li>🧬 10:42 — Mutation event: volatility sensitivity +5%</li>
+              <li>🌊 09:15 — Phase bias shifted: Growth → Rebirth</li>
+              <li>⚡ 08:10 — Confidence threshold recalibrated</li>
+            </ul>
+          </div>
+        </Card>
       </aside>
 
       {/* Internal Wallet Setup Dialog */}
