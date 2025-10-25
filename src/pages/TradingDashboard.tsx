@@ -322,10 +322,10 @@ const TradingDashboard = () => {
                 </Button>
 
                 {hasDydxWallet && (
-                  <div className="flex gap-2 mt-1">
+                  <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                      className="flex-1 bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold justify-center"
+                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold flex items-center justify-center"
                     >
                       <DollarSign className="h-4 w-4 mr-2" />
                       Deposit
@@ -333,12 +333,12 @@ const TradingDashboard = () => {
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                      className="flex-1 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold justify-center"
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold flex items-center justify-center"
                     >
                       <DollarSign className="h-4 w-4 mr-2" />
                       Withdraw
                     </Button>
-                  </div>
+                  </>
                 )}
               </>
             ) : (
@@ -447,10 +447,10 @@ const TradingDashboard = () => {
                 </div>
 
                 {hasDydxWallet && (
-                  <div className="flex gap-2 mt-1">
+                  <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                      className="flex-1 bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold justify-center"
+                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold flex items-center justify-center"
                     >
                       <DollarSign className="h-4 w-4 mr-2" />
                       Deposit
@@ -458,12 +458,12 @@ const TradingDashboard = () => {
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                      className="flex-1 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold justify-center"
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold flex items-center justify-center"
                     >
                       <DollarSign className="h-4 w-4 mr-2" />
                       Withdraw
                     </Button>
-                  </div>
+                  </>
                 )}
               </>
             ) : (
