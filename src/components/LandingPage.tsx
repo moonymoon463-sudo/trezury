@@ -113,16 +113,16 @@ const LandingPage = () => {
             Trade and earn with digital gold on a secure blockchain platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Link to="/auth">
+            <Link to="/auth?return=/trading-dashboard">
               <Button size="lg" className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-8 py-6 text-lg">
-                <Smartphone className="mr-2 h-5 w-5" />
-                Start Trading Gold
-              </Button>
-            </Link>
-            <Link to="/trading-dashboard">
-              <Button variant="outline" size="lg" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10 px-8 py-6 text-lg">
                 <TrendingUp className="mr-2 h-5 w-5" />
                 Enter Trading Dashboard
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button variant="outline" size="lg" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10 px-8 py-6 text-lg">
+                <Smartphone className="mr-2 h-5 w-5" />
+                Get Started
               </Button>
             </Link>
             <Button variant="outline" size="lg" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10 px-8 py-6 text-lg">
