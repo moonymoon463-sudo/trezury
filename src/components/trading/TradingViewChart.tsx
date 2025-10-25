@@ -31,7 +31,6 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   const volumeSeriesRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
-  const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -41,28 +40,13 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     const init = async () => {
       if (!chartContainerRef.current || candles.length === 0) return;
 
-      // Phase 3: Add initialization guard for container height
-      const containerHeight = chartContainerRef.current.clientHeight;
-      const containerWidth = chartContainerRef.current.clientWidth;
-      const parentHeight = chartContainerRef.current.parentElement?.clientHeight;
-      const computedHeight = window.getComputedStyle(chartContainerRef.current).height;
-
       console.log("[TradingViewChart] Initializing chart", {
         candles: candles.slice(0, 3),
-        candlesLength: candles.length,
-        containerHeight,
-        containerWidth,
-        parentHeight,
-        computedHeight,
+        containerHeight: chartContainerRef.current?.clientHeight,
         lightweightChartsReady: !!(window as any).LightweightCharts,
         firstTimestamp: candles[0]?.timestamp,
         isMilliseconds: candles[0]?.timestamp > 1e12
       });
-
-      if (containerHeight < 50) {
-        console.warn('[TradingViewChart] Container height too small:', containerHeight, 'px - deferring initialization');
-        return;
-      }
 
       // Load lightweight-charts from CDN with retry logic
       let lib: any = (window as any).LightweightCharts;
@@ -95,12 +79,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
               };
               checkLib();
             };
-            // Phase 5: Add fallback for CDN failure
-            s.onerror = () => {
-              console.error('[TradingViewChart] Failed to load lightweight-charts CDN');
-              setInitError('Failed to load chart library');
-              reject(new Error('Failed to load lightweight-charts CDN'));
-            };
+            s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
             document.head.appendChild(s);
           }
         });
@@ -109,7 +88,8 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
       if (disposed) return;
 
-      // Create chart instance with responsive sizing (use containerHeight from guard above)
+      // Create chart instance with responsive sizing
+      const containerHeight = chartContainerRef.current.clientHeight || 400;
       const chart = (lib as any).createChart(chartContainerRef.current, {
         layout: {
           background: { color: 'transparent' },
@@ -248,8 +228,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       disposed = true;
       if (cleanup) cleanup();
     };
-    // Phase 4: Fix chart re-initialization - only depend on symbol/resolution, not candles
-  }, [symbol, resolution, onLoadMore]);
+  }, [candles]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
@@ -293,13 +272,13 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     setTimeout(() => setIsLoading(false), 500);
   };
 
-  if (error || initError) {
+  if (error) {
     return (
       <Card className="h-full bg-black/60 border-aurum/20">
         <CardContent className="h-full flex items-center justify-center">
           <div className="text-center">
-            <p className="text-red-500 font-semibold mb-2">Failed to load chart</p>
-            <p className="text-sm text-muted-foreground">{error || initError}</p>
+            <p className="text-red-500 font-semibold mb-2">Failed to load chart data</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
           </div>
         </CardContent>
       </Card>
@@ -352,10 +331,10 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       </div>
 
       {/* Chart Container */}
-      <div className="relative flex-1 min-h-[400px]">
+      <div className="relative flex-1">
         <div 
           ref={chartContainerRef} 
-          className="w-full h-full min-h-[400px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
