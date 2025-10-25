@@ -119,12 +119,6 @@ const LandingPage = () => {
                 Start Trading Gold
               </Button>
             </Link>
-            <Link to="/trading-dashboard">
-              <Button size="lg" className="bg-gradient-to-r from-aurum to-aurum-glow hover:from-aurum-glow hover:to-aurum text-background font-semibold px-8 py-6 text-lg">
-                <TrendingUp className="mr-2 h-5 w-5" />
-                Enter Trading Dashboard
-              </Button>
-            </Link>
             <Button variant="outline" size="lg" className="border-aurum-glow text-aurum hover:bg-aurum-glow/10 px-8 py-6 text-lg">
               <Shield className="mr-2 h-5 w-5" />
               Learn More
