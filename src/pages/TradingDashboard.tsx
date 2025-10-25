@@ -247,33 +247,33 @@ const TradingDashboard = () => {
           <div className="flex gap-0.5 bg-[#211d12] rounded-lg p-1">
             <button
               onClick={() => setWalletType('trading')}
-              className={`flex-1 px-1.5 py-1.5 rounded text-[11px] font-semibold transition-colors ${
+              className={`flex-1 px-1 py-1.5 rounded text-[10px] font-semibold transition-colors whitespace-nowrap ${
                 walletType === 'trading' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
               }`}
             >
-              Trading
+              Trading Wallet
             </button>
             <button
               onClick={() => setWalletType('internal')}
-              className={`flex-1 px-1.5 py-1.5 rounded text-[11px] font-semibold transition-colors ${
+              className={`flex-1 px-1 py-1.5 rounded text-[10px] font-semibold transition-colors whitespace-nowrap ${
                 walletType === 'internal' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
               }`}
             >
-              Internal
+              Internal Wallet
             </button>
             <button
               onClick={() => setWalletType('external')}
-              className={`flex-1 px-1.5 py-1.5 rounded text-[11px] font-semibold transition-colors ${
+              className={`flex-1 px-1 py-1.5 rounded text-[10px] font-semibold transition-colors whitespace-nowrap ${
                 walletType === 'external' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
               }`}
             >
-              External
+              External Wallet
             </button>
           </div>
 
