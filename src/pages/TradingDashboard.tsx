@@ -27,6 +27,7 @@ import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog'
 import { OrderHistory } from '@/components/trading/OrderHistory';
 import { PositionManager } from '@/components/trading/PositionManager';
 import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
+import { OrderBook } from '@/components/trading/OrderBook';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -702,6 +703,11 @@ const TradingDashboard = () => {
       {/* Right Sidebar - Order Panel */}
       <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-4 overflow-y-auto flex-shrink-0">
         <h2 className="text-white text-lg font-bold mb-3">Order Panel</h2>
+
+        {/* Order Book */}
+        <div className="mb-4">
+          <OrderBook symbol={selectedAsset} />
+        </div>
 
         <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-3">
           <TabsList className="grid w-full grid-cols-3 bg-[#211d12]">
