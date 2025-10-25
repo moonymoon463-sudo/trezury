@@ -566,7 +566,7 @@ const TradingDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-y-auto">
         {/* Top Stats */}
-        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-1.5 ml-auto flex-shrink-0">
+        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-1 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
             <>
               <div className="flex flex-col items-center px-1.5">
@@ -586,7 +586,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Top Navigation Tabs */}
-        <div className="flex border-b border-[#463c25] gap-6 mb-1.5 flex-shrink-0">
+        <div className="flex border-b border-[#463c25] gap-6 mb-1.5 flex-shrink-0 -mt-0.5">
           <button 
             onClick={() => handleTradingModeChange('spot')}
             className={`flex flex-col items-center justify-center border-b-2 pb-2 pt-1 ${
