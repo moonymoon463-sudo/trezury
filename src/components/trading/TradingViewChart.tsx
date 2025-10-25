@@ -40,12 +40,15 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     const init = async () => {
       if (!chartContainerRef.current || candles.length === 0) return;
 
-      console.log("[TradingViewChart] Initializing chart", {
-        candles: candles.slice(0, 3),
+      console.log('[TradingViewChart] Chart initialization check:', {
+        symbol,
+        resolution,
+        candlesCount: candles.length,
+        firstCandle: candles[0],
+        lastCandle: candles[candles.length - 1],
+        containerRef: !!chartContainerRef.current,
         containerHeight: chartContainerRef.current?.clientHeight,
-        lightweightChartsReady: !!(window as any).LightweightCharts,
-        firstTimestamp: candles[0]?.timestamp,
-        isMilliseconds: candles[0]?.timestamp > 1e12
+        containerWidth: chartContainerRef.current?.clientWidth,
       });
 
       // Load lightweight-charts from CDN with retry logic

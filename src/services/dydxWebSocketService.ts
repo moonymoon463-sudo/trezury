@@ -77,27 +77,35 @@ class DydxWebSocketService {
 
   private sendSubscribe(channel: string, id: string, resolution?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      const message: any = {
+      // For candles, id must be "MARKET/RESOLUTION" per dYdX v4 docs
+      const subscriptionId = channel === 'v4_candles' && resolution
+        ? `${id}/${resolution}`
+        : id;
+      
+      const message = {
         type: 'subscribe',
         channel,
-        id,
+        id: subscriptionId,
       };
-      if (resolution) {
-        message.resolution = resolution;
-      }
+      
       this.ws.send(JSON.stringify(message));
-      console.log(`[DydxWS] Subscribed to ${channel}:${id}${resolution ? `:${resolution}` : ''}`);
+      console.log(`[DydxWS] Subscribed to ${channel}:${subscriptionId}`);
     }
   }
 
-  private sendUnsubscribe(channel: string, id: string): void {
+  private sendUnsubscribe(channel: string, id: string, resolution?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
+      // For candles, id must be "MARKET/RESOLUTION" per dYdX v4 docs
+      const subscriptionId = channel === 'v4_candles' && resolution
+        ? `${id}/${resolution}`
+        : id;
+      
       this.ws.send(JSON.stringify({
         type: 'unsubscribe',
         channel,
-        id,
+        id: subscriptionId,
       }));
-      console.log(`[DydxWS] Unsubscribed from ${channel}:${id}`);
+      console.log(`[DydxWS] Unsubscribed from ${channel}:${subscriptionId}`);
     }
   }
 
@@ -124,9 +132,38 @@ class DydxWebSocketService {
     }
 
     if (channel === 'v4_candles') {
-      const key = `${id}_${message.resolution || '1HOUR'}`;
-      const callbacks = this.candleSubscriptions.get(key);
-      callbacks?.forEach(cb => cb(contents));
+      // Extract market and resolution from id (format: "BTC-USD/1HOUR")
+      const [market, resolution] = id.split('/');
+      const key = `${market}_${resolution}`;
+      
+      // Transform dYdX API format to our DydxCandle format
+      try {
+        const transformedCandle = {
+          timestamp: new Date(contents.startedAt).getTime() / 1000, // Unix seconds
+          open: parseFloat(contents.open),
+          high: parseFloat(contents.high),
+          low: parseFloat(contents.low),
+          close: parseFloat(contents.close),
+          volume: parseFloat(contents.baseTokenVolume || '0'),
+        };
+        
+        // Validate before sending to callbacks
+        if (
+          isFinite(transformedCandle.timestamp) &&
+          isFinite(transformedCandle.open) &&
+          isFinite(transformedCandle.high) &&
+          isFinite(transformedCandle.low) &&
+          isFinite(transformedCandle.close) &&
+          transformedCandle.timestamp > 0
+        ) {
+          const callbacks = this.candleSubscriptions.get(key);
+          callbacks?.forEach(cb => cb(transformedCandle));
+        } else {
+          console.warn('[DydxWS] Invalid candle data from WebSocket:', contents);
+        }
+      } catch (error) {
+        console.error('[DydxWS] Error transforming candle:', error, contents);
+      }
     }
   }
 
@@ -191,7 +228,9 @@ class DydxWebSocketService {
         callbacks.delete(callback);
         if (callbacks.size === 0) {
           this.candleSubscriptions.delete(key);
-          this.sendUnsubscribe('v4_candles', market);
+          // Extract resolution from key (format: "BTC-USD_1HOUR")
+          const [marketName, res] = key.split('_');
+          this.sendUnsubscribe('v4_candles', marketName, res);
         }
       }
     };
