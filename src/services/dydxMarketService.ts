@@ -59,11 +59,35 @@ class DydxMarketService {
   }
 
   async getCandles(symbol: string, resolution: string = '1HOUR', limit: number = 100): Promise<DydxCandle[]> {
-    const response = await this.callEdgeFunction<{ candles: DydxCandle[] }>({
-      operation: 'get_candles',
-      params: { market: symbol, resolution, limit },
+    console.log('[dydxMarketService] getCandles called', { symbol, resolution, limit });
+    
+    const cacheKey = `get_candles_${JSON.stringify({ symbol, resolution, limit })}`;
+    const cached = this.getCached(cacheKey);
+    if (cached) {
+      console.log('[dydxMarketService] Cache hit for', symbol);
+      return cached;
+    }
+    
+    console.log('[dydxMarketService] Invoking edge function for', symbol);
+    
+    const { data, error } = await supabase.functions.invoke('dydx-market-data', {
+      body: {
+        operation: 'get_candles',
+        params: { market: symbol, resolution, limit },
+      },
     });
-    return response.candles;
+
+    if (error) {
+      console.error('[dydxMarketService] Edge function error:', error);
+      throw new Error(error.message || 'Failed to fetch candles');
+    }
+
+    console.log('[dydxMarketService] Received response:', data?.candles?.length || 0, 'candles');
+    
+    const candles = data?.candles || [];
+    this.setCache(cacheKey, candles, 5);
+    
+    return candles;
   }
 
   async getTrades(symbol: string, limit: number = 50): Promise<DydxTrade[]> {

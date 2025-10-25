@@ -12,7 +12,10 @@ export const useDydxCandles = (
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[useDydxCandles] Hook triggered', { symbol, resolution, limit });
+
     if (!symbol) {
+      console.warn('[useDydxCandles] No symbol provided, skipping fetch');
       setCandles([]);
       setLoading(false);
       return;
@@ -22,16 +25,22 @@ export const useDydxCandles = (
 
     const loadCandles = async () => {
       try {
+        console.log('[useDydxCandles] Starting fetch for', symbol);
         setLoading(true);
+        setError(null);
+        
         const data = await dydxMarketService.getCandles(symbol, resolution, limit);
+        
+        console.log('[useDydxCandles] Received candles:', data?.length || 0, 'candles');
+        
         if (mounted) {
-          setCandles(data);
+          setCandles(data || []);
           setError(null);
         }
       } catch (err) {
+        console.error('[useDydxCandles] Error fetching candles:', err);
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Failed to load candles');
-          console.error('[useDydxCandles] Error:', err);
         }
       } finally {
         if (mounted) {
@@ -43,6 +52,7 @@ export const useDydxCandles = (
     loadCandles();
 
     return () => {
+      console.log('[useDydxCandles] Cleanup called for', symbol);
       mounted = false;
     };
   }, [symbol, resolution, limit]);

@@ -78,7 +78,16 @@ const TradingDashboard = () => {
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
-  const { candles } = useDydxCandles(selectedAsset, chartResolution, 200);
+  const { candles, loading: candlesLoading, error: candlesError } = useDydxCandles(selectedAsset, chartResolution, 200);
+
+  // Debug log for chart data flow
+  console.log('[TradingDashboard] Chart data', { 
+    selectedAsset, 
+    chartResolution, 
+    candlesLength: candles?.length || 0,
+    candlesLoading,
+    candlesError 
+  });
 
   // Filter leverage assets (BTC, ETH, SOL from dYdX)
   const leverageAssets = markets.filter(m => 
@@ -522,6 +531,8 @@ const TradingDashboard = () => {
               candles={candles}
               resolution={chartResolution}
               onResolutionChange={setChartResolution}
+              loading={candlesLoading}
+              error={candlesError}
             />
           ) : selectedAsset ? (
             <div className="h-full flex items-center justify-center">

@@ -10,6 +10,8 @@ interface TradingViewChartProps {
   candles: DydxCandle[];
   resolution: string;
   onResolutionChange: (resolution: string) => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
 const TIMEFRAMES = [
@@ -21,7 +23,7 @@ const TIMEFRAMES = [
   { label: '1d', value: '1DAY' },
 ];
 
-const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: TradingViewChartProps) => {
+const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loading, error }: TradingViewChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
@@ -170,13 +172,28 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange }: T
     setTimeout(() => setIsLoading(false), 500);
   };
 
-  if (candles.length === 0) {
+  if (error) {
+    return (
+      <Card className="h-full bg-black/60 border-aurum/20">
+        <CardContent className="h-full flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500 font-semibold mb-2">Failed to load chart data</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading || candles.length === 0) {
     return (
       <Card className="h-full bg-black/60 border-aurum/20">
         <CardContent className="h-full flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-12 w-12 mx-auto mb-4 text-aurum animate-spin" />
-            <p className="text-muted-foreground">Loading chart data...</p>
+            <p className="text-muted-foreground">
+              {loading ? 'Loading chart data...' : 'No data available for this asset'}
+            </p>
           </div>
         </CardContent>
       </Card>
