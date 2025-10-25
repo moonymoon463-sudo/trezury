@@ -215,9 +215,9 @@ const TradingDashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-[#211d12]">
+    <div className="flex h-screen w-full overflow-hidden bg-[#211d12]">
       {/* Left Sidebar */}
-      <aside className="flex flex-col w-64 bg-[#211d12] border-r border-[#463c25] p-4">
+      <aside className="flex flex-col w-64 bg-[#211d12] border-r border-[#463c25] p-4 overflow-y-auto">
         {/* Logo & Title */}
         <div className="flex items-center gap-3 mb-8">
           <AurumLogo className="h-16 w-16" />
@@ -422,9 +422,9 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-6 relative bg-[#211d12]">
+      <main className="flex-1 flex flex-col p-4 relative bg-[#211d12] overflow-y-auto">
         {/* Top Stats */}
-        <div className="absolute top-6 right-6 z-10 flex gap-4 p-2 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50">
+        <div className="flex gap-4 p-2 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-4 ml-auto">
           {isCurrentWalletConnected && (
             <>
               <div className="flex flex-col items-center px-2">
@@ -448,7 +448,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Top Navigation Tabs */}
-        <div className="flex border-b border-[#463c25] gap-8 mb-6">
+        <div className="flex border-b border-[#463c25] gap-8 mb-4">
           <button 
             onClick={() => handleTradingModeChange('spot')}
             className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-2 ${
@@ -479,10 +479,10 @@ const TradingDashboard = () => {
 
         {/* Price Display */}
         {currentAsset && 'price' in currentAsset && (
-          <div className="mb-4">
-            <div className="flex items-baseline gap-4">
+          <div className="mb-3">
+            <div className="flex items-baseline gap-3">
               <p className="text-[#c6b795] text-sm font-medium">{selectedAsset}</p>
-              <h2 className="text-white text-5xl font-outfit font-light tracking-tight">
+              <h2 className="text-white text-3xl font-outfit font-light tracking-tight">
                 {currentAsset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
               <div className="flex items-center gap-1">
@@ -500,7 +500,7 @@ const TradingDashboard = () => {
         )}
 
         {/* Chart Controls */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <div className="flex gap-1">
             {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval) => (
               <Button
@@ -524,7 +524,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Chart Section */}
-        <div className="h-[580px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-6">
+        <div className="flex-1 min-h-[400px] max-h-[500px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-4">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -559,18 +559,18 @@ const TradingDashboard = () => {
         </div>
 
         {/* AI Insights Section */}
-        <Card className="bg-[#2a251a] border-[#463c25]">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">AI Insights (WEPS Mode)</h3>
+        <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white text-base font-semibold">AI Insights (WEPS Mode)</h3>
               <Badge className="bg-[#e6b951]/20 text-[#e6b951]">
                 <TrendingUpDown className="h-3 w-3 mr-1" />
                 Live Predictions
               </Badge>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#1a1712] rounded-lg p-4 border border-[#463c25]">
-                <div className="h-32 flex items-center justify-center">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#1a1712] rounded-lg p-3 border border-[#463c25]">
+                <div className="h-24 flex items-center justify-center">
                   <svg viewBox="0 0 200 60" className="w-full h-full">
                     <path
                       d="M 0,30 Q 20,10 40,30 T 80,30 Q 100,10 120,30 T 160,30 Q 180,50 200,30"
@@ -581,9 +581,9 @@ const TradingDashboard = () => {
                   </svg>
                 </div>
               </div>
-              <div className="bg-[#1a1712] rounded-lg p-4 border border-[#463c25]">
-                <h4 className="text-white font-semibold mb-2">Contextual Insights</h4>
-                <p className="text-[#c6b795] text-sm leading-relaxed">
+              <div className="bg-[#1a1712] rounded-lg p-3 border border-[#463c25]">
+                <h4 className="text-white font-semibold mb-1 text-sm">Contextual Insights</h4>
+                <p className="text-[#c6b795] text-xs leading-relaxed">
                   "Market rhythm suggests energy buildup — possible BTC long in 12h window."
                 </p>
               </div>
@@ -593,10 +593,10 @@ const TradingDashboard = () => {
       </main>
 
       {/* Right Sidebar - Order Panel */}
-      <aside className="w-96 bg-[#2a251a] border-l border-[#463c25] p-4 overflow-y-auto">
-        <h2 className="text-white text-xl font-bold mb-4">Order Panel</h2>
+      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-4 overflow-y-auto flex-shrink-0">
+        <h2 className="text-white text-lg font-bold mb-3">Order Panel</h2>
 
-        <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-4">
+        <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-3">
           <TabsList className="grid w-full grid-cols-3 bg-[#211d12]">
             <TabsTrigger value="buy" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">Buy</TabsTrigger>
             <TabsTrigger value="sell" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Sell</TabsTrigger>
@@ -605,10 +605,10 @@ const TradingDashboard = () => {
         </Tabs>
 
         {tradeMode !== 'positions' ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Order Type */}
             <div>
-              <label className="text-[#c6b795] text-sm font-medium mb-2 block">Order Type</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Order Type</label>
               <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
                 <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white">
                   <SelectValue placeholder="Market Order" />
@@ -623,29 +623,29 @@ const TradingDashboard = () => {
 
             {/* Price */}
             <div>
-              <label className="text-[#c6b795] text-sm font-medium mb-2 block">Price (USDT)</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Price (USDT)</label>
               <input
                 type="text"
                 value={orderType === 'market' ? 'Market' : limitPrice}
                 onChange={(e) => setLimitPrice(e.target.value)}
                 disabled={orderType === 'market'}
                 placeholder="0.00"
-                className="w-full px-4 py-3 bg-[#211d12] border border-[#463c25] rounded-lg text-white focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
               />
             </div>
 
             {/* Order Size */}
             <div>
-              <label className="text-[#c6b795] text-sm font-medium mb-2 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
               <input
                 type="number"
                 placeholder="0.00"
                 value={orderSize}
                 onChange={(e) => setOrderSize(e.target.value)}
-                className="w-full px-4 py-3 bg-[#211d12] border border-[#463c25] rounded-lg text-white focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
               />
               {/* Percentage Buttons */}
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-1.5 mt-2">
                 {['0%', '25%', '50%', '75%', '100%'].map((pct) => (
                   <Button
                     key={pct}
@@ -663,15 +663,15 @@ const TradingDashboard = () => {
                 min="0"
                 max="100"
                 step="1"
-                className="w-full mt-3 accent-[#e6b951]"
+                className="w-full mt-2 accent-[#e6b951]"
               />
             </div>
 
             {/* Leverage */}
             {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
               <div>
-                <label className="text-[#c6b795] text-sm font-medium mb-2 block">Leverage</label>
-                <div className="flex gap-2 mb-2">
+                <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Leverage</label>
+                <div className="flex gap-1.5 mb-2">
                   {['1x', '5x', '10x', '15x', '20x'].map((lvg) => (
                     <Button
                       key={lvg}
@@ -700,7 +700,7 @@ const TradingDashboard = () => {
             )}
 
             {/* Total and Available */}
-            <div className="space-y-2 pt-4 border-t border-[#463c25]">
+            <div className="space-y-1.5 pt-3 border-t border-[#463c25]">
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Total:</span>
                 <span className="text-white font-semibold">
@@ -723,7 +723,7 @@ const TradingDashboard = () => {
             {isCurrentWalletConnected ? (
               <Button
                 onClick={handlePlaceOrder}
-                className={`w-full h-12 font-bold text-lg ${
+                className={`w-full h-11 font-bold text-base ${
                   tradeMode === 'buy' 
                     ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
                     : 'bg-red-600 hover:bg-red-700 text-white'
@@ -735,7 +735,7 @@ const TradingDashboard = () => {
             ) : (
               <Button
                 onClick={() => setShowDydxWalletSetup(true)}
-                className="w-full h-12 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-lg"
+                className="w-full h-11 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-base"
               >
                 <Shield className="h-5 w-5 mr-2" />
                 Set Up Trading Wallet
@@ -743,7 +743,7 @@ const TradingDashboard = () => {
             )}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {dydxAddress ? (
               <>
                 <PositionManager address={dydxAddress} currentPrices={currentPrices} />
