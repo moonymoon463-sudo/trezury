@@ -325,17 +325,17 @@ const TradingDashboard = () => {
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold flex items-center justify-center"
+                  className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
                     >
-                      <DollarSign className="h-4 w-4 mr-2" />
+                      <DollarSign className="h-4 w-4" />
                       Deposit
                     </Button>
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold flex items-center justify-center"
+                       className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
                     >
-                      <DollarSign className="h-4 w-4 mr-2" />
+                       <DollarSign className="h-4 w-4" />
                       Withdraw
                     </Button>
                   </>
@@ -450,17 +450,17 @@ const TradingDashboard = () => {
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold flex items-center justify-center"
+                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
                     >
-                      <DollarSign className="h-4 w-4 mr-2" />
+                       <DollarSign className="h-4 w-4" />
                       Deposit
                     </Button>
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold flex items-center justify-center"
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
                     >
-                      <DollarSign className="h-4 w-4 mr-2" />
+                      <DollarSign className="h-4 w-4" />
                       Withdraw
                     </Button>
                   </>
