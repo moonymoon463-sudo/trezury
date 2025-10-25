@@ -422,109 +422,95 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-4 relative bg-[#211d12] overflow-y-auto">
+      <main className="flex-1 flex flex-col p-3 relative bg-[#211d12] overflow-hidden">
         {/* Top Stats */}
-        <div className="flex gap-4 p-2 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-4 ml-auto">
+        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-2 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
             <>
-              <div className="flex flex-col items-center px-2">
-                <p className="text-[#c6b795] text-xs font-medium">Wallet Type</p>
-                <p className="text-white text-base font-bold capitalize">{walletType}</p>
+              <div className="flex flex-col items-center px-1.5">
+                <p className="text-[#c6b795] text-[10px] font-medium">Wallet</p>
+                <p className="text-white text-xs font-bold capitalize">{walletType}</p>
               </div>
-              <div className="flex flex-col items-center px-2">
-                <p className="text-[#c6b795] text-xs font-medium">Live P&L</p>
-                <p className="text-green-400 text-base font-bold">+$1,234.56</p>
+              <div className="flex flex-col items-center px-1.5">
+                <p className="text-[#c6b795] text-[10px] font-medium">P&L</p>
+                <p className="text-green-400 text-xs font-bold">+$1.2K</p>
               </div>
-              <div className="flex flex-col items-center px-2">
-                <p className="text-[#c6b795] text-xs font-medium">Funding Rate</p>
-                <p className="text-white text-base font-bold">0.01%</p>
-              </div>
-              <div className="flex flex-col items-center px-2">
-                <p className="text-[#c6b795] text-xs font-medium">Sentiment</p>
-                <p className="text-white text-base font-bold">Bullish</p>
+              <div className="flex flex-col items-center px-1.5">
+                <p className="text-[#c6b795] text-[10px] font-medium">Funding</p>
+                <p className="text-white text-xs font-bold">0.01%</p>
               </div>
             </>
           )}
         </div>
 
         {/* Top Navigation Tabs */}
-        <div className="flex border-b border-[#463c25] gap-8 mb-4">
+        <div className="flex border-b border-[#463c25] gap-6 mb-2 flex-shrink-0">
           <button 
             onClick={() => handleTradingModeChange('spot')}
-            className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-2 ${
+            className={`flex flex-col items-center justify-center border-b-2 pb-2 pt-1 ${
               tradingMode === 'spot' 
                 ? 'border-b-[#e6b951] text-white' 
                 : 'border-b-transparent text-[#c6b795] hover:text-white'
             }`}
           >
-            <p className="text-sm font-bold leading-normal tracking-[0.015em]">Spot</p>
+            <p className="text-xs font-bold">Spot</p>
           </button>
           <button 
             onClick={() => handleTradingModeChange('leverage')}
-            className={`flex flex-col items-center justify-center border-b-[3px] pb-[13px] pt-2 ${
+            className={`flex flex-col items-center justify-center border-b-2 pb-2 pt-1 ${
               tradingMode === 'leverage' 
                 ? 'border-b-[#e6b951] text-white' 
                 : 'border-b-transparent text-[#c6b795] hover:text-white'
             }`}
           >
-            <p className="text-sm font-bold leading-normal tracking-[0.015em]">Leverage</p>
+            <p className="text-xs font-bold">Leverage</p>
           </button>
-          <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#c6b795] pb-[13px] pt-2 hover:text-white">
-            <p className="text-sm font-bold leading-normal tracking-[0.015em]">Analytics</p>
+          <button className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
+            <p className="text-xs font-bold">Analytics</p>
           </button>
-          <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-[#c6b795] pb-[13px] pt-2 hover:text-white">
-            <p className="text-sm font-bold leading-normal tracking-[0.015em]">AI Insights</p>
+          <button className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
+            <p className="text-xs font-bold">AI Insights</p>
           </button>
         </div>
 
         {/* Price Display */}
         {currentAsset && 'price' in currentAsset && (
-          <div className="mb-3">
-            <div className="flex items-baseline gap-3">
-              <p className="text-[#c6b795] text-sm font-medium">{selectedAsset}</p>
-              <h2 className="text-white text-3xl font-outfit font-light tracking-tight">
+          <div className="mb-2 flex-shrink-0">
+            <div className="flex items-baseline gap-2">
+              <p className="text-[#c6b795] text-xs font-medium">{selectedAsset}</p>
+              <h2 className="text-white text-2xl font-outfit font-light tracking-tight">
                 {currentAsset.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h2>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-[#c6b795]">24h</span>
-                <Badge variant={('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? "default" : "destructive"} className="text-sm">
-                  {('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? '+' : ''}
-                  {('changePercent24h' in currentAsset 
-                    ? currentAsset.changePercent24h.toFixed(2) 
-                    : (currentAsset as any).change24h
-                  )}%
-                </Badge>
-              </div>
+              <Badge variant={('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? "default" : "destructive"} className="text-xs">
+                {('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? '+' : ''}
+                {('changePercent24h' in currentAsset 
+                  ? currentAsset.changePercent24h.toFixed(2) 
+                  : (currentAsset as any).change24h
+                )}%
+              </Badge>
             </div>
           </div>
         )}
 
         {/* Chart Controls */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex gap-1">
+        <div className="flex items-center gap-1 mb-2 flex-shrink-0">
+          <div className="flex gap-0.5">
             {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval) => (
               <Button
                 key={interval}
                 size="sm"
                 variant="ghost"
                 onClick={() => setChartResolution(chartResolutionMap[interval])}
-                className={chartResolution === chartResolutionMap[interval] ? 'bg-[#463c25] text-white' : 'text-[#c6b795] hover:text-white hover:bg-[#463c25]/50'}
+                className={`h-6 px-2 text-[10px] ${chartResolution === chartResolutionMap[interval] ? 'bg-[#463c25] text-white' : 'text-[#c6b795] hover:text-white hover:bg-[#463c25]/50'}`}
               >
                 {interval}
               </Button>
             ))}
           </div>
-          <Button size="sm" variant="ghost" className="text-[#c6b795] hover:text-white hover:bg-[#463c25]/50 ml-4">
-            <Zap className="h-4 w-4 mr-2" />
-            Indicators
-          </Button>
-          <Button size="sm" variant="ghost" className="text-[#c6b795] hover:text-white hover:bg-[#463c25]/50">
-            Vol RSI MACD
-          </Button>
         </div>
 
         {/* Chart Section */}
-        <div className="flex-1 min-h-[400px] max-h-[500px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-4">
+        <div className="flex-1 min-h-[350px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -558,35 +544,19 @@ const TradingDashboard = () => {
           )}
         </div>
 
-        {/* AI Insights Section */}
+        {/* AI Insights Section - Compact */}
         <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
-          <div className="p-3">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white text-base font-semibold">AI Insights (WEPS Mode)</h3>
-              <Badge className="bg-[#e6b951]/20 text-[#e6b951]">
-                <TrendingUpDown className="h-3 w-3 mr-1" />
-                Live Predictions
+          <div className="p-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-white text-xs font-semibold">AI Insights</h3>
+              <Badge className="bg-[#e6b951]/20 text-[#e6b951] text-[10px] px-1.5 py-0">
+                Live
               </Badge>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#1a1712] rounded-lg p-3 border border-[#463c25]">
-                <div className="h-24 flex items-center justify-center">
-                  <svg viewBox="0 0 200 60" className="w-full h-full">
-                    <path
-                      d="M 0,30 Q 20,10 40,30 T 80,30 Q 100,10 120,30 T 160,30 Q 180,50 200,30"
-                      fill="none"
-                      stroke="#e6b951"
-                      strokeWidth="2"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <div className="bg-[#1a1712] rounded-lg p-3 border border-[#463c25]">
-                <h4 className="text-white font-semibold mb-1 text-sm">Contextual Insights</h4>
-                <p className="text-[#c6b795] text-xs leading-relaxed">
-                  "Market rhythm suggests energy buildup — possible BTC long in 12h window."
-                </p>
-              </div>
+            <div className="bg-[#1a1712] rounded p-2 border border-[#463c25]">
+              <p className="text-[#c6b795] text-[10px] leading-relaxed">
+                Market rhythm suggests energy buildup — possible BTC long in 12h window.
+              </p>
             </div>
           </div>
         </Card>
