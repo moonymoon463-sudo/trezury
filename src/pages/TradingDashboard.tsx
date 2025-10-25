@@ -762,27 +762,27 @@ const TradingDashboard = () => {
       </main>
 
       {/* Right Sidebar - Order Panel */}
-      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-4 overflow-y-auto flex-shrink-0">
-        <h2 className="text-white text-lg font-bold mb-3">Order Panel</h2>
+      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
+        <h2 className="text-white text-base font-bold mb-2">Order Panel</h2>
 
-        {/* Order Book */}
-        <div className="mb-4">
+        {/* Order Book - Fixed Height with Internal Scroll */}
+        <div className="mb-3 flex-shrink-0">
           <OrderBook symbol={selectedAsset} />
         </div>
 
-        <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-3">
+        <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-2 flex-shrink-0">
           <TabsList className="grid w-full grid-cols-3 bg-[#211d12]">
-            <TabsTrigger value="buy" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">Buy</TabsTrigger>
-            <TabsTrigger value="sell" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">Sell</TabsTrigger>
-            <TabsTrigger value="positions" className="data-[state=active]:bg-[#e6b951] data-[state=active]:text-black">Positions</TabsTrigger>
+            <TabsTrigger value="buy" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs">Buy</TabsTrigger>
+            <TabsTrigger value="sell" className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-xs">Sell</TabsTrigger>
+            <TabsTrigger value="positions" className="data-[state=active]:bg-[#e6b951] data-[state=active]:text-black text-xs">Positions</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {tradeMode !== 'positions' ? (
-          <div className="space-y-3">
+          <div className="space-y-2 overflow-y-auto flex-1 pr-1">
             {/* Order Type */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Order Type</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
               <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
                 <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white">
                   <SelectValue placeholder="Market Order" />
@@ -797,7 +797,7 @@ const TradingDashboard = () => {
 
             {/* Price */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Price (USDT)</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Price (USDT)</label>
               <input
                 type="text"
                 value={orderType === 'market' ? 'Market' : limitPrice}
@@ -810,7 +810,7 @@ const TradingDashboard = () => {
 
             {/* Order Size */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
               <input
                 type="number"
                 placeholder="0.00"
@@ -819,62 +819,45 @@ const TradingDashboard = () => {
                 className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
               />
               {/* Percentage Buttons */}
-              <div className="flex gap-1.5 mt-2">
-                {['0%', '25%', '50%', '75%', '100%'].map((pct) => (
+              <div className="flex gap-1 mt-1.5">
+                {['25%', '50%', '75%', '100%'].map((pct) => (
                   <Button
                     key={pct}
                     size="sm"
                     variant="ghost"
-                    className="flex-1 text-xs bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
+                    className="flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
                   >
                     {pct}
                   </Button>
                 ))}
               </div>
-              {/* Slider */}
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                className="w-full mt-2 accent-[#e6b951]"
-              />
             </div>
 
             {/* Leverage */}
             {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1.5 block">Leverage</label>
-                <div className="flex gap-1.5 mb-2">
-                  {['1x', '5x', '10x', '15x', '20x'].map((lvg) => (
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Leverage</label>
+                <div className="flex gap-1 mb-1.5">
+                  {['1x', '5x', '10x', '20x'].map((lvg) => (
                     <Button
                       key={lvg}
                       size="sm"
                       variant={leverage === parseInt(lvg) ? "default" : "ghost"}
                       onClick={() => setLeverage(parseInt(lvg))}
                       className={leverage === parseInt(lvg) 
-                        ? 'flex-1 text-xs bg-[#e6b951] text-black' 
-                        : 'flex-1 text-xs bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
+                        ? 'flex-1 text-[10px] py-1 h-7 bg-[#e6b951] text-black' 
+                        : 'flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
                       }
                     >
                       {lvg}
                     </Button>
                   ))}
                 </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  step="1"
-                  value={leverage}
-                  onChange={(e) => setLeverage(Number(e.target.value))}
-                  className="w-full accent-[#e6b951]"
-                />
               </div>
             )}
 
             {/* Total and Available */}
-            <div className="space-y-1.5 pt-3 border-t border-[#463c25]">
+            <div className="space-y-1 pt-2 border-t border-[#463c25]">
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Total:</span>
                 <span className="text-white font-semibold">
@@ -893,31 +876,33 @@ const TradingDashboard = () => {
               </div>
             </div>
 
-            {/* Confirm Button */}
-            {isCurrentWalletConnected ? (
-              <Button
-                onClick={handlePlaceOrder}
-                className={`w-full h-11 font-bold text-base ${
-                  tradeMode === 'buy' 
-                    ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
-                    : 'bg-red-600 hover:bg-red-700 text-white'
-                }`}
-                disabled={!selectedAsset || !orderSize || orderLoading}
-              >
-                {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
-              </Button>
-            ) : (
-              <Button
-                onClick={() => setShowDydxWalletSetup(true)}
-                className="w-full h-11 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-base"
-              >
-                <Shield className="h-5 w-5 mr-2" />
-                Set Up Trading Wallet
-              </Button>
-            )}
+            {/* Confirm Button - Fixed at Bottom */}
+            <div className="pt-2 mt-auto">
+              {isCurrentWalletConnected ? (
+                <Button
+                  onClick={handlePlaceOrder}
+                  className={`w-full h-10 font-bold text-sm ${
+                    tradeMode === 'buy' 
+                      ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
+                  disabled={!selectedAsset || !orderSize || orderLoading}
+                >
+                  {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowDydxWalletSetup(true)}
+                  className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Set Up Trading Wallet
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 overflow-y-auto flex-1">
             {dydxAddress ? (
               <>
                 <PositionManager address={dydxAddress} currentPrices={currentPrices} />
