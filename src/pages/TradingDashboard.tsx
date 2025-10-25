@@ -44,7 +44,13 @@ const TradingDashboard = () => {
   const [walletType, setWalletType] = useState<'internal' | 'external'>('internal');
   const [copied, setCopied] = useState(false);
   
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  
+  // Defensive auth check - should never reach here due to ProtectedRoute, but just in case
+  if (!user && !authLoading) {
+    window.location.href = '/auth?return=/trading-dashboard';
+    return null;
+  }
   const { getPassword } = useTradingPasswordContext();
   
   // External wallet (MetaMask)

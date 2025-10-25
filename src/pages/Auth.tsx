@@ -60,7 +60,12 @@ const Auth = () => {
 
     const { error } = await signIn(email, password);
     if (!error) {
-      setMode('welcome');
+      const returnUrl = searchParams.get('return');
+      if (returnUrl && !returnUrl.startsWith('/auth')) {
+        window.location.href = returnUrl;
+      } else {
+        window.location.href = '/';
+      }
     }
     setIsSubmitting(false);
   };
@@ -117,7 +122,12 @@ const Auth = () => {
     }
     
     if (!error) {
-      setMode('welcome');
+      const returnUrl = searchParams.get('return');
+      if (returnUrl && !returnUrl.startsWith('/auth')) {
+        window.location.href = returnUrl;
+      } else {
+        window.location.href = '/';
+      }
     }
     setIsSubmitting(false);
   };
