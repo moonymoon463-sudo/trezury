@@ -524,7 +524,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Chart Section */}
-        <div className="flex-1 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-6">
+        <div className="h-[580px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-6">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}

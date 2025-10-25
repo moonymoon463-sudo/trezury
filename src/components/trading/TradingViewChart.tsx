@@ -301,7 +301,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   }
 
   return (
-    <div className="flex flex-col h-full gap-3">
+    <div className="flex flex-col h-full gap-3 p-4">
       {/* Timeframe Selector */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -331,10 +331,10 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       </div>
 
       {/* Chart Container */}
-      <div className="relative flex-1 min-h-[500px]">
+      <div className="relative flex-1">
         <div 
           ref={chartContainerRef} 
-          className="w-full h-full min-h-[500px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
