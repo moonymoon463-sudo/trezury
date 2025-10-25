@@ -78,7 +78,7 @@ const TradingDashboard = () => {
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
-  const { candles, loading: candlesLoading, error: candlesError } = useDydxCandles(selectedAsset, chartResolution, 200);
+  const { candles, loading: candlesLoading, error: candlesError, loadMore } = useDydxCandles(selectedAsset, chartResolution, 200);
 
   // Debug log for chart data flow
   console.log('[TradingDashboard] Chart data', { 
@@ -533,6 +533,7 @@ const TradingDashboard = () => {
               onResolutionChange={setChartResolution}
               loading={candlesLoading}
               error={candlesError}
+              onLoadMore={loadMore}
             />
           ) : selectedAsset ? (
             <div className="h-full flex items-center justify-center">

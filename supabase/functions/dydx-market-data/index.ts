@@ -112,19 +112,67 @@ serve(async (req) => {
         const response = await fetch(
           `${DYDX_INDEXER_URL}/candles/perpetualMarkets/${market}?resolution=${resolution}&limit=${limit}`
         );
+        
+        if (!response.ok) {
+          throw new Error(`dYdX API error: ${response.status}`);
+        }
+        
         const data = await response.json();
+        
+        // Sanitize and validate candles on the backend
+        const sanitizedCandles = (data.candles || [])
+          .map((candle: any) => {
+            try {
+              const timestamp = new Date(candle.startedAt).getTime() / 1000;
+              const open = parseFloat(candle.open);
+              const high = parseFloat(candle.high);
+              const low = parseFloat(candle.low);
+              const close = parseFloat(candle.close);
+              const volume = parseFloat(candle.baseTokenVolume);
 
-        result = {
-          candles: (data.candles || []).map((c: any) => ({
-            timestamp: Math.floor(new Date(c.startedAt).getTime() / 1000), // Convert to seconds for lightweight-charts
-            open: parseFloat(c.open),
-            high: parseFloat(c.high),
-            low: parseFloat(c.low),
-            close: parseFloat(c.close),
-            volume: parseFloat(c.baseTokenVolume || '0'),
-          })),
-        };
+              // Validate all values are numbers and not NaN
+              if (
+                !isFinite(timestamp) ||
+                !isFinite(open) ||
+                !isFinite(high) ||
+                !isFinite(low) ||
+                !isFinite(close) ||
+                !isFinite(volume) ||
+                timestamp <= 0 ||
+                open <= 0 ||
+                high <= 0 ||
+                low <= 0 ||
+                close <= 0 ||
+                volume < 0
+              ) {
+                console.warn('[dYdX] Invalid candle data:', candle);
+                return null;
+              }
 
+              // Validate OHLC relationships
+              if (high < low || high < open || high < close || low > open || low > close) {
+                console.warn('[dYdX] Invalid OHLC relationships:', candle);
+                return null;
+              }
+
+              return {
+                timestamp,
+                open,
+                high,
+                low,
+                close,
+                volume,
+              };
+            } catch (error) {
+              console.error('[dYdX] Error parsing candle:', error, candle);
+              return null;
+            }
+          })
+          .filter((candle: any) => candle !== null);
+
+        console.log(`[dYdX] Sanitized ${sanitizedCandles.length}/${data.candles?.length || 0} candles for ${market}`);
+
+        result = { candles: sanitizedCandles };
         setCache(cacheKey, result, 30); // Cache for 30 seconds
         break;
       }

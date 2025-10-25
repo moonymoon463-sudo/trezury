@@ -12,6 +12,7 @@ interface TradingViewChartProps {
   onResolutionChange: (resolution: string) => void;
   loading?: boolean;
   error?: string | null;
+  onLoadMore?: () => void;
 }
 
 const TIMEFRAMES = [
@@ -23,12 +24,13 @@ const TIMEFRAMES = [
   { label: '1d', value: '1DAY' },
 ];
 
-const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loading, error }: TradingViewChartProps) => {
+const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loading, error, onLoadMore }: TradingViewChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
   const volumeSeriesRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,6 +179,23 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
       candleSeries.setData(chartData);
       volumeSeries.setData(volumeData);
+
+      // Set up lazy loading on scroll
+      if (onLoadMore) {
+        chart.timeScale().subscribeVisibleLogicalRangeChange((range: any) => {
+          if (!range || !chartData.length) return;
+          
+          const firstVisibleTime = chartData[Math.floor(range.from)]?.time;
+          if (firstVisibleTime && (!earliestLoadedTime || firstVisibleTime < earliestLoadedTime)) {
+            setEarliestLoadedTime(firstVisibleTime);
+            // Trigger load more when scrolling near the beginning
+            if (range.from < 10) {
+              console.log('[TradingViewChart] Loading more historical data');
+              onLoadMore();
+            }
+          }
+        });
+      }
 
       // Fit content to view
       chart.timeScale().fitContent();

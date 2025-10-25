@@ -2,6 +2,7 @@ import type { DydxOrderbook } from "@/types/dydx";
 
 type OrderbookCallback = (orderbook: DydxOrderbook) => void;
 type TradeCallback = (trade: any) => void;
+type CandleCallback = (candle: any) => void;
 
 class DydxWebSocketService {
   private ws: WebSocket | null = null;
@@ -10,6 +11,7 @@ class DydxWebSocketService {
   private reconnectDelay = 1000;
   private subscriptions = new Map<string, Set<OrderbookCallback>>();
   private tradeSubscriptions = new Map<string, Set<TradeCallback>>();
+  private candleSubscriptions = new Map<string, Set<CandleCallback>>();
   private isConnecting = false;
 
   connect(): void {
@@ -67,16 +69,24 @@ class DydxWebSocketService {
     this.tradeSubscriptions.forEach((_, market) => {
       this.sendSubscribe('v4_trades', market);
     });
+    this.candleSubscriptions.forEach((_, key) => {
+      const [market, resolution] = key.split('_');
+      this.sendSubscribe('v4_candles', market, resolution);
+    });
   }
 
-  private sendSubscribe(channel: string, id: string): void {
+  private sendSubscribe(channel: string, id: string, resolution?: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
+      const message: any = {
         type: 'subscribe',
         channel,
         id,
-      }));
-      console.log(`[DydxWS] Subscribed to ${channel}:${id}`);
+      };
+      if (resolution) {
+        message.resolution = resolution;
+      }
+      this.ws.send(JSON.stringify(message));
+      console.log(`[DydxWS] Subscribed to ${channel}:${id}${resolution ? `:${resolution}` : ''}`);
     }
   }
 
@@ -110,6 +120,12 @@ class DydxWebSocketService {
 
     if (channel === 'v4_trades') {
       const callbacks = this.tradeSubscriptions.get(id);
+      callbacks?.forEach(cb => cb(contents));
+    }
+
+    if (channel === 'v4_candles') {
+      const key = `${id}_${message.resolution || '1HOUR'}`;
+      const callbacks = this.candleSubscriptions.get(key);
       callbacks?.forEach(cb => cb(contents));
     }
   }
@@ -158,9 +174,33 @@ class DydxWebSocketService {
     };
   }
 
+  subscribeToCandles(market: string, resolution: string, callback: CandleCallback): () => void {
+    this.connect();
+
+    const key = `${market}_${resolution}`;
+    if (!this.candleSubscriptions.has(key)) {
+      this.candleSubscriptions.set(key, new Set());
+      this.sendSubscribe('v4_candles', market, resolution);
+    }
+
+    this.candleSubscriptions.get(key)!.add(callback);
+
+    return () => {
+      const callbacks = this.candleSubscriptions.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.candleSubscriptions.delete(key);
+          this.sendUnsubscribe('v4_candles', market);
+        }
+      }
+    };
+  }
+
   disconnect(): void {
     this.subscriptions.clear();
     this.tradeSubscriptions.clear();
+    this.candleSubscriptions.clear();
     if (this.ws) {
       this.ws.close();
       this.ws = null;
