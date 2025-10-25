@@ -47,6 +47,10 @@ const Auth = () => {
 
   // Redirect if already authenticated
   if (user && !loading) {
+    const returnUrl = searchParams.get('return');
+    if (returnUrl && !returnUrl.startsWith('/auth')) {
+      return <Navigate to={returnUrl} replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
