@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, MessageSquare, PieChart } from "lucide-react";
+import { Home, ShoppingBag, ArrowUpDown, Clock, Settings, MessageSquare, PieChart, TrendingUp } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef } from "react";
 
@@ -24,16 +24,16 @@ const BottomNavigation = () => {
       path: "/buy-sell-hub",
     },
     {
-      id: "swap",
-      label: "Swap",
-      icon: ArrowUpDown,
-      path: "/swap",
-    },
-    {
       id: "portfolio",
       label: "Portfolio",
       icon: PieChart,
       path: "/portfolio",
+    },
+    {
+      id: "trading",
+      label: "Trading",
+      icon: TrendingUp,
+      path: "/trading-dashboard",
     },
     {
       id: "history",
