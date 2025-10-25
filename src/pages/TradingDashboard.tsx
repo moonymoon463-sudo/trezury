@@ -52,11 +52,19 @@ const TradingDashboard = () => {
   
   const { user, loading: authLoading } = useAuth();
   
-  // Defensive auth check - should never reach here due to ProtectedRoute, but just in case
-  if (!user && !authLoading) {
-    window.location.href = '/auth?return=/trading-dashboard';
-    return null;
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#211d12]">
+        <div className="text-center">
+          <AurumLogo className="mb-4 animate-pulse" size="xs" />
+          <p className="text-[#c6b795] text-sm">Loading Trading Dashboard...</p>
+        </div>
+      </div>
+    );
   }
+  
+  // ProtectedRoute handles authentication - no defensive check needed
   const { getPassword } = useTradingPasswordContext();
   
   // External wallet (MetaMask)
