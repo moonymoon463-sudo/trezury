@@ -564,7 +564,7 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-hidden">
+      <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-y-auto">
         {/* Top Stats */}
         <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-1.5 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
