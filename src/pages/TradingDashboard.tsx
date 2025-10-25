@@ -274,31 +274,27 @@ const TradingDashboard = () => {
                 <div className="pl-3 space-y-3">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[#c6b795] text-xs">Internal Address:</span>
+                      <span className="text-[#c6b795] text-xs">Trading Wallet:</span>
                       <button
-                        onClick={() => internalAddress && copyAddress(internalAddress)}
+                        onClick={() => dydxAddress && copyAddress(dydxAddress)}
                         className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
                       >
-                        {internalAddress?.slice(0, 6)}...{internalAddress?.slice(-4)}
+                        {dydxAddress?.slice(0, 6)}...{dydxAddress?.slice(-4)}
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-[#c6b795] text-sm">Balance:</span>
+                      <span className="text-[#c6b795] text-sm">Equity:</span>
                       <span className="text-white font-semibold">
-                        ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${(accountInfo?.equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
-                    {balances.length > 0 && (
-                      <div className="space-y-1 pt-2 border-t border-[#463c25]">
-                        {balances.filter(b => b.amount > 0).map((balance) => (
-                          <div key={`${balance.asset}-${balance.chain}`} className="flex justify-between items-center text-xs">
-                            <span className="text-[#c6b795]">{balance.asset}:</span>
-                            <span className="text-white">{balance.amount.toFixed(4)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#c6b795] text-sm">Available:</span>
+                      <span className="text-white font-semibold">
+                        ${(accountInfo?.freeCollateral || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
