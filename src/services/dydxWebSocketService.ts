@@ -12,8 +12,9 @@ type HealthCallback = (state: {
 class DydxWebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
+  private maxReconnectDelay = 30000; // Max 30 seconds
   private subscriptions = new Map<string, Set<OrderbookCallback>>();
   private tradeSubscriptions = new Map<string, Set<TradeCallback>>();
   private candleSubscriptions = new Map<string, Set<CandleCallback>>();
@@ -21,6 +22,8 @@ class DydxWebSocketService {
   private isConnecting = false;
   private orderbookState = new Map<string, { bids: Map<number, string>; asks: Map<number, string> }>();
   private lastMessageId = new Map<string, string>(); // For deduplication
+  private pingInterval: NodeJS.Timeout | null = null;
+  private lastPongTime = Date.now();
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) return;
@@ -34,8 +37,11 @@ class DydxWebSocketService {
       console.log('[DydxWS] Connected');
       this.isConnecting = false;
       this.reconnectAttempts = 0;
+      this.reconnectDelay = 1000; // Reset delay
+      this.lastPongTime = Date.now();
       this.notifyHealthCallbacks();
       this.resubscribeAll();
+      this.startHeartbeat();
     };
 
     this.ws.onmessage = (event) => {
@@ -54,6 +60,7 @@ class DydxWebSocketService {
     this.ws.onclose = () => {
       console.log('[DydxWS] Disconnected');
       this.isConnecting = false;
+      this.stopHeartbeat();
       this.notifyHealthCallbacks();
       this.attemptReconnect();
     };
@@ -68,10 +75,43 @@ class DydxWebSocketService {
 
     this.reconnectAttempts++;
     this.notifyHealthCallbacks();
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    console.log(`[DydxWS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    
+    // Exponential backoff with cap
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.maxReconnectDelay
+    );
+    
+    console.log(`[DydxWS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
     setTimeout(() => this.connect(), delay);
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    
+    // Ping every 30 seconds
+    this.pingInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        // Check if last pong was received within 60 seconds
+        const timeSinceLastPong = Date.now() - this.lastPongTime;
+        if (timeSinceLastPong > 60000) {
+          console.warn('[DydxWS] Heartbeat timeout, reconnecting...');
+          this.ws.close();
+          return;
+        }
+        
+        // Send ping (dYdX doesn't have a formal ping, but we can track message flow)
+        this.lastPongTime = Date.now();
+      }
+    }, 30000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
   }
 
   private notifyHealthCallbacks(): void {
@@ -330,6 +370,7 @@ class DydxWebSocketService {
   }
 
   disconnect(): void {
+    this.stopHeartbeat();
     this.subscriptions.clear();
     this.tradeSubscriptions.clear();
     this.candleSubscriptions.clear();

@@ -14,7 +14,7 @@ export const useDydxCandles = (
   const [hasMore, setHasMore] = useState(true);
   const [isBackfilling, setIsBackfilling] = useState(false);
 
-  // Load initial candles with 180-day backfill
+  // Load initial candles - fast initial load for immediate chart display
   useEffect(() => {
     console.log('[useDydxCandles] Hook triggered', { symbol, resolution, limit });
 
@@ -33,10 +33,9 @@ export const useDydxCandles = (
         console.log('[useDydxCandles] Starting fetch for', symbol);
         setLoading(true);
         setError(null);
-        setIsBackfilling(true);
         
-        // Initial fetch to show chart quickly
-        const data = await dydxMarketService.getCandles(symbol, resolution, limit);
+        // Initial fetch: Load only 100 candles for instant display
+        const data = await dydxMarketService.getCandles(symbol, resolution, 100);
         console.log('[useDydxCandles] Received initial candles:', data?.length || 0);
         
         if (!mounted) return;
@@ -45,35 +44,10 @@ export const useDydxCandles = (
         setCandles(sortedData);
         setLoading(false); // Show chart immediately
         setError(null);
-        setHasMore(data && data.length >= limit);
+        setHasMore(data && data.length >= 100);
+        setIsBackfilling(false);
 
-        // Background backfill (up to 1000 candles for performance)
-        let allCandles = [...sortedData];
-        const maxCandles = 1000;
-        let fetchCount = 0;
-
-        while (allCandles.length < maxCandles && fetchCount < 5 && mounted) {
-          const oldestTime = allCandles[0]?.timestamp;
-          if (!oldestTime) break;
-
-          // Fetch older data without passing timestamp (API limitation)
-          const moreData = await dydxMarketService.getCandles(symbol, resolution, limit);
-          if (!moreData || moreData.length === 0 || !mounted) break;
-
-          const olderCandles = moreData.filter(c => c.timestamp < oldestTime);
-          if (olderCandles.length === 0) break;
-
-          allCandles = [...olderCandles.sort((a, b) => a.timestamp - b.timestamp), ...allCandles];
-          setCandles([...allCandles]);
-          
-          fetchCount++;
-          await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit
-        }
-
-        if (mounted) {
-          setIsBackfilling(false);
-          console.log(`[useDydxCandles] Backfilled ${allCandles.length} candles`);
-        }
+        console.log(`[useDydxCandles] Initial load complete: ${sortedData.length} candles`);
       } catch (err) {
         console.error('[useDydxCandles] Error fetching candles:', err);
         if (mounted) {
@@ -93,7 +67,7 @@ export const useDydxCandles = (
       console.log('[useDydxCandles] Cleanup called for', symbol);
       mounted = false;
     };
-  }, [symbol, resolution, limit]);
+  }, [symbol, resolution]);
 
   // Subscribe to real-time WebSocket updates with debouncing
   useEffect(() => {
@@ -148,7 +122,7 @@ export const useDydxCandles = (
             });
 
             pendingUpdate = null;
-          }, 100); // 100ms debounce
+          }, 500); // 500ms debounce for stability
         }
       }
     );

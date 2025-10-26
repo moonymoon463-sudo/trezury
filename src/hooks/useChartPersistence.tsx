@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { requestQueue } from '@/services/requestQueue';
 
 export interface ChartSettings {
   indicators: string[];
@@ -72,43 +73,74 @@ export const useChartPersistence = (market: string, resolution: string) => {
     loadSettings();
   }, [user, market, resolution]);
 
-  // Save settings with debounce
+  // Save settings with throttling and deduplication
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSettingsRef = useRef<ChartSettings | null>(null);
+
   const saveSettings = useCallback(async (newSettings: Partial<ChartSettings>) => {
     if (!user || !market || !resolution) return;
 
     const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
-    setSaving(true);
+    
+    // Store pending update
+    pendingSettingsRef.current = updatedSettings;
 
-    try {
-      const { error } = await supabase
-        .from('user_chart_settings')
-        .upsert({
-          user_id: user.id,
-          market,
-          resolution,
-          indicators: updatedSettings.indicators,
-          drawings: updatedSettings.drawings,
-          viewport: updatedSettings.viewport,
-          live_mode: updatedSettings.liveMode,
-        }, {
-          onConflict: 'user_id,market,resolution',
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Throttle: wait 2 seconds before saving
+    saveTimeoutRef.current = setTimeout(async () => {
+      const settingsToSave = pendingSettingsRef.current;
+      if (!settingsToSave) return;
+
+      setSaving(true);
+      
+      try {
+        const key = `chart-settings-${user.id}-${market}-${resolution}`;
+        
+        await requestQueue.execute(key, async () => {
+          const { error } = await supabase
+            .from('user_chart_settings')
+            .upsert({
+              user_id: user.id,
+              market,
+              resolution,
+              indicators: settingsToSave.indicators,
+              drawings: settingsToSave.drawings,
+              viewport: settingsToSave.viewport,
+              live_mode: settingsToSave.liveMode,
+            }, {
+              onConflict: 'user_id,market,resolution',
+            });
+
+          if (error) throw error;
         });
-
-      if (error) {
+        
+        pendingSettingsRef.current = null;
+      } catch (error: any) {
         console.error('[useChartPersistence] Save error:', error);
         toast({
           variant: 'destructive',
           title: 'Failed to save chart settings',
           description: error.message,
         });
+      } finally {
+        setSaving(false);
       }
-    } catch (err) {
-      console.error('[useChartPersistence] Error saving settings:', err);
-    } finally {
-      setSaving(false);
-    }
+    }, 2000); // 2 second throttle
   }, [user, market, resolution, settings, toast]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const updateIndicators = useCallback((indicators: string[]) => {
     saveSettings({ indicators });
