@@ -727,7 +727,7 @@ const TradingDashboard = () => {
         />
 
         {/* Chart Section */}
-        <div className="flex-1 min-h-[450px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
+        <div className="flex-1 min-h-[600px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -765,7 +765,7 @@ const TradingDashboard = () => {
 
         {/* Open Positions Table */}
         {hasDydxWallet && dydxAddress && (
-          <div className="mb-2 flex-shrink-0">
+          <div className="mb-2 flex-shrink-0 overflow-visible">
             <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
           </div>
         )}
@@ -820,7 +820,7 @@ const TradingDashboard = () => {
 
         {tradeMode !== 'positions' ? (
           <>
-            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0 max-h-[calc(100vh-550px)]">
+            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0 max-h-[calc(100vh-470px)]">
               {/* Order Type */}
               <div>
                 <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
