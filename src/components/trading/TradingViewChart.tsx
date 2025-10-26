@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';
 import { useChartDrawingTools } from '@/hooks/useChartDrawingTools';
@@ -11,14 +11,6 @@ import { calculateSMA } from '@/utils/chartIndicators';
 import { calculateVWAP, calculateRSI, calculateMACD } from '@/utils/advancedChartIndicators';
 import { useChartPersistence } from '@/hooks/useChartPersistence';
 import { LiveModeToggle } from './LiveModeToggle';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 
 interface TradingViewChartProps {
   symbol: string;
@@ -59,6 +51,7 @@ const TradingViewChart = ({
   const [isLoading, setIsLoading] = useState(false);
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
   const lastCandleCountRef = useRef(0);
+  const updateDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
   // Chart persistence
   const {
@@ -382,68 +375,80 @@ const TradingViewChart = ({
     if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
     if (candles.length === 0) return;
 
-    // Process updates immediately for real-time feel
-    const validCandles = candles.filter(
-      c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
-    );
+    // Debounce rapid updates
+    if (updateDebounceRef.current) {
+      clearTimeout(updateDebounceRef.current);
+    }
 
-    // Sort ascending by timestamp (required by lightweight-charts)
-    const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+    updateDebounceRef.current = setTimeout(() => {
+      const validCandles = candles.filter(
+        c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+      );
 
-    const chartData = sortedCandles.map((candle) => ({
-      time: Math.floor(
-        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-      ),
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-    }));
+      // Sort ascending by timestamp (required by lightweight-charts)
+      const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
 
-    const volumeData = sortedCandles
-      .filter(c => c.volume != null)
-      .map((candle) => ({
+      const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
         ),
-        value: candle.volume,
-        color: candle.close > candle.open 
-          ? 'rgba(16, 185, 129, 0.5)'
-          : 'rgba(239, 68, 68, 0.5)',
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
       }));
 
-    // Detect if this is an incremental update (1-2 new candles) or full reload
-    const isIncrementalUpdate = Math.abs(chartData.length - lastCandleCountRef.current) <= 2 
-      && lastCandleCountRef.current > 0;
+      const volumeData = sortedCandles
+        .filter(c => c.volume != null)
+        .map((candle) => ({
+          time: Math.floor(
+            candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+          ),
+          value: candle.volume,
+          color: candle.close > candle.open 
+            ? 'rgba(16, 185, 129, 0.5)'
+            : 'rgba(239, 68, 68, 0.5)',
+        }));
 
-    if (isIncrementalUpdate && chartData.length > 0) {
-      // Incremental update: only update the last candle for smooth real-time updates
-      const lastCandle = chartData[chartData.length - 1];
-      const lastVolume = volumeData[volumeData.length - 1];
-      
-      try {
-        candleSeriesRef.current.update(lastCandle);
-        if (lastVolume) {
-          volumeSeriesRef.current.update(lastVolume);
+      // Detect if this is an incremental update (1-2 new candles) or full reload
+      const isIncrementalUpdate = Math.abs(chartData.length - lastCandleCountRef.current) <= 2 
+        && lastCandleCountRef.current > 0;
+
+      if (isIncrementalUpdate && chartData.length > 0) {
+        // Incremental update: only update the last few candles
+        const lastCandle = chartData[chartData.length - 1];
+        const lastVolume = volumeData[volumeData.length - 1];
+        
+        try {
+          candleSeriesRef.current.update(lastCandle);
+          if (lastVolume) {
+            volumeSeriesRef.current.update(lastVolume);
+          }
+        } catch (e) {
+          // If update fails, fall back to setData
+          console.log('[Chart] Incremental update failed, using setData:', e);
+          candleSeriesRef.current.setData(chartData);
+          volumeSeriesRef.current.setData(volumeData);
         }
-      } catch (e) {
-        // If update fails, fall back to setData
-        console.log('[Chart] Incremental update failed, using setData:', e);
+      } else {
+        // Full reload: use setData and fit content
         candleSeriesRef.current.setData(chartData);
         volumeSeriesRef.current.setData(volumeData);
+        
+        // Only fit content on full reload (symbol/resolution change)
+        if (lastCandleCountRef.current === 0) {
+          chartRef.current.timeScale().fitContent();
+        }
       }
-    } else {
-      // Full reload: use setData and fit content
-      candleSeriesRef.current.setData(chartData);
-      volumeSeriesRef.current.setData(volumeData);
-      
-      // Only fit content on full reload (symbol/resolution change)
-      if (lastCandleCountRef.current === 0) {
-        chartRef.current.timeScale().fitContent();
-      }
-    }
 
-    lastCandleCountRef.current = chartData.length;
+      lastCandleCountRef.current = chartData.length;
+    }, 150); // 150ms debounce for batching rapid updates
+
+    return () => {
+      if (updateDebounceRef.current) {
+        clearTimeout(updateDebounceRef.current);
+      }
+    };
   }, [candles]);
 
   // Manage indicators (MA, VWAP, RSI, MACD)
@@ -605,132 +610,31 @@ const TradingViewChart = ({
 
   return (
     <div className="flex flex-col h-full gap-3 p-4">
-      {/* Indicator Dropdown and Timeframe Selector */}
+      {/* Timeframe Selector */}
       <div className="flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
-          {/* Indicators Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Timeframe:</span>
+          <div className="flex gap-1">
+            {TIMEFRAMES.map((tf) => (
               <Button
-                variant="outline"
+                key={tf.value}
+                variant={resolution === tf.value ? 'default' : 'outline'}
                 size="sm"
-                className="border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs gap-1.5"
-                disabled={isLoading || loading}
+                onClick={() => handleTimeframeChange(tf.value)}
+                disabled={isLoading}
+                className={
+                  resolution === tf.value
+                    ? 'bg-aurum text-black hover:bg-aurum-glow h-7 text-xs'
+                    : 'border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs'
+                }
               >
-                <TrendingUp className="h-3.5 w-3.5" />
-                Indicators
+                {tf.label}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="start" 
-              className="w-56 bg-[#1a1712] border-aurum/20 z-50"
-            >
-              <DropdownMenuLabel className="text-aurum">Moving Averages</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem
-                checked={activeIndicators.has('MA20')}
-                onCheckedChange={() => toggleIndicator('MA20')}
-                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 bg-blue-500" />
-                  MA 20
-                </span>
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeIndicators.has('MA50')}
-                onCheckedChange={() => toggleIndicator('MA50')}
-                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 bg-purple-500" />
-                  MA 50
-                </span>
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeIndicators.has('MA100')}
-                onCheckedChange={() => toggleIndicator('MA100')}
-                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 bg-red-500" />
-                  MA 100
-                </span>
-              </DropdownMenuCheckboxItem>
-              
-              <DropdownMenuSeparator className="bg-aurum/20" />
-              <DropdownMenuLabel className="text-aurum">Volume</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem
-                checked={activeIndicators.has('VWAP')}
-                onCheckedChange={() => toggleIndicator('VWAP')}
-                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 bg-amber-500" />
-                  VWAP
-                </span>
-              </DropdownMenuCheckboxItem>
-              
-              <DropdownMenuSeparator className="bg-aurum/20" />
-              <DropdownMenuLabel className="text-aurum">Momentum</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem
-                checked={activeIndicators.has('RSI')}
-                onCheckedChange={() => toggleIndicator('RSI')}
-                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 bg-violet-500" />
-                  RSI (14)
-                </span>
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={activeIndicators.has('MACD')}
-                onCheckedChange={() => toggleIndicator('MACD')}
-                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-0.5 bg-emerald-500" />
-                  MACD
-                </span>
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Timeframe Buttons */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Timeframe:</span>
-            <div className="flex gap-1">
-              {TIMEFRAMES.map((tf) => (
-                <Button
-                  key={tf.value}
-                  variant={resolution === tf.value ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleTimeframeChange(tf.value)}
-                  disabled={isLoading}
-                  className={
-                    resolution === tf.value
-                      ? 'bg-aurum text-black hover:bg-aurum-glow h-7 text-xs'
-                      : 'border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs'
-                  }
-                >
-                  {tf.label}
-                </Button>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
-        
-        {/* Symbol and Live Indicator */}
-        <div className="flex items-center gap-2">
-          <div className="text-sm font-semibold text-aurum">
-            {symbol}
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-status-success">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-success opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-status-success"></span>
-            </span>
-            Live
-          </div>
+        <div className="text-sm font-semibold text-aurum">
+          {symbol}
         </div>
       </div>
 
