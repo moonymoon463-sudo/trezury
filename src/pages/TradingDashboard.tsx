@@ -14,6 +14,8 @@ import { useDydxCandles } from '@/hooks/useDydxCandles';
 import { useDydxWallet } from '@/hooks/useDydxWallet';
 import { useDydxAccount } from '@/hooks/useDydxAccount';
 import { useDydxTrading } from '@/hooks/useDydxTrading';
+import { useFundingRate } from '@/hooks/useFundingRate';
+import { useMarketRules } from '@/hooks/useMarketRules';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
@@ -29,7 +31,11 @@ import { OrderHistory } from '@/components/trading/OrderHistory';
 import { PositionManager } from '@/components/trading/PositionManager';
 import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
+import { FundingRateDisplay } from '@/components/trading/FundingRateDisplay';
+import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBanner';
 import { dydxWalletService } from '@/services/dydxWalletService';
+import { dydxWebSocketService } from '@/services/dydxWebSocketService';
+import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
 import { useWepsMockData } from '@/hooks/useWepsMockData';
 import { WepsInsightsCard } from '@/components/weps/WepsInsightsCard';
@@ -49,9 +55,11 @@ const TradingDashboard = () => {
   const [leverage, setLeverage] = useState(1);
   const [orderSize, setOrderSize] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
+  const [stopPrice, setStopPrice] = useState('');
   const [chartResolution, setChartResolution] = useState<string>('1HOUR');
   const [walletType, setWalletType] = useState<'trading' | 'internal' | 'external'>('trading');
   const [copied, setCopied] = useState(false);
+  const [wsHealth, setWsHealth] = useState({ isConnected: true, reconnectAttempts: 0, maxAttempts: 5 });
   
   const { user, loading: authLoading } = useAuth();
   const { getPassword } = useTradingPasswordContext();
@@ -103,7 +111,17 @@ const TradingDashboard = () => {
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
-  const { candles, loading: candlesLoading, error: candlesError, loadMore } = useDydxCandles(selectedAsset, chartResolution, 200);
+  const { candles, loading: candlesLoading, error: candlesError, isBackfilling, loadMore } = useDydxCandles(selectedAsset, chartResolution, 200);
+  const { fundingRate, nextFundingTime, formatTimeUntil } = useFundingRate(selectedAsset);
+  const { rules, loading: rulesLoading, validateOrderSize, calculateFees } = useMarketRules(selectedAsset);
+
+  // WebSocket health monitoring
+  useEffect(() => {
+    const unsubscribe = dydxWebSocketService.subscribeToHealth((health) => {
+      setWsHealth(health);
+    });
+    return unsubscribe;
+  }, []);
 
   // Debug log for chart data flow
   console.log('[TradingDashboard] Chart data', { 
@@ -111,7 +129,8 @@ const TradingDashboard = () => {
     chartResolution, 
     candlesLength: candles?.length || 0,
     candlesLoading,
-    candlesError 
+    candlesError,
+    isBackfilling 
   });
 
   // Filter leverage assets (BTC, ETH, SOL from dYdX)
@@ -188,6 +207,21 @@ const TradingDashboard = () => {
       return;
     }
 
+    // Validate order size with market rules
+    if (rules) {
+      const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
+      const validation = validateOrderSize(parseFloat(orderSize), currentPrice);
+      
+      if (!validation.valid) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid Order Size',
+          description: validation.error
+        });
+        return;
+      }
+    }
+
     setShowPasswordDialog(true);
   };
 
@@ -197,21 +231,47 @@ const TradingDashboard = () => {
     if (!selectedAsset) return;
 
     const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
+    const size = parseFloat(orderSize);
+    const price = orderType === 'limit' ? parseFloat(limitPrice) : currentPrice;
+
+    // Calculate fees before order
+    const fees = rules ? calculateFees(size, price, orderType === 'market' ? 'market' : 'limit') : null;
 
     const response = await placeOrder({
       market: selectedAsset,
       side: tradeMode === 'buy' ? 'BUY' : 'SELL',
-      type: orderType === 'market' ? 'MARKET' : 'LIMIT',
-      size: parseFloat(orderSize),
-      price: orderType === 'limit' ? parseFloat(limitPrice) : currentPrice,
+      type: orderType === 'market' ? 'MARKET' : orderType === 'stop-limit' ? 'STOP_LIMIT' : 'LIMIT',
+      size,
+      price,
       leverage,
       password
     });
 
+    // Log to audit trail
+    await tradeAuditService.logOrderPlacement(
+      selectedAsset,
+      orderType,
+      tradeMode === 'buy' ? 'BUY' : 'SELL',
+      size,
+      price,
+      leverage,
+      response.success,
+      response.error
+    );
+
     if (response.success) {
       setOrderSize('');
       setLimitPrice('');
+      setStopPrice('');
       refreshAccount();
+      
+      // Show fees in success toast
+      if (fees) {
+        toast({
+          title: 'Order Placed',
+          description: `Estimated fee: $${fees.totalFee.toFixed(2)}`
+        });
+      }
     }
   };
 
@@ -636,7 +696,7 @@ const TradingDashboard = () => {
         )}
 
         {/* Chart Controls */}
-        <div className="flex items-center gap-1 mb-1.5 flex-shrink-0">
+        <div className="flex items-center justify-between gap-1 mb-1.5 flex-shrink-0">
           <div className="flex gap-0.5">
             {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval) => (
               <Button
@@ -650,7 +710,21 @@ const TradingDashboard = () => {
               </Button>
             ))}
           </div>
+          
+          {/* Funding Rate Display */}
+          {selectedAsset && (
+            <FundingRateDisplay
+              market={selectedAsset}
+            />
+          )}
         </div>
+
+        {/* Health Banner */}
+        <ConnectionHealthBanner 
+          isConnected={wsHealth.isConnected}
+          reconnectAttempts={wsHealth.reconnectAttempts}
+          maxAttempts={wsHealth.maxAttempts}
+        />
 
         {/* Chart Section */}
         <div className="flex-1 min-h-[450px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
@@ -664,6 +738,7 @@ const TradingDashboard = () => {
               error={candlesError}
               onLoadMore={loadMore}
               phase={phase}
+              isBackfilling={isBackfilling}
             />
           ) : selectedAsset ? (
             <div className="h-full flex items-center justify-center">
@@ -760,9 +835,25 @@ const TradingDashboard = () => {
               </Select>
             </div>
 
+            {/* Stop Price (for stop-limit orders) */}
+            {orderType === 'stop-limit' && (
+              <div>
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Stop Price (USDT)</label>
+                <input
+                  type="number"
+                  value={stopPrice}
+                  onChange={(e) => setStopPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                />
+              </div>
+            )}
+
             {/* Price */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Price (USDT)</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1 block">
+                {orderType === 'stop-limit' ? 'Limit Price (USDT)' : 'Price (USDT)'}
+              </label>
               <input
                 type="text"
                 value={orderType === 'market' ? 'Market' : limitPrice}
@@ -775,12 +866,17 @@ const TradingDashboard = () => {
 
             {/* Order Size */}
             <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Size ({selectedAsset?.split('-')[0] || 'BTC'})</label>
+              <label className="text-[#c6b795] text-xs font-medium mb-1 block">
+                Order Size ({selectedAsset?.split('-')[0] || 'BTC'})
+                {rules && <span className="ml-2 text-[10px]">(Min: {rules.minOrderSize})</span>}
+              </label>
               <input
                 type="number"
                 placeholder="0.00"
                 value={orderSize}
                 onChange={(e) => setOrderSize(e.target.value)}
+                step={rules?.stepSize || 0.001}
+                min={rules?.minOrderSize || 0}
                 className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
               />
               {/* Percentage Buttons */}
@@ -796,6 +892,17 @@ const TradingDashboard = () => {
                   </Button>
                 ))}
               </div>
+              
+              {/* Fee Preview */}
+              {rules && orderSize && (
+                <div className="mt-2 p-2 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
+                  Est. Fee: ${calculateFees(
+                    parseFloat(orderSize), 
+                    parseFloat(limitPrice) || (currentAsset && 'price' in currentAsset ? currentAsset.price : 0),
+                    orderType === 'market' ? 'market' : 'limit'
+                  ).totalFee.toFixed(2)}
+                </div>
+              )}
             </div>
 
             {/* Leverage */}

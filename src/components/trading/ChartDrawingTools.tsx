@@ -14,9 +14,13 @@ interface ChartDrawingToolsProps {
 }
 
 const INDICATORS = [
-  { id: 'MA20', label: 'Moving Average (20)', color: '#3B82F6' },
-  { id: 'MA50', label: 'Moving Average (50)', color: '#A855F7' },
-  { id: 'MA200', label: 'Moving Average (200)', color: '#EF4444' },
+  { id: 'MA20', label: 'MA (20)', color: '#3B82F6' },
+  { id: 'MA50', label: 'MA (50)', color: '#A855F7' },
+  { id: 'MA200', label: 'MA (200)', color: '#EF4444' },
+  { id: 'VWAP', label: 'VWAP', color: '#F59E0B' },
+  { id: 'RSI', label: 'RSI (14)', color: '#8B5CF6' },
+  { id: 'MACD', label: 'MACD', color: '#10B981' },
+  { id: 'VOLUME', label: 'Volume', color: '#6B7280' },
 ];
 
 export function ChartDrawingTools({

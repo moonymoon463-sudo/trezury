@@ -3,6 +3,11 @@ import type { DydxOrderbook } from "@/types/dydx";
 type OrderbookCallback = (orderbook: DydxOrderbook) => void;
 type TradeCallback = (trade: any) => void;
 type CandleCallback = (candle: any) => void;
+type HealthCallback = (state: { 
+  isConnected: boolean; 
+  reconnectAttempts: number; 
+  maxAttempts: number 
+}) => void;
 
 class DydxWebSocketService {
   private ws: WebSocket | null = null;
@@ -12,8 +17,10 @@ class DydxWebSocketService {
   private subscriptions = new Map<string, Set<OrderbookCallback>>();
   private tradeSubscriptions = new Map<string, Set<TradeCallback>>();
   private candleSubscriptions = new Map<string, Set<CandleCallback>>();
+  private healthCallbacks = new Set<HealthCallback>();
   private isConnecting = false;
   private orderbookState = new Map<string, { bids: Map<number, string>; asks: Map<number, string> }>();
+  private lastMessageId = new Map<string, string>(); // For deduplication
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) return;
@@ -27,6 +34,7 @@ class DydxWebSocketService {
       console.log('[DydxWS] Connected');
       this.isConnecting = false;
       this.reconnectAttempts = 0;
+      this.notifyHealthCallbacks();
       this.resubscribeAll();
     };
 
@@ -46,6 +54,7 @@ class DydxWebSocketService {
     this.ws.onclose = () => {
       console.log('[DydxWS] Disconnected');
       this.isConnecting = false;
+      this.notifyHealthCallbacks();
       this.attemptReconnect();
     };
   }
@@ -53,14 +62,25 @@ class DydxWebSocketService {
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('[DydxWS] Max reconnect attempts reached');
+      this.notifyHealthCallbacks();
       return;
     }
 
     this.reconnectAttempts++;
+    this.notifyHealthCallbacks();
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
     console.log(`[DydxWS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => this.connect(), delay);
+  }
+
+  private notifyHealthCallbacks(): void {
+    const state = {
+      isConnected: this.ws?.readyState === WebSocket.OPEN,
+      reconnectAttempts: this.reconnectAttempts,
+      maxAttempts: this.maxReconnectAttempts,
+    };
+    this.healthCallbacks.forEach(cb => cb(state));
   }
 
   private resubscribeAll(): void {
@@ -114,6 +134,13 @@ class DydxWebSocketService {
     if (message.type !== 'channel_data') return;
 
     const { channel, id, contents } = message;
+
+    // Message deduplication
+    const messageKey = `${channel}:${id}:${JSON.stringify(contents).substring(0, 50)}`;
+    if (this.lastMessageId.get(channel) === messageKey) {
+      return; // Skip duplicate
+    }
+    this.lastMessageId.set(channel, messageKey);
 
     if (channel === 'v4_orderbook') {
       // Get or initialize state for this market
@@ -281,10 +308,32 @@ class DydxWebSocketService {
     };
   }
 
+  subscribeToHealth(callback: HealthCallback): () => void {
+    this.healthCallbacks.add(callback);
+    // Immediately notify of current state
+    callback({
+      isConnected: this.ws?.readyState === WebSocket.OPEN,
+      reconnectAttempts: this.reconnectAttempts,
+      maxAttempts: this.maxReconnectAttempts,
+    });
+
+    return () => {
+      this.healthCallbacks.delete(callback);
+    };
+  }
+
+  getConnectionState(): { isConnected: boolean; reconnectAttempts: number } {
+    return {
+      isConnected: this.ws?.readyState === WebSocket.OPEN,
+      reconnectAttempts: this.reconnectAttempts,
+    };
+  }
+
   disconnect(): void {
     this.subscriptions.clear();
     this.tradeSubscriptions.clear();
     this.candleSubscriptions.clear();
+    this.healthCallbacks.clear();
     if (this.ws) {
       this.ws.close();
       this.ws = null;

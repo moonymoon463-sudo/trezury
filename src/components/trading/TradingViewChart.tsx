@@ -8,6 +8,9 @@ import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';
 import { useChartDrawingTools } from '@/hooks/useChartDrawingTools';
 import { calculateSMA } from '@/utils/chartIndicators';
+import { calculateVWAP, calculateRSI, calculateMACD } from '@/utils/advancedChartIndicators';
+import { useChartPersistence } from '@/hooks/useChartPersistence';
+import { LiveModeToggle } from './LiveModeToggle';
 
 interface TradingViewChartProps {
   symbol: string;
@@ -18,6 +21,7 @@ interface TradingViewChartProps {
   error?: string | null;
   onLoadMore?: () => void;
   phase?: string;
+  isBackfilling?: boolean;
 }
 
 const TIMEFRAMES = [
@@ -29,7 +33,17 @@ const TIMEFRAMES = [
   { label: '1d', value: '1DAY' },
 ];
 
-const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loading, error, onLoadMore, phase = "Neutral" }: TradingViewChartProps) => {
+const TradingViewChart = ({ 
+  symbol, 
+  candles, 
+  resolution, 
+  onResolutionChange, 
+  loading, 
+  error, 
+  onLoadMore, 
+  phase = "Neutral",
+  isBackfilling = false 
+}: TradingViewChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const candleSeriesRef = useRef<any>(null);
@@ -39,7 +53,17 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   const lastCandleCountRef = useRef(0);
   const updateDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Drawing tools state
+  // Chart persistence
+  const {
+    settings,
+    loading: settingsLoading,
+    updateIndicators,
+    updateDrawings,
+    updateViewport,
+    toggleLiveMode,
+  } = useChartPersistence(symbol, resolution);
+  
+  // Drawing tools state (sync with persisted settings)
   const {
     drawingMode,
     activeIndicators,
@@ -52,6 +76,17 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     clearAll,
     setTrendLineStart,
   } = useChartDrawingTools();
+  
+  // Sync active indicators with persisted settings
+  useEffect(() => {
+    if (settings.indicators.length > 0) {
+      settings.indicators.forEach(ind => {
+        if (!activeIndicators.has(ind)) {
+          toggleIndicator(ind);
+        }
+      });
+    }
+  }, [settings.indicators]);
   
   // Refs for managing chart elements
   const indicatorsRef = useRef<Map<string, any>>(new Map());
@@ -416,7 +451,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     };
   }, [candles]);
 
-  // Manage indicators (moving averages)
+  // Manage indicators (MA, VWAP, RSI, MACD)
   useEffect(() => {
     if (!chartRef.current || !candleSeriesRef.current) return;
     if (candles.length === 0) return;
@@ -450,9 +485,75 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
           maSeries.setData(maData);
           indicatorsRef.current.set(indicator, maSeries);
         }
+      } else if (indicator === 'VWAP') {
+        const vwapData = calculateVWAP(candles);
+        
+        if (vwapData.length > 0) {
+          const vwapSeries = chartRef.current.addLineSeries({
+            color: '#F59E0B',
+            lineWidth: 2,
+            lineStyle: 2, // Dashed
+            priceLineVisible: false,
+            lastValueVisible: true,
+            crosshairMarkerVisible: true,
+          });
+          
+          vwapSeries.setData(vwapData);
+          indicatorsRef.current.set(indicator, vwapSeries);
+        }
+      } else if (indicator === 'RSI') {
+        const rsiData = calculateRSI(candles, 14);
+        
+        if (rsiData.length > 0) {
+          const rsiSeries = chartRef.current.addLineSeries({
+            color: '#8B5CF6',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceScaleId: 'rsi', // Separate scale
+          });
+          
+          // Configure RSI scale (0-100)
+          chartRef.current.priceScale('rsi').applyOptions({
+            scaleMargins: {
+              top: 0.7,
+              bottom: 0,
+            },
+          });
+          
+          rsiSeries.setData(rsiData);
+          indicatorsRef.current.set(indicator, rsiSeries);
+        }
+      } else if (indicator === 'MACD') {
+        const macdData = calculateMACD(candles);
+        
+        if (macdData.histogram.length > 0) {
+          // MACD histogram
+          const macdHistogram = chartRef.current.addHistogramSeries({
+            color: '#10B981',
+            priceFormat: {
+              type: 'volume',
+            },
+            priceScaleId: 'macd',
+          });
+          
+          // Configure MACD scale
+          chartRef.current.priceScale('macd').applyOptions({
+            scaleMargins: {
+              top: 0.7,
+              bottom: 0,
+            },
+          });
+          
+          macdHistogram.setData(macdData.histogram);
+          indicatorsRef.current.set('MACD', macdHistogram);
+        }
       }
     });
-  }, [activeIndicators, candles]);
+    
+    // Save to persistence
+    updateIndicators(Array.from(activeIndicators));
+  }, [activeIndicators, candles, updateIndicators]);
 
   // Clear drawings when symbol/resolution changes
   useEffect(() => {

@@ -12,8 +12,9 @@ export const useDydxCandles = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [isBackfilling, setIsBackfilling] = useState(false);
 
-  // Load initial candles
+  // Load initial candles with 180-day backfill
   useEffect(() => {
     console.log('[useDydxCandles] Hook triggered', { symbol, resolution, limit });
 
@@ -21,6 +22,7 @@ export const useDydxCandles = (
       console.warn('[useDydxCandles] No symbol provided, skipping fetch');
       setCandles([]);
       setLoading(false);
+      setIsBackfilling(false);
       return;
     }
 
@@ -31,22 +33,52 @@ export const useDydxCandles = (
         console.log('[useDydxCandles] Starting fetch for', symbol);
         setLoading(true);
         setError(null);
+        setIsBackfilling(true);
         
+        // Initial fetch to show chart quickly
         const data = await dydxMarketService.getCandles(symbol, resolution, limit);
+        console.log('[useDydxCandles] Received initial candles:', data?.length || 0);
         
-        console.log('[useDydxCandles] Received candles:', data?.length || 0, 'candles');
+        if (!mounted) return;
         
+        const sortedData = (data || []).sort((a, b) => a.timestamp - b.timestamp);
+        setCandles(sortedData);
+        setLoading(false); // Show chart immediately
+        setError(null);
+        setHasMore(data && data.length >= limit);
+
+        // Background backfill (up to 1000 candles for performance)
+        let allCandles = [...sortedData];
+        const maxCandles = 1000;
+        let fetchCount = 0;
+
+        while (allCandles.length < maxCandles && fetchCount < 5 && mounted) {
+          const oldestTime = allCandles[0]?.timestamp;
+          if (!oldestTime) break;
+
+          // Fetch older data without passing timestamp (API limitation)
+          const moreData = await dydxMarketService.getCandles(symbol, resolution, limit);
+          if (!moreData || moreData.length === 0 || !mounted) break;
+
+          const olderCandles = moreData.filter(c => c.timestamp < oldestTime);
+          if (olderCandles.length === 0) break;
+
+          allCandles = [...olderCandles.sort((a, b) => a.timestamp - b.timestamp), ...allCandles];
+          setCandles([...allCandles]);
+          
+          fetchCount++;
+          await new Promise(resolve => setTimeout(resolve, 200)); // Rate limit
+        }
+
         if (mounted) {
-          // Ensure ascending order
-          const sortedData = (data || []).sort((a, b) => a.timestamp - b.timestamp);
-          setCandles(sortedData);
-          setError(null);
-          setHasMore(data && data.length >= limit);
+          setIsBackfilling(false);
+          console.log(`[useDydxCandles] Backfilled ${allCandles.length} candles`);
         }
       } catch (err) {
         console.error('[useDydxCandles] Error fetching candles:', err);
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Failed to load candles');
+          setIsBackfilling(false);
         }
       } finally {
         if (mounted) {
@@ -156,5 +188,5 @@ export const useDydxCandles = (
     }
   }, [symbol, resolution, limit, candles, hasMore, loading]);
 
-  return { candles, loading, error, hasMore, loadMore };
+  return { candles, loading, error, hasMore, isBackfilling, loadMore };
 };
