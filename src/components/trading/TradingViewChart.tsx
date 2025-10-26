@@ -37,7 +37,9 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   const [isLoading, setIsLoading] = useState(false);
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
   const lastCandleCountRef = useRef(0);
+  const lastCandleTimestampRef = useRef<number | null>(null);
   const updateDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
   
   // Drawing tools state
   const {
@@ -56,6 +58,11 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   // Refs for managing chart elements
   const indicatorsRef = useRef<Map<string, any>>(new Map());
   const drawnLinesRef = useRef<Map<string, any>>(new Map());
+
+  // Keep onLoadMore ref up to date without triggering effect
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -133,6 +140,8 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
           timeVisible: true,
           secondsVisible: false,
           borderColor: 'rgba(212, 175, 55, 0.2)',
+          rightOffset: 5,
+          lockVisibleTimeRangeOnResize: true,
         },
         rightPriceScale: {
           borderColor: 'rgba(212, 175, 55, 0.2)',
@@ -211,25 +220,28 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       candleSeries.setData(chartData);
       volumeSeries.setData(volumeData);
 
-      // Set up lazy loading on scroll
-      if (onLoadMore) {
-        chart.timeScale().subscribeVisibleLogicalRangeChange((range: any) => {
-          if (!range || !chartData.length) return;
-          
-          const firstVisibleTime = chartData[Math.floor(range.from)]?.time;
-          if (firstVisibleTime && (!earliestLoadedTime || firstVisibleTime < earliestLoadedTime)) {
-            setEarliestLoadedTime(firstVisibleTime);
-            // Trigger load more when scrolling near the beginning
-            if (range.from < 10) {
-              console.log('[TradingViewChart] Loading more historical data');
-              onLoadMore();
-            }
+      // Set up lazy loading on scroll using ref
+      chart.timeScale().subscribeVisibleLogicalRangeChange((range: any) => {
+        if (!range || !chartData.length || !onLoadMoreRef.current) return;
+        
+        const firstVisibleTime = chartData[Math.floor(range.from)]?.time;
+        if (firstVisibleTime && (!earliestLoadedTime || firstVisibleTime < earliestLoadedTime)) {
+          setEarliestLoadedTime(firstVisibleTime);
+          // Trigger load more when scrolling near the beginning
+          if (range.from < 10) {
+            console.log('[TradingViewChart] Loading more historical data');
+            onLoadMoreRef.current();
           }
-        });
-      }
+        }
+      });
 
-      // Fit content to view
+      // Fit content to view on initial load only
       chart.timeScale().fitContent();
+      
+      // Track the last candle timestamp
+      if (sortedCandles.length > 0) {
+        lastCandleTimestampRef.current = sortedCandles[sortedCandles.length - 1].timestamp;
+      }
 
       // Store refs
       chartRef.current = chart;
@@ -333,7 +345,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution, onLoadMore]);
+  }, [symbol, resolution]); // Removed onLoadMore to prevent remounting
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
@@ -352,6 +364,16 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
       // Sort ascending by timestamp (required by lightweight-charts)
       const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+      
+      // Skip update if no actual change in data
+      if (sortedCandles.length === 0) return;
+      
+      const lastCandle = sortedCandles[sortedCandles.length - 1];
+      const lastTimestamp = lastCandle.timestamp;
+      
+      // Check if this is truly a new update by comparing timestamps
+      const isSameCandle = lastTimestamp === lastCandleTimestampRef.current;
+      const isNewCandle = lastTimestamp > (lastCandleTimestampRef.current || 0);
 
       const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
@@ -375,19 +397,18 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
             : 'rgba(239, 68, 68, 0.5)',
         }));
 
-      // Detect if this is an incremental update (1-2 new candles) or full reload
-      const isIncrementalUpdate = Math.abs(chartData.length - lastCandleCountRef.current) <= 2 
-        && lastCandleCountRef.current > 0;
+      // Smart update strategy based on what changed
+      const isIncrementalUpdate = (isSameCandle || isNewCandle) && lastCandleCountRef.current > 0;
 
       if (isIncrementalUpdate && chartData.length > 0) {
-        // Incremental update: only update the last few candles
-        const lastCandle = chartData[chartData.length - 1];
-        const lastVolume = volumeData[volumeData.length - 1];
+        // Incremental update: only update the last candle
+        const lastChartCandle = chartData[chartData.length - 1];
+        const lastVolumeData = volumeData[volumeData.length - 1];
         
         try {
-          candleSeriesRef.current.update(lastCandle);
-          if (lastVolume) {
-            volumeSeriesRef.current.update(lastVolume);
+          candleSeriesRef.current.update(lastChartCandle);
+          if (lastVolumeData) {
+            volumeSeriesRef.current.update(lastVolumeData);
           }
         } catch (e) {
           // If update fails, fall back to setData
@@ -396,18 +417,20 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
           volumeSeriesRef.current.setData(volumeData);
         }
       } else {
-        // Full reload: use setData and fit content
+        // Full reload: use setData (for historical data loads)
         candleSeriesRef.current.setData(chartData);
         volumeSeriesRef.current.setData(volumeData);
         
-        // Only fit content on full reload (symbol/resolution change)
+        // Only fit content on initial load
         if (lastCandleCountRef.current === 0) {
           chartRef.current.timeScale().fitContent();
         }
       }
 
+      // Update tracking refs
       lastCandleCountRef.current = chartData.length;
-    }, 150); // 150ms debounce for batching rapid updates
+      lastCandleTimestampRef.current = lastTimestamp;
+    }, 250); // Increased to 250ms for better batching
 
     return () => {
       if (updateDebounceRef.current) {

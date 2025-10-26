@@ -105,6 +105,15 @@ export const useDydxCandles = (
               const existingIndex = newCandles.findIndex(c => c && c.timestamp === updateToApply.timestamp);
 
               if (existingIndex >= 0) {
+                const existingCandle = newCandles[existingIndex];
+                // Skip update if values haven't changed (no visual difference)
+                if (existingCandle && 
+                    existingCandle.close === updateToApply.close &&
+                    existingCandle.high === updateToApply.high &&
+                    existingCandle.low === updateToApply.low &&
+                    existingCandle.volume === updateToApply.volume) {
+                  return prev; // No change, skip update
+                }
                 // Update existing candle in place
                 newCandles[existingIndex] = updateToApply;
               } else {
@@ -116,7 +125,7 @@ export const useDydxCandles = (
             });
 
             pendingUpdate = null;
-          }, 100); // 100ms debounce
+          }, 500); // Increased to 500ms for professional trading chart feel
         }
       }
     );
