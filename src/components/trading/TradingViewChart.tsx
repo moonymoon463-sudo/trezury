@@ -5,6 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
 import { Loader2 } from 'lucide-react';
 import { SpiralOverlay } from '@/components/SpiralOverlay';
+import { ChartDrawingTools } from './ChartDrawingTools';
+import { useChartDrawingTools } from '@/hooks/useChartDrawingTools';
+import { calculateSMA } from '@/utils/chartIndicators';
 
 interface TradingViewChartProps {
   symbol: string;
@@ -35,6 +38,24 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
   const lastCandleCountRef = useRef(0);
   const updateDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Drawing tools state
+  const {
+    drawingMode,
+    activeIndicators,
+    drawnLines,
+    trendLineStart,
+    toggleDrawingMode,
+    toggleIndicator,
+    addLine,
+    removeLine,
+    clearAll,
+    setTrendLineStart,
+  } = useChartDrawingTools();
+  
+  // Refs for managing chart elements
+  const indicatorsRef = useRef<Map<string, any>>(new Map());
+  const drawnLinesRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -214,6 +235,70 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       chartRef.current = chart;
       candleSeriesRef.current = candleSeries;
       volumeSeriesRef.current = volumeSeries;
+      
+      // Subscribe to chart clicks for drawing tools
+      chart.subscribeClick((param: any) => {
+        if (!param.point || !param.time) return;
+        
+        const price = param.seriesPrices.get(candleSeries);
+        if (!price) return;
+        
+        if (drawingMode === 'horizontal') {
+          // Create horizontal price line
+          const priceLine = candleSeries.createPriceLine({
+            price: price,
+            color: '#D4AF37',
+            lineWidth: 2,
+            lineStyle: 2, // Dashed
+            axisLabelVisible: true,
+            title: 'S/R',
+          });
+          
+          const lineId = `h-line-${Date.now()}`;
+          drawnLinesRef.current.set(lineId, priceLine);
+          addLine({
+            id: lineId,
+            type: 'horizontal',
+            price: price,
+          });
+          
+          // Auto-exit drawing mode after placing line
+          toggleDrawingMode('none');
+        } else if (drawingMode === 'trendline') {
+          if (!trendLineStart) {
+            // First click - set start point
+            setTrendLineStart({ time: param.time as number, price });
+          } else {
+            // Second click - complete trend line
+            const trendSeries = chart.addLineSeries({
+              color: '#D4AF37',
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: false,
+            });
+            
+            trendSeries.setData([
+              { time: trendLineStart.time, value: trendLineStart.price },
+              { time: param.time as number, value: price },
+            ]);
+            
+            const lineId = `t-line-${Date.now()}`;
+            drawnLinesRef.current.set(lineId, trendSeries);
+            addLine({
+              id: lineId,
+              type: 'trendline',
+              points: [
+                { time: trendLineStart.time, price: trendLineStart.price },
+                { time: param.time as number, price },
+              ],
+            });
+            
+            // Reset and exit drawing mode
+            setTrendLineStart(null);
+            toggleDrawingMode('none');
+          }
+        }
+      });
 
       // Handle resize
       const handleResize = () => {
@@ -228,6 +313,16 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
       cleanup = () => {
         window.removeEventListener('resize', handleResize);
+        // Clear all drawn lines and indicators
+        drawnLinesRef.current.clear();
+        indicatorsRef.current.forEach(series => {
+          try {
+            chart.removeSeries(series);
+          } catch (e) {
+            // Series may already be removed
+          }
+        });
+        indicatorsRef.current.clear();
         chart.remove();
       };
     };
@@ -321,6 +416,63 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     };
   }, [candles]);
 
+  // Manage indicators (moving averages)
+  useEffect(() => {
+    if (!chartRef.current || !candleSeriesRef.current) return;
+    if (candles.length === 0) return;
+
+    // Remove old indicators
+    indicatorsRef.current.forEach((series) => {
+      try {
+        chartRef.current.removeSeries(series);
+      } catch (e) {
+        // Series may already be removed
+      }
+    });
+    indicatorsRef.current.clear();
+
+    // Add active indicators
+    activeIndicators.forEach((indicator) => {
+      if (indicator.startsWith('MA')) {
+        const period = parseInt(indicator.slice(2));
+        const maData = calculateSMA(candles, period);
+
+        if (maData.length > 0) {
+          const maSeries = chartRef.current.addLineSeries({
+            color: period === 20 ? '#3B82F6' : period === 50 ? '#9333EA' : '#EF4444',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            crosshairMarkerVisible: true,
+            priceScaleId: '', // Overlay on main scale
+          });
+
+          maSeries.setData(maData);
+          indicatorsRef.current.set(indicator, maSeries);
+        }
+      }
+    });
+  }, [activeIndicators, candles]);
+
+  // Clear drawings when symbol/resolution changes
+  useEffect(() => {
+    drawnLinesRef.current.forEach((line, id) => {
+      try {
+        if (line.removePriceLine) {
+          // It's a price line
+          candleSeriesRef.current?.removePriceLine(line);
+        } else if (line.setData) {
+          // It's a series
+          chartRef.current?.removeSeries(line);
+        }
+      } catch (e) {
+        // Already removed
+      }
+    });
+    drawnLinesRef.current.clear();
+    clearAll();
+  }, [symbol, resolution]);
+
   const handleTimeframeChange = (newResolution: string) => {
     setIsLoading(true);
     onResolutionChange(newResolution);
@@ -357,6 +509,16 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
   return (
     <div className="flex flex-col h-full gap-3 p-4">
+      {/* Drawing Tools Toolbar */}
+      <ChartDrawingTools
+        drawingMode={drawingMode}
+        onDrawingModeChange={toggleDrawingMode}
+        activeIndicators={activeIndicators}
+        onToggleIndicator={toggleIndicator}
+        onClearAll={clearAll}
+        disabled={isLoading || loading}
+      />
+      
       {/* Timeframe Selector */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
