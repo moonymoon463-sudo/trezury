@@ -791,7 +791,7 @@ const TradingDashboard = () => {
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Fixed Height with Internal Scroll */}
-        <div className="mb-2 flex-shrink-0 max-h-[120px] overflow-hidden">
+        <div className="mb-1.5 flex-shrink-0 max-h-[110px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -820,10 +820,10 @@ const TradingDashboard = () => {
 
         {tradeMode !== 'positions' ? (
           <>
-            <div className="space-y-1.5 overflow-y-auto flex-1 pr-1 min-h-0">
+            <div className="space-y-1 pr-1">
               {/* Order Type */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
+                <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">Order Type</label>
                 <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
                   <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white">
                     <SelectValue placeholder="Market Order" />
@@ -852,7 +852,7 @@ const TradingDashboard = () => {
 
               {/* Price */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1 block">
+                <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">
                   {orderType === 'stop-limit' ? 'Limit Price (USDT)' : 'Price (USDT)'}
                 </label>
                 <input
@@ -867,7 +867,7 @@ const TradingDashboard = () => {
 
               {/* Order Size */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1 block">
+                <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">
                   Order Size ({selectedAsset?.split('-')[0] || 'BTC'})
                   {rules && <span className="ml-2 text-[10px]">(Min: {rules.minOrderSize})</span>}
                 </label>
@@ -908,7 +908,7 @@ const TradingDashboard = () => {
 
               {/* Leverage */}
               {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
                     <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
@@ -952,7 +952,7 @@ const TradingDashboard = () => {
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
-            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
+            <div className="flex-shrink-0 space-y-1.5 pt-2 mt-auto border-t border-[#463c25] bg-[#2a251a]">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#c6b795]">Total:</span>

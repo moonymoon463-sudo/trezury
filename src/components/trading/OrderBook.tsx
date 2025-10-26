@@ -147,14 +147,14 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const orderbookContent = (
     <>
       {/* Header */}
-      <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground mb-1 px-1">
+      <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground mb-0.5 px-1">
         <div>Price</div>
         <div className="text-right">Size</div>
         <div className="text-right">Total</div>
       </div>
 
-      {/* Asks (Sells) - Red - Reversed to show highest first, best ask closest to spread */}
-      <div>
+      {/* Asks (Sells) - Red - Top 3 reversed */}
+      <div className="space-y-px">
         {[...asks].reverse().map((ask, idx) => {
           const depthPercent = (ask.total / maxAskTotal) * 100;
           return (
@@ -173,16 +173,14 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
       </div>
 
       {/* Current Price / Spread - Compact */}
-      <div className="text-center py-1 border-y border-[#463c25] my-0.5 bg-[#211d12]/30">
-        <div className="text-xs font-bold text-[#e6b951]">
-          ${parseFloat(asks[0]?.price || '0').toFixed(2)} 
-          <span className="text-[9px] text-muted-foreground mx-1">|</span>
-          ${parseFloat(bids[0]?.price || '0').toFixed(2)}
-        </div>
+      <div className="flex items-center justify-center py-0.5 my-0.5 border-y border-white/20 bg-background/50">
+        <span className="text-[10px] text-[#c6b795] font-medium">
+          Spread: ${parseFloat(asks[0]?.price || '0').toFixed(2)} - ${parseFloat(bids[0]?.price || '0').toFixed(2)}
+        </span>
       </div>
 
       {/* Bids (Buys) - Green */}
-      <div>
+      <div className="space-y-px">
         {bids.map((bid, idx) => {
           const depthPercent = (bid.total / maxBidTotal) * 100;
           return (
