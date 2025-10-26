@@ -71,7 +71,7 @@ export const WepsInsightsCard = ({ phase, bioState, confidence, volatility }: We
         <QuantumParticles color={colors.primary} count={15} className="opacity-30" />
 
         {/* Content */}
-        <div className="relative p-6 space-y-6">
+        <div className="relative p-4 space-y-4">
           {/* Header with holographic title */}
           <div className="flex items-start justify-between">
             <HolographicGlitch intensity={0.3}>
