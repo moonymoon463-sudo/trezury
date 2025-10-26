@@ -296,7 +296,7 @@ const TradingDashboard = () => {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#211d12]">
       {/* Left Sidebar */}
-      <aside className="flex flex-col w-64 bg-[#211d12] border-r border-[#463c25] p-4 overflow-y-auto">
+      <aside className="flex flex-col w-64 bg-[#211d12] border-r border-[#463c25] p-4 overflow-y-auto flex-shrink-0">
         {/* Logo & Title */}
         <div className="flex items-center gap-3 mb-8">
           <AurumLogo className="h-16 w-16" />
@@ -307,7 +307,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Portfolio Overview */}
-        <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col gap-3 mb-8">
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#463c25]">
             <WalletIcon className="h-5 w-5 text-white" />
             <p className="text-white text-sm font-medium leading-normal">Portfolio Overview</p>
@@ -318,7 +318,7 @@ const TradingDashboard = () => {
           <div className="flex gap-0.5 bg-[#211d12] rounded-lg p-1">
             <button
               onClick={() => setWalletType('trading')}
-              className={`flex-1 px-1 py-1.5 rounded text-[10px] font-semibold transition-colors whitespace-nowrap ${
+              className={`flex-1 px-1 py-1.5 rounded text-xs font-semibold transition-colors duration-150 whitespace-nowrap ${
                 walletType === 'trading' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
@@ -328,7 +328,7 @@ const TradingDashboard = () => {
             </button>
             <button
               onClick={() => setWalletType('internal')}
-              className={`flex-1 px-1 py-1.5 rounded text-[10px] font-semibold transition-colors whitespace-nowrap ${
+              className={`flex-1 px-1 py-1.5 rounded text-xs font-semibold transition-colors duration-150 whitespace-nowrap ${
                 walletType === 'internal' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
@@ -338,7 +338,7 @@ const TradingDashboard = () => {
             </button>
             <button
               onClick={() => setWalletType('external')}
-              className={`flex-1 px-1 py-1.5 rounded text-[10px] font-semibold transition-colors whitespace-nowrap ${
+              className={`flex-1 px-1 py-1.5 rounded text-xs font-semibold transition-colors duration-150 whitespace-nowrap ${
                 walletType === 'external' 
                   ? 'bg-[#e6b951] text-black' 
                   : 'text-[#c6b795] hover:text-white'
@@ -351,8 +351,8 @@ const TradingDashboard = () => {
           {/* Wallet Info - Always show wallet type selector */}
           {walletType === 'trading' ? (
             hasDydxWallet && dydxAddress ? (
-              <>
-                <div className="pl-3 space-y-3">
+              <div className="bg-[#2a251a] rounded-lg p-3 border border-[#463c25] space-y-2 min-h-[180px]">
+                <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#c6b795] text-xs">Trading Wallet:</span>
@@ -383,7 +383,7 @@ const TradingDashboard = () => {
                   onClick={handleRefreshBalances}
                   variant="ghost"
                   size="sm"
-                  className="w-full text-[#c6b795] hover:text-white hover:bg-[#463c25]"
+                  className="w-full h-9 text-[#c6b795] hover:text-white hover:bg-[#463c25] transition-colors duration-150"
                   disabled={internalLoading}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${internalLoading ? 'animate-spin' : ''}`} />
@@ -394,20 +394,20 @@ const TradingDashboard = () => {
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold"
+                      className="w-full h-9 bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold transition-colors duration-150"
                     >
                       Deposit
                     </Button>
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold"
+                      className="w-full h-9 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold transition-colors duration-150"
                     >
                       Withdraw
                     </Button>
                   </>
                 )}
-              </>
+              </div>
             ) : (
               <div className="space-y-3">
                 <div className="text-center py-4">
@@ -428,8 +428,8 @@ const TradingDashboard = () => {
             )
           ) : walletType === 'internal' ? (
             internalAddress ? (
-              <>
-                <div className="pl-3 space-y-3">
+              <div className="bg-[#2a251a] rounded-lg p-3 border border-[#463c25] space-y-2 min-h-[180px]">
+                <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#c6b795] text-xs">Internal Address:</span>
@@ -464,13 +464,13 @@ const TradingDashboard = () => {
                   onClick={handleRefreshBalances}
                   variant="ghost"
                   size="sm"
-                  className="w-full text-[#c6b795] hover:text-white hover:bg-[#463c25]"
+                  className="w-full h-9 text-[#c6b795] hover:text-white hover:bg-[#463c25] transition-colors duration-150"
                   disabled={internalLoading}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${internalLoading ? 'animate-spin' : ''}`} />
                   Refresh Balances
                 </Button>
-              </>
+              </div>
             ) : (
               <div className="space-y-3">
                 <div className="text-center py-4">
@@ -491,8 +491,8 @@ const TradingDashboard = () => {
             )
           ) : (
             wallet.isConnected ? (
-              <>
-                <div className="pl-3 space-y-3">
+              <div className="bg-[#2a251a] rounded-lg p-3 border border-[#463c25] space-y-2 min-h-[180px]">
+                <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#c6b795] text-xs">External Address:</span>
@@ -517,7 +517,7 @@ const TradingDashboard = () => {
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
+                      className="w-full h-9 bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold inline-flex items-center justify-center gap-1.5 leading-none transition-colors duration-150"
                     >
                        <DollarSign className="h-4 w-4" />
                       Deposit
@@ -525,14 +525,14 @@ const TradingDashboard = () => {
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
+                      className="w-full h-9 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold inline-flex items-center justify-center gap-1.5 leading-none transition-colors duration-150"
                     >
                       <DollarSign className="h-4 w-4" />
                       Withdraw
                     </Button>
                   </>
                 )}
-              </>
+              </div>
             ) : (
               <div className="space-y-3">
                 <div className="text-center py-4">
@@ -619,29 +619,29 @@ const TradingDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-y-auto">
+      <main className="flex-1 flex flex-col p-2 relative bg-[#211d12] overflow-y-auto flex-shrink-0">
         {/* Top Stats */}
-        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-1 ml-auto flex-shrink-0">
+        <div className="flex gap-2 p-1.5 bg-[#2a251a]/50 backdrop-blur-sm rounded-lg border border-[#635636]/50 mb-2 ml-auto flex-shrink-0">
           {isCurrentWalletConnected && (
             <>
-              <div className="flex flex-col items-center px-1.5">
-                <p className="text-[#c6b795] text-[10px] font-medium">Wallet</p>
-                <p className="text-white text-xs font-bold capitalize">{walletType}</p>
+              <div className="flex flex-col items-center px-2.5 hover:bg-[#2a251a]/70 rounded transition-colors duration-150">
+                <p className="text-[#c6b795] text-xs font-medium">Wallet</p>
+                <p className="text-white text-sm font-bold capitalize">{walletType}</p>
               </div>
-              <div className="flex flex-col items-center px-1.5">
-                <p className="text-[#c6b795] text-[10px] font-medium">P&L</p>
-                <p className="text-green-400 text-xs font-bold">+$1.2K</p>
+              <div className="flex flex-col items-center px-2.5 hover:bg-[#2a251a]/70 rounded transition-colors duration-150">
+                <p className="text-[#c6b795] text-xs font-medium">P&L</p>
+                <p className="text-green-400 text-sm font-bold">+$1.2K</p>
               </div>
-              <div className="flex flex-col items-center px-1.5">
-                <p className="text-[#c6b795] text-[10px] font-medium">Funding</p>
-                <p className="text-white text-xs font-bold">0.01%</p>
+              <div className="flex flex-col items-center px-2.5 hover:bg-[#2a251a]/70 rounded transition-colors duration-150">
+                <p className="text-[#c6b795] text-xs font-medium">Funding</p>
+                <p className="text-white text-sm font-bold">0.01%</p>
               </div>
             </>
           )}
         </div>
 
         {/* Top Navigation Tabs */}
-        <div className="flex border-b border-[#463c25] gap-6 mb-1.5 flex-shrink-0 -mt-0.5">
+        <div className="flex border-b border-[#463c25] gap-6 mb-2 flex-shrink-0">
           <button 
             onClick={() => handleTradingModeChange('spot')}
             className={`flex flex-col items-center justify-center border-b-2 pb-2 pt-1 ${
@@ -669,7 +669,7 @@ const TradingDashboard = () => {
 
         {/* Price Display */}
         {currentAsset && 'price' in currentAsset && (
-          <div className="mb-1.5 flex-shrink-0">
+          <div className="mb-2 flex-shrink-0">
             <div className="flex items-baseline gap-2">
               <p className="text-[#c6b795] text-xs font-medium">{selectedAsset}</p>
               <h2 className="text-white text-xl font-outfit font-light tracking-tight">
@@ -687,15 +687,17 @@ const TradingDashboard = () => {
         )}
 
         {/* Chart Controls */}
-        <div className="flex items-center justify-between gap-1 mb-1.5 flex-shrink-0">
-          <div className="flex gap-0.5">
-            {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval) => (
+        <div className="flex items-center justify-between gap-1 mb-2 flex-shrink-0">
+          <div className="flex gap-0">
+            {['1m', '5m', '15m', '1h', '4h', '1d'].map((interval, idx) => (
               <Button
                 key={interval}
                 size="sm"
                 variant="ghost"
                 onClick={() => setChartResolution(chartResolutionMap[interval])}
-                className={`h-6 px-2 text-[10px] ${chartResolution === chartResolutionMap[interval] ? 'bg-[#463c25] text-white' : 'text-[#c6b795] hover:text-white hover:bg-[#463c25]/50'}`}
+                className={`h-6 px-2 text-[10px] transition-colors duration-150 ${
+                  idx === 0 ? 'rounded-r-none' : idx === 5 ? 'rounded-l-none' : 'rounded-none'
+                } ${chartResolution === chartResolutionMap[interval] ? 'bg-[#463c25] text-white' : 'text-[#c6b795] hover:text-white hover:bg-[#463c25]'}`}
               >
                 {interval}
               </Button>
@@ -718,7 +720,7 @@ const TradingDashboard = () => {
         />
 
         {/* Chart Section */}
-        <div className="h-[380px] flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
+        <div className="h-[400px] flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -755,15 +757,17 @@ const TradingDashboard = () => {
 
         {/* Open Positions Table */}
         {hasDydxWallet && dydxAddress && (
-          <div className="mb-2 flex-shrink-0">
-            <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
+          <div className="mb-2 flex-shrink-0 max-h-[160px] overflow-hidden">
+            <div className="max-h-[160px] overflow-y-auto">
+              <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
+            </div>
           </div>
         )}
       </main>
 
       {/* Right Sidebar - Order Panel */}
       <aside className="w-80 h-screen bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
-        <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
+        <h2 className="text-white text-lg font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Optimized Height */}
         <div className="mb-2 flex-shrink-0 max-h-[104px] overflow-hidden">
@@ -774,19 +778,19 @@ const TradingDashboard = () => {
           <TabsList className="grid w-full grid-cols-3 bg-[#211d12] p-0.5 h-9">
             <TabsTrigger 
               value="buy" 
-              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-[#c6b795] text-xs font-semibold rounded-sm transition-all"
+              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-[#c6b795] text-sm font-semibold rounded-sm transition-colors duration-150"
             >
               Buy
             </TabsTrigger>
             <TabsTrigger 
               value="sell" 
-              className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-[#c6b795] text-xs font-semibold rounded-sm transition-all"
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-[#c6b795] text-sm font-semibold rounded-sm transition-colors duration-150"
             >
               Sell
             </TabsTrigger>
             <TabsTrigger 
               value="positions" 
-              className="data-[state=active]:bg-[#e6b951] data-[state=active]:text-black text-[#c6b795] text-xs font-semibold rounded-sm transition-all"
+              className="data-[state=active]:bg-[#e6b951] data-[state=active]:text-black text-[#c6b795] text-sm font-semibold rounded-sm transition-colors duration-150"
             >
               Positions
             </TabsTrigger>
@@ -857,16 +861,16 @@ const TradingDashboard = () => {
                 />
                 {/* Percentage Buttons */}
                 <div className="flex gap-1 mt-1.5">
-                  {['25%', '50%', '75%', '100%'].map((pct) => (
-                    <Button
-                      key={pct}
-                      size="sm"
-                      variant="ghost"
-                      className="flex-1 text-[10px] py-1 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
-                    >
-                      {pct}
-                    </Button>
-                  ))}
+                {['25%', '50%', '75%', '100%'].map((pct) => (
+                  <Button
+                    key={pct}
+                    size="sm"
+                    variant="ghost"
+                    className="flex-1 text-[10px] py-1 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150"
+                  >
+                    {pct}
+                  </Button>
+                ))}
                 </div>
                 
                 {/* Fee Preview */}
@@ -883,7 +887,7 @@ const TradingDashboard = () => {
 
               {/* Leverage */}
               {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-2">
+                <div className="space-y-2 mt-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
                     <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
@@ -898,8 +902,8 @@ const TradingDashboard = () => {
                         variant={leverage === parseInt(lvg) ? "default" : "ghost"}
                         onClick={() => setLeverage(parseInt(lvg))}
                         className={leverage === parseInt(lvg) 
-                          ? 'flex-1 text-[10px] py-1 h-6 bg-[#e6b951] text-black' 
-                          : 'flex-1 text-[10px] py-1 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
+                          ? 'flex-1 text-[10px] py-1 h-6 bg-[#e6b951] text-black transition-colors duration-150' 
+                          : 'flex-1 text-[10px] py-1 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150'
                         }
                       >
                         {lvg}
@@ -927,7 +931,7 @@ const TradingDashboard = () => {
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
-            <div className="flex-shrink-0 space-y-1.5 pt-2 mt-auto border-t border-[#463c25] bg-[#2a251a]">
+            <div className="flex-shrink-0 space-y-1.5 pt-2.5 mt-2 border-t border-[#463c25] bg-[#2a251a]">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#c6b795]">Total:</span>
@@ -952,7 +956,7 @@ const TradingDashboard = () => {
                 {isCurrentWalletConnected ? (
                   <Button
                     onClick={handlePlaceOrder}
-                    className={`w-full h-10 font-bold text-sm ${
+                    className={`w-full h-10 font-bold text-sm transition-colors duration-150 ${
                       tradeMode === 'buy' 
                         ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
                         : 'bg-red-600 hover:bg-red-700 text-white'
@@ -964,7 +968,7 @@ const TradingDashboard = () => {
                 ) : (
                   <Button
                     onClick={() => setShowDydxWalletSetup(true)}
-                    className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm"
+                    className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm transition-colors duration-150"
                   >
                     <Shield className="h-4 w-4 mr-2" />
                     Set Up Trading Wallet
