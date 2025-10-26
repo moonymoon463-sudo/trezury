@@ -885,14 +885,14 @@ const TradingDashboard = () => {
 
               {/* Leverage */}
               {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-1.5 mt-1.5">
-                  <div className="flex items-center justify-between">
+                <div className="space-y-2.5 mt-2">
+                  <div className="flex items-center justify-between mb-1">
                     <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
                     <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
                   </div>
                   
                   {/* Quick Leverage Buttons */}
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     {['1x', '5x', '10x', '20x'].map((lvg) => (
                       <Button
                         key={lvg}
@@ -910,7 +910,7 @@ const TradingDashboard = () => {
                   </div>
 
                   {/* Custom Leverage Slider */}
-                  <div className="px-1">
+                  <div className="px-1 pt-1">
                     <Slider
                       value={[leverage]}
                       onValueChange={(value) => setLeverage(value[0])}
@@ -919,7 +919,7 @@ const TradingDashboard = () => {
                       step={1}
                       className="cursor-pointer"
                     />
-                    <div className="flex justify-between mt-0.5 text-[10px] text-[#c6b795]/60">
+                    <div className="flex justify-between mt-1.5 text-[10px] text-[#c6b795]/60">
                       <span>1x</span>
                       <span>20x</span>
                     </div>
