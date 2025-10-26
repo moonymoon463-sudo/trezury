@@ -1,6 +1,12 @@
-import { motion } from 'framer-motion';
-import { Badge } from '@/components/ui/badge';
-import { Zap } from 'lucide-react';
+import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { NeuralNetworkIcon } from "./icons/NeuralNetworkIcon";
+import { CircularProgress } from "./visualizers/CircularProgress";
+import { WaveformChart } from "./visualizers/WaveformChart";
+import { NeuralBackground } from "./visualizers/NeuralBackground";
+import { HolographicGlitch } from "./effects/HolographicGlitch";
+import { QuantumParticles } from "./effects/QuantumParticles";
 
 interface WepsInsightsCardProps {
   phase: string;
@@ -9,260 +15,290 @@ interface WepsInsightsCardProps {
   volatility: number;
 }
 
-const phaseColors = {
-  Growth: { primary: '#10b981', secondary: '#06b6d4', glow: 'rgba(16, 185, 129, 0.3)' },
-  Decay: { primary: '#ef4444', secondary: '#f59e0b', glow: 'rgba(239, 68, 68, 0.3)' },
-  Rebirth: { primary: '#a855f7', secondary: '#ec4899', glow: 'rgba(168, 85, 247, 0.3)' },
-  Death: { primary: '#9ca3af', secondary: '#ffffff', glow: 'rgba(255, 255, 255, 0.2)' },
-  Neutral: { primary: '#e6b951', secondary: '#f59e0b', glow: 'rgba(230, 185, 81, 0.3)' },
+// Phase color configurations
+const phaseColors: Record<string, { primary: string; secondary: string; glow: string }> = {
+  Growth: { primary: "#10b981", secondary: "#06b6d4", glow: "#10b98150" },
+  Decay: { primary: "#ef4444", secondary: "#f59e0b", glow: "#ef444450" },
+  Rebirth: { primary: "#a855f7", secondary: "#ec4899", glow: "#a855f750" },
+  Death: { primary: "#ffffff", secondary: "#e5e7eb", glow: "#ffffff30" },
+  Neutral: { primary: "#e6b951", secondary: "#f59e0b", glow: "#e6b95150" }
 };
 
 export const WepsInsightsCard = ({ phase, bioState, confidence, volatility }: WepsInsightsCardProps) => {
-  const colors = phaseColors[phase as keyof typeof phaseColors] || phaseColors.Neutral;
-
-  const phaseMessages = {
-    Growth: "Market rhythm expanding — bias toward long positions.",
-    Decay: "Volatility fading — tighten risk exposure.",
-    Rebirth: "Momentum reversal forming — early entry opportunity.",
-    Death: "Entropy spike detected — stay defensive.",
-    Neutral: "Awaiting phase confirmation.",
+  const colors = phaseColors[phase] || phaseColors.Neutral;
+  
+  // Phase-specific messages
+  const phaseMessages: Record<string, string> = {
+    Growth: "Ecosystem expansion detected • Accumulation phase active",
+    Decay: "Energy dissipation in progress • Caution advised",
+    Rebirth: "Metamorphosis initiated • New cycle emerging",
+    Death: "Entropy maximized • Awaiting rebirth signal",
+    Neutral: "System equilibrium maintained • Monitoring fluctuations"
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-lg border backdrop-blur-sm"
-      style={{
-        background: `linear-gradient(135deg, rgba(42, 37, 26, 0.95) 0%, rgba(26, 23, 18, 0.95) 100%)`,
-        borderColor: colors.primary,
-        boxShadow: `0 0 20px ${colors.glow}, inset 0 0 20px rgba(0,0,0,0.3)`,
-      }}
+      transition={{ duration: 0.5 }}
+      className="relative"
     >
-      {/* Animated border gradient */}
-      <motion.div
-        className="absolute inset-0 rounded-lg opacity-50 pointer-events-none"
-        style={{
-          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary}, ${colors.primary})`,
-          backgroundSize: '200% 200%',
-        }}
-        animate={{
-          backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-      />
-
-      {/* Neural network background */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-        <svg className="w-full h-full">
-          <defs>
-            <pattern id="hexagons" x="0" y="0" width="50" height="43.4" patternUnits="userSpaceOnUse">
-              <path
-                d="M25 0 L50 14.43 L50 28.87 L25 43.3 L0 28.87 L0 14.43 Z"
-                fill="none"
-                stroke={colors.primary}
-                strokeWidth="0.5"
-                opacity="0.3"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#hexagons)" />
-        </svg>
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 p-4 space-y-4">
-        {/* Header */}
+      <Card className="relative overflow-hidden bg-black/40 border-0">
+        {/* Animated gradient border */}
         <motion.div
-          className="flex items-center justify-between"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          className="absolute inset-0 rounded-lg"
+          style={{
+            background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary}, ${colors.primary})`,
+            backgroundSize: "200% 200%",
+            padding: "2px"
+          }}
+          animate={{
+            backgroundPosition: ["0% 0%", "100% 100%", "0% 0%"]
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "linear"
+          }}
         >
-          <h3 className="text-white text-lg font-semibold flex items-center gap-2">
+          <div className="w-full h-full bg-background rounded-lg" />
+        </motion.div>
+
+        {/* Neural background */}
+        <NeuralBackground color={colors.primary} nodeCount={12} className="opacity-20" />
+
+        {/* Quantum particles */}
+        <QuantumParticles color={colors.primary} count={15} className="opacity-30" />
+
+        {/* Content */}
+        <div className="relative p-6 space-y-6">
+          {/* Header with holographic title */}
+          <div className="flex items-start justify-between">
+            <HolographicGlitch intensity={0.3}>
+              <div className="flex items-center gap-3">
+                <motion.div
+                  animate={{
+                    rotate: [0, 360],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{
+                    rotate: { duration: 20, repeat: Infinity, ease: "linear" },
+                    scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+                  }}
+                >
+                  <NeuralNetworkIcon size={32} color={colors.primary} />
+                </motion.div>
+                <div>
+                  <motion.h3 
+                    className="text-xl font-bold"
+                    style={{
+                      background: `linear-gradient(90deg, ${colors.primary}, ${colors.secondary}, ${colors.primary})`,
+                      backgroundSize: "200% 100%",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text"
+                    }}
+                    animate={{
+                      backgroundPosition: ["0% 0%", "200% 0%", "0% 0%"]
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "linear"
+                    }}
+                  >
+                    WEPS Bio-Adaptive Mode
+                  </motion.h3>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    Market Intelligence System
+                  </p>
+                </div>
+              </div>
+            </HolographicGlitch>
+
+            {/* Pulsing status badge */}
             <motion.div
               animate={{
-                rotate: [0, 360],
-                scale: [1, 1.2, 1],
+                scale: [1, 1.05, 1],
+                boxShadow: [
+                  `0 0 10px ${colors.glow}`,
+                  `0 0 20px ${colors.glow}`,
+                  `0 0 10px ${colors.glow}`
+                ]
               }}
               transition={{
                 duration: 2,
                 repeat: Infinity,
-                ease: 'easeInOut',
+                ease: "easeInOut"
               }}
             >
-              <Zap className="h-4 w-4" style={{ color: colors.primary }} />
-            </motion.div>
-            <span
-              className="bg-clip-text text-transparent bg-gradient-to-r"
-              style={{
-                backgroundImage: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-              }}
-            >
-              WEPS Mode – Bio-Adaptive Insights
-            </span>
-          </h3>
-          <motion.div
-            animate={{
-              scale: [1, 1.05, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          >
-            <Badge
-              className="font-mono"
-              style={{
-                background: `linear-gradient(135deg, ${colors.primary}33, ${colors.secondary}33)`,
-                color: colors.primary,
-                borderColor: colors.primary,
-                border: '1px solid',
-                boxShadow: `0 0 10px ${colors.glow}`,
-              }}
-            >
-              Confidence {(confidence * 100).toFixed(1)}%
-            </Badge>
-          </motion.div>
-        </motion.div>
-
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          {[
-            { label: 'Phase', value: phase, color: colors.primary },
-            { label: 'Bio State', value: bioState, color: colors.secondary },
-            { label: 'Volatility', value: `${(volatility * 100).toFixed(1)}%`, color: colors.primary },
-            {
-              label: 'Mode',
-              value: bioState,
-              color:
-                bioState === 'Aggressive'
-                  ? '#10b981'
-                  : bioState === 'Defensive'
-                  ? '#ef4444'
-                  : colors.primary,
-            },
-          ].map((metric, index) => (
-            <motion.div
-              key={metric.label}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 * index }}
-              className="relative p-3 rounded-lg border backdrop-blur-sm group hover:scale-105 transition-transform"
-              style={{
-                background: 'rgba(26, 23, 18, 0.8)',
-                borderColor: `${metric.color}44`,
-              }}
-            >
-              {/* Glow effect on hover */}
-              <div
-                className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                style={{
-                  boxShadow: `0 0 15px ${metric.color}66`,
+              <Badge 
+                variant="outline" 
+                className="border-2 font-mono"
+                style={{ 
+                  borderColor: colors.primary,
+                  color: colors.primary,
+                  backgroundColor: `${colors.glow}`
                 }}
+              >
+                ACTIVE
+              </Badge>
+            </motion.div>
+          </div>
+
+          {/* Metrics grid with circular progress */}
+          <div className="grid grid-cols-3 gap-4">
+            <motion.div 
+              className="flex flex-col items-center"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <CircularProgress
+                value={confidence * 100}
+                color={colors.primary}
+                label="CONF"
+                size={70}
+                strokeWidth={5}
               />
-              <p className="text-[#c6b795] mb-1 text-xs font-mono">{metric.label}</p>
-              <motion.p
-                className="font-bold font-mono"
-                style={{ color: metric.color }}
+            </motion.div>
+
+            <motion.div 
+              className="flex flex-col items-center justify-center space-y-1"
+              whileHover={{ scale: 1.05 }}
+            >
+              <Badge 
+                className="px-3 py-1 text-sm font-bold"
+                style={{ 
+                  backgroundColor: colors.primary,
+                  color: "#000"
+                }}
+              >
+                {phase}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Phase
+              </span>
+            </motion.div>
+
+            <motion.div 
+              className="flex flex-col items-center justify-center space-y-1"
+              whileHover={{ scale: 1.05 }}
+            >
+              <motion.div
+                className="text-lg font-bold font-mono"
+                style={{ color: colors.primary }}
                 animate={{
                   textShadow: [
-                    `0 0 5px ${metric.color}`,
-                    `0 0 10px ${metric.color}`,
-                    `0 0 5px ${metric.color}`,
-                  ],
+                    `0 0 10px ${colors.glow}`,
+                    `0 0 20px ${colors.glow}`,
+                    `0 0 10px ${colors.glow}`
+                  ]
                 }}
                 transition={{
                   duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
+                  repeat: Infinity
                 }}
               >
-                {metric.value}
-              </motion.p>
+                {bioState}
+              </motion.div>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Bio State
+              </span>
             </motion.div>
-          ))}
-        </div>
+          </div>
 
-        {/* Phase Message */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="relative text-sm leading-relaxed rounded-lg p-3 border backdrop-blur-sm overflow-hidden"
-          style={{
-            background: 'rgba(26, 23, 18, 0.9)',
-            borderColor: `${colors.primary}44`,
-          }}
-        >
-          {/* Scanline effect */}
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `linear-gradient(to bottom, transparent 50%, ${colors.primary}11 50%)`,
-              backgroundSize: '100% 4px',
-            }}
-            animate={{
-              y: [0, 8],
-            }}
-            transition={{
-              duration: 0.8,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          />
-          <p className="relative z-10 font-mono" style={{ color: colors.primary }}>
-            {phaseMessages[phase as keyof typeof phaseMessages]}
-          </p>
-        </motion.div>
+          {/* Waveform visualization */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
+                Volatility Analysis
+              </span>
+              <motion.span 
+                className="text-xs font-bold font-mono"
+                style={{ color: colors.primary }}
+                animate={{
+                  opacity: [0.7, 1, 0.7]
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity
+                }}
+              >
+                LIVE
+              </motion.span>
+            </div>
+            <WaveformChart volatility={volatility * 100} color={colors.primary} />
+          </div>
 
-        {/* Particle effects */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(8)].map((_, i) => (
+          {/* Phase message with terminal styling */}
+          <motion.div 
+            className="relative p-3 rounded border"
+            style={{ 
+              borderColor: colors.primary,
+              backgroundColor: `${colors.glow}`
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <div className="flex items-start gap-2">
+              <motion.div
+                className="w-2 h-2 rounded-full mt-1"
+                style={{ backgroundColor: colors.primary }}
+                animate={{
+                  opacity: [1, 0.3, 1],
+                  scale: [1, 0.8, 1]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity
+                }}
+              />
+              <p className="text-xs font-mono leading-relaxed" style={{ color: colors.primary }}>
+                {phaseMessages[phase] || phaseMessages.Neutral}
+              </p>
+            </div>
+            
+            {/* Terminal cursor */}
             <motion.div
-              key={i}
-              className="absolute w-1 h-1 rounded-full"
-              style={{
-                background: colors.primary,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
+              className="absolute bottom-3 right-3 w-1.5 h-3"
+              style={{ backgroundColor: colors.primary }}
               animate={{
-                y: [0, -20, 0],
-                opacity: [0, 1, 0],
-                scale: [0, 1, 0],
+                opacity: [1, 0, 1]
               }}
               transition={{
-                duration: 3,
+                duration: 1,
                 repeat: Infinity,
-                delay: i * 0.4,
-                ease: 'easeInOut',
+                ease: "linear"
               }}
             />
-          ))}
-        </div>
-      </div>
+          </motion.div>
 
-      {/* Breathing animation */}
-      <motion.div
-        className="absolute inset-0 rounded-lg pointer-events-none"
-        style={{
-          background: `radial-gradient(circle at 50% 50%, ${colors.glow} 0%, transparent 70%)`,
-        }}
-        animate={{
-          opacity: [0.3, 0.6, 0.3],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
+          {/* Stats bar */}
+          <div className="flex justify-between items-center pt-2 border-t border-border/50">
+            <div className="flex gap-4 text-[10px] font-mono text-muted-foreground">
+              <span>MODE: ADAPTIVE</span>
+              <span>•</span>
+              <span>SYNC: 100%</span>
+            </div>
+            <motion.div
+              className="flex items-center gap-1"
+              animate={{
+                opacity: [0.5, 1, 0.5]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity
+              }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.primary }} />
+              <span className="text-[10px] font-mono" style={{ color: colors.primary }}>
+                PROCESSING
+              </span>
+            </motion.div>
+          </div>
+        </div>
+      </Card>
     </motion.div>
   );
 };
