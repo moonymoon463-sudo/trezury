@@ -33,6 +33,8 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
   const volumeSeriesRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
+  const lastCandleCountRef = useRef(0);
+  const updateDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -243,38 +245,80 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
     if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
     if (candles.length === 0) return;
 
-    const validCandles = candles.filter(
-      c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
-    );
+    // Debounce rapid updates
+    if (updateDebounceRef.current) {
+      clearTimeout(updateDebounceRef.current);
+    }
 
-    // Sort ascending by timestamp (required by lightweight-charts)
-    const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+    updateDebounceRef.current = setTimeout(() => {
+      const validCandles = candles.filter(
+        c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+      );
 
-    const chartData = sortedCandles.map((candle) => ({
-      time: Math.floor(
-        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-      ),
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-    }));
+      // Sort ascending by timestamp (required by lightweight-charts)
+      const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
 
-    const volumeData = sortedCandles
-      .filter(c => c.volume != null)
-      .map((candle) => ({
+      const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
         ),
-        value: candle.volume,
-        color: candle.close > candle.open 
-          ? 'rgba(16, 185, 129, 0.5)'
-          : 'rgba(239, 68, 68, 0.5)',
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
       }));
 
-    candleSeriesRef.current.setData(chartData);
-    volumeSeriesRef.current.setData(volumeData);
-    chartRef.current.timeScale().fitContent();
+      const volumeData = sortedCandles
+        .filter(c => c.volume != null)
+        .map((candle) => ({
+          time: Math.floor(
+            candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+          ),
+          value: candle.volume,
+          color: candle.close > candle.open 
+            ? 'rgba(16, 185, 129, 0.5)'
+            : 'rgba(239, 68, 68, 0.5)',
+        }));
+
+      // Detect if this is an incremental update (1-2 new candles) or full reload
+      const isIncrementalUpdate = Math.abs(chartData.length - lastCandleCountRef.current) <= 2 
+        && lastCandleCountRef.current > 0;
+
+      if (isIncrementalUpdate && chartData.length > 0) {
+        // Incremental update: only update the last few candles
+        const lastCandle = chartData[chartData.length - 1];
+        const lastVolume = volumeData[volumeData.length - 1];
+        
+        try {
+          candleSeriesRef.current.update(lastCandle);
+          if (lastVolume) {
+            volumeSeriesRef.current.update(lastVolume);
+          }
+        } catch (e) {
+          // If update fails, fall back to setData
+          console.log('[Chart] Incremental update failed, using setData:', e);
+          candleSeriesRef.current.setData(chartData);
+          volumeSeriesRef.current.setData(volumeData);
+        }
+      } else {
+        // Full reload: use setData and fit content
+        candleSeriesRef.current.setData(chartData);
+        volumeSeriesRef.current.setData(volumeData);
+        
+        // Only fit content on full reload (symbol/resolution change)
+        if (lastCandleCountRef.current === 0) {
+          chartRef.current.timeScale().fitContent();
+        }
+      }
+
+      lastCandleCountRef.current = chartData.length;
+    }, 150); // 150ms debounce for batching rapid updates
+
+    return () => {
+      if (updateDebounceRef.current) {
+        clearTimeout(updateDebounceRef.current);
+      }
+    };
   }, [candles]);
 
   const handleTimeframeChange = (newResolution: string) => {

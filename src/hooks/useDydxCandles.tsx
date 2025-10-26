@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { dydxMarketService } from '@/services/dydxMarketService';
 import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import type { DydxCandle } from '@/types/dydx';
@@ -63,25 +63,24 @@ export const useDydxCandles = (
     };
   }, [symbol, resolution, limit]);
 
-  // Subscribe to real-time WebSocket updates
+  // Subscribe to real-time WebSocket updates with debouncing
   useEffect(() => {
     if (!symbol) return;
 
     console.log('[useDydxCandles] Subscribing to WebSocket for', symbol);
     
+    let debounceTimer: NodeJS.Timeout | null = null;
+    let pendingUpdate: DydxCandle | null = null;
+
     const unsubscribe = dydxWebSocketService.subscribeToCandles(
       symbol,
       resolution,
       (data) => {
         console.log('[useDydxCandles] WebSocket candle update:', data);
-        setCandles(prev => {
-          // The WebSocket service now sends normalized data with numeric timestamp
-          if (!data || !data.timestamp) return prev;
-          
-          const newCandles = [...prev];
-          const existingIndex = newCandles.findIndex(c => c.timestamp === data.timestamp);
-          
-          const newCandle: DydxCandle = {
+        
+        // Store the latest update
+        if (data && data.timestamp) {
+          pendingUpdate = {
             timestamp: data.timestamp,
             open: data.open,
             high: data.high,
@@ -90,22 +89,40 @@ export const useDydxCandles = (
             volume: data.volume,
           };
 
-          if (existingIndex >= 0) {
-            // Update existing candle
-            newCandles[existingIndex] = newCandle;
-          } else {
-            // Append new candle and maintain ascending order
-            newCandles.push(newCandle);
-            newCandles.sort((a, b) => a.timestamp - b.timestamp);
+          // Debounce the state update
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
           }
-          
-          return newCandles;
-        });
+
+          debounceTimer = setTimeout(() => {
+            if (!pendingUpdate) return;
+            
+            setCandles(prev => {
+              const newCandles = [...prev];
+              const existingIndex = newCandles.findIndex(c => c.timestamp === pendingUpdate!.timestamp);
+
+              if (existingIndex >= 0) {
+                // Update existing candle in place
+                newCandles[existingIndex] = pendingUpdate!;
+              } else {
+                // Append new candle (already sorted by timestamp on server)
+                newCandles.push(pendingUpdate!);
+              }
+              
+              return newCandles;
+            });
+
+            pendingUpdate = null;
+          }, 100); // 100ms debounce
+        }
       }
     );
 
     return () => {
       console.log('[useDydxCandles] Unsubscribing from WebSocket');
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       unsubscribe();
     };
   }, [symbol, resolution]);
