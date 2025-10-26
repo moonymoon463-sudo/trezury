@@ -727,7 +727,7 @@ const TradingDashboard = () => {
         />
 
         {/* Chart Section */}
-        <div className="flex-1 min-h-[600px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
+        <div className="flex-1 min-h-[450px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -765,7 +765,7 @@ const TradingDashboard = () => {
 
         {/* Open Positions Table */}
         {hasDydxWallet && dydxAddress && (
-          <div className="mb-2 flex-shrink-0 overflow-visible">
+          <div className="mb-2 flex-shrink-0">
             <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
           </div>
         )}
@@ -791,7 +791,7 @@ const TradingDashboard = () => {
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Fixed Height with Internal Scroll */}
-        <div className="mb-3 flex-shrink-0 max-h-[200px] overflow-hidden">
+        <div className="mb-3 flex-shrink-0 max-h-[180px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -820,7 +820,7 @@ const TradingDashboard = () => {
 
         {tradeMode !== 'positions' ? (
           <>
-            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0 max-h-[calc(100vh-470px)]">
+            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
               {/* Order Type */}
               <div>
                 <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
@@ -952,7 +952,7 @@ const TradingDashboard = () => {
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
-            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
+            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#c6b795]">Total:</span>
