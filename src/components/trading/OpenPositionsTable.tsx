@@ -198,12 +198,12 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   };
 
   const SortableHeader = ({ field, label, tooltip }: { field: SortField; label: string; tooltip: string }) => (
-    <TableHead className="h-8 text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors text-[11px] font-medium" onClick={() => handleSort(field)}>
+    <TableHead className="h-6 text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors text-[10px] font-medium py-0.5" onClick={() => handleSort(field)}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <span>{label}</span>
-            <ArrowUpDown className="h-2.5 w-2.5 opacity-40" />
+            <ArrowUpDown className="h-2 w-2 opacity-40" />
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
@@ -254,17 +254,17 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   }
 
   return (
-    <Card className="bg-card/30 border-border/30">
-      <div className="p-2">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <h3 className="text-foreground font-medium text-sm">Open Positions</h3>
-          <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-primary/80 border-primary/20 bg-primary/5">
+    <Card className="bg-card/30 border-border/30 h-full flex flex-col">
+      <div className="p-1.5 flex-shrink-0">
+        <div className="flex items-center justify-between mb-1 px-1">
+          <h3 className="text-foreground font-medium text-xs">Open Positions</h3>
+          <Badge variant="outline" className="text-[10px] h-4 px-1 text-primary/80 border-primary/20 bg-primary/5">
             {sortedPositions.length}
           </Badge>
         </div>
 
         <TooltipProvider>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[100px]">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
@@ -274,7 +274,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     tooltip="The trading pair for this position"
                   />
 
-                  <TableHead className="h-8 text-muted-foreground/70 text-[11px] font-medium">
+                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium py-0.5">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="cursor-help">Entry</span>
@@ -285,7 +285,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     </Tooltip>
                   </TableHead>
 
-                  <TableHead className="h-8 text-muted-foreground/70 text-[11px] font-medium">
+                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium py-0.5">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="cursor-help">Current</span>
@@ -314,7 +314,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     tooltip="Profit and Loss that would be realized if closed now"
                   />
 
-                  <TableHead className="h-8 text-muted-foreground/70 text-[11px] font-medium">
+                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium py-0.5">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="cursor-help">Margin</span>
@@ -331,7 +331,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     tooltip="Price at which the position will be automatically liquidated"
                   />
 
-                  <TableHead className="h-8 text-muted-foreground/70 text-[11px] font-medium w-12">Close</TableHead>
+                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium w-10 py-0.5">Close</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -371,68 +371,68 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
 
                   return (
                     <TableRow key={`${position.market}-${index}`} className="border-border/20 hover:bg-accent/5">
-                      <TableCell className="font-medium text-foreground py-1.5 text-xs">
-                        <div className="flex items-center gap-1.5">
+                      <TableCell className="font-medium text-foreground py-1 px-2 text-[10px]">
+                        <div className="flex items-center gap-1">
                           <span>{position.market}</span>
                           <Badge
                             variant={position.side === 'LONG' ? 'default' : 'destructive'}
-                            className="text-[9px] h-4 px-1 py-0"
+                            className="text-[8px] h-3 px-0.5 py-0"
                           >
                             {position.side}
                           </Badge>
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-muted-foreground text-xs py-1.5">
+                      <TableCell className="text-muted-foreground text-[10px] py-1 px-2">
                         ${position.entryPrice.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-foreground text-xs font-medium py-1.5">
+                      <TableCell className="text-foreground text-[10px] font-medium py-1 px-2">
                         ${currentPrice.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-muted-foreground text-xs py-1.5">
+                      <TableCell className="text-muted-foreground text-[10px] py-1 px-2">
                         {position.size.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 4,
                         })}
                       </TableCell>
 
-                      <TableCell className="py-1.5">
-                        <Badge variant="outline" className="text-[9px] h-4 px-1 text-primary/80 border-primary/20 bg-primary/5">
+                      <TableCell className="py-1 px-2">
+                        <Badge variant="outline" className="text-[8px] h-3 px-0.5 text-primary/80 border-primary/20 bg-primary/5">
                           {leverage}x
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="py-1.5">
+                      <TableCell className="py-1 px-2">
                         <div className="flex flex-col">
-                          <div className={`flex items-center gap-0.5 font-semibold text-xs ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                            {isProfit ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          <div className={`flex items-center gap-0.5 font-semibold text-[10px] ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                            {isProfit ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                             {isProfit ? '+' : ''}${pnl.toFixed(2)}
                           </div>
-                          <span className={`text-[10px] ${isProfit ? 'text-green-500/50' : 'text-red-500/50'}`}>
+                          <span className={`text-[9px] ${isProfit ? 'text-green-500/50' : 'text-red-500/50'}`}>
                             {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
                           </span>
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-muted-foreground text-xs py-1.5">
+                      <TableCell className="text-muted-foreground text-[10px] py-1 px-2">
                         ${marginRequired.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="py-1.5">
+                      <TableCell className="py-1 px-2">
                         <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1">
-                            <span className="text-foreground text-xs">
+                          <div className="flex items-center gap-0.5">
+                            <span className="text-foreground text-[10px]">
                               ${liquidationPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
@@ -452,7 +452,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                           </div>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-[9px] text-muted-foreground/60 cursor-help">
+                              <span className="text-[8px] text-muted-foreground/60 cursor-help">
                                 {distanceToLiquidation.toFixed(1)}% away | BE: ${breakevenPrice.toFixed(2)}
                               </span>
                             </TooltipTrigger>
@@ -464,13 +464,13 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-1.5">
+                      <TableCell className="py-1 px-1">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => openCloseDialog(position)}
                           disabled={closingPosition === position.market}
-                          className="h-6 w-6 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                          className="h-5 w-5 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                         >
                           {closingPosition === position.market ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
