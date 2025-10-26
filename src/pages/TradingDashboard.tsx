@@ -37,6 +37,9 @@ import { dydxWalletService } from '@/services/dydxWalletService';
 import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
+import { useWepsMockData } from '@/hooks/useWepsMockData';
+import { WepsInsightsCard } from '@/components/weps/WepsInsightsCard';
+import { WepsEvolutionLog } from '@/components/weps/WepsEvolutionLog';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -88,6 +91,9 @@ const TradingDashboard = () => {
   
   const { toast } = useToast();
   
+  // WEPS Mock Data
+  const { phase, bioState, confidence, volatility } = useWepsMockData(selectedAsset || "BTC-USD");
+  const wepsSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Show dYdX wallet setup if user doesn't have one
   useEffect(() => {
@@ -665,6 +671,9 @@ const TradingDashboard = () => {
           <button className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
             <p className="text-xs font-bold">Analytics</p>
           </button>
+          <button onClick={() => wepsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-[#c6b795] pb-2 pt-1 hover:text-white">
+            <p className="text-xs font-bold">AI Insights</p>
+          </button>
         </div>
 
         {/* Price Display */}
@@ -718,7 +727,7 @@ const TradingDashboard = () => {
         />
 
         {/* Chart Section */}
-        <div className="h-[380px] flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
+        <div className="h-[480px] flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
@@ -728,6 +737,7 @@ const TradingDashboard = () => {
               loading={candlesLoading}
               error={candlesError}
               onLoadMore={loadMore}
+              phase={phase}
               isBackfilling={isBackfilling}
             />
           ) : selectedAsset ? (
@@ -759,14 +769,29 @@ const TradingDashboard = () => {
             <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
           </div>
         )}
+
+        {/* WEPS Insights Section */}
+        <div ref={wepsSectionRef} className="mb-4">
+          <WepsInsightsCard
+            phase={phase}
+            bioState={bioState}
+            confidence={confidence}
+            volatility={volatility}
+          />
+        </div>
+
+        {/* WEPS Evolution Log */}
+        <div className="flex-shrink-0">
+          <WepsEvolutionLog />
+        </div>
       </main>
 
       {/* Right Sidebar - Order Panel */}
       <aside className="w-80 h-screen bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
-        {/* Order Book - Optimized Height */}
-        <div className="mb-3 flex-shrink-0 max-h-[160px] overflow-hidden">
+        {/* Order Book - Fixed Height with Internal Scroll */}
+        <div className="mb-3 flex-shrink-0 max-h-[180px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 

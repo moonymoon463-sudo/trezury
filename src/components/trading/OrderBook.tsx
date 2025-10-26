@@ -58,7 +58,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
 
-  const depth = viewMode === 'compact' ? 5 : 25;
+  const depth = viewMode === 'compact' ? 3 : 25;
 
   const { bids, asks, spread, spreadPercent } = useMemo(() => {
     if (!orderbook) return { bids: [], asks: [], spread: 0, spreadPercent: 0 };
@@ -231,7 +231,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
           </div>
 
           {/* Asks Section - Scrollable */}
-          <ScrollArea className="h-[90px]">
+          <ScrollArea className="h-[120px]">
             <div className="pr-2">
               {[...asks].reverse().map((ask) => {
                 const depthPercent = (ask.total / maxAskTotal) * 100;
@@ -261,7 +261,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
           </div>
 
           {/* Bids Section - Scrollable */}
-          <ScrollArea className="h-[90px]">
+          <ScrollArea className="h-[120px]">
             <div className="pr-2">
               {bids.map((bid) => {
                 const depthPercent = (bid.total / maxBidTotal) * 100;

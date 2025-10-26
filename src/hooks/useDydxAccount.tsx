@@ -31,7 +31,7 @@ export const useDydxAccount = (address?: string, autoRefresh: boolean = true) =>
     loadAccount();
 
     if (autoRefresh && address) {
-      const interval = setInterval(loadAccount, 30000); // Refresh every 30 seconds
+      const interval = setInterval(loadAccount, 10000); // Refresh every 10 seconds
       return () => clearInterval(interval);
     }
   }, [address, autoRefresh, loadAccount]);

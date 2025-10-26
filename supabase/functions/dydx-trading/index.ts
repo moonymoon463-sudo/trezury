@@ -8,8 +8,8 @@ import {
   OrderExecution,
   OrderSide,
   OrderType
-} from 'https://esm.sh/@dydxprotocol/v4-client-js@3.0.7';
-import { DirectSecp256k1HdWallet } from 'https://esm.sh/@cosmjs/proto-signing@0.36.2';
+} from 'npm:@dydxprotocol/v4-client-js@3.0.7';
+import { DirectSecp256k1HdWallet } from 'npm:@cosmjs/proto-signing@0.36.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
