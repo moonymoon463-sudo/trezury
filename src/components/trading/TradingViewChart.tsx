@@ -578,7 +578,7 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
         
         <div 
           ref={chartContainerRef} 
-          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="relative z-10 w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
