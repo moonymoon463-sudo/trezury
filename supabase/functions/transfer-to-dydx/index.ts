@@ -67,8 +67,8 @@ serve(async (req) => {
 
     // Step 1: Get encrypted wallet data
     const { data: walletData, error: walletError } = await supabase
-      .from('encrypted_wallets')
-      .select('encrypted_mnemonic, iv, salt')
+      .from('encrypted_wallet_keys')
+      .select('encrypted_private_key, encryption_iv, encryption_salt')
       .eq('user_id', user.id)
       .single();
 
