@@ -819,184 +819,185 @@ const TradingDashboard = () => {
         </Tabs>
 
         {tradeMode !== 'positions' ? (
-          <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
-            {/* Order Type */}
-            <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
-              <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
-                <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white">
-                  <SelectValue placeholder="Market Order" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#211d12] border-[#463c25]">
-                  <SelectItem value="market" className="text-white">Market Order</SelectItem>
-                  <SelectItem value="limit" className="text-white">Limit Order</SelectItem>
-                  <SelectItem value="stop-limit" className="text-white">Stop Limit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Stop Price (for stop-limit orders) */}
-            {orderType === 'stop-limit' && (
+          <>
+            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
+              {/* Order Type */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Stop Price (USDT)</label>
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
+                <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
+                  <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white">
+                    <SelectValue placeholder="Market Order" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#211d12] border-[#463c25]">
+                    <SelectItem value="market" className="text-white">Market Order</SelectItem>
+                    <SelectItem value="limit" className="text-white">Limit Order</SelectItem>
+                    <SelectItem value="stop-limit" className="text-white">Stop Limit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Stop Price (for stop-limit orders) */}
+              {orderType === 'stop-limit' && (
+                <div>
+                  <label className="text-[#c6b795] text-xs font-medium mb-1 block">Stop Price (USDT)</label>
+                  <input
+                    type="number"
+                    value={stopPrice}
+                    onChange={(e) => setStopPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                  />
+                </div>
+              )}
+
+              {/* Price */}
+              <div>
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">
+                  {orderType === 'stop-limit' ? 'Limit Price (USDT)' : 'Price (USDT)'}
+                </label>
                 <input
-                  type="number"
-                  value={stopPrice}
-                  onChange={(e) => setStopPrice(e.target.value)}
+                  type="text"
+                  value={orderType === 'market' ? 'Market' : limitPrice}
+                  onChange={(e) => setLimitPrice(e.target.value)}
+                  disabled={orderType === 'market'}
                   placeholder="0.00"
                   className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                 />
               </div>
-            )}
 
-            {/* Price */}
-            <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">
-                {orderType === 'stop-limit' ? 'Limit Price (USDT)' : 'Price (USDT)'}
-              </label>
-              <input
-                type="text"
-                value={orderType === 'market' ? 'Market' : limitPrice}
-                onChange={(e) => setLimitPrice(e.target.value)}
-                disabled={orderType === 'market'}
-                placeholder="0.00"
-                className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
-              />
-            </div>
-
-            {/* Order Size */}
-            <div>
-              <label className="text-[#c6b795] text-xs font-medium mb-1 block">
-                Order Size ({selectedAsset?.split('-')[0] || 'BTC'})
-                {rules && <span className="ml-2 text-[10px]">(Min: {rules.minOrderSize})</span>}
-              </label>
-              <input
-                type="number"
-                placeholder="0.00"
-                value={orderSize}
-                onChange={(e) => setOrderSize(e.target.value)}
-                step={rules?.stepSize || 0.001}
-                min={rules?.minOrderSize || 0}
-                className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
-              />
-              {/* Percentage Buttons */}
-              <div className="flex gap-1 mt-1.5">
-                {['25%', '50%', '75%', '100%'].map((pct) => (
-                  <Button
-                    key={pct}
-                    size="sm"
-                    variant="ghost"
-                    className="flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
-                  >
-                    {pct}
-                  </Button>
-                ))}
-              </div>
-              
-              {/* Fee Preview */}
-              {rules && orderSize && (
-                <div className="mt-2 p-2 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
-                  Est. Fee: ${calculateFees(
-                    parseFloat(orderSize), 
-                    parseFloat(limitPrice) || (currentAsset && 'price' in currentAsset ? currentAsset.price : 0),
-                    orderType === 'market' ? 'market' : 'limit'
-                  ).totalFee.toFixed(2)}
-                </div>
-              )}
-            </div>
-
-            {/* Leverage */}
-            {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
-                  <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
-                </div>
-                
-                {/* Quick Leverage Buttons */}
-                <div className="flex gap-1">
-                  {['1x', '5x', '10x', '20x'].map((lvg) => (
+              {/* Order Size */}
+              <div>
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">
+                  Order Size ({selectedAsset?.split('-')[0] || 'BTC'})
+                  {rules && <span className="ml-2 text-[10px]">(Min: {rules.minOrderSize})</span>}
+                </label>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={orderSize}
+                  onChange={(e) => setOrderSize(e.target.value)}
+                  step={rules?.stepSize || 0.001}
+                  min={rules?.minOrderSize || 0}
+                  className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                />
+                {/* Percentage Buttons */}
+                <div className="flex gap-1 mt-1.5">
+                  {['25%', '50%', '75%', '100%'].map((pct) => (
                     <Button
-                      key={lvg}
+                      key={pct}
                       size="sm"
-                      variant={leverage === parseInt(lvg) ? "default" : "ghost"}
-                      onClick={() => setLeverage(parseInt(lvg))}
-                      className={leverage === parseInt(lvg) 
-                        ? 'flex-1 text-[10px] py-1 h-7 bg-[#e6b951] text-black' 
-                        : 'flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
-                      }
+                      variant="ghost"
+                      className="flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
                     >
-                      {lvg}
+                      {pct}
                     </Button>
                   ))}
                 </div>
+                
+                {/* Fee Preview */}
+                {rules && orderSize && (
+                  <div className="mt-2 p-2 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
+                    Est. Fee: ${calculateFees(
+                      parseFloat(orderSize), 
+                      parseFloat(limitPrice) || (currentAsset && 'price' in currentAsset ? currentAsset.price : 0),
+                      orderType === 'market' ? 'market' : 'limit'
+                    ).totalFee.toFixed(2)}
+                  </div>
+                )}
+              </div>
 
-                {/* Custom Leverage Slider */}
-                <div className="px-1">
-                  <Slider
-                    value={[leverage]}
-                    onValueChange={(value) => setLeverage(value[0])}
-                    min={1}
-                    max={20}
-                    step={1}
-                    className="cursor-pointer"
-                  />
-                  <div className="flex justify-between mt-1 text-[10px] text-[#c6b795]/60">
-                    <span>1x</span>
-                    <span>20x</span>
+              {/* Leverage */}
+              {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
+                    <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
+                  </div>
+                  
+                  {/* Quick Leverage Buttons */}
+                  <div className="flex gap-1">
+                    {['1x', '5x', '10x', '20x'].map((lvg) => (
+                      <Button
+                        key={lvg}
+                        size="sm"
+                        variant={leverage === parseInt(lvg) ? "default" : "ghost"}
+                        onClick={() => setLeverage(parseInt(lvg))}
+                        className={leverage === parseInt(lvg) 
+                          ? 'flex-1 text-[10px] py-1 h-7 bg-[#e6b951] text-black' 
+                          : 'flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
+                        }
+                      >
+                        {lvg}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* Custom Leverage Slider */}
+                  <div className="px-1">
+                    <Slider
+                      value={[leverage]}
+                      onValueChange={(value) => setLeverage(value[0])}
+                      min={1}
+                      max={20}
+                      step={1}
+                      className="cursor-pointer"
+                    />
+                    <div className="flex justify-between mt-1 text-[10px] text-[#c6b795]/60">
+                      <span>1x</span>
+                      <span>20x</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-          </div>
-          
-          {/* Total, Available and Confirm Button - Sticky at Bottom */}
-          <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-[#c6b795]">Total:</span>
-                <span className="text-white font-semibold">
-                  {currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-[#c6b795]">Available:</span>
-                <span className="text-white font-semibold">
-                  {availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-[#c6b795]">Source:</span>
-                <span className="text-[#e6b951] font-semibold capitalize">{walletType}</span>
-              </div>
-            </div>
-
-            {/* Confirm Button */}
-            <div>
-              {isCurrentWalletConnected ? (
-                <Button
-                  onClick={handlePlaceOrder}
-                  className={`w-full h-10 font-bold text-sm ${
-                    tradeMode === 'buy' 
-                      ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
-                      : 'bg-red-600 hover:bg-red-700 text-white'
-                  }`}
-                  disabled={!selectedAsset || !orderSize || orderLoading}
-                >
-                  {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => setShowDydxWalletSetup(true)}
-                  className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm"
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Set Up Trading Wallet
-                </Button>
               )}
             </div>
-          </div>
+            
+            {/* Total, Available and Confirm Button - Sticky at Bottom */}
+            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#c6b795]">Total:</span>
+                  <span className="text-white font-semibold">
+                    {currentWalletBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#c6b795]">Available:</span>
+                  <span className="text-white font-semibold">
+                    {availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#c6b795]">Source:</span>
+                  <span className="text-[#e6b951] font-semibold capitalize">{walletType}</span>
+                </div>
+              </div>
+
+              {/* Confirm Button */}
+              <div>
+                {isCurrentWalletConnected ? (
+                  <Button
+                    onClick={handlePlaceOrder}
+                    className={`w-full h-10 font-bold text-sm ${
+                      tradeMode === 'buy' 
+                        ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                    disabled={!selectedAsset || !orderSize || orderLoading}
+                  >
+                    {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowDydxWalletSetup(true)}
+                    className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Set Up Trading Wallet
+                  </Button>
+                )}
+              </div>
+            </div>
+          </>
         ) : (
           <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
             {dydxAddress ? (
