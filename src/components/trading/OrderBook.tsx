@@ -39,7 +39,7 @@ const OrderBookRow = memo(({ price, size, total, type, depthPercent, isSelected,
         )}
         style={{ width: `${depthPercent}%` }}
       />
-      <div className="relative grid grid-cols-3 gap-2 text-[11px] px-1 py-0.5">
+      <div className="relative grid grid-cols-3 gap-1.5 text-[10px] px-1 py-0.5">
         <div className={cn(
           "font-medium",
           type === 'ask' ? "text-red-500" : "text-green-500"
@@ -58,7 +58,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
 
-  const depth = viewMode === 'compact' ? 5 : 25;
+  const depth = viewMode === 'compact' ? 3 : 25;
 
   const { bids, asks, spread, spreadPercent } = useMemo(() => {
     if (!orderbook) return { bids: [], asks: [], spread: 0, spreadPercent: 0 };

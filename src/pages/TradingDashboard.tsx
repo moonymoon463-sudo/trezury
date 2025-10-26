@@ -766,7 +766,7 @@ const TradingDashboard = () => {
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Optimized Height */}
-        <div className="mb-3 flex-shrink-0">
+        <div className="mb-2 flex-shrink-0 max-h-[104px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -795,7 +795,7 @@ const TradingDashboard = () => {
 
         {tradeMode !== 'positions' ? (
           <>
-            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
+            <div className="space-y-1.5 pr-1">
               {/* Order Type */}
               <div>
                 <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
@@ -820,7 +820,7 @@ const TradingDashboard = () => {
                     value={stopPrice}
                     onChange={(e) => setStopPrice(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                    className="w-full px-3 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                   />
                 </div>
               )}
@@ -836,7 +836,7 @@ const TradingDashboard = () => {
                   onChange={(e) => setLimitPrice(e.target.value)}
                   disabled={orderType === 'market'}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                  className="w-full px-3 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                 />
               </div>
 
@@ -853,7 +853,7 @@ const TradingDashboard = () => {
                   onChange={(e) => setOrderSize(e.target.value)}
                   step={rules?.stepSize || 0.001}
                   min={rules?.minOrderSize || 0}
-                  className="w-full px-3 py-2 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                  className="w-full px-3 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                 />
                 {/* Percentage Buttons */}
                 <div className="flex gap-1 mt-1.5">
@@ -862,7 +862,7 @@ const TradingDashboard = () => {
                       key={pct}
                       size="sm"
                       variant="ghost"
-                      className="flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
+                      className="flex-1 text-[10px] py-1 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white"
                     >
                       {pct}
                     </Button>
@@ -871,7 +871,7 @@ const TradingDashboard = () => {
                 
                 {/* Fee Preview */}
                 {rules && orderSize && (
-                  <div className="mt-2 p-2 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
+                  <div className="mt-1.5 p-1.5 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
                     Est. Fee: ${calculateFees(
                       parseFloat(orderSize), 
                       parseFloat(limitPrice) || (currentAsset && 'price' in currentAsset ? currentAsset.price : 0),
@@ -883,7 +883,7 @@ const TradingDashboard = () => {
 
               {/* Leverage */}
               {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
                     <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
@@ -898,8 +898,8 @@ const TradingDashboard = () => {
                         variant={leverage === parseInt(lvg) ? "default" : "ghost"}
                         onClick={() => setLeverage(parseInt(lvg))}
                         className={leverage === parseInt(lvg) 
-                          ? 'flex-1 text-[10px] py-1 h-7 bg-[#e6b951] text-black' 
-                          : 'flex-1 text-[10px] py-1 h-7 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
+                          ? 'flex-1 text-[10px] py-1 h-6 bg-[#e6b951] text-black' 
+                          : 'flex-1 text-[10px] py-1 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white'
                         }
                       >
                         {lvg}
@@ -927,7 +927,7 @@ const TradingDashboard = () => {
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
-            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
+            <div className="flex-shrink-0 space-y-1.5 pt-2 mt-auto border-t border-[#463c25] bg-[#2a251a]">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#c6b795]">Total:</span>
