@@ -509,16 +509,6 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
 
   return (
     <div className="flex flex-col h-full gap-3 p-4">
-      {/* Drawing Tools Toolbar */}
-      <ChartDrawingTools
-        drawingMode={drawingMode}
-        onDrawingModeChange={toggleDrawingMode}
-        activeIndicators={activeIndicators}
-        onToggleIndicator={toggleIndicator}
-        onClearAll={clearAll}
-        disabled={isLoading || loading}
-      />
-      
       {/* Timeframe Selector */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -550,6 +540,19 @@ const TradingViewChart = ({ symbol, candles, resolution, onResolutionChange, loa
       {/* Chart Container */}
       <div className="relative flex-1">
         <SpiralOverlay phase={phase} />
+        
+        {/* Drawing Tools - Overlaid on chart */}
+        <div className="absolute top-3 left-3 z-10">
+          <ChartDrawingTools
+            drawingMode={drawingMode}
+            onDrawingModeChange={toggleDrawingMode}
+            activeIndicators={activeIndicators}
+            onToggleIndicator={toggleIndicator}
+            onClearAll={clearAll}
+            disabled={isLoading || loading}
+          />
+        </div>
+        
         <div 
           ref={chartContainerRef} 
           className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
