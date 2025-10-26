@@ -117,19 +117,15 @@ export const WepsInsightsCard = ({
                   <NeuralNetworkIcon size={32} color={colors.primary} />
                 </motion.div>
                 <div>
-                  <motion.h3 className="text-xl font-bold" style={{
-                  background: `linear-gradient(90deg, ${colors.primary}, ${colors.secondary}, ${colors.primary})`,
-                  backgroundSize: "200% 100%",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text"
-                }} animate={{
-                  backgroundPosition: ["0% 0%", "200% 0%", "0% 0%"]
-                }} transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "linear"
-                }}>WEPS Bio-Adaptive Mode</motion.h3>
+                  <motion.h3 
+                    className="text-xl font-bold" 
+                    style={{
+                      color: colors.primary,
+                      textShadow: `0 0 20px ${colors.glow}, 0 0 10px ${colors.glow}`
+                    }}
+                  >
+                    WEPS Bio-Adaptive Mode
+                  </motion.h3>
                   <p className="text-xs text-muted-foreground font-mono">
                     Market Intelligence System
                   </p>
