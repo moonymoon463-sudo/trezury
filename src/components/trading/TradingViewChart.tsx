@@ -448,13 +448,24 @@ const TradingViewChart = ({
 
   // Manage indicators (MA, VWAP, RSI, MACD)
   useEffect(() => {
+    // Guard: ensure chart is fully initialized
     if (!chartRef.current || !candleSeriesRef.current) return;
     if (candles.length === 0) return;
+    
+    // Additional safety check: verify chart hasn't been disposed
+    try {
+      chartRef.current.timeScale();
+    } catch (e) {
+      console.log('[Chart] Chart not ready for indicators');
+      return;
+    }
 
-    // Remove old indicators
+    // Remove old indicators safely
     indicatorsRef.current.forEach((series) => {
       try {
-        chartRef.current.removeSeries(series);
+        if (chartRef.current) {
+          chartRef.current.removeSeries(series);
+        }
       } catch (e) {
         // Series may already be removed
       }
@@ -463,86 +474,90 @@ const TradingViewChart = ({
 
     // Add active indicators
     activeIndicators.forEach((indicator) => {
-      if (indicator.startsWith('MA')) {
-        const period = parseInt(indicator.slice(2));
-        const maData = calculateSMA(candles, period);
+      try {
+        if (indicator.startsWith('MA')) {
+          const period = parseInt(indicator.slice(2));
+          const maData = calculateSMA(candles, period);
 
-        if (maData.length > 0) {
-          const maSeries = chartRef.current.addLineSeries({
-            color: period === 20 ? '#3B82F6' : period === 50 ? '#9333EA' : '#EF4444',
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            crosshairMarkerVisible: true,
-            priceScaleId: '', // Overlay on main scale
-          });
+          if (maData.length > 0 && chartRef.current) {
+            const maSeries = chartRef.current.addLineSeries({
+              color: period === 20 ? '#3B82F6' : period === 50 ? '#9333EA' : '#EF4444',
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: true,
+              priceScaleId: '', // Overlay on main scale
+            });
 
-          maSeries.setData(maData);
-          indicatorsRef.current.set(indicator, maSeries);
+            maSeries.setData(maData);
+            indicatorsRef.current.set(indicator, maSeries);
+          }
+        } else if (indicator === 'VWAP') {
+          const vwapData = calculateVWAP(candles);
+          
+          if (vwapData.length > 0 && chartRef.current) {
+            const vwapSeries = chartRef.current.addLineSeries({
+              color: '#F59E0B',
+              lineWidth: 2,
+              lineStyle: 2, // Dashed
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: true,
+            });
+            
+            vwapSeries.setData(vwapData);
+            indicatorsRef.current.set(indicator, vwapSeries);
+          }
+        } else if (indicator === 'RSI') {
+          const rsiData = calculateRSI(candles, 14);
+          
+          if (rsiData.length > 0 && chartRef.current) {
+            const rsiSeries = chartRef.current.addLineSeries({
+              color: '#8B5CF6',
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              priceScaleId: 'rsi', // Separate scale
+            });
+            
+            // Configure RSI scale (0-100)
+            chartRef.current.priceScale('rsi').applyOptions({
+              scaleMargins: {
+                top: 0.7,
+                bottom: 0,
+              },
+            });
+            
+            rsiSeries.setData(rsiData);
+            indicatorsRef.current.set(indicator, rsiSeries);
+          }
+        } else if (indicator === 'MACD') {
+          const macdData = calculateMACD(candles);
+          
+          if (macdData.histogram.length > 0 && chartRef.current) {
+            // MACD histogram
+            const macdHistogram = chartRef.current.addHistogramSeries({
+              color: '#10B981',
+              priceFormat: {
+                type: 'volume',
+              },
+              priceScaleId: 'macd',
+            });
+            
+            // Configure MACD scale
+            chartRef.current.priceScale('macd').applyOptions({
+              scaleMargins: {
+                top: 0.7,
+                bottom: 0,
+              },
+            });
+            
+            macdHistogram.setData(macdData.histogram);
+            indicatorsRef.current.set('MACD', macdHistogram);
+          }
         }
-      } else if (indicator === 'VWAP') {
-        const vwapData = calculateVWAP(candles);
-        
-        if (vwapData.length > 0) {
-          const vwapSeries = chartRef.current.addLineSeries({
-            color: '#F59E0B',
-            lineWidth: 2,
-            lineStyle: 2, // Dashed
-            priceLineVisible: false,
-            lastValueVisible: true,
-            crosshairMarkerVisible: true,
-          });
-          
-          vwapSeries.setData(vwapData);
-          indicatorsRef.current.set(indicator, vwapSeries);
-        }
-      } else if (indicator === 'RSI') {
-        const rsiData = calculateRSI(candles, 14);
-        
-        if (rsiData.length > 0) {
-          const rsiSeries = chartRef.current.addLineSeries({
-            color: '#8B5CF6',
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            priceScaleId: 'rsi', // Separate scale
-          });
-          
-          // Configure RSI scale (0-100)
-          chartRef.current.priceScale('rsi').applyOptions({
-            scaleMargins: {
-              top: 0.7,
-              bottom: 0,
-            },
-          });
-          
-          rsiSeries.setData(rsiData);
-          indicatorsRef.current.set(indicator, rsiSeries);
-        }
-      } else if (indicator === 'MACD') {
-        const macdData = calculateMACD(candles);
-        
-        if (macdData.histogram.length > 0) {
-          // MACD histogram
-          const macdHistogram = chartRef.current.addHistogramSeries({
-            color: '#10B981',
-            priceFormat: {
-              type: 'volume',
-            },
-            priceScaleId: 'macd',
-          });
-          
-          // Configure MACD scale
-          chartRef.current.priceScale('macd').applyOptions({
-            scaleMargins: {
-              top: 0.7,
-              bottom: 0,
-            },
-          });
-          
-          macdHistogram.setData(macdData.histogram);
-          indicatorsRef.current.set('MACD', macdHistogram);
-        }
+      } catch (e) {
+        console.warn('[Chart] Failed to add indicator:', indicator, e);
       }
     });
     
