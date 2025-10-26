@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-// Note: We'll lazy-load lightweight-charts to avoid bundler interop issues
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { createChart } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
@@ -99,6 +99,32 @@ const TradingViewChart = ({
   const indicatorsRef = useRef<Map<string, any>>(new Map());
   const drawnLinesRef = useRef<Map<string, any>>(new Map());
 
+  // Memoize indicator calculations for performance
+  const indicatorData = useMemo(() => {
+    if (!candles || candles.length === 0) return null;
+
+    const data: Record<string, any> = {};
+
+    activeIndicators.forEach(indicator => {
+      try {
+        if (indicator.startsWith('MA')) {
+          const period = parseInt(indicator.slice(2));
+          data[indicator] = calculateSMA(candles, period);
+        } else if (indicator === 'VWAP') {
+          data.vwap = calculateVWAP(candles);
+        } else if (indicator === 'RSI') {
+          data.rsi = calculateRSI(candles, 14);
+        } else if (indicator === 'MACD') {
+          data.macd = calculateMACD(candles);
+        }
+      } catch (error) {
+        console.error(`[Chart] Error calculating ${indicator}:`, error);
+      }
+    });
+
+    return data;
+  }, [candles, activeIndicators]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let disposed = false;
@@ -118,49 +144,11 @@ const TradingViewChart = ({
         containerWidth: chartContainerRef.current?.clientWidth,
       });
 
-      // Load lightweight-charts from CDN with retry logic
-      let lib: any = (window as any).LightweightCharts;
-      if (!lib) {
-        await new Promise<void>((resolve, reject) => {
-          const existing = document.querySelector('script[data-lwc-cdn="true"]') as HTMLScriptElement | null;
-          if (existing) {
-            // Wait for existing script to load
-            const checkLib = () => {
-              if ((window as any).LightweightCharts) {
-                resolve();
-              } else {
-                setTimeout(checkLib, 100);
-              }
-            };
-            checkLib();
-          } else {
-            const s = document.createElement('script');
-            s.src = 'https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js';
-            s.async = true;
-            s.setAttribute('data-lwc-cdn', 'true');
-            s.onload = () => {
-              // Double-check lib is available after load
-              const checkLib = () => {
-                if ((window as any).LightweightCharts) {
-                  resolve();
-                } else {
-                  setTimeout(checkLib, 50);
-                }
-              };
-              checkLib();
-            };
-            s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
-            document.head.appendChild(s);
-          }
-        });
-        lib = (window as any).LightweightCharts;
-      }
-
       if (disposed) return;
 
-      // Create chart instance with responsive sizing
+      // Create chart instance with responsive sizing (using bundled library)
       const containerHeight = chartContainerRef.current.clientHeight || 400;
-      const chart = (lib as any).createChart(chartContainerRef.current, {
+      const chart = createChart(chartContainerRef.current, {
         layout: {
           background: { color: 'transparent' },
           textColor: '#D4AF37', // aurum color
@@ -231,7 +219,7 @@ const TradingViewChart = ({
       const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-        ),
+        ) as any,
         open: candle.open,
         high: candle.high,
         low: candle.low,
@@ -243,7 +231,7 @@ const TradingViewChart = ({
         .map((candle) => ({
           time: Math.floor(
             candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-          ),
+          ) as any,
           value: candle.volume,
           color: candle.close > candle.open 
             ? 'rgba(16, 185, 129, 0.5)' // green with transparency
@@ -294,6 +282,7 @@ const TradingViewChart = ({
             lineStyle: 2, // Dashed
             axisLabelVisible: true,
             title: 'S/R',
+            lineVisible: true,
           });
           
           const lineId = `h-line-${Date.now()}`;
@@ -320,8 +309,8 @@ const TradingViewChart = ({
             });
             
             trendSeries.setData([
-              { time: trendLineStart.time, value: trendLineStart.price },
-              { time: param.time as number, value: price },
+              { time: trendLineStart.time as any, value: trendLineStart.price },
+              { time: param.time as any, value: price },
             ]);
             
             const lineId = `t-line-${Date.now()}`;
@@ -393,7 +382,7 @@ const TradingViewChart = ({
     const chartData = sortedCandles.map((candle) => ({
       time: Math.floor(
         candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-      ),
+      ) as any,
       open: candle.open,
       high: candle.high,
       low: candle.low,
@@ -405,7 +394,7 @@ const TradingViewChart = ({
       .map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-        ),
+        ) as any,
         value: candle.volume,
         color: candle.close > candle.open 
           ? 'rgba(16, 185, 129, 0.5)'
@@ -446,11 +435,9 @@ const TradingViewChart = ({
     lastCandleCountRef.current = chartData.length;
   }, [candles]);
 
-  // Manage indicators (MA, VWAP, RSI, MACD)
+  // Manage indicators using memoized data for better performance
   useEffect(() => {
-    // Guard: ensure chart is fully initialized
-    if (!chartRef.current || !candleSeriesRef.current) return;
-    if (candles.length === 0) return;
+    if (!chartRef.current || !candleSeriesRef.current || !indicatorData) return;
     
     // Additional safety check: verify chart hasn't been disposed
     try {
@@ -472,12 +459,12 @@ const TradingViewChart = ({
     });
     indicatorsRef.current.clear();
 
-    // Add active indicators
+    // Add active indicators using pre-calculated data from useMemo
     activeIndicators.forEach((indicator) => {
       try {
-        if (indicator.startsWith('MA')) {
+        if (indicator.startsWith('MA') && indicatorData[indicator]) {
           const period = parseInt(indicator.slice(2));
-          const maData = calculateSMA(candles, period);
+          const maData = indicatorData[indicator];
 
           if (maData.length > 0 && chartRef.current) {
             const maSeries = chartRef.current.addLineSeries({
@@ -492,8 +479,8 @@ const TradingViewChart = ({
             maSeries.setData(maData);
             indicatorsRef.current.set(indicator, maSeries);
           }
-        } else if (indicator === 'VWAP') {
-          const vwapData = calculateVWAP(candles);
+        } else if (indicator === 'VWAP' && indicatorData.vwap) {
+          const vwapData = indicatorData.vwap;
           
           if (vwapData.length > 0 && chartRef.current) {
             const vwapSeries = chartRef.current.addLineSeries({
@@ -508,8 +495,8 @@ const TradingViewChart = ({
             vwapSeries.setData(vwapData);
             indicatorsRef.current.set(indicator, vwapSeries);
           }
-        } else if (indicator === 'RSI') {
-          const rsiData = calculateRSI(candles, 14);
+        } else if (indicator === 'RSI' && indicatorData.rsi) {
+          const rsiData = indicatorData.rsi;
           
           if (rsiData.length > 0 && chartRef.current) {
             const rsiSeries = chartRef.current.addLineSeries({
@@ -531,8 +518,8 @@ const TradingViewChart = ({
             rsiSeries.setData(rsiData);
             indicatorsRef.current.set(indicator, rsiSeries);
           }
-        } else if (indicator === 'MACD') {
-          const macdData = calculateMACD(candles);
+        } else if (indicator === 'MACD' && indicatorData.macd) {
+          const macdData = indicatorData.macd;
           
           if (macdData.histogram.length > 0 && chartRef.current) {
             // MACD histogram
@@ -563,7 +550,7 @@ const TradingViewChart = ({
     
     // Save to persistence
     updateIndicators(Array.from(activeIndicators));
-  }, [activeIndicators, candles, updateIndicators]);
+  }, [indicatorData, activeIndicators, updateIndicators]);
 
   // Clear drawings when symbol/resolution changes
   useEffect(() => {

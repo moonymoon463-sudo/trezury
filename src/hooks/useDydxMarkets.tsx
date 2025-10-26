@@ -33,7 +33,7 @@ export const useDydxMarkets = () => {
     loadMarkets();
 
     // Subscribe to real-time updates
-    dydxMarketService.startRealTimeUpdates(10000);
+    dydxMarketService.startRealTimeUpdates(20000); // Refresh every 20 seconds
     const unsubscribe = dydxMarketService.subscribe((updatedMarkets) => {
       if (mounted) {
         setMarkets(updatedMarkets);
