@@ -787,11 +787,11 @@ const TradingDashboard = () => {
       </main>
 
       {/* Right Sidebar - Order Panel */}
-      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 flex-shrink-0 flex flex-col h-screen overflow-y-auto">
-        <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
+      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
+        <h2 className="text-white text-base font-bold mb-2">Order Panel</h2>
 
-        {/* Order Book - Compact */}
-        <div className="mb-2 flex-shrink-0 max-h-[200px] overflow-hidden">
+        {/* Order Book - Fixed Height with Internal Scroll */}
+        <div className="mb-3 flex-shrink-0">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -819,9 +819,7 @@ const TradingDashboard = () => {
         </Tabs>
 
         {tradeMode !== 'positions' ? (
-          <div className="space-y-2 flex-1 min-h-0">
-            {/* Scrollable Form Area */}
-            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-500px)] pr-1">
+          <div className="space-y-2 overflow-y-auto flex-1 pr-1">
             {/* Order Type */}
             <div>
               <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
@@ -951,10 +949,8 @@ const TradingDashboard = () => {
               </div>
             )}
 
-            </div>
-            
-            {/* Total and Available - Sticky Summary */}
-            <div className="space-y-1 pt-2 border-t border-[#463c25] bg-[#2a251a] flex-shrink-0">
+            {/* Total and Available */}
+            <div className="space-y-1 pt-2 border-t border-[#463c25]">
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Total:</span>
                 <span className="text-white font-semibold">
@@ -973,8 +969,8 @@ const TradingDashboard = () => {
               </div>
             </div>
 
-            {/* Confirm Button - Always Visible at Bottom */}
-            <div className="pt-2 pb-2 flex-shrink-0 bg-[#2a251a]">
+            {/* Confirm Button - Fixed at Bottom */}
+            <div className="pt-2 mt-auto">
               {isCurrentWalletConnected ? (
                 <Button
                   onClick={handlePlaceOrder}
@@ -999,7 +995,7 @@ const TradingDashboard = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
+          <div className="space-y-2 overflow-y-auto flex-1">
             {dydxAddress ? (
               <>
                 <PositionManager address={dydxAddress} currentPrices={currentPrices} />
