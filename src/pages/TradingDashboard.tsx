@@ -791,7 +791,7 @@ const TradingDashboard = () => {
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Fixed Height with Internal Scroll */}
-        <div className="mb-3 flex-shrink-0 max-h-[180px] overflow-hidden">
+        <div className="mb-3 flex-shrink-0 max-h-[200px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -820,7 +820,7 @@ const TradingDashboard = () => {
 
         {tradeMode !== 'positions' ? (
           <>
-            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
+            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0 max-h-[calc(100vh-550px)]">
               {/* Order Type */}
               <div>
                 <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
@@ -952,7 +952,7 @@ const TradingDashboard = () => {
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
-            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
+            <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#c6b795]">Total:</span>
