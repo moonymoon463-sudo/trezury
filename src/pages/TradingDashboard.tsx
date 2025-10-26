@@ -757,7 +757,7 @@ const TradingDashboard = () => {
 
         {/* Open Positions Table */}
         {hasDydxWallet && dydxAddress && (
-          <div className="h-[120px] flex-shrink-0 overflow-hidden">
+          <div className="h-[100px] flex-shrink-0 overflow-hidden">
             <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
           </div>
         )}
