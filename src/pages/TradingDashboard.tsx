@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Slider } from '@/components/ui/slider';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { useDydxMarkets } from '@/hooks/useDydxMarkets';
@@ -786,9 +787,14 @@ const TradingDashboard = () => {
 
             {/* Leverage */}
             {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-              <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Leverage</label>
-                <div className="flex gap-1 mb-1.5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
+                  <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
+                </div>
+                
+                {/* Quick Leverage Buttons */}
+                <div className="flex gap-1">
                   {['1x', '5x', '10x', '20x'].map((lvg) => (
                     <Button
                       key={lvg}
@@ -803,6 +809,22 @@ const TradingDashboard = () => {
                       {lvg}
                     </Button>
                   ))}
+                </div>
+
+                {/* Custom Leverage Slider */}
+                <div className="px-1">
+                  <Slider
+                    value={[leverage]}
+                    onValueChange={(value) => setLeverage(value[0])}
+                    min={1}
+                    max={20}
+                    step={1}
+                    className="cursor-pointer"
+                  />
+                  <div className="flex justify-between mt-1 text-[10px] text-[#c6b795]/60">
+                    <span>1x</span>
+                    <span>20x</span>
+                  </div>
                 </div>
               </div>
             )}
