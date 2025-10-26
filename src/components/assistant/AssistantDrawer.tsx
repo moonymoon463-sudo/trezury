@@ -2,9 +2,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useAssistant } from '@/contexts/AssistantContext';
 import { AIChatInterface } from '@/components/portfolio/AIChatInterface';
 import { Sparkles } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 export const AssistantDrawer = () => {
+  const location = useLocation();
   const { isAssistantOpen, openAssistant, closeAssistant, currentContext } = useAssistant();
+
+  // Don't show on trading dashboard
+  if (location.pathname.includes('/trading-dashboard')) {
+    return null;
+  }
 
   return (
     <Sheet open={isAssistantOpen} onOpenChange={(open) => open ? openAssistant() : closeAssistant()}>

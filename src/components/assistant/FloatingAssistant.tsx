@@ -11,8 +11,8 @@ export const FloatingAssistant = () => {
   const { toggleAssistant, isAssistantOpen, showProactiveTip, dismissProactiveTip, proactiveTipMessage } = useAssistant();
   const { preferences } = useAssistantPreferences();
 
-  // Don't show on auth pages or if disabled
-  if (!preferences.enabled || location.pathname.includes('/auth')) {
+  // Don't show on auth pages, trading dashboard, or if disabled
+  if (!preferences.enabled || location.pathname.includes('/auth') || location.pathname.includes('/trading-dashboard')) {
     return null;
   }
 
