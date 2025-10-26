@@ -11,7 +11,7 @@ export const SpiralOverlay = ({ phase }: { phase: string }) => {
 
   return (
     <div
-      className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
+      className="absolute inset-0 pointer-events-none overflow-hidden"
       style={{
         background: `radial-gradient(circle at 50% 50%, ${colorMap[phase]} 0%, transparent 70%)`,
         transition: "background 1s ease-in-out",
@@ -20,9 +20,9 @@ export const SpiralOverlay = ({ phase }: { phase: string }) => {
     >
       <style>{`
         @keyframes pulse {
-          0% {opacity: 0.08;}
-          50% {opacity: 0.16;}
-          100% {opacity: 0.08;}
+          0% {opacity: 0.4;}
+          50% {opacity: 0.8;}
+          100% {opacity: 0.4;}
         }
       `}</style>
     </div>
