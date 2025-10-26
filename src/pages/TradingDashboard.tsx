@@ -791,7 +791,7 @@ const TradingDashboard = () => {
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Fixed Height with Internal Scroll */}
-        <div className="mb-3 flex-shrink-0 max-h-[180px] overflow-hidden">
+        <div className="mb-2 flex-shrink-0 max-h-[120px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -820,7 +820,7 @@ const TradingDashboard = () => {
 
         {tradeMode !== 'positions' ? (
           <>
-            <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
+            <div className="space-y-1.5 overflow-y-auto flex-1 pr-1 min-h-0">
               {/* Order Type */}
               <div>
                 <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
@@ -908,7 +908,7 @@ const TradingDashboard = () => {
 
               {/* Leverage */}
               {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
                     <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
