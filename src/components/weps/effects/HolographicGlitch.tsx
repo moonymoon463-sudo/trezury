@@ -84,10 +84,9 @@ export const HolographicGlitch = ({
 
       {/* Holographic shimmer */}
       <motion.div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none bg-[length:200%_100%]"
         style={{
-          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-          backgroundSize: "200% 100%"
+          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)"
         }}
         animate={{
           backgroundPosition: ["0% 0%", "200% 0%"]
