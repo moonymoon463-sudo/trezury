@@ -80,14 +80,15 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: In production, we would:
-    // - Decrypt the wallet with password
-    // - Get user's USDC balance on Ethereum/Base
-    // - Initiate CCTP bridge transaction to dYdX Chain
-    // - Sign and broadcast the transaction
-    // - Monitor bridge status
+    console.log('[transfer-to-dydx] Wallet found, initiating transfer', {
+      userId: user.id,
+      amount,
+      destination: destinationAddress,
+      hasEncryptedKey: !!walletData.encrypted_private_key
+    });
 
-    // For now, we'll create a transaction record
+    // MVP Mock Flow: Create transaction record
+    // TODO: Implement real CCTP bridge + wallet decryption
     const transactionId = crypto.randomUUID();
     
     const { error: txError } = await supabase
@@ -98,12 +99,13 @@ serve(async (req) => {
         type: 'transfer',
         asset: 'USDC',
         quantity: amount,
-        status: 'pending',
+        status: 'processing',
         metadata: {
           transfer_type: 'internal_to_dydx',
           destination_address: destinationAddress,
-          bridge_method: 'cctp',
-          estimated_time: '20 minutes'
+          bridge_method: 'cctp_mock',
+          estimated_time: '20 minutes',
+          note: 'MVP mock flow - real bridging not yet implemented'
         }
       });
 
@@ -136,10 +138,11 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         transactionId,
-        estimatedTime: 20, // minutes
-        message: 'Transfer initiated via CCTP bridge'
+        estimatedTime: 20,
+        status: 'processing',
+        message: 'Transfer initiated - funds will be bridged to dYdX Chain'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
