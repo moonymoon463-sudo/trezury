@@ -39,7 +39,7 @@ const OrderBookRow = memo(({ price, size, total, type, depthPercent, isSelected,
         )}
         style={{ width: `${depthPercent}%` }}
       />
-      <div className="relative grid grid-cols-3 gap-1.5 text-[10px] px-1 py-0.5">
+      <div className="relative grid grid-cols-3 gap-2 text-xs px-1 py-0.5">
         <div className={cn(
           "font-medium",
           type === 'ask' ? "text-red-500" : "text-green-500"

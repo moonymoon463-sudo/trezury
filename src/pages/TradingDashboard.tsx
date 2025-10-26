@@ -298,7 +298,7 @@ const TradingDashboard = () => {
       {/* Left Sidebar */}
       <aside className="flex flex-col w-64 bg-[#211d12] border-r border-[#463c25] p-3 overflow-hidden flex-shrink-0">
         {/* Logo & Title */}
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <AurumLogo className="h-16 w-16" />
           <div className="flex flex-col">
             <h1 className="text-white text-lg font-bold leading-normal">Trezury</h1>
@@ -307,7 +307,7 @@ const TradingDashboard = () => {
         </div>
 
         {/* Portfolio Overview */}
-        <div className="flex flex-col gap-2 mb-3">
+        <div className="flex flex-col gap-2 mb-4">
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#463c25]">
             <WalletIcon className="h-5 w-5 text-white" />
             <p className="text-white text-sm font-medium leading-normal">Portfolio Overview</p>
@@ -800,7 +800,7 @@ const TradingDashboard = () => {
             <div className="space-y-1.5 pr-1">
               {/* Order Type */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">Order Type</label>
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
                 <Select value={orderType} onValueChange={(v) => setOrderType(v as any)}>
                   <SelectTrigger className="bg-[#211d12] border-[#463c25] text-white h-8">
                     <SelectValue placeholder="Market Order" />
@@ -816,20 +816,20 @@ const TradingDashboard = () => {
               {/* Stop Price (for stop-limit orders) */}
               {orderType === 'stop-limit' && (
                 <div>
-                  <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">Stop Price (USDT)</label>
+                  <label className="text-[#c6b795] text-xs font-medium mb-1 block">Stop Price (USDT)</label>
                   <input
                     type="number"
                     value={stopPrice}
                     onChange={(e) => setStopPrice(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-2 py-1 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                    className="w-full px-2 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                   />
                 </div>
               )}
 
               {/* Price */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">
                   {orderType === 'stop-limit' ? 'Limit Price (USDT)' : 'Price (USDT)'}
                 </label>
                 <input
@@ -838,13 +838,13 @@ const TradingDashboard = () => {
                   onChange={(e) => setLimitPrice(e.target.value)}
                   disabled={orderType === 'market'}
                   placeholder="0.00"
-                  className="w-full px-2 py-1 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                  className="w-full px-2 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                 />
               </div>
 
               {/* Order Size */}
               <div>
-                <label className="text-[#c6b795] text-xs font-medium mb-0.5 block">
+                <label className="text-[#c6b795] text-xs font-medium mb-1 block">
                   Order Size ({selectedAsset?.split('-')[0] || 'BTC'})
                   {rules && <span className="ml-2 text-[10px]">(Min: {rules.minOrderSize})</span>}
                 </label>
@@ -855,16 +855,16 @@ const TradingDashboard = () => {
                   onChange={(e) => setOrderSize(e.target.value)}
                   step={rules?.stepSize || 0.001}
                   min={rules?.minOrderSize || 0}
-                  className="w-full px-2 py-1 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
+                  className="w-full px-2 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                 />
                 {/* Percentage Buttons */}
-                <div className="flex gap-0.5 mt-1">
+                <div className="flex gap-1 mt-1.5">
                 {['25%', '50%', '75%', '100%'].map((pct) => (
                   <Button
                     key={pct}
                     size="sm"
                     variant="ghost"
-                    className="flex-1 text-[10px] py-0.5 h-5 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150"
+                    className="flex-1 text-[10px] py-0.5 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150"
                   >
                     {pct}
                   </Button>
@@ -873,7 +873,7 @@ const TradingDashboard = () => {
                 
                 {/* Fee Preview */}
                 {rules && orderSize && (
-                  <div className="mt-1 p-1 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
+                  <div className="mt-1.5 p-1.5 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
                     Est. Fee: ${calculateFees(
                       parseFloat(orderSize), 
                       parseFloat(limitPrice) || (currentAsset && 'price' in currentAsset ? currentAsset.price : 0),
@@ -885,14 +885,14 @@ const TradingDashboard = () => {
 
               {/* Leverage */}
               {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-1 mt-1">
+                <div className="space-y-1.5 mt-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
                     <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
                   </div>
                   
                   {/* Quick Leverage Buttons */}
-                  <div className="flex gap-0.5">
+                  <div className="flex gap-1">
                     {['1x', '5x', '10x', '20x'].map((lvg) => (
                       <Button
                         key={lvg}
@@ -900,8 +900,8 @@ const TradingDashboard = () => {
                         variant={leverage === parseInt(lvg) ? "default" : "ghost"}
                         onClick={() => setLeverage(parseInt(lvg))}
                         className={leverage === parseInt(lvg) 
-                          ? 'flex-1 text-[10px] py-0.5 h-5 bg-[#e6b951] text-black transition-colors duration-150' 
-                          : 'flex-1 text-[10px] py-0.5 h-5 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150'
+                          ? 'flex-1 text-xs py-0.5 h-6 bg-[#e6b951] text-black transition-colors duration-150' 
+                          : 'flex-1 text-xs py-0.5 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150'
                         }
                       >
                         {lvg}
@@ -929,7 +929,7 @@ const TradingDashboard = () => {
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
-            <div className="flex-shrink-0 space-y-1 pt-2 mt-auto border-t border-[#463c25] bg-[#2a251a]">
+            <div className="flex-shrink-0 space-y-1.5 pt-2.5 mt-auto border-t border-[#463c25] bg-[#2a251a]">
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#c6b795]">Total:</span>

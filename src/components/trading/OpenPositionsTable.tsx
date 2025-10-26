@@ -198,7 +198,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   };
 
   const SortableHeader = ({ field, label, tooltip }: { field: SortField; label: string; tooltip: string }) => (
-    <TableHead className="h-6 text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors text-[10px] font-medium py-0.5" onClick={() => handleSort(field)}>
+    <TableHead className="h-7 text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors text-xs font-medium py-1" onClick={() => handleSort(field)}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="flex items-center gap-0.5">
@@ -255,10 +255,10 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
 
   return (
     <Card className="bg-card/30 border-border/30 h-full flex flex-col">
-      <div className="p-1.5 flex-shrink-0">
+      <div className="p-2 flex-shrink-0">
         <div className="flex items-center justify-between mb-1 px-1">
-          <h3 className="text-foreground font-medium text-xs">Open Positions</h3>
-          <Badge variant="outline" className="text-[10px] h-4 px-1 text-primary/80 border-primary/20 bg-primary/5">
+          <h3 className="text-foreground font-medium text-sm">Open Positions</h3>
+          <Badge variant="outline" className="text-[9px] h-5 px-1 text-primary/80 border-primary/20 bg-primary/5">
             {sortedPositions.length}
           </Badge>
         </div>
@@ -274,7 +274,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     tooltip="The trading pair for this position"
                   />
 
-                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium py-0.5">
+                  <TableHead className="h-7 text-muted-foreground/70 text-xs font-medium py-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="cursor-help">Entry</span>
@@ -285,7 +285,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     </Tooltip>
                   </TableHead>
 
-                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium py-0.5">
+                  <TableHead className="h-7 text-muted-foreground/70 text-xs font-medium py-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="cursor-help">Current</span>
@@ -331,7 +331,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     tooltip="Price at which the position will be automatically liquidated"
                   />
 
-                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium w-10 py-0.5">Close</TableHead>
+                  <TableHead className="h-7 text-muted-foreground/70 text-xs font-medium w-10 py-1">Close</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -383,36 +383,36 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-muted-foreground text-[10px] py-1 px-2">
+                      <TableCell className="text-muted-foreground text-xs py-1.5 px-2">
                         ${position.entryPrice.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-foreground text-[10px] font-medium py-1 px-2">
+                      <TableCell className="text-foreground text-xs font-medium py-1.5 px-2">
                         ${currentPrice.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="text-muted-foreground text-[10px] py-1 px-2">
+                      <TableCell className="text-muted-foreground text-xs py-1.5 px-2">
                         {position.size.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 4,
                         })}
                       </TableCell>
 
-                      <TableCell className="py-1 px-2">
-                        <Badge variant="outline" className="text-[8px] h-3 px-0.5 text-primary/80 border-primary/20 bg-primary/5">
+                      <TableCell className="py-1.5 px-2">
+                        <Badge variant="outline" className="text-[9px] h-4 px-0.5 text-primary/80 border-primary/20 bg-primary/5">
                           {leverage}x
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="py-1 px-2">
+                      <TableCell className="py-1.5 px-2">
                         <div className="flex flex-col">
-                          <div className={`flex items-center gap-0.5 font-semibold text-[10px] ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                          <div className={`flex items-center gap-0.5 font-semibold text-xs ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
                             {isProfit ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                             {isProfit ? '+' : ''}${pnl.toFixed(2)}
                           </div>
@@ -422,17 +422,17 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-muted-foreground text-[10px] py-1 px-2">
+                      <TableCell className="text-muted-foreground text-xs py-1.5 px-2">
                         ${marginRequired.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </TableCell>
 
-                      <TableCell className="py-1 px-2">
+                      <TableCell className="py-1.5 px-2">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-0.5">
-                            <span className="text-foreground text-[10px]">
+                            <span className="text-foreground text-xs">
                               ${liquidationPrice.toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
