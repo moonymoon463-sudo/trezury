@@ -340,17 +340,15 @@ const TradingDashboard = () => {
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
-                  className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
+                      className="w-full bg-[#e6b951]/20 text-[#e6b951] hover:bg-[#e6b951]/30 font-bold"
                     >
-                      <DollarSign className="h-4 w-4" />
                       Deposit
                     </Button>
                     <Button 
                       onClick={() => setShowWithdrawModal(true)}
                       variant="outline" 
-                       className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold inline-flex items-center justify-center gap-1.5 leading-none"
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold"
                     >
-                       <DollarSign className="h-4 w-4" />
                       Withdraw
                     </Button>
                   </>
@@ -723,10 +721,25 @@ const TradingDashboard = () => {
         </div>
 
         <Tabs value={tradeMode} onValueChange={(v) => setTradeMode(v as 'buy' | 'sell' | 'positions')} className="mb-2 flex-shrink-0">
-          <TabsList className="grid w-full grid-cols-3 bg-[#211d12]">
-            <TabsTrigger value="buy" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs">Buy</TabsTrigger>
-            <TabsTrigger value="sell" className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-xs">Sell</TabsTrigger>
-            <TabsTrigger value="positions" className="data-[state=active]:bg-[#e6b951] data-[state=active]:text-black text-xs">Positions</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-[#211d12] p-0.5 h-9">
+            <TabsTrigger 
+              value="buy" 
+              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-[#c6b795] text-xs font-semibold rounded-sm transition-all"
+            >
+              Buy
+            </TabsTrigger>
+            <TabsTrigger 
+              value="sell" 
+              className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-[#c6b795] text-xs font-semibold rounded-sm transition-all"
+            >
+              Sell
+            </TabsTrigger>
+            <TabsTrigger 
+              value="positions" 
+              className="data-[state=active]:bg-[#e6b951] data-[state=active]:text-black text-[#c6b795] text-xs font-semibold rounded-sm transition-all"
+            >
+              Positions
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
