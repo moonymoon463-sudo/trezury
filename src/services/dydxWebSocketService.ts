@@ -21,9 +21,11 @@ class DydxWebSocketService {
   private healthCallbacks = new Set<HealthCallback>();
   private isConnecting = false;
   private orderbookState = new Map<string, { bids: Map<number, string>; asks: Map<number, string> }>();
-  private lastMessageId = new Map<string, string>(); // For deduplication
+  private lastMessageHash = new Map<string, number>(); // Hash-based deduplication
   private pingInterval: NodeJS.Timeout | null = null;
   private lastPongTime = Date.now();
+  private messageQueue: any[] = [];
+  private processingFrame: number | null = null;
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) return;
@@ -47,7 +49,7 @@ class DydxWebSocketService {
     this.ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        this.handleMessage(message);
+        this.queueMessage(message);
       } catch (error) {
         console.error('[DydxWS] Parse error:', error);
       }
@@ -123,6 +125,32 @@ class DydxWebSocketService {
     this.healthCallbacks.forEach(cb => cb(state));
   }
 
+  private queueMessage(message: any): void {
+    this.messageQueue.push(message);
+    
+    if (!this.processingFrame) {
+      this.processingFrame = requestAnimationFrame(() => {
+        this.processBatchedMessages();
+      });
+    }
+  }
+
+  private processBatchedMessages(): void {
+    const messages = this.messageQueue.splice(0);
+    messages.forEach(msg => this.handleMessage(msg));
+    this.processingFrame = null;
+  }
+
+  private fastHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash;
+  }
+
   private resubscribeAll(): void {
     this.subscriptions.forEach((_, market) => {
       this.sendSubscribe('v4_orderbook', market);
@@ -175,18 +203,19 @@ class DydxWebSocketService {
 
     const { channel, id, contents } = message;
 
-    // Message deduplication
-    const messageKey = `${channel}:${id}:${JSON.stringify(contents).substring(0, 50)}`;
-    if (this.lastMessageId.get(channel) === messageKey) {
+    // Fast hash-based deduplication
+    const messageKey = `${channel}:${id}`;
+    const contentHash = this.fastHash(JSON.stringify(contents));
+    if (this.lastMessageHash.get(messageKey) === contentHash) {
       return; // Skip duplicate
     }
-    this.lastMessageId.set(channel, messageKey);
+    this.lastMessageHash.set(messageKey, contentHash);
 
     if (channel === 'v4_orderbook') {
       // Get or initialize state for this market
       const state = this.orderbookState.get(id) ?? { bids: new Map(), asks: new Map() };
 
-      // Merge bids (delta updates)
+      // Merge bids (delta updates) - maintain sorted order
       if (Array.isArray(contents.bids)) {
         for (const [p, s] of contents.bids) {
           const price = Number(p);
@@ -200,7 +229,7 @@ class DydxWebSocketService {
         }
       }
 
-      // Merge asks (delta updates)
+      // Merge asks (delta updates) - maintain sorted order
       if (Array.isArray(contents.asks)) {
         for (const [p, s] of contents.asks) {
           const price = Number(p);
@@ -214,14 +243,16 @@ class DydxWebSocketService {
         }
       }
 
-      // Rebuild sorted arrays from merged state
+      // Convert to sorted arrays (Map iteration is already insertion-ordered)
       const bidsArr = Array.from(state.bids.entries())
-        .map(([price, size]) => ({ price: price.toString(), size }))
-        .sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+        .sort(([a], [b]) => b - a) // Sort descending by price (number comparison)
+        .slice(0, 20) // Limit to top 20 for performance
+        .map(([price, size]) => ({ price: price.toString(), size }));
 
       const asksArr = Array.from(state.asks.entries())
-        .map(([price, size]) => ({ price: price.toString(), size }))
-        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+        .sort(([a], [b]) => a - b) // Sort ascending by price (number comparison)
+        .slice(0, 20) // Limit to top 20 for performance
+        .map(([price, size]) => ({ price: price.toString(), size }));
 
       // Save state
       this.orderbookState.set(id, state);

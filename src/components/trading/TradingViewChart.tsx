@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-// Note: We'll lazy-load lightweight-charts to avoid bundler interop issues
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { createChart } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DydxCandle } from '@/types/dydx';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TrendingUp } from 'lucide-react';
 import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';
 import { useChartDrawingTools } from '@/hooks/useChartDrawingTools';
@@ -11,6 +11,14 @@ import { calculateSMA } from '@/utils/chartIndicators';
 import { calculateVWAP, calculateRSI, calculateMACD } from '@/utils/advancedChartIndicators';
 import { useChartPersistence } from '@/hooks/useChartPersistence';
 import { LiveModeToggle } from './LiveModeToggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 interface TradingViewChartProps {
   symbol: string;
@@ -51,7 +59,6 @@ const TradingViewChart = ({
   const [isLoading, setIsLoading] = useState(false);
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
   const lastCandleCountRef = useRef(0);
-  const updateDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
   // Chart persistence
   const {
@@ -92,6 +99,32 @@ const TradingViewChart = ({
   const indicatorsRef = useRef<Map<string, any>>(new Map());
   const drawnLinesRef = useRef<Map<string, any>>(new Map());
 
+  // Memoize indicator calculations for performance
+  const indicatorData = useMemo(() => {
+    if (!candles || candles.length === 0) return null;
+
+    const data: Record<string, any> = {};
+
+    activeIndicators.forEach(indicator => {
+      try {
+        if (indicator.startsWith('MA')) {
+          const period = parseInt(indicator.slice(2));
+          data[indicator] = calculateSMA(candles, period);
+        } else if (indicator === 'VWAP') {
+          data.vwap = calculateVWAP(candles);
+        } else if (indicator === 'RSI') {
+          data.rsi = calculateRSI(candles, 14);
+        } else if (indicator === 'MACD') {
+          data.macd = calculateMACD(candles);
+        }
+      } catch (error) {
+        console.error(`[Chart] Error calculating ${indicator}:`, error);
+      }
+    });
+
+    return data;
+  }, [candles, activeIndicators]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let disposed = false;
@@ -111,49 +144,11 @@ const TradingViewChart = ({
         containerWidth: chartContainerRef.current?.clientWidth,
       });
 
-      // Load lightweight-charts from CDN with retry logic
-      let lib: any = (window as any).LightweightCharts;
-      if (!lib) {
-        await new Promise<void>((resolve, reject) => {
-          const existing = document.querySelector('script[data-lwc-cdn="true"]') as HTMLScriptElement | null;
-          if (existing) {
-            // Wait for existing script to load
-            const checkLib = () => {
-              if ((window as any).LightweightCharts) {
-                resolve();
-              } else {
-                setTimeout(checkLib, 100);
-              }
-            };
-            checkLib();
-          } else {
-            const s = document.createElement('script');
-            s.src = 'https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js';
-            s.async = true;
-            s.setAttribute('data-lwc-cdn', 'true');
-            s.onload = () => {
-              // Double-check lib is available after load
-              const checkLib = () => {
-                if ((window as any).LightweightCharts) {
-                  resolve();
-                } else {
-                  setTimeout(checkLib, 50);
-                }
-              };
-              checkLib();
-            };
-            s.onerror = () => reject(new Error('Failed to load lightweight-charts CDN'));
-            document.head.appendChild(s);
-          }
-        });
-        lib = (window as any).LightweightCharts;
-      }
-
       if (disposed) return;
 
-      // Create chart instance with responsive sizing
+      // Create chart instance with responsive sizing (using bundled library)
       const containerHeight = chartContainerRef.current.clientHeight || 400;
-      const chart = (lib as any).createChart(chartContainerRef.current, {
+      const chart = createChart(chartContainerRef.current, {
         layout: {
           background: { color: 'transparent' },
           textColor: '#D4AF37', // aurum color
@@ -224,7 +219,7 @@ const TradingViewChart = ({
       const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-        ),
+        ) as any,
         open: candle.open,
         high: candle.high,
         low: candle.low,
@@ -236,7 +231,7 @@ const TradingViewChart = ({
         .map((candle) => ({
           time: Math.floor(
             candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-          ),
+          ) as any,
           value: candle.volume,
           color: candle.close > candle.open 
             ? 'rgba(16, 185, 129, 0.5)' // green with transparency
@@ -287,6 +282,7 @@ const TradingViewChart = ({
             lineStyle: 2, // Dashed
             axisLabelVisible: true,
             title: 'S/R',
+            lineVisible: true,
           });
           
           const lineId = `h-line-${Date.now()}`;
@@ -313,8 +309,8 @@ const TradingViewChart = ({
             });
             
             trendSeries.setData([
-              { time: trendLineStart.time, value: trendLineStart.price },
-              { time: param.time as number, value: price },
+              { time: trendLineStart.time as any, value: trendLineStart.price },
+              { time: param.time as any, value: price },
             ]);
             
             const lineId = `t-line-${Date.now()}`;
@@ -375,185 +371,186 @@ const TradingViewChart = ({
     if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
     if (candles.length === 0) return;
 
-    // Debounce rapid updates
-    if (updateDebounceRef.current) {
-      clearTimeout(updateDebounceRef.current);
-    }
+    // Process updates immediately for real-time feel
+    const validCandles = candles.filter(
+      c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+    );
 
-    updateDebounceRef.current = setTimeout(() => {
-      const validCandles = candles.filter(
-        c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
-      );
+    // Sort ascending by timestamp (required by lightweight-charts)
+    const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
 
-      // Sort ascending by timestamp (required by lightweight-charts)
-      const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+    const chartData = sortedCandles.map((candle) => ({
+      time: Math.floor(
+        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+      ) as any,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }));
 
-      const chartData = sortedCandles.map((candle) => ({
+    const volumeData = sortedCandles
+      .filter(c => c.volume != null)
+      .map((candle) => ({
         time: Math.floor(
           candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-        ),
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
+        ) as any,
+        value: candle.volume,
+        color: candle.close > candle.open 
+          ? 'rgba(16, 185, 129, 0.5)'
+          : 'rgba(239, 68, 68, 0.5)',
       }));
 
-      const volumeData = sortedCandles
-        .filter(c => c.volume != null)
-        .map((candle) => ({
-          time: Math.floor(
-            candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
-          ),
-          value: candle.volume,
-          color: candle.close > candle.open 
-            ? 'rgba(16, 185, 129, 0.5)'
-            : 'rgba(239, 68, 68, 0.5)',
-        }));
+    // Detect if this is an incremental update (1-2 new candles) or full reload
+    const isIncrementalUpdate = Math.abs(chartData.length - lastCandleCountRef.current) <= 2 
+      && lastCandleCountRef.current > 0;
 
-      // Detect if this is an incremental update (1-2 new candles) or full reload
-      const isIncrementalUpdate = Math.abs(chartData.length - lastCandleCountRef.current) <= 2 
-        && lastCandleCountRef.current > 0;
-
-      if (isIncrementalUpdate && chartData.length > 0) {
-        // Incremental update: only update the last few candles
-        const lastCandle = chartData[chartData.length - 1];
-        const lastVolume = volumeData[volumeData.length - 1];
-        
-        try {
-          candleSeriesRef.current.update(lastCandle);
-          if (lastVolume) {
-            volumeSeriesRef.current.update(lastVolume);
-          }
-        } catch (e) {
-          // If update fails, fall back to setData
-          console.log('[Chart] Incremental update failed, using setData:', e);
-          candleSeriesRef.current.setData(chartData);
-          volumeSeriesRef.current.setData(volumeData);
+    if (isIncrementalUpdate && chartData.length > 0) {
+      // Incremental update: only update the last candle for smooth real-time updates
+      const lastCandle = chartData[chartData.length - 1];
+      const lastVolume = volumeData[volumeData.length - 1];
+      
+      try {
+        candleSeriesRef.current.update(lastCandle);
+        if (lastVolume) {
+          volumeSeriesRef.current.update(lastVolume);
         }
-      } else {
-        // Full reload: use setData and fit content
+      } catch (e) {
+        // If update fails, fall back to setData
+        console.log('[Chart] Incremental update failed, using setData:', e);
         candleSeriesRef.current.setData(chartData);
         volumeSeriesRef.current.setData(volumeData);
-        
-        // Only fit content on full reload (symbol/resolution change)
-        if (lastCandleCountRef.current === 0) {
-          chartRef.current.timeScale().fitContent();
-        }
       }
-
-      lastCandleCountRef.current = chartData.length;
-    }, 150); // 150ms debounce for batching rapid updates
-
-    return () => {
-      if (updateDebounceRef.current) {
-        clearTimeout(updateDebounceRef.current);
+    } else {
+      // Full reload: use setData and fit content
+      candleSeriesRef.current.setData(chartData);
+      volumeSeriesRef.current.setData(volumeData);
+      
+      // Only fit content on full reload (symbol/resolution change)
+      if (lastCandleCountRef.current === 0) {
+        chartRef.current.timeScale().fitContent();
       }
-    };
+    }
+
+    lastCandleCountRef.current = chartData.length;
   }, [candles]);
 
-  // Manage indicators (MA, VWAP, RSI, MACD)
+  // Manage indicators using memoized data for better performance
   useEffect(() => {
-    if (!chartRef.current || !candleSeriesRef.current) return;
-    if (candles.length === 0) return;
+    if (!chartRef.current || !candleSeriesRef.current || !indicatorData) return;
+    
+    // Additional safety check: verify chart hasn't been disposed
+    try {
+      chartRef.current.timeScale();
+    } catch (e) {
+      console.log('[Chart] Chart not ready for indicators');
+      return;
+    }
 
-    // Remove old indicators
+    // Remove old indicators safely
     indicatorsRef.current.forEach((series) => {
       try {
-        chartRef.current.removeSeries(series);
+        if (chartRef.current) {
+          chartRef.current.removeSeries(series);
+        }
       } catch (e) {
         // Series may already be removed
       }
     });
     indicatorsRef.current.clear();
 
-    // Add active indicators
+    // Add active indicators using pre-calculated data from useMemo
     activeIndicators.forEach((indicator) => {
-      if (indicator.startsWith('MA')) {
-        const period = parseInt(indicator.slice(2));
-        const maData = calculateSMA(candles, period);
+      try {
+        if (indicator.startsWith('MA') && indicatorData[indicator]) {
+          const period = parseInt(indicator.slice(2));
+          const maData = indicatorData[indicator];
 
-        if (maData.length > 0) {
-          const maSeries = chartRef.current.addLineSeries({
-            color: period === 20 ? '#3B82F6' : period === 50 ? '#9333EA' : '#EF4444',
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            crosshairMarkerVisible: true,
-            priceScaleId: '', // Overlay on main scale
-          });
+          if (maData.length > 0 && chartRef.current) {
+            const maSeries = chartRef.current.addLineSeries({
+              color: period === 20 ? '#3B82F6' : period === 50 ? '#9333EA' : '#EF4444',
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: true,
+              priceScaleId: '', // Overlay on main scale
+            });
 
-          maSeries.setData(maData);
-          indicatorsRef.current.set(indicator, maSeries);
+            maSeries.setData(maData);
+            indicatorsRef.current.set(indicator, maSeries);
+          }
+        } else if (indicator === 'VWAP' && indicatorData.vwap) {
+          const vwapData = indicatorData.vwap;
+          
+          if (vwapData.length > 0 && chartRef.current) {
+            const vwapSeries = chartRef.current.addLineSeries({
+              color: '#F59E0B',
+              lineWidth: 2,
+              lineStyle: 2, // Dashed
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: true,
+            });
+            
+            vwapSeries.setData(vwapData);
+            indicatorsRef.current.set(indicator, vwapSeries);
+          }
+        } else if (indicator === 'RSI' && indicatorData.rsi) {
+          const rsiData = indicatorData.rsi;
+          
+          if (rsiData.length > 0 && chartRef.current) {
+            const rsiSeries = chartRef.current.addLineSeries({
+              color: '#8B5CF6',
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              priceScaleId: 'rsi', // Separate scale
+            });
+            
+            // Configure RSI scale (0-100)
+            chartRef.current.priceScale('rsi').applyOptions({
+              scaleMargins: {
+                top: 0.7,
+                bottom: 0,
+              },
+            });
+            
+            rsiSeries.setData(rsiData);
+            indicatorsRef.current.set(indicator, rsiSeries);
+          }
+        } else if (indicator === 'MACD' && indicatorData.macd) {
+          const macdData = indicatorData.macd;
+          
+          if (macdData.histogram.length > 0 && chartRef.current) {
+            // MACD histogram
+            const macdHistogram = chartRef.current.addHistogramSeries({
+              color: '#10B981',
+              priceFormat: {
+                type: 'volume',
+              },
+              priceScaleId: 'macd',
+            });
+            
+            // Configure MACD scale
+            chartRef.current.priceScale('macd').applyOptions({
+              scaleMargins: {
+                top: 0.7,
+                bottom: 0,
+              },
+            });
+            
+            macdHistogram.setData(macdData.histogram);
+            indicatorsRef.current.set('MACD', macdHistogram);
+          }
         }
-      } else if (indicator === 'VWAP') {
-        const vwapData = calculateVWAP(candles);
-        
-        if (vwapData.length > 0) {
-          const vwapSeries = chartRef.current.addLineSeries({
-            color: '#F59E0B',
-            lineWidth: 2,
-            lineStyle: 2, // Dashed
-            priceLineVisible: false,
-            lastValueVisible: true,
-            crosshairMarkerVisible: true,
-          });
-          
-          vwapSeries.setData(vwapData);
-          indicatorsRef.current.set(indicator, vwapSeries);
-        }
-      } else if (indicator === 'RSI') {
-        const rsiData = calculateRSI(candles, 14);
-        
-        if (rsiData.length > 0) {
-          const rsiSeries = chartRef.current.addLineSeries({
-            color: '#8B5CF6',
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            priceScaleId: 'rsi', // Separate scale
-          });
-          
-          // Configure RSI scale (0-100)
-          chartRef.current.priceScale('rsi').applyOptions({
-            scaleMargins: {
-              top: 0.7,
-              bottom: 0,
-            },
-          });
-          
-          rsiSeries.setData(rsiData);
-          indicatorsRef.current.set(indicator, rsiSeries);
-        }
-      } else if (indicator === 'MACD') {
-        const macdData = calculateMACD(candles);
-        
-        if (macdData.histogram.length > 0) {
-          // MACD histogram
-          const macdHistogram = chartRef.current.addHistogramSeries({
-            color: '#10B981',
-            priceFormat: {
-              type: 'volume',
-            },
-            priceScaleId: 'macd',
-          });
-          
-          // Configure MACD scale
-          chartRef.current.priceScale('macd').applyOptions({
-            scaleMargins: {
-              top: 0.7,
-              bottom: 0,
-            },
-          });
-          
-          macdHistogram.setData(macdData.histogram);
-          indicatorsRef.current.set('MACD', macdHistogram);
-        }
+      } catch (e) {
+        console.warn('[Chart] Failed to add indicator:', indicator, e);
       }
     });
     
     // Save to persistence
     updateIndicators(Array.from(activeIndicators));
-  }, [activeIndicators, candles, updateIndicators]);
+  }, [indicatorData, activeIndicators, updateIndicators]);
 
   // Clear drawings when symbol/resolution changes
   useEffect(() => {
@@ -610,31 +607,132 @@ const TradingViewChart = ({
 
   return (
     <div className="flex flex-col h-full gap-3 p-4">
-      {/* Timeframe Selector */}
+      {/* Indicator Dropdown and Timeframe Selector */}
       <div className="flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Timeframe:</span>
-          <div className="flex gap-1">
-            {TIMEFRAMES.map((tf) => (
+        <div className="flex items-center gap-3">
+          {/* Indicators Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
-                key={tf.value}
-                variant={resolution === tf.value ? 'default' : 'outline'}
+                variant="outline"
                 size="sm"
-                onClick={() => handleTimeframeChange(tf.value)}
-                disabled={isLoading}
-                className={
-                  resolution === tf.value
-                    ? 'bg-aurum text-black hover:bg-aurum-glow h-7 text-xs'
-                    : 'border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs'
-                }
+                className="border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs gap-1.5"
+                disabled={isLoading || loading}
               >
-                {tf.label}
+                <TrendingUp className="h-3.5 w-3.5" />
+                Indicators
               </Button>
-            ))}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent 
+              align="start" 
+              className="w-56 bg-[#1a1712] border-aurum/20 z-50"
+            >
+              <DropdownMenuLabel className="text-aurum">Moving Averages</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={activeIndicators.has('MA20')}
+                onCheckedChange={() => toggleIndicator('MA20')}
+                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-blue-500" />
+                  MA 20
+                </span>
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeIndicators.has('MA50')}
+                onCheckedChange={() => toggleIndicator('MA50')}
+                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-purple-500" />
+                  MA 50
+                </span>
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeIndicators.has('MA100')}
+                onCheckedChange={() => toggleIndicator('MA100')}
+                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-red-500" />
+                  MA 100
+                </span>
+              </DropdownMenuCheckboxItem>
+              
+              <DropdownMenuSeparator className="bg-aurum/20" />
+              <DropdownMenuLabel className="text-aurum">Volume</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={activeIndicators.has('VWAP')}
+                onCheckedChange={() => toggleIndicator('VWAP')}
+                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-amber-500" />
+                  VWAP
+                </span>
+              </DropdownMenuCheckboxItem>
+              
+              <DropdownMenuSeparator className="bg-aurum/20" />
+              <DropdownMenuLabel className="text-aurum">Momentum</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={activeIndicators.has('RSI')}
+                onCheckedChange={() => toggleIndicator('RSI')}
+                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-violet-500" />
+                  RSI (14)
+                </span>
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={activeIndicators.has('MACD')}
+                onCheckedChange={() => toggleIndicator('MACD')}
+                className="text-muted-foreground hover:text-aurum hover:bg-aurum/10"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-0.5 bg-emerald-500" />
+                  MACD
+                </span>
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Timeframe Buttons */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Timeframe:</span>
+            <div className="flex gap-1">
+              {TIMEFRAMES.map((tf) => (
+                <Button
+                  key={tf.value}
+                  variant={resolution === tf.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTimeframeChange(tf.value)}
+                  disabled={isLoading}
+                  className={
+                    resolution === tf.value
+                      ? 'bg-aurum text-black hover:bg-aurum-glow h-7 text-xs'
+                      : 'border-aurum/20 text-aurum hover:bg-aurum/10 h-7 text-xs'
+                  }
+                >
+                  {tf.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="text-sm font-semibold text-aurum">
-          {symbol}
+        
+        {/* Symbol and Live Indicator */}
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-semibold text-aurum">
+            {symbol}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-status-success">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-success opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-status-success"></span>
+            </span>
+            Live
+          </div>
         </div>
       </div>
 
