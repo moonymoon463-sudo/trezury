@@ -787,11 +787,11 @@ const TradingDashboard = () => {
       </main>
 
       {/* Right Sidebar - Order Panel */}
-      <aside className="w-80 bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
-        <h2 className="text-white text-base font-bold mb-2">Order Panel</h2>
+      <aside className="w-80 h-screen bg-[#2a251a] border-l border-[#463c25] p-3 overflow-hidden flex-shrink-0 flex flex-col">
+        <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Fixed Height with Internal Scroll */}
-        <div className="mb-3 flex-shrink-0">
+        <div className="mb-3 flex-shrink-0 max-h-[180px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
@@ -819,7 +819,7 @@ const TradingDashboard = () => {
         </Tabs>
 
         {tradeMode !== 'positions' ? (
-          <div className="space-y-2 overflow-y-auto flex-1 pr-1">
+          <div className="space-y-2 overflow-y-auto flex-1 pr-1 min-h-0">
             {/* Order Type */}
             <div>
               <label className="text-[#c6b795] text-xs font-medium mb-1 block">Order Type</label>
@@ -949,8 +949,11 @@ const TradingDashboard = () => {
               </div>
             )}
 
-            {/* Total and Available */}
-            <div className="space-y-1 pt-2 border-t border-[#463c25]">
+          </div>
+          
+          {/* Total, Available and Confirm Button - Sticky at Bottom */}
+          <div className="flex-shrink-0 space-y-2 pt-3 border-t border-[#463c25] bg-[#2a251a]">
+            <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-[#c6b795]">Total:</span>
                 <span className="text-white font-semibold">
@@ -969,8 +972,8 @@ const TradingDashboard = () => {
               </div>
             </div>
 
-            {/* Confirm Button - Fixed at Bottom */}
-            <div className="pt-2 mt-auto">
+            {/* Confirm Button */}
+            <div>
               {isCurrentWalletConnected ? (
                 <Button
                   onClick={handlePlaceOrder}
@@ -995,7 +998,7 @@ const TradingDashboard = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-2 overflow-y-auto flex-1">
+          <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
             {dydxAddress ? (
               <>
                 <PositionManager address={dydxAddress} currentPrices={currentPrices} />
