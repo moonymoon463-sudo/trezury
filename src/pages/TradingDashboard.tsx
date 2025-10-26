@@ -766,7 +766,7 @@ const TradingDashboard = () => {
         <h2 className="text-white text-base font-bold mb-2 flex-shrink-0">Order Panel</h2>
 
         {/* Order Book - Optimized Height */}
-        <div className="mb-3 flex-shrink-0 max-h-[200px] overflow-hidden">
+        <div className="mb-3 flex-shrink-0 max-h-[160px] overflow-hidden">
           <OrderBook symbol={selectedAsset} />
         </div>
 
