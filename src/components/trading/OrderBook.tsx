@@ -231,7 +231,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
           </div>
 
           {/* Asks Section - Scrollable */}
-          <ScrollArea className="h-[180px]">
+          <ScrollArea className="h-[130px]">
             <div className="pr-2">
               {[...asks].reverse().map((ask) => {
                 const depthPercent = (ask.total / maxAskTotal) * 100;
@@ -261,7 +261,7 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
           </div>
 
           {/* Bids Section - Scrollable */}
-          <ScrollArea className="h-[180px]">
+          <ScrollArea className="h-[130px]">
             <div className="pr-2">
               {bids.map((bid) => {
                 const depthPercent = (bid.total / maxBidTotal) * 100;
