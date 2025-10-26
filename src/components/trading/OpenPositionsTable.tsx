@@ -336,7 +336,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
               </TableHeader>
 
               <TableBody>
-                {sortedPositions.map((position, index) => {
+                 {sortedPositions.map((position, index) => {
                   const currentPrice = currentPrices[position.market] || position.entryPrice;
                   const pnl = position.side === 'LONG'
                     ? (currentPrice - position.entryPrice) * position.size
@@ -356,6 +356,12 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                   
                   // Calculate distance to liquidation
                   const distanceToLiquidation = Math.abs(((currentPrice - liquidationPrice) / currentPrice) * 100);
+                  
+                  // Calculate breakeven price (entry + estimated fees)
+                  const estimatedFees = position.entryPrice * 0.001; // 0.1% total fees estimate
+                  const breakevenPrice = position.side === 'LONG' 
+                    ? position.entryPrice + estimatedFees
+                    : position.entryPrice - estimatedFees;
                   
                   // Determine risk level based on distance to liquidation
                   const riskLevel = 
@@ -424,14 +430,14 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                       </TableCell>
 
                       <TableCell className="py-1.5">
-                        <div className="flex flex-col">
-                          <span className="text-foreground text-xs">
-                            ${liquidationPrice.toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </span>
+                        <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1">
+                            <span className="text-foreground text-xs">
+                              ${liquidationPrice.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
                             <div
                               className={`h-1 w-1 rounded-full ${
                                 riskLevel === 'critical'
@@ -443,10 +449,18 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                                   : 'bg-green-500'
                               }`}
                             />
-                            <span className="text-[9px] text-muted-foreground/60">
-                              {distanceToLiquidation.toFixed(1)}%
-                            </span>
                           </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[9px] text-muted-foreground/60 cursor-help">
+                                {distanceToLiquidation.toFixed(1)}% away | BE: ${breakevenPrice.toFixed(2)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <p>Distance to Liquidation: {distanceToLiquidation.toFixed(2)}%</p>
+                              <p>Breakeven Price: ${breakevenPrice.toFixed(2)}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </TableCell>
 

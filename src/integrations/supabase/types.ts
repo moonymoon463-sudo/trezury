@@ -1414,6 +1414,42 @@ export type Database = {
           },
         ]
       }
+      market_rules_cache: {
+        Row: {
+          maker_fee_rate: number
+          market: string
+          max_leverage: number
+          min_notional: number
+          min_order_size: number
+          step_size: number
+          taker_fee_rate: number
+          tick_size: number
+          updated_at: string | null
+        }
+        Insert: {
+          maker_fee_rate?: number
+          market: string
+          max_leverage?: number
+          min_notional: number
+          min_order_size: number
+          step_size: number
+          taker_fee_rate?: number
+          tick_size: number
+          updated_at?: string | null
+        }
+        Update: {
+          maker_fee_rate?: number
+          market?: string
+          max_leverage?: number
+          min_notional?: number
+          min_order_size?: number
+          step_size?: number
+          taker_fee_rate?: number
+          tick_size?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       moonpay_customers: {
         Row: {
           country_code: string | null
@@ -2680,6 +2716,45 @@ export type Database = {
           },
         ]
       }
+      trade_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          ip_address: unknown
+          market: string
+          order_details: Json
+          result: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown
+          market: string
+          order_details: Json
+          result?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown
+          market?: string
+          order_details?: Json
+          result?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_alerts: {
         Row: {
           alert_type: string
@@ -2932,6 +3007,45 @@ export type Database = {
           id?: string
           last_updated?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_chart_settings: {
+        Row: {
+          created_at: string | null
+          drawings: Json | null
+          id: string
+          indicators: Json | null
+          live_mode: boolean | null
+          market: string
+          resolution: string
+          updated_at: string | null
+          user_id: string
+          viewport: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          drawings?: Json | null
+          id?: string
+          indicators?: Json | null
+          live_mode?: boolean | null
+          market: string
+          resolution: string
+          updated_at?: string | null
+          user_id: string
+          viewport?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          drawings?: Json | null
+          id?: string
+          indicators?: Json | null
+          live_mode?: boolean | null
+          market?: string
+          resolution?: string
+          updated_at?: string | null
+          user_id?: string
+          viewport?: Json | null
         }
         Relationships: []
       }

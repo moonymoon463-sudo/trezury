@@ -113,6 +113,101 @@ class DydxMarketService {
     });
   }
 
+  // Get market rules for validation (tick size, step size, min order size, etc.)
+  async getMarketRules(symbol: string): Promise<{
+    tickSize: number;
+    stepSize: number;
+    minOrderSize: number;
+    minNotional: number;
+    maxLeverage: number;
+    makerFeeRate: number;
+    takerFeeRate: number;
+  }> {
+    const cacheKey = `market_rules_${symbol}`;
+    const cached = this.getCached(cacheKey);
+    if (cached) return cached;
+
+    // First try to get from database cache
+    const { data: dbCached } = await supabase
+      .from('market_rules_cache')
+      .select('*')
+      .eq('market', symbol)
+      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // 24h cache
+      .single();
+
+    if (dbCached) {
+      const rules = {
+        tickSize: Number(dbCached.tick_size),
+        stepSize: Number(dbCached.step_size),
+        minOrderSize: Number(dbCached.min_order_size),
+        minNotional: Number(dbCached.min_notional),
+        maxLeverage: dbCached.max_leverage,
+        makerFeeRate: Number(dbCached.maker_fee_rate),
+        takerFeeRate: Number(dbCached.taker_fee_rate),
+      };
+      this.setCache(cacheKey, rules, 3600); // Cache in memory for 1 hour
+      return rules;
+    }
+
+    // Fetch from API and cache
+    const market = await this.getMarket(symbol);
+    if (!market) {
+      throw new Error(`Market ${symbol} not found`);
+    }
+
+    // Default rules based on asset (these should ideally come from dYdX API)
+    const rules = {
+      tickSize: symbol.startsWith('BTC') ? 0.1 : symbol.startsWith('ETH') ? 0.01 : 0.001,
+      stepSize: symbol.startsWith('BTC') ? 0.001 : symbol.startsWith('ETH') ? 0.01 : 0.1,
+      minOrderSize: symbol.startsWith('BTC') ? 0.001 : symbol.startsWith('ETH') ? 0.01 : 1,
+      minNotional: 10, // $10 minimum
+      maxLeverage: 20,
+      makerFeeRate: 0.0002, // 0.02%
+      takerFeeRate: 0.0005, // 0.05%
+    };
+
+    // Cache in database
+    await supabase
+      .from('market_rules_cache')
+      .upsert({
+        market: symbol,
+        tick_size: rules.tickSize,
+        step_size: rules.stepSize,
+        min_order_size: rules.minOrderSize,
+        min_notional: rules.minNotional,
+        max_leverage: rules.maxLeverage,
+        maker_fee_rate: rules.makerFeeRate,
+        taker_fee_rate: rules.takerFeeRate,
+        updated_at: new Date().toISOString(),
+      });
+
+    this.setCache(cacheKey, rules, 3600);
+    return rules;
+  }
+
+  // Validate order size against market rules
+  validateOrderSize(size: number, price: number, rules: {
+    stepSize: number;
+    minOrderSize: number;
+    minNotional: number;
+  }): { valid: boolean; error?: string } {
+    if (size < rules.minOrderSize) {
+      return { valid: false, error: `Min order size: ${rules.minOrderSize}` };
+    }
+
+    const remainder = size % rules.stepSize;
+    if (remainder > 0.0000001) { // Account for floating point precision
+      return { valid: false, error: `Size must be multiple of ${rules.stepSize}` };
+    }
+
+    const notional = size * price;
+    if (notional < rules.minNotional) {
+      return { valid: false, error: `Min notional: $${rules.minNotional}` };
+    }
+
+    return { valid: true };
+  }
+
   // Real-time updates
   startRealTimeUpdates(intervalMs: number = 10000): void {
     if (this.updateInterval) return;
