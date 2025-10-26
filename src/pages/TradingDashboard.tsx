@@ -31,6 +31,8 @@ import { OrderBook } from '@/components/trading/OrderBook';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { useAuth } from '@/hooks/useAuth';
 import { useWepsMockData } from '@/hooks/useWepsMockData';
+import { WepsInsightsCard } from '@/components/weps/WepsInsightsCard';
+import { WepsEvolutionLog } from '@/components/weps/WepsEvolutionLog';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -695,70 +697,19 @@ const TradingDashboard = () => {
         )}
 
         {/* WEPS Insights Section */}
-        <div ref={wepsSectionRef}>
-          <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
-          <div className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-white text-lg font-semibold flex items-center gap-2">
-                <Zap className="h-4 w-4 text-[#e6b951]" />
-                WEPS Mode – Bio-Adaptive Insights
-              </h3>
-              <Badge className="bg-[#e6b951]/20 text-[#e6b951]">
-                Confidence {(confidence * 100).toFixed(1)}%
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
-                <p className="text-[#c6b795] mb-1">Phase</p>
-                <p className="text-white font-bold">{phase}</p>
-              </div>
-              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
-                <p className="text-[#c6b795] mb-1">Bio State</p>
-                <p className="text-white font-bold">{bioState}</p>
-              </div>
-              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
-                <p className="text-[#c6b795] mb-1">Volatility</p>
-                <p className="text-white font-bold">{(volatility * 100).toFixed(1)}%</p>
-              </div>
-              <div className="p-3 bg-[#1a1712] rounded-lg border border-[#463c25]">
-                <p className="text-[#c6b795] mb-1">Mode</p>
-                <p
-                  className={`font-bold ${
-                    bioState === "Aggressive"
-                      ? "text-green-400"
-                      : bioState === "Defensive"
-                      ? "text-red-400"
-                      : "text-[#e6b951]"
-                  }`}
-                >
-                  {bioState}
-                </p>
-              </div>
-            </div>
-
-            <div className="text-[#c6b795] text-sm leading-relaxed bg-[#1a1712] border border-[#463c25] rounded-lg p-3">
-              {phase === "Growth" && "Market rhythm expanding — bias toward long positions."}
-              {phase === "Decay" && "Volatility fading — tighten risk exposure."}
-              {phase === "Rebirth" && "Momentum reversal forming — early entry opportunity."}
-              {phase === "Death" && "Entropy spike detected — stay defensive."}
-              {phase === "Neutral" && "Awaiting phase confirmation."}
-            </div>
-          </div>
-        </Card>
+        <div ref={wepsSectionRef} className="mb-4">
+          <WepsInsightsCard
+            phase={phase}
+            bioState={bioState}
+            confidence={confidence}
+            volatility={volatility}
+          />
         </div>
 
         {/* WEPS Evolution Log */}
-        <Card className="bg-[#2a251a] border-[#463c25] flex-shrink-0">
-          <div className="p-4">
-            <h3 className="text-white text-lg font-semibold mb-2">WEPS Evolution Log</h3>
-            <ul className="space-y-2 text-sm text-[#c6b795]">
-              <li>🧬 10:42 — Mutation event: volatility sensitivity +5%</li>
-              <li>🌊 09:15 — Phase bias shifted: Growth → Rebirth</li>
-              <li>⚡ 08:10 — Confidence threshold recalibrated</li>
-            </ul>
-          </div>
-        </Card>
+        <div className="flex-shrink-0">
+          <WepsEvolutionLog />
+        </div>
       </main>
 
       {/* Right Sidebar - Order Panel */}
