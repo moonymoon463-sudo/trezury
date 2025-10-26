@@ -94,19 +94,22 @@ export const useDydxCandles = (
             clearTimeout(debounceTimer);
           }
 
+          // Capture the value to avoid closure issues
+          const updateToApply = pendingUpdate;
           debounceTimer = setTimeout(() => {
-            if (!pendingUpdate) return;
+            if (!updateToApply) return;
             
             setCandles(prev => {
               const newCandles = [...prev];
-              const existingIndex = newCandles.findIndex(c => c.timestamp === pendingUpdate!.timestamp);
+              // Add null check to prevent reading timestamp of null
+              const existingIndex = newCandles.findIndex(c => c && c.timestamp === updateToApply.timestamp);
 
               if (existingIndex >= 0) {
                 // Update existing candle in place
-                newCandles[existingIndex] = pendingUpdate!;
+                newCandles[existingIndex] = updateToApply;
               } else {
                 // Append new candle (already sorted by timestamp on server)
-                newCandles.push(pendingUpdate!);
+                newCandles.push(updateToApply);
               }
               
               return newCandles;
