@@ -122,7 +122,7 @@ export const useDydxCandles = (
             });
 
             pendingUpdate = null;
-          }, 500); // 500ms debounce for stability
+          }, 50); // 50ms debounce for near-instant updates
         }
       }
     );
