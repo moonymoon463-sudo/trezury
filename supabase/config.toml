@@ -103,7 +103,7 @@ verify_jwt = true
 [functions.transfer-to-dydx]
 verify_jwt = true
 
-[functions.monitor-skip-deposits]
+[functions.monitor-squid-deposits]
 verify_jwt = false
 
 [functions.record-skip-withdrawal]

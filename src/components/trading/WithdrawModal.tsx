@@ -43,7 +43,7 @@ export const WithdrawModal = ({
         <DialogHeader>
           <DialogTitle className="text-white text-xl">Withdraw from Trading Wallet</DialogTitle>
           <DialogDescription className="text-[#c6b795]">
-            Powered by Skip Go - Bridge USDC to any chain
+            Powered by Squid Router - Bridge USDC to any chain
           </DialogDescription>
         </DialogHeader>
 
@@ -55,22 +55,24 @@ export const WithdrawModal = ({
 
         {/* Withdrawal Instructions */}
         <div className="bg-[#211d12] p-6 rounded-lg border border-[#463c25]">
-          <h3 className="text-white font-semibold mb-3">Cross-Chain Withdrawal via Skip Go</h3>
+          <h3 className="text-white font-semibold mb-3">⚡ Fast Cross-Chain Withdrawal via Squid Router</h3>
           <p className="text-[#c6b795] text-sm mb-4">
-            Use Skip Go to withdraw USDC from dYdX to any supported chain.
+            Use Squid Router to withdraw USDC from dYdX to any supported chain in under 20 seconds.
           </p>
           <ol className="space-y-2 text-[#c6b795] text-sm mb-4">
-            <li>1. Visit <a href="https://skip.money" target="_blank" className="text-[#e6b951] underline">skip.money</a></li>
-            <li>2. Select dYdX Chain as source</li>
-            <li>3. Enter your dYdX address: <code className="text-xs bg-[#463c25] px-1 py-0.5 rounded">{dydxAddress}</code></li>
-            <li>4. Choose destination chain and address</li>
-            <li>5. Complete the withdrawal</li>
+            <li>1. Visit <a href="https://app.squidrouter.com" target="_blank" className="text-[#e6b951] underline">app.squidrouter.com</a></li>
+            <li>2. Connect your dYdX wallet</li>
+            <li>3. Select: dYdX Chain → Ethereum (or preferred chain)</li>
+            <li>4. Amount: {availableBalance.toFixed(2)} USDC available</li>
+            <li>5. Enter your destination address</li>
+            <li>6. Complete the withdrawal</li>
           </ol>
           <Button
-            onClick={() => window.open('https://skip.money', '_blank')}
-            className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black"
+            onClick={() => window.open('https://app.squidrouter.com', '_blank')}
+            className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-semibold"
           >
-            Open Skip Go →
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Open Squid Router
           </Button>
         </div>
 
@@ -80,15 +82,15 @@ export const WithdrawModal = ({
             ⚠️ Withdrawals require ~0.5 DYDX token (~$1) for gas fees
           </p>
           <p className="text-[#c6b795] text-xs">
-            ⏱️ Bridge time: 15-30 minutes depending on destination chain
+            ⚡ Bridge time: &lt;20 seconds via Axelar GMP
           </p>
           <a 
-            href="https://docs.skip.build" 
+            href="https://docs.squidrouter.com" 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-[#e6b951] text-xs hover:underline"
           >
-            Learn more about Skip Go
+            Learn more about Squid Router
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
