@@ -51,7 +51,7 @@ serve(async (req) => {
 
     const { amount, password, destinationAddress } = await req.json();
 
-    console.log('[transfer-to-dydx] Deposit request via Squid Router', {
+    console.log('[transfer-to-dydx] Gasless deposit request via Squid + Gelato', {
       userId: user.id,
       amount,
       destination: destinationAddress
@@ -148,23 +148,33 @@ serve(async (req) => {
       throw new Error('No executable transaction returned from Squid API');
     }
 
-    // Step 5: Execute transaction directly (user pays gas)
-    console.log('[transfer-to-dydx] Submitting transaction to Ethereum...');
+    // Step 5: Execute via Gelato Paymaster for gasless transaction
+    console.log('[transfer-to-dydx] Submitting to Gelato for gas sponsorship');
+    
+    const { GelatoRelay } = await import('https://esm.sh/@gelatonetwork/relay-sdk@5.6.0');
+    const relay = new GelatoRelay();
+    const GELATO_API_KEY = Deno.env.get('GELATO_SPONSOR_API_KEY');
 
-    const tx = {
-      to: txRequest.target,
+    if (!GELATO_API_KEY) {
+      throw new Error('GELATO_SPONSOR_API_KEY not configured');
+    }
+
+    // Build sponsored transaction
+    const sponsoredTx = {
+      chainId: BigInt(1),
+      target: txRequest.target,
       data: txRequest.data,
-      value: txRequest.value || '0',
-      gasLimit: 500000, // Squid Router estimated gas
+      user: wallet.address,
+      feeToken: "0x0000000000000000000000000000000000000000",
+      isRelayContext: true
     };
 
-    // Submit transaction (user pays gas in ETH)
-    const txResponse = await wallet.sendTransaction(tx);
-    console.log('[transfer-to-dydx] Transaction submitted:', txResponse.hash);
+    const gelatoResponse = await relay.sponsoredCallERC2771(
+      sponsoredTx,
+      GELATO_API_KEY
+    );
 
-    // Wait for confirmation
-    const receipt = await txResponse.wait();
-    console.log('[transfer-to-dydx] ✅ Transaction confirmed in block:', receipt.blockNumber);
+    console.log('[transfer-to-dydx] ⚡ Gelato task created:', gelatoResponse.taskId);
 
     // Step 6: Record transaction in database
     const transactionId = crypto.randomUUID();
@@ -177,20 +187,19 @@ serve(async (req) => {
         asset: 'USDC',
         quantity: amount,
         status: 'processing',
-        tx_hash: receipt.hash,
+        tx_hash: gelatoResponse.taskId,
         metadata: {
           transfer_type: 'internal_to_dydx',
           destination_address: destinationAddress,
           bridge_method: 'squid_router',
           squid_route_id: route.route?.requestId || '',
-          eth_tx_hash: receipt.hash,
-          eth_block_number: receipt.blockNumber,
-          eth_gas_used: receipt.gasUsed.toString(),
+          gelato_task_id: gelatoResponse.taskId,
           estimated_time_seconds: route.route?.estimate?.estimatedRouteDuration || 20,
-          gas_mode: 'user_paid',
+          gas_mode: 'sponsored',
+          gas_sponsor: 'gelato_paymaster',
           source_chain: 'ethereum',
           dest_chain: 'dydx',
-          axelar_tracking_url: `https://axelarscan.io/gmp/${receipt.hash}`,
+          axelar_tracking_url: `https://axelarscan.io/gmp/${gelatoResponse.taskId}`,
         }
       });
 
@@ -208,17 +217,17 @@ serve(async (req) => {
         snapshot_at: new Date().toISOString()
       });
 
-    console.log('[transfer-to-dydx] ✅ Deposit initiated successfully');
+    console.log('[transfer-to-dydx] ⚡ Gasless deposit initiated successfully');
 
     return new Response(
       JSON.stringify({
         success: true,
         transactionId,
-        txHash: receipt.hash,
+        gelatoTaskId: gelatoResponse.taskId,
         squidRouteId: route.route?.requestId || '',
         estimatedTime: Math.ceil(route.route?.estimate?.estimatedRouteDuration || 20),
-        axelarTrackingUrl: `https://axelarscan.io/gmp/${receipt.hash}`,
-        message: 'Deposit initiated via Squid Router',
+        axelarTrackingUrl: `https://axelarscan.io/gmp/${gelatoResponse.taskId}`,
+        message: '⚡ Gasless deposit initiated via Squid Router + Gelato',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
