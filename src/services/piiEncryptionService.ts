@@ -36,16 +36,16 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
     const encryptionKey = this.getEncryptionKey();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(encryptionKey.padEnd(32, '0')),
+      encoder.encode(encryptionKey.padEnd(32, '0')) as BufferSource,
       { name: 'AES-GCM' },
       false,
       ['encrypt']
     );
     
     const encrypted = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
+      { name: 'AES-GCM', iv: iv as BufferSource },
       key,
-      data
+      data as BufferSource
     );
     
     // Combine IV and encrypted data
@@ -73,16 +73,16 @@ class PIIEncryptionServiceImpl implements PIIEncryptionService {
     const encryptionKey = this.getEncryptionKey();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(encryptionKey.padEnd(32, '0')),
+      encoder.encode(encryptionKey.padEnd(32, '0')) as BufferSource,
       { name: 'AES-GCM' },
       false,
       ['decrypt']
     );
     
     const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
+      { name: 'AES-GCM', iv: iv as BufferSource },
       key,
-      encrypted
+      encrypted as BufferSource
     );
     
     return decoder.decode(decrypted);

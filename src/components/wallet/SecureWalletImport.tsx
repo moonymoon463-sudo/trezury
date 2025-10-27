@@ -91,7 +91,7 @@ export function SecureWalletImport() {
       
       const keyMaterial = await crypto.subtle.importKey(
         'raw',
-        new TextEncoder().encode(password),
+        new TextEncoder().encode(password) as BufferSource,
         'PBKDF2',
         false,
         ['deriveBits', 'deriveKey']
@@ -111,9 +111,9 @@ export function SecureWalletImport() {
       );
       
       const encrypted = await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: iv },
+        { name: 'AES-GCM', iv: iv as BufferSource },
         key,
-        new TextEncoder().encode(cleanedKey)
+        new TextEncoder().encode(cleanedKey) as BufferSource
       );
 
       // 6. Store in encrypted_wallet_keys

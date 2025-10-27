@@ -131,7 +131,7 @@ async function decryptWithUserId(
   // Use userId as password (legacy method)
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(userId),
+    new TextEncoder().encode(userId) as BufferSource,
     'PBKDF2',
     false,
     ['deriveBits', 'deriveKey']
@@ -140,7 +140,7 @@ async function decryptWithUserId(
   const key = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as BufferSource,
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -155,9 +155,9 @@ async function decryptWithUserId(
   );
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
-    encrypted
+    encrypted as BufferSource
   );
 
   return new TextDecoder().decode(decrypted);
@@ -174,7 +174,7 @@ async function encryptWithPassword(
   // Derive key from password
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(password),
+    new TextEncoder().encode(password) as BufferSource,
     'PBKDF2',
     false,
     ['deriveBits', 'deriveKey']
@@ -183,7 +183,7 @@ async function encryptWithPassword(
   const key = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt as BufferSource,
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -195,9 +195,9 @@ async function encryptWithPassword(
 
   // Encrypt private key
   const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: iv },
+    { name: 'AES-GCM', iv: iv as BufferSource },
     key,
-    new TextEncoder().encode(privateKey)
+    new TextEncoder().encode(privateKey) as BufferSource
   );
 
   return {

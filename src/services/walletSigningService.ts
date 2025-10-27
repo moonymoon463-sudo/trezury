@@ -101,7 +101,7 @@ class WalletSigningService {
     
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(decryptionPassword),
+      new TextEncoder().encode(decryptionPassword) as BufferSource,
       'PBKDF2',
       false,
       ['deriveBits', 'deriveKey']
@@ -110,7 +110,7 @@ class WalletSigningService {
     const key = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: salt as BufferSource,
         iterations: this.KDF_ITERATIONS,
         hash: 'SHA-256'
       },
@@ -125,9 +125,9 @@ class WalletSigningService {
     );
     
     const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: iv },
+      { name: 'AES-GCM', iv: iv as BufferSource },
       key,
-      encryptedData
+      encryptedData as BufferSource
     );
     
     return new TextDecoder().decode(decrypted);
@@ -149,7 +149,7 @@ class WalletSigningService {
 
     const importedKey = await crypto.subtle.importKey(
       'raw',
-      keyMaterial,
+      keyMaterial as BufferSource,
       { name: 'PBKDF2' },
       false,
       ['deriveBits']
@@ -158,7 +158,7 @@ class WalletSigningService {
     const derivedBits = await crypto.subtle.deriveBits(
       {
         name: 'PBKDF2',
-        salt: salt as BufferSource,
+        salt: new Uint8Array(salt) as BufferSource,
         iterations: this.KDF_ITERATIONS,
         hash: 'SHA-256'
       },
