@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -270,5 +272,3 @@ All colors MUST be HSL.
     padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap');
