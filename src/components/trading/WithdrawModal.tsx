@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ArrowRight, DollarSign } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
+import '@skip-go/widget/style.css';
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -24,240 +23,75 @@ export const WithdrawModal = ({
   internalAddress,
   onWithdrawComplete
 }: WithdrawModalProps) => {
-  const [destination, setDestination] = useState<'internal' | 'external'>('internal');
-  const [amount, setAmount] = useState('');
-  const [password, setPassword] = useState('');
-  const [externalAddress, setExternalAddress] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [widgetReady, setWidgetReady] = useState(false);
   const { toast } = useToast();
 
-  const handleWithdraw = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Amount',
-        description: 'Please enter a valid amount'
-      });
-      return;
+  useEffect(() => {
+    if (isOpen) {
+      loadWidget();
     }
+  }, [isOpen]);
 
-    if (parseFloat(amount) > availableBalance) {
-      toast({
-        variant: 'destructive',
-        title: 'Insufficient Balance',
-        description: `You only have ${availableBalance.toFixed(2)} USDC available`
-      });
-      return;
-    }
-
-    if (!password) {
-      toast({
-        variant: 'destructive',
-        title: 'Password Required',
-        description: 'Please enter your trading password'
-      });
-      return;
-    }
-
-    const targetAddress = destination === 'internal' ? internalAddress : externalAddress;
-    
-    if (!targetAddress) {
-      toast({
-        variant: 'destructive',
-        title: 'Address Required',
-        description: destination === 'internal' ? 'Internal wallet address not found' : 'Please enter a destination address'
-      });
-      return;
-    }
-
-    if (destination === 'external' && !targetAddress.startsWith('0x')) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Address',
-        description: 'Please enter a valid Ethereum address'
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase.functions.invoke('withdraw-from-dydx', {
-        body: {
-          amount: parseFloat(amount),
-          password,
-          destinationAddress: targetAddress,
-          destinationType: destination
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Withdrawal Initiated',
-        description: `Withdrawing ${amount} USDC to your ${destination} wallet`
-      });
-
-      setAmount('');
-      setPassword('');
-      setExternalAddress('');
-      onWithdrawComplete();
-      onClose();
-    } catch (error: any) {
-      console.error('Withdrawal failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Withdrawal Failed',
-        description: error.message || 'Failed to initiate withdrawal'
-      });
-    } finally {
-      setLoading(false);
-    }
+  const loadWidget = async () => {
+    // Skip Widget will be properly integrated with correct API setup
+    // For now, show instructions
+    setWidgetReady(true);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[480px] bg-[#2a251a] border-[#463c25]">
+      <DialogContent className="sm:max-w-[600px] bg-[#2a251a] border-[#463c25] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-white text-xl">Withdraw from Trading Wallet</DialogTitle>
           <DialogDescription className="text-[#c6b795]">
-            Transfer USDC from your trading wallet to your chosen destination
+            Powered by Skip Go - Bridge USDC to any chain
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Destination Wallet Selection */}
-          <div className="space-y-3">
-            <Label className="text-[#c6b795] text-sm font-medium">To Wallet</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setDestination('internal')}
-                disabled={!internalAddress}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  destination === 'internal'
-                    ? 'border-[#e6b951] bg-[#e6b951]/10'
-                    : 'border-[#463c25] bg-[#211d12] hover:border-[#635636]'
-                } ${!internalAddress ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="text-white font-semibold mb-1">Internal Wallet</div>
-                <div className="text-[#c6b795] text-xs">
-                  {internalAddress ? `${internalAddress.slice(0, 6)}...${internalAddress.slice(-4)}` : 'Not available'}
-                </div>
-              </button>
-              
-              <button
-                onClick={() => setDestination('external')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  destination === 'external'
-                    ? 'border-[#e6b951] bg-[#e6b951]/10'
-                    : 'border-[#463c25] bg-[#211d12] hover:border-[#635636]'
-                }`}
-              >
-                <div className="text-white font-semibold mb-1">External Wallet</div>
-                <div className="text-[#c6b795] text-xs">
-                  Custom address
-                </div>
-              </button>
-            </div>
-          </div>
+        {/* Balance Display */}
+        <div className="bg-[#211d12] p-4 rounded-lg border border-[#463c25] mb-4">
+          <div className="text-[#c6b795] text-xs mb-1">Available Balance</div>
+          <div className="text-white text-2xl font-bold">{availableBalance.toFixed(2)} USDC</div>
+        </div>
 
-          {/* Flow Indicator */}
-          <div className="flex items-center justify-center gap-3 py-2">
-            <div className="text-white text-sm font-semibold">Trading Wallet</div>
-            <ArrowRight className="h-5 w-5 text-[#e6b951]" />
-            <div className="text-[#c6b795] text-sm font-medium">
-              {destination === 'internal' ? 'Internal' : 'External'}
-            </div>
-          </div>
-
-          {/* Available Balance */}
-          <div className="bg-[#211d12] p-4 rounded-lg border border-[#463c25]">
-            <div className="text-[#c6b795] text-xs mb-1">Available Balance</div>
-            <div className="text-white text-2xl font-bold">{availableBalance.toFixed(2)} USDC</div>
-          </div>
-
-          {/* Amount Input */}
-          <div className="space-y-2">
-            <Label htmlFor="withdraw-amount" className="text-[#c6b795] text-sm font-medium">
-              Amount (USDC)
-            </Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#c6b795]" />
-              <Input
-                id="withdraw-amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min="0"
-                step="0.01"
-                className="pl-9 bg-[#211d12] border-[#463c25] text-white placeholder:text-[#c6b795]/50 focus:border-[#e6b951]"
-              />
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setAmount(availableBalance.toString())}
-              className="text-[#e6b951] hover:text-white hover:bg-[#463c25] text-xs"
-            >
-              Withdraw Max ({availableBalance.toFixed(2)} USDC)
-            </Button>
-          </div>
-
-          {/* External Address Input (only for external) */}
-          {destination === 'external' && (
-            <div className="space-y-2">
-              <Label htmlFor="external-address" className="text-[#c6b795] text-sm font-medium">
-                Destination Address (Ethereum)
-              </Label>
-              <Input
-                id="external-address"
-                type="text"
-                placeholder="0x..."
-                value={externalAddress}
-                onChange={(e) => setExternalAddress(e.target.value)}
-                className="bg-[#211d12] border-[#463c25] text-white placeholder:text-[#c6b795]/50 focus:border-[#e6b951] font-mono text-sm"
-              />
-            </div>
-          )}
-
-          {/* Password Input */}
-          <div className="space-y-2">
-            <Label htmlFor="withdraw-password" className="text-[#c6b795] text-sm font-medium">
-              Trading Password
-            </Label>
-            <Input
-              id="withdraw-password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="bg-[#211d12] border-[#463c25] text-white placeholder:text-[#c6b795]/50 focus:border-[#e6b951]"
-            />
-          </div>
-
-          {/* Action Button */}
-          <Button
-            onClick={handleWithdraw}
-            disabled={loading || !amount || !password || (destination === 'external' && !externalAddress)}
-            className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-bold text-base"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                Withdraw {amount || '0.00'} USDC
-              </>
-            )}
-          </Button>
-
-          {/* Info Text */}
-          <p className="text-[#c6b795] text-xs text-center">
-            Bridge time: 15-30 minutes via CCTP. Requires 0.5 DYDX (~$1) for gas.
+        {/* Withdrawal Instructions */}
+        <div className="bg-[#211d12] p-6 rounded-lg border border-[#463c25]">
+          <h3 className="text-white font-semibold mb-3">Cross-Chain Withdrawal via Skip Go</h3>
+          <p className="text-[#c6b795] text-sm mb-4">
+            Use Skip Go to withdraw USDC from dYdX to any supported chain.
           </p>
+          <ol className="space-y-2 text-[#c6b795] text-sm mb-4">
+            <li>1. Visit <a href="https://skip.money" target="_blank" className="text-[#e6b951] underline">skip.money</a></li>
+            <li>2. Select dYdX Chain as source</li>
+            <li>3. Enter your dYdX address: <code className="text-xs bg-[#463c25] px-1 py-0.5 rounded">{dydxAddress}</code></li>
+            <li>4. Choose destination chain and address</li>
+            <li>5. Complete the withdrawal</li>
+          </ol>
+          <Button
+            onClick={() => window.open('https://skip.money', '_blank')}
+            className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black"
+          >
+            Open Skip Go →
+          </Button>
+        </div>
+
+        {/* Info */}
+        <div className="space-y-2 pt-2 border-t border-[#463c25]">
+          <p className="text-[#c6b795] text-xs">
+            ⚠️ Withdrawals require ~0.5 DYDX token (~$1) for gas fees
+          </p>
+          <p className="text-[#c6b795] text-xs">
+            ⏱️ Bridge time: 15-30 minutes depending on destination chain
+          </p>
+          <a 
+            href="https://docs.skip.build" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[#e6b951] text-xs hover:underline"
+          >
+            Learn more about Skip Go
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
       </DialogContent>
     </Dialog>

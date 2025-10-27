@@ -77,15 +77,30 @@ export const DepositModal = ({
 
         if (error) throw error;
 
-        toast({
-          title: 'Deposit Initiated',
-          description: `Depositing ${amount} USDC to trading wallet`
-        });
+      toast({
+        title: 'Deposit Initiated via Skip Go',
+        description: (
+          <div>
+            <p>Bridging {amount} USDC to dYdX Chain</p>
+            {data?.trackingUrl && (
+              <a 
+                href={data.trackingUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[#e6b951] underline text-xs mt-1 inline-block"
+              >
+                Track on Skip →
+              </a>
+            )}
+          </div>
+        ),
+        duration: 8000
+      });
 
-        setAmount('');
-        setPassword('');
-        onDepositComplete();
-        onClose();
+      setAmount('');
+      setPassword('');
+      onDepositComplete();
+      onClose();
       } catch (error: any) {
         console.error('Deposit failed:', error);
         toast({
@@ -230,7 +245,7 @@ export const DepositModal = ({
           {/* Info Text */}
           <p className="text-[#c6b795] text-xs text-center">
             {source === 'internal' 
-              ? 'Bridge time: 15-30 minutes via CCTP'
+              ? '⚡ Powered by Skip Go - Real cross-chain bridging via CCTP (15-30 min)'
               : 'Send USDC from your external wallet to complete deposit'}
           </p>
         </div>
