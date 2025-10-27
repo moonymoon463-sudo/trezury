@@ -19,6 +19,11 @@ serve(async (req) => {
         auth: {
           persistSession: false,
         },
+        global: {
+          headers: {
+            Authorization: req.headers.get('Authorization') ?? '',
+          },
+        },
       }
     );
 
@@ -70,10 +75,18 @@ serve(async (req) => {
       .from('encrypted_wallet_keys')
       .select('encrypted_private_key, encryption_iv, encryption_salt')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (walletError || !walletData) {
-      console.error('[transfer-to-dydx] Wallet not found:', walletError);
+    if (walletError) {
+      console.error('[transfer-to-dydx] Wallet query error:', walletError);
+      return new Response(
+        JSON.stringify({ error: 'Wallet lookup failed' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!walletData) {
+      console.error('[transfer-to-dydx] Wallet not found for user:', user.id);
       return new Response(
         JSON.stringify({ error: 'Internal wallet not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
