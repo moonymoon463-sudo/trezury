@@ -53,29 +53,28 @@ serve(async (req) => {
     let completedCount = 0;
     let failedCount = 0;
 
-    // Import Gelato SDK for task status checking
-    const { GelatoRelay } = await import('https://esm.sh/@gelatonetwork/relay-sdk@5.6.0');
-    const relay = new GelatoRelay();
+    // Import ethers for transaction receipt checking
+    const { ethers } = await import('https://esm.sh/ethers@6.13.0');
+    const provider = new ethers.JsonRpcProvider('https://eth.llamarpc.com');
 
     // Check status for each deposit
     for (const deposit of pendingDeposits) {
       try {
         const metadata = deposit.metadata as any;
-        const gelatoTaskId = metadata.gelato_task_id;
+        const ethTxHash = metadata.eth_tx_hash;
         const squidRouteId = metadata.squid_route_id;
 
-        if (!gelatoTaskId || !squidRouteId) {
-          console.warn('[monitor-squid-deposits] Missing task IDs:', deposit.id);
+        if (!ethTxHash || !squidRouteId) {
+          console.warn('[monitor-squid-deposits] Missing transaction identifiers:', deposit.id);
           continue;
         }
 
-        // Check Gelato task status
-        let gelatoStatus;
+        // Check Ethereum transaction status (standard receipt check)
+        let ethTxReceipt = null;
         try {
-          gelatoStatus = await relay.getTaskStatus(gelatoTaskId);
-        } catch (gelatoError) {
-          console.error('[monitor-squid-deposits] Gelato API error:', gelatoError);
-          continue;
+          ethTxReceipt = await provider.getTransactionReceipt(ethTxHash);
+        } catch (error) {
+          console.warn('[monitor-squid-deposits] Failed to get ETH tx receipt:', error);
         }
 
         // Check Squid bridge status
@@ -96,16 +95,15 @@ serve(async (req) => {
         }
 
         console.log('[monitor-squid-deposits] Status for', deposit.id, ':', {
-          gelato: gelatoStatus?.taskState,
+          ethConfirmed: ethTxReceipt?.status === 1,
           squid: squidStatus?.squidTransactionStatus
         });
 
         // Both must complete successfully
-        const gelatoCompleted = gelatoStatus?.taskState === 'ExecSuccess' || 
-                               gelatoStatus?.taskState === 'CheckPending';
+        const ethConfirmed = ethTxReceipt?.status === 1; // 1 = success, 0 = failed
         const squidCompleted = squidStatus?.squidTransactionStatus === 'success';
 
-        if (gelatoCompleted && squidCompleted) {
+        if (ethConfirmed && squidCompleted) {
           // Mark as completed
           await supabase
             .from('transactions')
@@ -115,8 +113,7 @@ serve(async (req) => {
                 ...metadata,
                 completed_at: new Date().toISOString(),
                 squid_status: squidStatus.squidTransactionStatus,
-                gelato_status: gelatoStatus.taskState,
-                gelato_tx_hash: gelatoStatus.transactionHash,
+                eth_tx_status: 'confirmed',
                 bridge_duration_actual: squidStatus.timespent || null
               }
             })
@@ -125,10 +122,7 @@ serve(async (req) => {
           completedCount++;
           console.log('[monitor-squid-deposits] ✅ Deposit completed:', deposit.id);
 
-        } else if (gelatoStatus?.taskState === 'Cancelled' || 
-                   gelatoStatus?.taskState === 'ExecReverted' ||
-                   squidStatus?.squidTransactionStatus === 'partial_success' ||
-                   squidStatus?.squidTransactionStatus === 'needs_gas') {
+        } else if (ethTxReceipt?.status === 0 || squidStatus?.squidTransactionStatus === 'partial_success') {
           // Mark as failed
           await supabase
             .from('transactions')
@@ -138,7 +132,7 @@ serve(async (req) => {
                 ...metadata,
                 failed_at: new Date().toISOString(),
                 squid_status: squidStatus?.squidTransactionStatus,
-                gelato_status: gelatoStatus.taskState,
+                eth_tx_status: ethTxReceipt?.status === 0 ? 'failed' : 'pending',
                 error_message: 'Bridge transaction failed'
               }
             })

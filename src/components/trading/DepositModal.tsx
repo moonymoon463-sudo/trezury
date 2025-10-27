@@ -3,11 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ArrowRight, DollarSign, Zap } from 'lucide-react';
+import { Loader2, ArrowRight, DollarSign } from 'lucide-react';
 import { ethers } from 'ethers';
 
 interface DepositModalProps {
@@ -79,15 +78,15 @@ export const DepositModal = ({
         if (error) throw error;
 
       toast({
-        title: '⚡ Gasless Deposit Initiated',
+        title: '✅ Deposit Initiated',
         description: (
           <div>
-            <p>Bridging {amount} USDC to dYdX (gasless!)</p>
+            <p>Bridging {amount} USDC to dYdX</p>
             <p className="text-xs mt-1 text-[#c6b795]">
               Est. arrival: <span className="font-semibold text-white">&lt;20 seconds</span>
             </p>
             <p className="text-xs mt-1 text-[#c6b795]">
-              ⚡ Powered by Squid Router + Gelato
+              Powered by Squid Router + Axelar Bridge
             </p>
             {data?.axelarTrackingUrl && (
               <a 
@@ -139,21 +138,6 @@ export const DepositModal = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Gasless Badge */}
-          {source === 'internal' && (
-            <Alert className="bg-[#e6b951]/10 border-[#e6b951]/20">
-              <Zap className="h-4 w-4 text-[#e6b951]" />
-              <AlertDescription className="ml-2">
-                <div className="text-sm font-semibold text-white">
-                  ⚡ Gasless Transaction - No ETH Required!
-                </div>
-                <div className="text-xs text-[#c6b795] mt-1">
-                  Gas fees sponsored by Trezury via Gelato Paymaster
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Source Wallet Selection */}
           <div className="space-y-3">
             <Label className="text-[#c6b795] text-sm font-medium">From Wallet</Label>
@@ -267,7 +251,7 @@ export const DepositModal = ({
           {/* Info Text */}
           <p className="text-[#c6b795] text-xs text-center">
             {source === 'internal' 
-              ? '⚡ Powered by Squid Router + Gelato - Cross-chain bridging via Axelar (<20 sec, gasless!)'
+              ? 'Powered by Squid Router - Cross-chain bridging via Axelar (<20 sec)'
               : 'Send USDC from your external wallet to complete deposit'}
           </p>
         </div>
