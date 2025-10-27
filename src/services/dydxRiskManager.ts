@@ -69,11 +69,21 @@ class DydxRiskManager {
     return { valid: true };
   }
 
-  assessPositionRisk(
+  async assessPositionRisk(
     position: DydxPositionDB,
-    currentPrice: number,
-    maintenanceMargin: number = 0.03
-  ): PositionRisk {
+    currentPrice: number
+  ): Promise<PositionRisk> {
+    // Fetch market-specific maintenance margin
+    let maintenanceMargin = 0.03; // Default fallback
+    
+    try {
+      const { dydxMarketService } = await import('./dydxMarketService');
+      const rules = await dydxMarketService.getMarketRules(position.market);
+      maintenanceMargin = rules.maintenanceMarginFraction;
+    } catch (error) {
+      console.error('[DydxRiskManager] Failed to fetch maintenance margin, using default:', error);
+    }
+
     const liquidationPrice = this.calculateLiquidationPrice(
       position.entry_price,
       position.leverage,
@@ -129,11 +139,11 @@ class DydxRiskManager {
     }
   }
 
-  shouldTriggerLiquidationAlert(
+  async shouldTriggerLiquidationAlert(
     position: DydxPositionDB,
     currentPrice: number
-  ): boolean {
-    const risk = this.assessPositionRisk(position, currentPrice);
+  ): Promise<boolean> {
+    const risk = await this.assessPositionRisk(position, currentPrice);
     return risk.distanceToLiquidation < this.limits.liquidationBuffer;
   }
 

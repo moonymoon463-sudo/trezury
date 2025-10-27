@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { PositionRisk } from '@/types/dydx-trading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -85,7 +86,17 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
   };
 
   const PositionRow = ({ position }: { position: DydxPositionDB }) => {
+    const [risk, setRisk] = useState<PositionRisk | null>(null);
     const currentPrice = currentPrices[position.market] || position.entry_price;
+    
+    useEffect(() => {
+      const assessRisk = async () => {
+        const riskData = await dydxRiskManager.assessPositionRisk(position, currentPrice);
+        setRisk(riskData);
+      };
+      assessRisk();
+    }, [position.id, currentPrice]);
+
     const pnl = position.side === 'LONG'
       ? (currentPrice - position.entry_price) * position.size
       : (position.entry_price - currentPrice) * position.size;
@@ -93,13 +104,15 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
     const pnlPercent = ((currentPrice - position.entry_price) / position.entry_price) * 100 * (position.side === 'LONG' ? 1 : -1);
     const isProfit = pnl > 0;
 
-    const risk = dydxRiskManager.assessPositionRisk(position, currentPrice);
-    const riskColors = {
-      low: 'bg-green-500',
-      medium: 'bg-yellow-500',
-      high: 'bg-orange-500',
-      critical: 'bg-red-500'
-    };
+    if (!risk) {
+      return (
+        <div className="border border-border rounded-lg p-4 mb-3 bg-card">
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="border border-border rounded-lg p-4 mb-3 bg-card">
@@ -138,7 +151,7 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
           </div>
           <div className="flex justify-between text-sm items-center">
             <span className="text-muted-foreground">Distance to Liquidation:</span>
-            <span className="font-medium text-foreground">{risk.distanceToLiquidation.toFixed(1)}%</span>
+            <span className="font-medium text-foreground">{(risk.distanceToLiquidation * 100).toFixed(1)}%</span>
           </div>
           
           <div className="space-y-1">
@@ -148,7 +161,7 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
                 {risk.riskLevel}
               </span>
             </div>
-            <Progress value={risk.distanceToLiquidation} className="h-2" />
+            <Progress value={risk.distanceToLiquidation * 100} className="h-2" />
           </div>
         </div>
 

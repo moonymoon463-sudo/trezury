@@ -82,27 +82,54 @@ class DydxTradingService {
     }
   }
 
-  calculateMaxPositionSize(
-    balance: number,
-    price: number,
+  async calculateMaxPositionSize(
+    market: string,
+    availableCollateral: number,
+    currentPrice: number,
     leverage: number
-  ): number {
-    if (leverage <= 0 || price <= 0) return 0;
-    return (balance * leverage) / price;
+  ): Promise<number> {
+    if (leverage <= 0 || currentPrice <= 0 || availableCollateral <= 0) return 0;
+
+    try {
+      // Get real market configuration
+      const { dydxMarketService } = await import('./dydxMarketService');
+      const rules = await dydxMarketService.getMarketRules(market);
+      
+      // CORRECT FORMULA: maxSize = freeCollateral / (price * initialMarginFraction)
+      // Where initialMarginFraction = 1 / maxLeverage
+      const initialMarginFraction = rules.initialMarginFraction;
+      const maxSize = availableCollateral / (currentPrice * initialMarginFraction);
+      
+      console.log('[DydxTradingService] Max position size calculated:', {
+        market,
+        availableCollateral,
+        currentPrice,
+        leverage,
+        initialMarginFraction,
+        maxSize
+      });
+
+      return Number(maxSize.toFixed(8));
+    } catch (error) {
+      console.error('[DydxTradingService] Error calculating max position size:', error);
+      // Fallback to simple calculation
+      return (availableCollateral * leverage) / currentPrice;
+    }
   }
 
-  calculatePositionSize(
+  async calculatePositionSize(
+    market: string,
     availableMargin: number,
-    price: number,
+    currentPrice: number,
     leverage: number
-  ): PositionSize {
-    const maxSize = this.calculateMaxPositionSize(availableMargin, price, leverage);
-    // Recommend using 80% of max to leave buffer
+  ): Promise<PositionSize> {
+    const maxSize = await this.calculateMaxPositionSize(market, availableMargin, currentPrice, leverage);
+    // Recommend using 80% of max to leave buffer for price movements
     const recommendedSize = maxSize * 0.8;
 
     return {
-      maxSize,
-      recommendedSize,
+      maxSize: Number(maxSize.toFixed(8)),
+      recommendedSize: Number(recommendedSize.toFixed(8)),
       basedOnLeverage: leverage
     };
   }
@@ -268,31 +295,48 @@ class DydxTradingService {
     };
   }
 
-  calculateLiquidationPrice(
+  async calculateLiquidationPrice(
+    market: string,
     entryPrice: number,
     leverage: number,
-    side: 'LONG' | 'SHORT',
-    maintenanceMargin: number = 0.03
-  ): number {
-    if (side === 'LONG') {
-      // For long: liquidation = entry * (1 - (1/leverage - maintenanceMargin))
-      return entryPrice * (1 - (1 / leverage - maintenanceMargin));
-    } else {
-      // For short: liquidation = entry * (1 + (1/leverage - maintenanceMargin))
-      return entryPrice * (1 + (1 / leverage - maintenanceMargin));
+    side: 'LONG' | 'SHORT'
+  ): Promise<number> {
+    try {
+      // Get real maintenance margin for this market
+      const { dydxMarketService } = await import('./dydxMarketService');
+      const rules = await dydxMarketService.getMarketRules(market);
+      const maintenanceMargin = rules.maintenanceMarginFraction;
+
+      if (side === 'LONG') {
+        // For long: liquidation = entry * (1 - (1/leverage - maintenanceMargin))
+        return entryPrice * (1 - (1 / leverage - maintenanceMargin));
+      } else {
+        // For short: liquidation = entry * (1 + (1/leverage - maintenanceMargin))
+        return entryPrice * (1 + (1 / leverage - maintenanceMargin));
+      }
+    } catch (error) {
+      console.error('[DydxTradingService] Error calculating liquidation price:', error);
+      // Fallback to 3% maintenance margin
+      const maintenanceMargin = 0.03;
+      if (side === 'LONG') {
+        return entryPrice * (1 - (1 / leverage - maintenanceMargin));
+      } else {
+        return entryPrice * (1 + (1 / leverage - maintenanceMargin));
+      }
     }
   }
 
-  checkMarginRequirement(
+  async checkMarginRequirement(
     order: OrderRequest,
     availableBalance: number,
     currentPrice: number
-  ): MarginRequirement {
+  ): Promise<MarginRequirement> {
     const orderValue = order.size * (order.price || currentPrice);
     const requiredMargin = orderValue / order.leverage;
     const sufficient = availableBalance >= requiredMargin;
 
-    const liquidationPrice = this.calculateLiquidationPrice(
+    const liquidationPrice = await this.calculateLiquidationPrice(
+      order.market,
       order.price || currentPrice,
       order.leverage,
       order.side === 'BUY' ? 'LONG' : 'SHORT'

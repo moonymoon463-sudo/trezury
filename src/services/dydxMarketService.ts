@@ -113,13 +113,15 @@ class DydxMarketService {
     });
   }
 
-  // Get market rules for validation (tick size, step size, min order size, etc.)
+  // Get market rules for validation and leverage configuration from dYdX Indexer
   async getMarketRules(symbol: string): Promise<{
     tickSize: number;
     stepSize: number;
     minOrderSize: number;
     minNotional: number;
     maxLeverage: number;
+    initialMarginFraction: number;
+    maintenanceMarginFraction: number;
     makerFeeRate: number;
     takerFeeRate: number;
   }> {
@@ -127,62 +129,76 @@ class DydxMarketService {
     const cached = this.getCached(cacheKey);
     if (cached) return cached;
 
-    // First try to get from database cache
-    const { data: dbCached } = await supabase
-      .from('market_rules_cache')
-      .select('*')
-      .eq('market', symbol)
-      .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // 24h cache
-      .single();
+    try {
+      // Fetch real market configuration from dYdX Indexer API
+      const response = await fetch('https://indexer.dydx.trade/v4/perpetualMarkets');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch market data: ${response.statusText}`);
+      }
 
-    if (dbCached) {
+      const data = await response.json();
+      const marketData = data.markets?.[symbol];
+
+      if (!marketData) {
+        throw new Error(`Market ${symbol} not found in dYdX Indexer`);
+      }
+
+      // Parse real market rules from dYdX
+      const atomicResolution = marketData.atomicResolution || -10;
+      const quantumConversionExponent = marketData.quantumConversionExponent || -9;
+      
       const rules = {
-        tickSize: Number(dbCached.tick_size),
-        stepSize: Number(dbCached.step_size),
-        minOrderSize: Number(dbCached.min_order_size),
-        minNotional: Number(dbCached.min_notional),
-        maxLeverage: dbCached.max_leverage,
-        makerFeeRate: Number(dbCached.maker_fee_rate),
-        takerFeeRate: Number(dbCached.taker_fee_rate),
+        tickSize: parseFloat(marketData.tickSize) * Math.pow(10, atomicResolution),
+        stepSize: parseFloat(marketData.stepBaseQuantums || 1000000) * Math.pow(10, quantumConversionExponent),
+        minOrderSize: parseFloat(marketData.minOrderBaseQuantums || 1000000) * Math.pow(10, quantumConversionExponent),
+        minNotional: 10, // dYdX minimum
+        maxLeverage: Math.floor(1 / parseFloat(marketData.initialMarginFraction || 0.05)),
+        initialMarginFraction: parseFloat(marketData.initialMarginFraction || 0.05),
+        maintenanceMarginFraction: parseFloat(marketData.maintenanceMarginFraction || 0.03),
+        makerFeeRate: 0.0002, // 0.02% - can be fetched from account tier
+        takerFeeRate: 0.0005, // 0.05%
       };
-      this.setCache(cacheKey, rules, 3600); // Cache in memory for 1 hour
+
+      console.log(`[dydxMarketService] Fetched real rules for ${symbol}:`, rules);
+
+      // Cache in database
+      await supabase
+        .from('market_rules_cache')
+        .upsert({
+          market: symbol,
+          tick_size: rules.tickSize,
+          step_size: rules.stepSize,
+          min_order_size: rules.minOrderSize,
+          min_notional: rules.minNotional,
+          max_leverage: rules.maxLeverage,
+          maker_fee_rate: rules.makerFeeRate,
+          taker_fee_rate: rules.takerFeeRate,
+          updated_at: new Date().toISOString(),
+        });
+
+      this.setCache(cacheKey, rules, 3600); // Cache for 1 hour
       return rules;
+
+    } catch (error) {
+      console.error('[dydxMarketService] Failed to fetch market rules from Indexer:', error);
+      
+      // Fallback to approximate rules if API fails
+      const fallbackRules = {
+        tickSize: symbol.startsWith('BTC') ? 0.1 : symbol.startsWith('ETH') ? 0.01 : 0.001,
+        stepSize: symbol.startsWith('BTC') ? 0.001 : symbol.startsWith('ETH') ? 0.01 : 0.1,
+        minOrderSize: symbol.startsWith('BTC') ? 0.001 : symbol.startsWith('ETH') ? 0.01 : 1,
+        minNotional: 10,
+        maxLeverage: 20,
+        initialMarginFraction: 0.05, // 20x leverage = 5% initial margin
+        maintenanceMarginFraction: symbol.startsWith('BTC') || symbol.startsWith('ETH') ? 0.03 : 0.05,
+        makerFeeRate: 0.0002,
+        takerFeeRate: 0.0005,
+      };
+
+      this.setCache(cacheKey, fallbackRules, 300); // Cache fallback for 5 min only
+      return fallbackRules;
     }
-
-    // Fetch from API and cache
-    const market = await this.getMarket(symbol);
-    if (!market) {
-      throw new Error(`Market ${symbol} not found`);
-    }
-
-    // Default rules based on asset (these should ideally come from dYdX API)
-    const rules = {
-      tickSize: symbol.startsWith('BTC') ? 0.1 : symbol.startsWith('ETH') ? 0.01 : 0.001,
-      stepSize: symbol.startsWith('BTC') ? 0.001 : symbol.startsWith('ETH') ? 0.01 : 0.1,
-      minOrderSize: symbol.startsWith('BTC') ? 0.001 : symbol.startsWith('ETH') ? 0.01 : 1,
-      minNotional: 10, // $10 minimum
-      maxLeverage: 20,
-      makerFeeRate: 0.0002, // 0.02%
-      takerFeeRate: 0.0005, // 0.05%
-    };
-
-    // Cache in database
-    await supabase
-      .from('market_rules_cache')
-      .upsert({
-        market: symbol,
-        tick_size: rules.tickSize,
-        step_size: rules.stepSize,
-        min_order_size: rules.minOrderSize,
-        min_notional: rules.minNotional,
-        max_leverage: rules.maxLeverage,
-        maker_fee_rate: rules.makerFeeRate,
-        taker_fee_rate: rules.takerFeeRate,
-        updated_at: new Date().toISOString(),
-      });
-
-    this.setCache(cacheKey, rules, 3600);
-    return rules;
   }
 
   // Validate order size against market rules

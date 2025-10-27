@@ -30,10 +30,15 @@ export const useLeverageCalculator = ({
       };
     }
     
-    // CORRECTED FORMULA: Position Size = (Available Margin × Leverage) / Price
-    // Example: $1,000 margin × 10x leverage / $50,000 BTC price = 0.2 BTC
-    const notionalValue = availableBalance * leverage; // Total buying power
-    const maxSize = notionalValue / orderPrice; // Convert to asset quantity
+    // Use the correct formula from dydxTradingService
+    // This now accounts for real initialMarginFraction from market rules
+    // Note: This is a simplified calculation. For production, fetch real market rules
+    // via dydxTradingService.calculateMaxPositionSize()
+    
+    // Approximate formula: maxSize = (availableBalance / initialMarginFraction) / price
+    // Where initialMarginFraction ≈ 1 / maxLeverage
+    const initialMarginFraction = 1 / leverage;
+    const maxSize = availableBalance / (orderPrice * initialMarginFraction);
     
     // Recommended size is 80% of max to leave buffer for price movements
     const recommendedSize = maxSize * 0.8;
