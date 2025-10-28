@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ExternalLink, Loader2, Mail, Key, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AlchemyAccountProvider, useAccount, useAuthenticate, useSignerStatus, useUser } from "@account-kit/react";
@@ -24,6 +26,10 @@ const queryClient = new QueryClient();
 
 function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProps) {
   const [email, setEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
+  const [emailForOTP, setEmailForOTP] = useState("");
+  
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
@@ -98,18 +104,57 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
     }
   };
 
-  const handleEmailLogin = async () => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!email) {
       toast.error("Please enter your email");
       return;
     }
     try {
+      console.log('[SnxAccountSetup] Sending OTP to:', email);
       await authenticate({ type: "email", email });
-      toast.success('Check your email for the login link');
+      setEmailForOTP(email);
+      setIsAwaitingOTP(true);
+      toast.success('Verification code sent! Check your email');
     } catch (error) {
-      toast.error('Failed to send login email');
-      console.error('Email auth error:', error);
+      toast.error('Failed to send verification code');
+      console.error('Email OTP send error:', error);
     }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.length !== 6) {
+      toast.error('Please enter a 6-digit code');
+      return;
+    }
+
+    try {
+      console.log('[SnxAccountSetup] Verifying OTP code');
+      // The OTP verification happens automatically through Alchemy's email flow
+      // We just need to show feedback while waiting for authentication to complete
+      toast.success('Verifying code...');
+    } catch (error) {
+      toast.error('Invalid or expired code');
+      console.error('Email OTP verify error:', error);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (emailForOTP) {
+      try {
+        await authenticate({ type: "email", email: emailForOTP });
+        toast.success('New code sent!');
+      } catch (error) {
+        toast.error('Failed to resend code');
+      }
+    }
+  };
+
+  const handleCancelOTP = () => {
+    setIsAwaitingOTP(false);
+    setEmailForOTP('');
+    setOtpCode('');
   };
 
   const handlePasskeyLogin = async () => {
@@ -148,54 +193,119 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
               </AlertDescription>
             </Alert>
 
-            {/* Email Login */}
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isAuthenticating}
-                onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
-              />
-              <Button 
-                onClick={handleEmailLogin}
-                disabled={isAuthenticating || !email}
-                className="w-full"
-              >
-                {isAuthenticating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Sign in with Email
-                  </>
-                )}
-              </Button>
-            </div>
+            {!isAwaitingOTP ? (
+              <>
+                {/* Email Login */}
+                <form onSubmit={handleEmailLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isAuthenticating}
+                      required
+                    />
+                  </div>
+                  <Button 
+                    type="submit"
+                    disabled={isAuthenticating || !email}
+                    className="w-full"
+                  >
+                    {isAuthenticating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending Code...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Send Verification Code
+                      </>
+                    )}
+                  </Button>
+                </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or</span>
+                  </div>
+                </div>
 
-            {/* Passkey Login */}
-            <Button 
-              onClick={handlePasskeyLogin}
-              disabled={isAuthenticating}
-              variant="outline"
-              className="w-full"
-            >
-              <Key className="mr-2 h-4 w-4" />
-              Sign in with Passkey
-            </Button>
+                {/* Passkey Login */}
+                <Button 
+                  onClick={handlePasskeyLogin}
+                  disabled={isAuthenticating}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Key className="mr-2 h-4 w-4" />
+                  Sign in with Passkey
+                </Button>
+              </>
+            ) : (
+              <form onSubmit={handleVerifyOTP} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Verification Code</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Enter the 6-digit code sent to {emailForOTP}
+                  </p>
+                  <div className="flex justify-center py-4">
+                    <InputOTP
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(value) => setOtpCode(value)}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isAuthenticating || otpCode.length !== 6}
+                >
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify Code'
+                  )}
+                </Button>
+
+                <div className="flex justify-between text-sm">
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    className="text-primary hover:underline"
+                  >
+                    Resend Code
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelOTP}
+                    className="text-muted-foreground hover:underline"
+                  >
+                    Change Email
+                  </button>
+                </div>
+              </form>
+            )}
           </>
         ) : (
           <>

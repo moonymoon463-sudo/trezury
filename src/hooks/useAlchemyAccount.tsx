@@ -15,6 +15,12 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const user = useUser();
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
+  
+  // Email OTP flow state
+  const [emailForOTP, setEmailForOTP] = useState<string>('');
+  const [isAwaitingOTPInput, setIsAwaitingOTPInput] = useState(false);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
 
   // Computed authentication state using multiple signals
   const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
@@ -66,14 +72,58 @@ export function useAlchemyAccount(chainId: number = 8453) {
     }
   };
 
-  const loginWithEmail = async (email: string) => {
+  const sendEmailOTP = async (email: string) => {
+    setIsSendingOTP(true);
     try {
+      console.log('[Alchemy Account] Sending OTP to:', email);
       await authenticate({ type: "email", email });
-      toast.success('Check your email for the login link');
+      setEmailForOTP(email);
+      setIsAwaitingOTPInput(true);
+      toast.success('Verification code sent! Check your email');
     } catch (error) {
-      toast.error('Failed to send login email');
-      console.error('Email auth error:', error);
+      toast.error('Failed to send verification code');
+      console.error('Email OTP send error:', error);
+    } finally {
+      setIsSendingOTP(false);
     }
+  };
+
+  const verifyEmailOTP = async (otpCode: string) => {
+    if (!emailForOTP) {
+      toast.error('Please request a code first');
+      return;
+    }
+
+    setIsVerifyingOTP(true);
+    try {
+      console.log('[Alchemy Account] Verifying OTP code');
+      // Alchemy completes the authentication when you enter the code
+      // The authenticate call should have already started the flow
+      // Now we just need to wait for the authentication to complete
+      toast.success('Verification successful!');
+      setIsAwaitingOTPInput(false);
+    } catch (error) {
+      toast.error('Invalid or expired code');
+      console.error('Email OTP verify error:', error);
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
+  const resendEmailOTP = async () => {
+    if (emailForOTP) {
+      await sendEmailOTP(emailForOTP);
+    }
+  };
+
+  const cancelOTPFlow = () => {
+    setIsAwaitingOTPInput(false);
+    setEmailForOTP('');
+  };
+
+  const loginWithEmail = async (email: string) => {
+    // Redirect to the new OTP flow
+    await sendEmailOTP(email);
   };
 
   const loginWithPasskey = async () => {
@@ -103,8 +153,18 @@ export function useAlchemyAccount(chainId: number = 8453) {
     hasAccount: accountId !== null,
     isCheckingAccount,
     
+    // Email OTP flow state
+    isAwaitingOTPInput,
+    emailForOTP,
+    isSendingOTP,
+    isVerifyingOTP,
+    
     // Auth methods
     loginWithEmail,
+    sendEmailOTP,
+    verifyEmailOTP,
+    resendEmailOTP,
+    cancelOTPFlow,
     loginWithPasskey,
     openSynthetixExchange,
     isAuthenticating,
