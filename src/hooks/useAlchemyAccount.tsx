@@ -16,6 +16,20 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
 
+  // Computed authentication state using multiple signals
+  const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
+
+  // Debug logging for authentication state changes
+  useEffect(() => {
+    console.log('[Alchemy Account] Auth state:', {
+      isConnected: signerStatus.isConnected,
+      hasAddress: !!address,
+      hasUser: !!user,
+      isFullyAuthenticated,
+      address: address?.slice(0, 10),
+    });
+  }, [signerStatus.isConnected, address, user, isFullyAuthenticated]);
+
   // Check if user has a Synthetix account
   useEffect(() => {
     if (address) {
@@ -80,7 +94,8 @@ export function useAlchemyAccount(chainId: number = 8453) {
   return {
     // Alchemy account state
     address,
-    isAuthenticated: signerStatus.isConnected,
+    isAuthenticated: isFullyAuthenticated,
+    isConnected: signerStatus.isConnected,
     user,
     
     // Synthetix account state

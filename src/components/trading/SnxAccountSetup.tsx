@@ -32,14 +32,27 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
 
-  const isAuthenticated = signerStatus.isConnected;
+  // Use multiple signals for authentication state
+  const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
 
-  // Check for Synthetix account when address changes
+  // Debug authentication state
   useEffect(() => {
-    if (address && isAuthenticated) {
+    console.log('[SnxAccountSetup] Auth state changed:', {
+      isConnected: signerStatus.isConnected,
+      hasAddress: !!address,
+      hasUser: !!user,
+      isFullyAuthenticated,
+      address: address?.slice(0, 10),
+    });
+  }, [signerStatus.isConnected, address, user, isFullyAuthenticated]);
+
+  // Check for Synthetix account when fully authenticated
+  useEffect(() => {
+    if (isFullyAuthenticated && address) {
+      console.log('[SnxAccountSetup] Fully authenticated, checking for account...');
       checkForSynthetixAccount();
     }
-  }, [address, isAuthenticated]);
+  }, [isFullyAuthenticated, address]);
 
   // Notify parent when account is found
   useEffect(() => {
@@ -49,12 +62,19 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
   }, [accountId]);
 
   const checkForSynthetixAccount = async () => {
-    if (!address) return;
+    if (!address) {
+      console.log('[SnxAccountSetup] Cannot check account - no address');
+      return;
+    }
     
+    console.log('[SnxAccountSetup] Checking for Synthetix account...', { address });
     setIsCheckingAccount(true);
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return;
+      if (!authData.user) {
+        console.log('[SnxAccountSetup] No Supabase user found');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('snx_accounts')
@@ -64,13 +84,15 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
         .single();
 
       if (data && !error) {
+        console.log('[SnxAccountSetup] Account found:', data.account_id);
         setAccountId(BigInt(data.account_id));
         toast.success('Synthetix account found!');
       } else {
+        console.log('[SnxAccountSetup] No account found');
         setAccountId(null);
       }
     } catch (error) {
-      console.error('Error checking for Synthetix account:', error);
+      console.error('[SnxAccountSetup] Error checking for Synthetix account:', error);
     } finally {
       setIsCheckingAccount(false);
     }
@@ -114,7 +136,7 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!isAuthenticated ? (
+        {!isFullyAuthenticated ? (
           <>
             <Alert>
               <AlertCircle className="h-4 w-4" />
