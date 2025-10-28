@@ -2,7 +2,15 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import type { DydxCandle } from '@/types/dydx';
+// Synthetix candle type
+interface DydxCandle {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+}
 import { Loader2, TrendingUp } from 'lucide-react';
 import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';

@@ -2,31 +2,23 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { dydxTradingService } from '@/services/dydxTradingService';
-import type { DydxOrder } from '@/types/dydx-trading';
+import { snxTradingService } from '@/services/snxTradingService';
+import type { SnxOrder } from '@/types/snx';
 import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
-interface OrderHistoryProps {
-  address?: string;
-}
-
-export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
-  const [orders, setOrders] = useState<DydxOrder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { getPassword } = useTradingPasswordContext();
-  const { toast } = useToast();
+export const OrderHistory = () => {
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<SnxOrder[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!address) return;
+    if (!user) return;
 
     const loadOrders = async () => {
-      setLoading(true);
       try {
-        const data = await dydxTradingService.getOrderHistory(address, 50);
+        setLoading(true);
+        const data = await snxTradingService.getOrderHistory(user.id);
         setOrders(data);
       } catch (error) {
         console.error('[OrderHistory] Failed to load:', error);
@@ -36,112 +28,55 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
     };
 
     loadOrders();
-  }, [address]);
+  }, [user]);
 
-  const openOrders = orders.filter(o => o.status === 'OPEN' || o.status === 'PARTIALLY_FILLED');
-  const completedOrders = orders.filter(o => o.status === 'FILLED');
-  const cancelledOrders = orders.filter(o => o.status === 'CANCELLED' || o.status === 'EXPIRED');
+  const openOrders = orders.filter(o => o.status === 'pending');
+  const completedOrders = orders.filter(o => o.status === 'completed');
+  const cancelledOrders = orders.filter(o => o.status === 'cancelled');
 
-  const getStatusBadge = (status: DydxOrder['status']) => {
-    const variants: Record<DydxOrder['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      PENDING: 'outline',
-      OPEN: 'default',
-      FILLED: 'secondary',
-      PARTIALLY_FILLED: 'outline',
-      CANCELLED: 'destructive',
-      EXPIRED: 'destructive',
-      FAILED: 'destructive'
-    };
-
-    const icons = {
-      PENDING: <Clock className="h-3 w-3 mr-1" />,
-      OPEN: <Loader2 className="h-3 w-3 mr-1 animate-spin" />,
-      FILLED: <CheckCircle className="h-3 w-3 mr-1" />,
-      PARTIALLY_FILLED: <Loader2 className="h-3 w-3 mr-1" />,
-      CANCELLED: <XCircle className="h-3 w-3 mr-1" />,
-      EXPIRED: <XCircle className="h-3 w-3 mr-1" />,
-      FAILED: <XCircle className="h-3 w-3 mr-1" />
-    };
-
-    return (
-      <Badge variant={variants[status]} className="flex items-center w-fit">
-        {icons[status]}
-        {status}
-      </Badge>
-    );
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
+      case 'pending':
+        return <Badge variant="outline"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
   };
 
-  const OrderRow = ({ order }: { order: DydxOrder }) => (
-    <div className="border border-border rounded-lg p-4 mb-2 hover:bg-accent/50 transition-colors">
+  const OrderRow = ({ order }: { order: SnxOrder }) => (
+    <div className="border border-border rounded-lg p-3 mb-2">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-foreground">{order.market}</span>
-            <Badge variant={order.side === 'BUY' ? 'default' : 'destructive'}>
-              {order.side}
-            </Badge>
-            <Badge variant="outline">{order.type}</Badge>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{order.marketKey}</span>
+            <Badge variant={order.side === 'LONG' ? 'default' : 'destructive'}>{order.side}</Badge>
+            {getStatusBadge(order.status)}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+          <p className="text-sm text-muted-foreground mt-1">
+            {new Date(order.createdAt).toLocaleString()}
           </p>
         </div>
-        {getStatusBadge(order.status)}
       </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+      <div className="grid grid-cols-2 gap-2 text-sm">
         <div>
           <span className="text-muted-foreground">Size:</span>
-          <span className="ml-1 font-medium text-foreground">{order.size}</span>
+          <span className="ml-2 font-medium">{order.size}</span>
         </div>
-        {order.price && (
-          <div>
-            <span className="text-muted-foreground">Price:</span>
-            <span className="ml-1 font-medium text-foreground">${order.price.toFixed(2)}</span>
-          </div>
-        )}
         <div>
           <span className="text-muted-foreground">Leverage:</span>
-          <span className="ml-1 font-medium text-foreground">{order.leverage}x</span>
+          <span className="ml-2 font-medium">{order.leverage}×</span>
         </div>
-        {order.filledSize > 0 && (
-          <div>
-            <span className="text-muted-foreground">Filled:</span>
-            <span className="ml-1 font-medium text-foreground">
-              {((order.filledSize / order.size) * 100).toFixed(1)}%
-            </span>
-          </div>
-        )}
       </div>
-
-      {order.status === 'OPEN' && (
-        <div className="mt-3">
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={async () => {
-              const password = getPassword();
-              if (!password) {
-                toast({
-                  variant: 'destructive',
-                  title: 'Session Locked',
-                  description: 'Please unlock your trading session first'
-                });
-                return;
-              }
-              await dydxTradingService.cancelOrder(order.id, password);
-            }}
-          >
-            Cancel Order
-          </Button>
-        </div>
-      )}
     </div>
   );
 
   if (loading) {
     return (
-      <Card className="bg-card border-border">
+      <Card>
         <CardContent className="pt-6">
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -152,41 +87,32 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
   }
 
   return (
-    <Card className="bg-card border-border">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-foreground">Order History</CardTitle>
+        <CardTitle>Order History</CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="open">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="open">
-              Open ({openOrders.length})
-            </TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed ({completedOrders.length})
-            </TabsTrigger>
-            <TabsTrigger value="cancelled">
-              Cancelled ({cancelledOrders.length})
-            </TabsTrigger>
+            <TabsTrigger value="open">Open ({openOrders.length})</TabsTrigger>
+            <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
+            <TabsTrigger value="cancelled">Cancelled ({cancelledOrders.length})</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="open" className="space-y-2 mt-4">
+          <TabsContent value="open">
             {openOrders.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No open orders</p>
             ) : (
               openOrders.map(order => <OrderRow key={order.id} order={order} />)
             )}
           </TabsContent>
-
-          <TabsContent value="completed" className="space-y-2 mt-4">
+          <TabsContent value="completed">
             {completedOrders.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No completed orders</p>
             ) : (
               completedOrders.map(order => <OrderRow key={order.id} order={order} />)
             )}
           </TabsContent>
-
-          <TabsContent value="cancelled" className="space-y-2 mt-4">
+          <TabsContent value="cancelled">
             {cancelledOrders.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">No cancelled orders</p>
             ) : (
