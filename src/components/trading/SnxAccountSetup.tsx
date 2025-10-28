@@ -23,6 +23,7 @@ export const SnxAccountSetup = ({
 }: SnxAccountSetupProps) => {
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
+  const [gasInfo, setGasInfo] = useState<{ walletAddress: string; requiredGas: string; currentBalance: string } | null>(null);
   const { toast } = useToast();
 
   const handleCreateAccount = async () => {
@@ -46,19 +47,35 @@ export const SnxAccountSetup = ({
           password
         }
       });
-
-      if (error) throw error;
-
+      // Handle response (data may be returned even when error is set)
       if (data?.success && data?.accountId) {
         toast({
           title: 'Account Created',
           description: `Synthetix trading account created successfully!`
         });
-        setPassword(''); // Clear password
+        setPassword('');
+        setGasInfo(null);
         onAccountCreated(BigInt(data.accountId));
         onClose();
+        return;
+      }
+
+      // Handle error path
+      const errorPayload = (data as any) || { error: error?.message };
+
+      if (errorPayload?.walletAddress && errorPayload?.requiredGas) {
+        setGasInfo({
+          walletAddress: errorPayload.walletAddress,
+          requiredGas: errorPayload.requiredGas,
+          currentBalance: errorPayload.currentBalance || '0'
+        });
+        toast({
+          variant: 'destructive',
+          title: 'Insufficient Gas',
+          description: `Fund your internal wallet to continue. Required ~${errorPayload.requiredGas} ETH.`
+        });
       } else {
-        throw new Error(data?.error || 'Failed to create account');
+        throw new Error(errorPayload?.error || 'Failed to create account');
       }
     } catch (error: any) {
       console.error('Account creation failed:', error);
@@ -159,6 +176,32 @@ export const SnxAccountSetup = ({
               'Create Trading Account'
             )}
           </Button>
+
+          {gasInfo && (
+            <Alert>
+              <AlertDescription>
+                <div className="space-y-2 text-sm">
+                  <p>Insufficient gas on your internal wallet to finalize account creation.</p>
+                  <div className="text-xs font-mono bg-background/50 p-2 rounded break-all">
+                    {gasInfo.walletAddress}
+                  </div>
+                  <p className="text-xs">Required: ~{gasInfo.requiredGas} ETH • Current: {gasInfo.currentBalance} ETH</p>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(gasInfo.walletAddress);
+                        toast({ title: 'Copied', description: 'Wallet address copied to clipboard' });
+                      }}
+                    >
+                      Copy address
+                    </Button>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <p className="text-xs text-muted-foreground text-center">
             Network: {chainId === 8453 ? 'Base' : chainId === 42161 ? 'Arbitrum' : 'Ethereum'}
