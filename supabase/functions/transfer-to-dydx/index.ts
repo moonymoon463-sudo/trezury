@@ -94,13 +94,50 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Decrypt wallet
-    const decryptedKey = await decryptPrivateKey(
-      walletData.encrypted_private_key,
-      walletData.encryption_iv,
-      walletData.encryption_salt,
-      password
-    );
+    // Step 2: Decrypt wallet with debug logging and fallback
+    console.log('[transfer-to-dydx] Attempting wallet decryption:', {
+      userId: user.id,
+      hasEncryptedKey: !!walletData.encrypted_private_key,
+      encryptedKeyLength: walletData.encrypted_private_key?.length,
+      ivLength: walletData.encryption_iv?.length,
+      saltLength: walletData.encryption_salt?.length,
+      passwordLength: password?.length,
+      passwordFirstChar: password ? password.charCodeAt(0) : null,
+    });
+
+    let decryptedKey: string;
+    
+    try {
+      // Try password-based decryption first
+      console.log('[transfer-to-dydx] Trying password-based decryption...');
+      decryptedKey = await decryptPrivateKey(
+        walletData.encrypted_private_key,
+        walletData.encryption_iv,
+        walletData.encryption_salt,
+        password
+      );
+      console.log('[transfer-to-dydx] ✅ Password-based decryption succeeded');
+    } catch (error) {
+      console.warn('[transfer-to-dydx] Password decryption failed:', error.message);
+      console.log('[transfer-to-dydx] Attempting legacy userId-based decryption...');
+      
+      try {
+        // Fallback: Try userId as password (legacy wallets)
+        decryptedKey = await decryptPrivateKey(
+          walletData.encrypted_private_key,
+          walletData.encryption_iv,
+          walletData.encryption_salt,
+          user.id
+        );
+        console.log('[transfer-to-dydx] ✅ Legacy userId decryption succeeded');
+      } catch (legacyError) {
+        console.error('[transfer-to-dydx] Both decryption methods failed:', {
+          passwordError: error.message,
+          legacyError: legacyError.message
+        });
+        throw new Error('Failed to decrypt wallet. Please check your password or re-create your wallet.');
+      }
+    }
 
     // Step 3: Import ethers
     const { ethers } = await import('https://esm.sh/ethers@6.13.0');
