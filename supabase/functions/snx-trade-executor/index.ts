@@ -125,6 +125,7 @@ async function handleAccountCreation(
                  chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' :
                  'https://mainnet.optimism.io';
   
+  console.log('[CreateAccount] Using RPC:', rpcUrl);
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
 
@@ -132,16 +133,46 @@ async function handleAccountCreation(
 
   // Get account proxy address
   const addresses: Record<number, string> = {
-    8453: '0x63f4Dd0434BEB5baeCD27F3778a909278d8cf5b8',
-    42161: '0xcb68b813210aFa0373F076239Ad4803f8809e8cf',
-    1: '0x0E429603D3Cb1DFae4E6F52Add5fE82d96d77Dac'
+    8453: '0x63f4Dd0434BEB5baeCD27F3778a909278d8cf5b8', // Base
+    42161: '0xcb68b813210aFa0373F076239Ad4803f8809e8cf', // Arbitrum
+    1: '0x0E429603D3Cb1DFae4E6F52Add5fE82d96d77Dac' // Ethereum
   };
 
   const accountProxyAddress = addresses[chainId];
   if (!accountProxyAddress) {
+    console.error('[CreateAccount] Unsupported chainId:', chainId);
     return new Response(
       JSON.stringify({ success: false, error: 'Chain not supported' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  console.log('[CreateAccount] AccountProxy address:', accountProxyAddress);
+
+  // Verify contract exists at address
+  try {
+    const contractCode = await provider.getCode(accountProxyAddress);
+    if (contractCode === '0x') {
+      console.error('[CreateAccount] No contract at address:', accountProxyAddress);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'AccountProxy contract not deployed',
+          details: `No bytecode at ${accountProxyAddress} on chain ${chainId}`,
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    console.log('[CreateAccount] Contract verified (bytecode length:', contractCode.length, 'bytes)');
+  } catch (err: any) {
+    console.error('[CreateAccount] Failed to verify contract:', err.message);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Failed to connect to blockchain',
+        details: err.message
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
@@ -196,7 +227,13 @@ async function handleAccountCreation(
     );
   }
 
-  // Create account with better error handling
+  // Create account with comprehensive error handling and decoding
+  console.log('[CreateAccount] Contract details:', {
+    address: accountProxyAddress,
+    walletAddress: wallet.address,
+    chainId: chainId
+  });
+  
   console.log('[CreateAccount] Calling createAccount()...');
   let tx, receipt;
   try {
@@ -205,16 +242,43 @@ async function handleAccountCreation(
     receipt = await tx.wait();
     console.log('[CreateAccount] Transaction confirmed:', receipt.hash);
   } catch (err: any) {
-    console.error('[CreateAccount] Transaction failed:', err);
+    console.error('[CreateAccount] Transaction failed:', {
+      error: err.message,
+      code: err.code,
+      data: err.data,
+      reason: err.reason,
+      transaction: err.transaction
+    });
     
-    // Parse Ethers error for better user feedback
+    // Decode custom error selector
     let errorMsg = 'Transaction failed';
+    let errorDetails: any = { walletAddress: wallet.address };
+    
+    if (err.data) {
+      const errorData = typeof err.data === 'string' ? err.data : err.data.data;
+      console.log('[CreateAccount] Error data:', errorData);
+      
+      // Check for known error selectors
+      if (errorData?.startsWith('0xc2a825f5')) {
+        errorMsg = 'Account creation rejected by contract (error 0xc2a825f5)';
+        errorDetails.errorSelector = '0xc2a825f5';
+        errorDetails.hint = 'This may indicate insufficient permissions, feature flags, or contract configuration issues';
+      } else if (errorData?.startsWith('0x')) {
+        errorDetails.errorSelector = errorData.slice(0, 10);
+        errorMsg = `Contract reverted with error: ${errorDetails.errorSelector}`;
+      }
+    }
+    
     if (err.reason) {
       errorMsg = err.reason;
     } else if (err.message?.includes('insufficient funds')) {
       errorMsg = 'Insufficient ETH for gas fees';
+      errorDetails.requiredGas = ethers.formatEther(estimatedCost);
+      errorDetails.currentBalance = ethers.formatEther(balance);
     } else if (err.message?.includes('execution reverted')) {
-      errorMsg = 'Transaction reverted. The contract may have rejected the operation.';
+      if (!errorMsg.includes('rejected')) {
+        errorMsg = 'Transaction reverted by contract';
+      }
     }
     
     return new Response(
@@ -222,7 +286,7 @@ async function handleAccountCreation(
         success: false, 
         error: errorMsg,
         details: err.message,
-        walletAddress: wallet.address
+        ...errorDetails
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
