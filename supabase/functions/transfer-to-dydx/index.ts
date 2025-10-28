@@ -243,9 +243,9 @@ serve(async (req) => {
 
 // Decrypt private key using PBKDF2 + AES-GCM
 async function decryptPrivateKey(
-  encryptedHex: string,
-  ivHex: string,
-  salt: string,
+  encryptedBase64: string,
+  ivBase64: string,
+  saltBase64: string,
   password: string
 ): Promise<string> {
   const encoder = new TextEncoder();
@@ -261,7 +261,7 @@ async function decryptPrivateKey(
   const key = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: encoder.encode(salt),
+      salt: base64ToUint8Array(saltBase64),
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -271,8 +271,8 @@ async function decryptPrivateKey(
     ['decrypt']
   );
 
-  const encrypted = hexToUint8Array(encryptedHex);
-  const iv = hexToUint8Array(ivHex);
+  const encrypted = base64ToUint8Array(encryptedBase64);
+  const iv = base64ToUint8Array(ivBase64);
 
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv },
@@ -283,10 +283,8 @@ async function decryptPrivateKey(
   return new TextDecoder().decode(decrypted);
 }
 
-function hexToUint8Array(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-  }
-  return bytes;
+function base64ToUint8Array(base64: string): Uint8Array {
+  return new Uint8Array(
+    atob(base64).split('').map(c => c.charCodeAt(0))
+  );
 }
