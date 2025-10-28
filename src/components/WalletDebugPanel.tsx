@@ -15,10 +15,12 @@ export function WalletDebugPanel() {
   const [edgeTestResult, setEdgeTestResult] = useState<string>('');
   const [allWallets, setAllWallets] = useState<Array<{ address: string; status: string; is_primary: boolean; balance?: number }>>([]);
   const [loadingWallets, setLoadingWallets] = useState(false);
+  const [encryptionMethod, setEncryptionMethod] = useState<string>('');
 
   useEffect(() => {
     if (user) {
       loadAllWallets();
+      loadEncryptionMethod();
     }
   }, [user]);
 
@@ -41,6 +43,23 @@ export function WalletDebugPanel() {
       console.error('Failed to load wallets:', error);
     } finally {
       setLoadingWallets(false);
+    }
+  };
+
+  const loadEncryptionMethod = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('encrypted_wallet_keys')
+        .select('encryption_method')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (data) {
+        setEncryptionMethod(data.encryption_method || 'unknown');
+      }
+    } catch (error) {
+      console.error('Failed to load encryption method:', error);
     }
   };
 
@@ -127,6 +146,16 @@ export function WalletDebugPanel() {
             )}
           </Badge>
         </div>
+
+        {/* Encryption Method */}
+        {user && encryptionMethod && (
+          <div className="flex items-center justify-between p-2 bg-muted rounded">
+            <span className="text-sm">Encryption Method:</span>
+            <Badge variant={encryptionMethod === 'password_based' ? 'default' : 'secondary'}>
+              {encryptionMethod === 'password_based' ? '🔐 Password-Based' : '🔑 Legacy (UserID)'}
+            </Badge>
+          </div>
+        )}
 
         {/* All User Wallets */}
         {user && (

@@ -24,6 +24,14 @@ serve(async (req) => {
   }
 
   try {
+    // Handle ping operation
+    const url = new URL(req.url);
+    if (url.searchParams.get('operation') === 'ping') {
+      return new Response(
+        JSON.stringify({ ok: true, timestamp: Date.now(), service: 'transfer-to-dydx' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -138,7 +146,16 @@ serve(async (req) => {
           passwordError: error.message,
           legacyError: legacyError.message
         });
-        throw new Error('Failed to decrypt wallet. Please check your password or re-create your wallet.');
+        
+        // Return structured error with 400 status
+        return new Response(
+          JSON.stringify({ 
+            error: 'WALLET_DECRYPTION_FAILED',
+            message: 'Invalid wallet password. This is the password you used when creating or importing your internal wallet.',
+            hint: 'Try the password you set when you created your wallet, not your trading password.'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 

@@ -1062,6 +1062,83 @@ serve(async (req) => {
         };
         break;
 
+      case 'verify_wallet_password':
+        // Quick password verification without performing any blockchain operations
+        try {
+          const { password } = body;
+          
+          if (!authenticatedUserId) {
+            result = { 
+              ok: false, 
+              code: 'AUTHENTICATION_REQUIRED',
+              message: 'User authentication required'
+            };
+            break;
+          }
+          
+          if (!password) {
+            result = { 
+              ok: false, 
+              code: 'PASSWORD_REQUIRED',
+              message: 'Password is required'
+            };
+            break;
+          }
+          
+          // Fetch encrypted wallet key
+          const { data: walletData, error: walletError } = await supabase
+            .from('encrypted_wallet_keys')
+            .select('encrypted_private_key, encryption_iv, encryption_salt, encryption_method')
+            .eq('user_id', authenticatedUserId)
+            .maybeSingle();
+          
+          if (walletError || !walletData) {
+            result = { 
+              ok: false, 
+              code: 'WALLET_NOT_FOUND',
+              message: 'Internal wallet not found'
+            };
+            break;
+          }
+          
+          // Try decrypting with the provided password
+          try {
+            await decryptWithPassword(
+              walletData.encrypted_private_key,
+              walletData.encryption_iv,
+              walletData.encryption_salt,
+              password
+            );
+            
+            // Success - password is correct
+            logStructured('info', 'Password verification succeeded', { userId: authenticatedUserId });
+            result = { 
+              ok: true,
+              encryption_method: walletData.encryption_method
+            };
+          } catch (decryptError) {
+            // Password is incorrect
+            logStructured('warn', 'Password verification failed', { 
+              userId: authenticatedUserId,
+              error: decryptError instanceof Error ? decryptError.message : 'Decryption failed'
+            });
+            
+            result = { 
+              ok: false, 
+              code: 'WALLET_DECRYPTION_FAILED',
+              message: 'Invalid wallet password'
+            };
+          }
+        } catch (error) {
+          console.error('verify_wallet_password error:', error);
+          result = {
+            ok: false,
+            code: 'INTERNAL_ERROR',
+            message: error instanceof Error ? error.message : 'Verification failed'
+          };
+        }
+        break;
+
       case 'get_balance':
         try {
           const { address, asset } = body;

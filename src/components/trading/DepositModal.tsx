@@ -68,6 +68,30 @@ export const DepositModal = ({
       try {
         setLoading(true);
 
+        // Step 1: Verify password BEFORE initiating transfer
+        console.log('[DepositModal] Verifying wallet password...');
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('blockchain-operations', {
+          body: {
+            operation: 'verify_wallet_password',
+            password
+          }
+        });
+
+        if (verifyError || !verifyData?.ok) {
+          console.error('[DepositModal] Password verification failed:', verifyError || verifyData);
+          toast({
+            variant: 'destructive',
+            title: 'Incorrect Wallet Password',
+            description: 'This is the password you used when you created or imported your internal wallet. It may be different from your Trading Password.',
+            duration: 8000
+          });
+          setLoading(false);
+          return;
+        }
+
+        console.log('[DepositModal] Password verified ✅, initiating transfer...');
+
+        // Step 2: Proceed with transfer
         const { data, error } = await supabase.functions.invoke('transfer-to-dydx', {
           body: {
             amount: parseFloat(amount),
@@ -110,11 +134,24 @@ export const DepositModal = ({
       onClose();
       } catch (error: any) {
         console.error('Deposit failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Deposit Failed',
-          description: error.message || 'Failed to initiate deposit'
-        });
+        
+        // Parse structured error from edge function
+        const errorCode = error?.error || error?.message;
+        
+        if (errorCode === 'WALLET_DECRYPTION_FAILED' || error.message?.includes('Invalid wallet password')) {
+          toast({
+            variant: 'destructive',
+            title: 'Incorrect Wallet Password',
+            description: 'This is the password you used when creating or importing your internal wallet, not your trading password.',
+            duration: 8000
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Deposit Failed',
+            description: error.message || 'Failed to initiate deposit'
+          });
+        }
       } finally {
         setLoading(false);
       }
