@@ -1,34 +1,35 @@
 import { useState, useEffect } from 'react';
+import type { PositionRisk } from '@/types/dydx-trading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { snxTradingService } from '@/services/snxTradingService';
-import type { SnxPosition } from '@/types/snx';
+import { dydxTradingService } from '@/services/dydxTradingService';
+import { dydxRiskManager } from '@/services/dydxRiskManager';
+import type { DydxPositionDB } from '@/types/dydx-trading';
 import { TrendingUp, TrendingDown, AlertTriangle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 
 interface PositionManagerProps {
-  accountId?: bigint;
-  chainId: number;
+  address?: string;
   currentPrices: Record<string, number>;
 }
 
-export const PositionManager: React.FC<PositionManagerProps> = ({ accountId, chainId, currentPrices }) => {
-  const [positions, setPositions] = useState<SnxPosition[]>([]);
+export const PositionManager: React.FC<PositionManagerProps> = ({ address, currentPrices }) => {
+  const [positions, setPositions] = useState<DydxPositionDB[]>([]);
   const [loading, setLoading] = useState(false);
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
   const { toast } = useToast();
   const { getPassword } = useTradingPasswordContext();
 
   useEffect(() => {
-    if (!accountId) return;
+    if (!address) return;
 
     const loadPositions = async () => {
       setLoading(true);
       try {
-        const data = await snxTradingService.getOpenPositions(accountId, chainId);
+        const data = await dydxTradingService.getOpenPositions(address);
         setPositions(data);
       } catch (error) {
         console.error('[PositionManager] Failed to load:', error);
@@ -38,13 +39,11 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ accountId, cha
     };
 
     loadPositions();
-    const interval = setInterval(loadPositions, 15000);
+    const interval = setInterval(loadPositions, 15000); // Refresh every 15s
     return () => clearInterval(interval);
-  }, [accountId, chainId]);
+  }, [address]);
 
-  const handleClosePosition = async (marketKey: string) => {
-    if (!accountId) return;
-
+  const handleClosePosition = async (market: string) => {
     const password = getPassword();
     if (!password) {
       toast({
@@ -55,16 +54,19 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ accountId, cha
       return;
     }
 
-    setClosingPosition(marketKey);
+    setClosingPosition(market);
     try {
-      const response = await snxTradingService.closePosition(accountId, marketKey, 'internal', password, chainId);
+      const response = await dydxTradingService.closePosition(market, password);
       if (response.success) {
         toast({
           title: 'Position Closed',
-          description: `Successfully closed ${marketKey} position`
+          description: `Successfully closed ${market} position`
         });
-        const data = await snxTradingService.getOpenPositions(accountId, chainId);
-        setPositions(data);
+        // Reload positions
+        if (address) {
+          const data = await dydxTradingService.getOpenPositions(address);
+          setPositions(data);
+        }
       } else {
         toast({
           variant: 'destructive',
@@ -81,6 +83,115 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ accountId, cha
     } finally {
       setClosingPosition(null);
     }
+  };
+
+  const PositionRow = ({ position }: { position: DydxPositionDB }) => {
+    const [risk, setRisk] = useState<PositionRisk | null>(null);
+    const currentPrice = currentPrices[position.market] || position.entry_price;
+    
+    useEffect(() => {
+      const assessRisk = async () => {
+        const riskData = await dydxRiskManager.assessPositionRisk(position, currentPrice);
+        setRisk(riskData);
+      };
+      assessRisk();
+    }, [position.id, currentPrice]);
+
+    const pnl = position.side === 'LONG'
+      ? (currentPrice - position.entry_price) * position.size
+      : (position.entry_price - currentPrice) * position.size;
+    
+    const pnlPercent = ((currentPrice - position.entry_price) / position.entry_price) * 100 * (position.side === 'LONG' ? 1 : -1);
+    const isProfit = pnl > 0;
+
+    if (!risk) {
+      return (
+        <div className="border border-border rounded-lg p-4 mb-3 bg-card">
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="border border-border rounded-lg p-4 mb-3 bg-card">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-lg text-foreground">{position.market}</span>
+              <Badge variant={position.side === 'LONG' ? 'default' : 'destructive'}>
+                {position.side} {position.leverage}x
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Size: {position.size} @ ${position.entry_price.toFixed(2)}
+            </p>
+          </div>
+          
+          <div className="text-right">
+            <div className={`flex items-center gap-1 text-lg font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+              {isProfit ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+              {isProfit ? '+' : ''}${pnl.toFixed(2)}
+            </div>
+            <p className={`text-sm ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+              {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2 mb-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Current Price:</span>
+            <span className="font-medium text-foreground">${currentPrice.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Liquidation Price:</span>
+            <span className="font-medium text-foreground">${position.liquidation_price.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm items-center">
+            <span className="text-muted-foreground">Distance to Liquidation:</span>
+            <span className="font-medium text-foreground">{(risk.distanceToLiquidation * 100).toFixed(1)}%</span>
+          </div>
+          
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Risk Level:</span>
+              <span className={`font-medium uppercase ${risk.riskLevel === 'critical' ? 'text-red-500' : risk.riskLevel === 'high' ? 'text-orange-500' : risk.riskLevel === 'medium' ? 'text-yellow-500' : 'text-green-500'}`}>
+                {risk.riskLevel}
+              </span>
+            </div>
+            <Progress value={risk.distanceToLiquidation * 100} className="h-2" />
+          </div>
+        </div>
+
+        {risk.recommendedAction && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-2 mb-3 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-yellow-500">{risk.recommendedAction}</p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => handleClosePosition(position.market)}
+            disabled={closingPosition === position.market}
+            className="flex-1"
+          >
+            {closingPosition === position.market ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Closing...
+              </>
+            ) : (
+              'Close Position'
+            )}
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -108,68 +219,9 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ accountId, cha
           <p className="text-center text-muted-foreground py-8">No open positions</p>
         ) : (
           <div className="space-y-2">
-            {positions.map(position => {
-              const currentPrice = currentPrices[position.marketKey] || position.entryPrice;
-              const pnl = position.unrealizedPnl;
-              const pnlPercent = (pnl / (position.size * position.entryPrice)) * 100;
-              const isProfit = pnl > 0;
-
-              return (
-                <div key={position.marketKey} className="border border-border rounded-lg p-4 mb-3 bg-card">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-lg text-foreground">{position.marketKey}</span>
-                        <Badge variant={position.side === 'LONG' ? 'default' : 'destructive'}>
-                          {position.side} {position.leverage}×
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Size: {position.size} @ ${position.entryPrice.toFixed(2)}
-                      </p>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className={`flex items-center gap-1 text-lg font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                        {isProfit ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                        {isProfit ? '+' : ''}${pnl.toFixed(2)}
-                      </div>
-                      <p className={`text-sm ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                        {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Current Price:</span>
-                      <span className="font-medium text-foreground">${currentPrice.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Liquidation Price:</span>
-                      <span className="font-medium text-foreground">${position.liquidationPrice.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleClosePosition(position.marketKey)}
-                    disabled={closingPosition === position.marketKey}
-                    className="w-full"
-                  >
-                    {closingPosition === position.marketKey ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Closing...
-                      </>
-                    ) : (
-                      'Close Position'
-                    )}
-                  </Button>
-                </div>
-              );
-            })}
+            {positions.map(position => (
+              <PositionRow key={position.id} position={position} />
+            ))}
           </div>
         )}
       </CardContent>

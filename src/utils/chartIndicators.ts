@@ -1,16 +1,10 @@
-interface Candle {
-  timestamp: number;
-  close: number;
-  open: number;
-  high: number;
-  low: number;
-}
+import type { DydxCandle } from '@/types/dydx';
 
 /**
  * Calculate Simple Moving Average (SMA)
  */
 export function calculateSMA(
-  candles: Candle[], 
+  candles: DydxCandle[], 
   period: number
 ): { time: number; value: number }[] {
   if (!candles || candles.length === 0) return [];
@@ -47,7 +41,7 @@ export function calculateSMA(
  * Calculate Exponential Moving Average (EMA)
  */
 export function calculateEMA(
-  candles: Candle[], 
+  candles: DydxCandle[], 
   period: number
 ): { time: number; value: number }[] {
   if (!candles || candles.length === 0 || period <= 0) return [];

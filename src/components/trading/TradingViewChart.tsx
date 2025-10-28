@@ -2,20 +2,13 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-// Synthetix candle type
-interface DydxCandle {
-  timestamp: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume?: number;
-}
+import type { DydxCandle } from '@/types/dydx';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';
 import { useChartDrawingTools } from '@/hooks/useChartDrawingTools';
 import { calculateSMA } from '@/utils/chartIndicators';
+import { calculateVWAP, calculateRSI, calculateMACD } from '@/utils/advancedChartIndicators';
 import { useChartPersistence } from '@/hooks/useChartPersistence';
 import { LiveModeToggle } from './LiveModeToggle';
 import {
@@ -118,11 +111,11 @@ const TradingViewChart = ({
           const period = parseInt(indicator.slice(2));
           data[indicator] = calculateSMA(candles, period);
         } else if (indicator === 'VWAP') {
-          // data.vwap = calculateVWAP(candles); // TODO: Implement VWAP
+          data.vwap = calculateVWAP(candles);
         } else if (indicator === 'RSI') {
-          // data.rsi = calculateRSI(candles, 14); // TODO: Implement RSI
+          data.rsi = calculateRSI(candles, 14);
         } else if (indicator === 'MACD') {
-          // data.macd = calculateMACD(candles); // TODO: Implement MACD
+          data.macd = calculateMACD(candles);
         }
       } catch (error) {
         console.error(`[Chart] Error calculating ${indicator}:`, error);
