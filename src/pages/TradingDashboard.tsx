@@ -9,54 +9,39 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Slider } from '@/components/ui/slider';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
-import { useDydxMarkets } from '@/hooks/useDydxMarkets';
-import { useDydxCandles } from '@/hooks/useDydxCandles';
-import { useDydxWallet } from '@/hooks/useDydxWallet';
-import { useDydxAccount } from '@/hooks/useDydxAccount';
-import { useDydxTrading } from '@/hooks/useDydxTrading';
-import { useFundingRate } from '@/hooks/useFundingRate';
-import { useMarketRules } from '@/hooks/useMarketRules';
+import { useSnxMarkets } from '@/hooks/useSnxMarkets';
+import { useSnxTrading } from '@/hooks/useSnxTrading';
+import { useSnxPositions } from '@/hooks/useSnxPositions';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
-import { DydxWalletSetup } from '@/components/trading/DydxWalletSetup';
-import { DepositUSDC } from '@/components/trading/DepositUSDC';
-import { DepositModal } from '@/components/trading/DepositModal';
-import { WithdrawModal } from '@/components/trading/WithdrawModal';
+import { SnxAccountSetup } from '@/components/trading/SnxAccountSetup';
+import { NetworkSwitcher } from '@/components/trading/NetworkSwitcher';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
 import { OrderHistory } from '@/components/trading/OrderHistory';
 import { PositionManager } from '@/components/trading/PositionManager';
 import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
-import { OrderBook } from '@/components/trading/OrderBook';
-import { FundingRateDisplay } from '@/components/trading/FundingRateDisplay';
-import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBanner';
-import { dydxWalletService } from '@/services/dydxWalletService';
-import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
-  const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
-  const [showDepositModal, setShowDepositModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showSnxAccountSetup, setShowSnxAccountSetup] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
-  const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
-  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
+  const [selectedMarket, setSelectedMarket] = useState<string>('ETH');
+  const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
   const [leverage, setLeverage] = useState(1);
   const [orderSize, setOrderSize] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
-  const [stopPrice, setStopPrice] = useState('');
-  const [chartResolution, setChartResolution] = useState<string>('1HOUR');
-  const [walletType, setWalletType] = useState<'trading' | 'internal' | 'external'>('trading');
+  const [chainId, setChainId] = useState(8453); // Base by default
+  const [walletSource, setWalletSource] = useState<'internal' | 'external'>('internal');
+  const [snxAccountId, setSnxAccountId] = useState<bigint | null>(null);
   const [copied, setCopied] = useState(false);
-  const [wsHealth, setWsHealth] = useState({ isConnected: true, reconnectAttempts: 0, maxAttempts: 5 });
   
   const { user, loading: authLoading } = useAuth();
   const { getPassword } = useTradingPasswordContext();
@@ -79,67 +64,29 @@ const TradingDashboard = () => {
   // Internal wallet (secure wallet) - automatically loads existing wallet from gold app
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
-  // dYdX wallet and account
-  const { hasDydxWallet, dydxAddress, loading: dydxWalletLoading, refresh: refreshDydxWallet } = useDydxWallet();
-  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useDydxAccount(dydxAddress || undefined, true);
-  
-  // dYdX trading
-  const { placeOrder, orderLoading } = useDydxTrading(dydxAddress || undefined);
+  // Synthetix markets and trading
+  const { markets, loading: marketsLoading } = useSnxMarkets(chainId);
+  const { accountInfo, placeOrder, orderLoading, loadAccountInfo } = useSnxTrading(chainId);
+  const { positions, loading: positionsLoading } = useSnxPositions(snxAccountId || undefined, chainId);
   
   const { toast } = useToast();
   
 
-  // Show dYdX wallet setup if user doesn't have one
+  // Load Synthetix account on mount
   useEffect(() => {
-    if (user && !dydxWalletLoading && !hasDydxWallet) {
-      setShowDydxWalletSetup(true);
+    if (user && snxAccountId) {
+      loadAccountInfo(snxAccountId);
     }
-  }, [user, hasDydxWallet, dydxWalletLoading]);
+  }, [user, snxAccountId]);
 
-  // Show deposit modal if dYdX wallet exists but balance is 0
+  // Show account setup if user doesn't have Synthetix account
   useEffect(() => {
-    if (hasDydxWallet && accountInfo && accountInfo.equity === 0) {
-      setShowDepositModal(true);
+    if (user && !snxAccountId && internalConnected) {
+      setShowSnxAccountSetup(true);
     }
-  }, [hasDydxWallet, accountInfo]);
+  }, [user, snxAccountId, internalConnected]);
 
-  // Real dYdX market data
-  const { markets, loading: marketsLoading } = useDydxMarkets();
-  const { candles, loading: candlesLoading, error: candlesError, isBackfilling, loadMore } = useDydxCandles(selectedAsset, chartResolution, 200);
-  const { fundingRate, nextFundingTime, formatTimeUntil } = useFundingRate(selectedAsset);
-  const { rules, loading: rulesLoading, validateOrderSize, calculateFees } = useMarketRules(selectedAsset);
-
-  // WebSocket health monitoring
-  useEffect(() => {
-    const unsubscribe = dydxWebSocketService.subscribeToHealth((health) => {
-      setWsHealth(health);
-    });
-    return unsubscribe;
-  }, []);
-
-  // Debug log for chart data flow
-  console.log('[TradingDashboard] Chart data', { 
-    selectedAsset, 
-    chartResolution, 
-    candlesLength: candles?.length || 0,
-    candlesLoading,
-    candlesError,
-    isBackfilling 
-  });
-
-  // Filter leverage assets (BTC, ETH, SOL from dYdX)
-  const leverageAssets = markets.filter(m => 
-    ['BTC-USD', 'ETH-USD', 'SOL-USD'].includes(m.symbol)
-  );
-
-  // Spot trading assets (mock for now)
-  const spotAssets = [
-    { symbol: 'XAUT', name: 'Tether Gold', price: 2050.30, change24h: 0.12, leverageAvailable: false },
-    { symbol: 'PAXG', name: 'PAX Gold', price: 2048.90, change24h: 0.15, leverageAvailable: false },
-    { symbol: 'TRZ', name: 'Trezury Token', price: 1.05, change24h: 1.89, leverageAvailable: false },
-  ];
-
-  const currentAsset = leverageAssets.find(a => a.symbol === selectedAsset) || spotAssets.find(a => a.symbol === selectedAsset);
+  const currentMarket = markets.find(m => m.marketKey === selectedMarket);
 
   const handleConnectWallet = async () => {
     try {
@@ -185,14 +132,14 @@ const TradingDashboard = () => {
     });
   };
 
-  // Get current wallet data based on selection (use dYdX account for trading)
-  const currentWalletAddress = dydxAddress || (walletType === 'internal' ? internalAddress : wallet.address);
-  const currentWalletBalance = accountInfo?.equity || (walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0'));
-  const availableBalance = accountInfo?.freeCollateral || currentWalletBalance;
-  const isCurrentWalletConnected = hasDydxWallet && !!dydxAddress;
+  // Get current wallet data
+  const currentWalletAddress = walletSource === 'internal' ? internalAddress : wallet.address;
+  const currentWalletBalance = accountInfo?.equity || totalValue || 0;
+  const availableBalance = accountInfo?.availableMargin || 0;
+  const isCurrentWalletConnected = internalConnected || wallet.isConnected;
 
   const handlePlaceOrder = async () => {
-    if (!selectedAsset || !orderSize) {
+    if (!selectedMarket || !orderSize) {
       toast({
         variant: 'destructive',
         title: 'Missing Information',
@@ -201,19 +148,13 @@ const TradingDashboard = () => {
       return;
     }
 
-    // Validate order size with market rules
-    if (rules) {
-      const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
-      const validation = validateOrderSize(parseFloat(orderSize), currentPrice);
-      
-      if (!validation.valid) {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid Order Size',
-          description: validation.error
-        });
-        return;
-      }
+    if (!snxAccountId) {
+      toast({
+        variant: 'destructive',
+        title: 'No Trading Account',
+        description: 'Please create a Synthetix trading account first'
+      });
+      return;
     }
 
     setShowPasswordDialog(true);
@@ -222,32 +163,27 @@ const TradingDashboard = () => {
   const handlePasswordUnlock = async (password: string) => {
     setShowPasswordDialog(false);
 
-    if (!selectedAsset) return;
+    if (!selectedMarket || !snxAccountId) return;
 
-    const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
+    const currentPrice = currentMarket?.indexPrice || 0;
     const size = parseFloat(orderSize);
-    const price = orderType === 'limit' ? parseFloat(limitPrice) : currentPrice;
-
-    // Calculate fees before order
-    const fees = rules ? calculateFees(size, price, orderType === 'market' ? 'market' : 'limit') : null;
+    const price = orderType === 'limit' ? parseFloat(limitPrice) : undefined;
 
     const response = await placeOrder({
-      market: selectedAsset,
-      side: tradeMode === 'buy' ? 'BUY' : 'SELL',
-      type: orderType === 'market' ? 'MARKET' : orderType === 'stop-limit' ? 'STOP_LIMIT' : 'LIMIT',
-      size,
-      price,
-      leverage,
-      password
-    });
+      accountId: snxAccountId,
+      marketKey: selectedMarket,
+      side: tradeMode === 'buy' ? 'LONG' : 'SHORT',
+      sizeDelta: size,
+      leverage
+    }, walletSource, password);
 
     // Log to audit trail
     await tradeAuditService.logOrderPlacement(
-      selectedAsset,
+      selectedMarket,
       orderType,
       tradeMode === 'buy' ? 'BUY' : 'SELL',
       size,
-      price,
+      currentPrice,
       leverage,
       response.success,
       response.error
@@ -256,42 +192,22 @@ const TradingDashboard = () => {
     if (response.success) {
       setOrderSize('');
       setLimitPrice('');
-      setStopPrice('');
-      refreshAccount();
       
-      // Show fees in success toast
-      if (fees) {
-        toast({
-          title: 'Order Placed',
-          description: `Estimated fee: $${fees.totalFee.toFixed(2)}`
-        });
+      if (snxAccountId) {
+        loadAccountInfo(snxAccountId);
       }
-    }
-  };
-
-  const handleTradingModeChange = (mode: 'spot' | 'leverage') => {
-    setTradingMode(mode);
-    // Auto-select first asset in the new mode
-    if (mode === 'spot') {
-      setSelectedAsset('XAUT');
-    } else {
-      setSelectedAsset('BTC-USD');
+      
+      toast({
+        title: 'Order Placed',
+        description: `Successfully placed ${tradeMode} order for ${selectedMarket}`
+      });
     }
   };
 
   const currentPrices = markets.reduce((acc, market) => {
-    acc[market.symbol] = market.price;
+    acc[market.marketKey] = market.indexPrice;
     return acc;
   }, {} as Record<string, number>);
-
-  const chartResolutionMap: Record<string, string> = {
-    '1m': '1MIN',
-    '5m': '5MINS',
-    '15m': '15MINS',
-    '1h': '1HOUR',
-    '4h': '4HOURS',
-    '1d': '1DAY',
-  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#211d12]">
