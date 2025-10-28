@@ -10,8 +10,8 @@ const corsHeaders = {
 };
 
 // Squid Router API endpoint
-const SQUID_API_URL = 'https://v2.api.squidrouter.com/v2/route';
-const SQUID_INTEGRATOR_ID = 'trezury-app';
+const SQUID_API_URL = 'https://api.squidrouter.com/v1/route';
+const SQUID_INTEGRATOR_ID = 'squid-swap-widget'; // Using demo ID for testing - register 'trezury-app' for production
 
 // USDC on Ethereum Mainnet
 const ETHEREUM_USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
@@ -177,6 +177,7 @@ serve(async (req) => {
         'x-integrator-id': SQUID_INTEGRATOR_ID,
       },
       body: JSON.stringify({
+        integratorId: SQUID_INTEGRATOR_ID, // Required: Integrator ID in body
         fromChain: "1",  // Ethereum mainnet
         fromToken: ETHEREUM_USDC,
         fromAmount: amountInBaseUnits,
@@ -191,9 +192,19 @@ serve(async (req) => {
     });
 
     if (!routeResponse.ok) {
-      const errorText = await routeResponse.text();
-      console.error('[transfer-to-dydx] Squid API error:', errorText);
-      throw new Error(`Failed to get route from Squid: ${routeResponse.status}`);
+      const errorData = await routeResponse.json().catch(() => ({ message: 'Unknown error' }));
+      console.error('[transfer-to-dydx] Squid API error:', errorData);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'SQUID_ROUTE_ERROR',
+          message: errorData.message || 'Failed to get bridge route',
+          hint: errorData.type === 'UNAUTHORIZED' 
+            ? 'Invalid Integrator ID - please contact support'
+            : 'Please try again or contact support if the issue persists'
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const route = await routeResponse.json();
