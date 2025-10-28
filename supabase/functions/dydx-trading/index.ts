@@ -1,15 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
-import { 
-  CompositeClient, 
-  Network, 
-  LocalWallet,
-  OrderTimeInForce,
-  OrderExecution,
-  OrderSide,
-  OrderType
-} from 'https://esm.sh/@dydxprotocol/v4-client-js@3.0.7';
-import { DirectSecp256k1HdWallet } from 'https://esm.sh/@cosmjs/proto-signing@0.36.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,10 +53,21 @@ serve(async (req) => {
     }
 
     const { operation, params } = await req.json();
-    const network = Deno.env.get('DYDX_NETWORK') === 'mainnet' ? Network.mainnet() : Network.testnet();
+    
+    // dYdX Indexer URL (no SDK needed for read-only operations)
+    const indexerUrl = Deno.env.get('DYDX_NETWORK') === 'mainnet'
+      ? 'https://indexer.dydx.trade/v4'
+      : 'https://indexer.v4testnet.dydx.exchange/v4';
+
+    // Ping operation for health checks
+    if (operation === 'ping') {
+      return new Response(JSON.stringify({ ok: true, timestamp: Date.now() }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (operation === 'get_account') {
-      const response = await fetch(`${network.indexerConfig.restEndpoint}/v4/addresses/${params.address}/subaccountNumber/0`);
+      const response = await fetch(`${indexerUrl}/addresses/${params.address}/subaccountNumber/0`);
       const data = await response.json();
       const sub = data.subaccount || {};
       
@@ -94,34 +95,52 @@ serve(async (req) => {
     }
 
     if (operation === 'place_order') {
-      const { data: wallet } = await supabase.from('dydx_wallets').select('*').eq('user_id', user.id).single();
-      if (!wallet) throw new Error('dYdX wallet not found');
+      try {
+        // Lazy-load dYdX SDK only when placing orders (avoids boot-time crash)
+        console.log('[dydx-trading] Loading dYdX SDK for order placement...');
+        const dydx = await import('https://esm.sh/@dydxprotocol/v4-client-js@3.0.7');
+        const { CompositeClient, Network, LocalWallet, OrderTimeInForce, OrderExecution, OrderSide, OrderType } = dydx;
 
-      const mnemonic = await decryptMnemonic(wallet.encrypted_mnemonic, wallet.encryption_iv, wallet.encryption_salt, params.password);
-      const localWallet = await LocalWallet.fromMnemonic(mnemonic, 'dydx');
-      const client = await CompositeClient.connect(network);
-      const clientId = Math.floor(Math.random() * 1000000000);
+        const { data: wallet } = await supabase.from('dydx_wallets').select('*').eq('user_id', user.id).single();
+        if (!wallet) throw new Error('dYdX wallet not found');
 
-      const tx = await client.placeOrder(
-        localWallet, 0, clientId, params.market,
-        params.type === 'MARKET' ? OrderType.MARKET : OrderType.LIMIT,
-        params.side === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
-        params.price || 0, params.size, clientId,
-        params.type === 'MARKET' ? OrderTimeInForce.IOC : OrderTimeInForce.GTT,
-        params.type === 'LIMIT' ? Math.floor(Date.now()/1000) + 3600 : 0,
-        OrderExecution.DEFAULT, params.postOnly || false, params.reduceOnly || false
-      );
+        const mnemonic = await decryptMnemonic(wallet.encrypted_mnemonic, wallet.encryption_iv, wallet.encryption_salt, params.password);
+        const localWallet = await LocalWallet.fromMnemonic(mnemonic, 'dydx');
+        
+        const network = Deno.env.get('DYDX_NETWORK') === 'mainnet' ? Network.mainnet() : Network.testnet();
+        const client = await CompositeClient.connect(network);
+        const clientId = Math.floor(Math.random() * 1000000000);
 
-      const { data: order } = await supabase.from('dydx_orders').insert({
-        user_id: user.id, address: wallet.dydx_address, client_order_id: clientId.toString(),
-        market: params.market, side: params.side, order_type: params.type, size: params.size,
-        price: params.price || null, leverage: params.leverage, status: 'OPEN',
-        tx_hash: tx.hash, metadata: { tx }
-      }).select().single();
+        const tx = await client.placeOrder(
+          localWallet, 0, clientId, params.market,
+          params.type === 'MARKET' ? OrderType.MARKET : OrderType.LIMIT,
+          params.side === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
+          params.price || 0, params.size, clientId,
+          params.type === 'MARKET' ? OrderTimeInForce.IOC : OrderTimeInForce.GTT,
+          params.type === 'LIMIT' ? Math.floor(Date.now()/1000) + 3600 : 0,
+          OrderExecution.DEFAULT, params.postOnly || false, params.reduceOnly || false
+        );
 
-      return new Response(JSON.stringify({ success: true, order, txHash: tx.hash }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+        const { data: order } = await supabase.from('dydx_orders').insert({
+          user_id: user.id, address: wallet.dydx_address, client_order_id: clientId.toString(),
+          market: params.market, side: params.side, order_type: params.type, size: params.size,
+          price: params.price || null, leverage: params.leverage, status: 'OPEN',
+          tx_hash: tx.hash, metadata: { tx }
+        }).select().single();
+
+        return new Response(JSON.stringify({ success: true, order, txHash: tx.hash }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('[dydx-trading] SDK error:', error);
+        return new Response(JSON.stringify({ 
+          error: 'DYDX_SDK_ERROR', 
+          details: error.message || 'Failed to place order' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     return new Response(JSON.stringify({ error: 'Unknown operation' }), {

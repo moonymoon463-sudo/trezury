@@ -109,6 +109,18 @@ verify_jwt = false
 [functions.record-skip-withdrawal]
 verify_jwt = true
 
+[functions.dydx-trading]
+verify_jwt = true
+
+[functions.dydx-market-data]
+verify_jwt = false
+
+[functions.check-dydx-balance]
+verify_jwt = false
+
+[functions.sync-dydx-positions]
+verify_jwt = true
+
 [studio]
 enabled = true
 port = 54323

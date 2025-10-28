@@ -2,7 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client',
+  'Access-Control-Max-Age': '86400',
+  'Vary': 'Origin',
 };
 
 const DYDX_INDEXER_URL = 'https://indexer.dydx.trade/v4';
@@ -28,7 +31,7 @@ function setCache(key: string, data: any, ttlSeconds: number): void {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {
