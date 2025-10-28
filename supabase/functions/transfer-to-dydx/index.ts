@@ -182,7 +182,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           integratorId: SQUID_INTEGRATOR_ID, // Required: Integrator ID in body
-          fromChain: 1,  // Ethereum mainnet (number for v2 API)
+          fromChain: "1",  // Ethereum mainnet (string required by v2 API)
           fromToken: ETHEREUM_USDC,
           fromAmount: amountInBaseUnits,
           fromAddress: wallet.address,
