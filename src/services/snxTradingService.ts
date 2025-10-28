@@ -10,6 +10,9 @@ import type {
   SnxAccount,
   SnxPosition,
   SnxOrder,
+  SnxOrderType,
+  SnxOrderSide,
+  SnxOrderStatus,
   SnxTradeRequest,
   SnxTradeResponse,
   SnxOrderDB,
@@ -217,7 +220,7 @@ class SnxTradingService {
       const receipt = await client.submitTradeTx(signer, tx);
 
       // Record in database
-      const order: Partial<SnxOrderDB> = {
+      const { error: insertError } = await supabase.from('snx_orders').insert({
         user_id: user.id,
         account_id: accountId.toString(),
         market_id: market.marketId.toString(),
@@ -233,9 +236,11 @@ class SnxTradingService {
         tx_hash: receipt.hash,
         chain_id: chainId,
         wallet_source: 'external'
-      };
+      });
 
-      await supabase.from('snx_orders').insert(order);
+      if (insertError) {
+        console.error('[SnxTradingService] Failed to record order:', insertError);
+      }
 
       return {
         success: true,
@@ -267,20 +272,20 @@ class SnxTradingService {
     return data.map(this.mapDbOrderToOrder);
   }
 
-  private mapDbOrderToOrder(dbOrder: SnxOrderDB): SnxOrder {
+  private mapDbOrderToOrder(dbOrder: any): SnxOrder {
     return {
       id: dbOrder.id,
       accountId: BigInt(dbOrder.account_id),
       marketId: BigInt(dbOrder.market_id),
       marketKey: dbOrder.market_key,
-      type: dbOrder.type,
-      side: dbOrder.side,
-      size: dbOrder.size,
-      leverage: dbOrder.leverage,
-      price: dbOrder.price,
-      status: dbOrder.status,
-      filledSize: dbOrder.filled_size,
-      filledPrice: dbOrder.filled_price,
+      type: dbOrder.type as SnxOrderType,
+      side: dbOrder.side as SnxOrderSide,
+      size: Number(dbOrder.size),
+      leverage: Number(dbOrder.leverage),
+      price: dbOrder.price ? Number(dbOrder.price) : undefined,
+      status: dbOrder.status as SnxOrderStatus,
+      filledSize: Number(dbOrder.filled_size),
+      filledPrice: dbOrder.filled_price ? Number(dbOrder.filled_price) : undefined,
       txHash: dbOrder.tx_hash,
       createdAt: new Date(dbOrder.created_at).getTime(),
       filledAt: dbOrder.filled_at ? new Date(dbOrder.filled_at).getTime() : undefined

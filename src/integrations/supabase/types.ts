@@ -2433,6 +2433,165 @@ export type Database = {
         }
         Relationships: []
       }
+      snx_accounts: {
+        Row: {
+          account_id: string
+          chain_id: number
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Insert: {
+          account_id: string
+          chain_id: number
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Update: {
+          account_id?: string
+          chain_id?: number
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      snx_orders: {
+        Row: {
+          account_id: string
+          chain_id: number
+          created_at: string | null
+          filled_at: string | null
+          filled_price: number | null
+          filled_size: number | null
+          id: string
+          leverage: number
+          market_id: string
+          market_key: string
+          metadata: Json | null
+          price: number | null
+          side: string
+          size: number
+          status: string
+          tx_hash: string | null
+          type: string
+          updated_at: string | null
+          user_id: string
+          wallet_source: string
+        }
+        Insert: {
+          account_id: string
+          chain_id: number
+          created_at?: string | null
+          filled_at?: string | null
+          filled_price?: number | null
+          filled_size?: number | null
+          id?: string
+          leverage: number
+          market_id: string
+          market_key: string
+          metadata?: Json | null
+          price?: number | null
+          side: string
+          size: number
+          status: string
+          tx_hash?: string | null
+          type: string
+          updated_at?: string | null
+          user_id: string
+          wallet_source: string
+        }
+        Update: {
+          account_id?: string
+          chain_id?: number
+          created_at?: string | null
+          filled_at?: string | null
+          filled_price?: number | null
+          filled_size?: number | null
+          id?: string
+          leverage?: number
+          market_id?: string
+          market_key?: string
+          metadata?: Json | null
+          price?: number | null
+          side?: string
+          size?: number
+          status?: string
+          tx_hash?: string | null
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+          wallet_source?: string
+        }
+        Relationships: []
+      }
+      snx_positions: {
+        Row: {
+          account_id: string
+          chain_id: number
+          closed_at: string | null
+          entry_price: number
+          funding_accrued: number | null
+          id: string
+          leverage: number
+          liquidation_price: number
+          market_id: string
+          market_key: string
+          opened_at: string | null
+          realized_pnl: number | null
+          side: string
+          size: number
+          status: string
+          unrealized_pnl: number | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          chain_id: number
+          closed_at?: string | null
+          entry_price: number
+          funding_accrued?: number | null
+          id?: string
+          leverage: number
+          liquidation_price: number
+          market_id: string
+          market_key: string
+          opened_at?: string | null
+          realized_pnl?: number | null
+          side: string
+          size: number
+          status: string
+          unrealized_pnl?: number | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          chain_id?: number
+          closed_at?: string | null
+          entry_price?: number
+          funding_accrued?: number | null
+          id?: string
+          leverage?: number
+          liquidation_price?: number
+          market_id?: string
+          market_key?: string
+          opened_at?: string | null
+          realized_pnl?: number | null
+          side?: string
+          size?: number
+          status?: string
+          unrealized_pnl?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       support_ticket_replies: {
         Row: {
           created_at: string | null
