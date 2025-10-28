@@ -1,3 +1,5 @@
+// Transfer USDC from Ethereum to dYdX using Squid Router v2 + Gelato (gasless)
+// Deployment: 2025-10-28T05:55:00Z - Fixed Squid API endpoint to v2
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 
