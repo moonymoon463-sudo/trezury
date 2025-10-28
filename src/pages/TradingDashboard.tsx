@@ -26,6 +26,7 @@ import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
+import { supabase } from '@/integrations/supabase/client';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -70,7 +71,27 @@ const TradingDashboard = () => {
     );
   }
 
-  // Load Synthetix account on mount
+  // Fetch Synthetix account ID from database on mount
+  useEffect(() => {
+    const fetchSnxAccount = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from('snx_accounts')
+        .select('account_id')
+        .eq('user_id', user.id)
+        .eq('chain_id', chainId)
+        .maybeSingle();
+      
+      if (data) {
+        setSnxAccountId(BigInt(data.account_id));
+      }
+    };
+    
+    fetchSnxAccount();
+  }, [user, chainId]);
+
+  // Load Synthetix account info when account ID is available
   useEffect(() => {
     if (user && snxAccountId) {
       loadAccountInfo(snxAccountId);
@@ -220,9 +241,13 @@ const TradingDashboard = () => {
     }
   };
 
-  const handleAccountCreated = (accountId: bigint) => {
+  const handleAccountCreated = async (accountId: bigint) => {
     setSnxAccountId(accountId);
     setShowSnxAccountSetup(false);
+    
+    // Load account info immediately after creation
+    await loadAccountInfo(accountId);
+    
     toast({
       title: "Trading Account Created",
       description: "Your Synthetix trading account is ready!",

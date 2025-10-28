@@ -7,6 +7,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ethers } from 'npm:ethers@6.15.0';
 import * as crypto from 'https://deno.land/std@0.168.0/node/crypto.ts';
+import { handleCreateAccount } from './handleCreateAccount.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,12 @@ const corsHeaders = {
 const PERPS_MARKET_ABI = [
   'function commitOrder(tuple(uint128 marketId, uint128 accountId, int128 sizeDelta, uint128 settlementStrategyId, uint256 acceptablePrice, bytes32 trackingCode, address referrer) commitment) payable',
   'function settleOrder(uint128 accountId, uint128 marketId)'
+];
+
+// Account Proxy ABI
+const ACCOUNT_PROXY_ABI = [
+  'function createAccount() external returns (uint128 accountId)',
+  'function getAccountOwner(uint128 accountId) external view returns (address)'
 ];
 
 // Rate limiting: Track last trade time per user
@@ -56,7 +63,12 @@ serve(async (req) => {
     }
 
     // Parse request
-    const { request, chainId, password } = await req.json();
+    const { operation, request, chainId, password } = await req.json();
+
+    // Handle account creation operation
+    if (operation === 'create_account') {
+      return await handleCreateAccount(user, chainId, password, supabase);
+    }
 
     // Rate limiting check
     const lastTrade = userRateLimit.get(user.id) || 0;
@@ -108,23 +120,50 @@ serve(async (req) => {
       );
     }
 
-    // Decrypt wallet key
-    const key = crypto.pbkdf2Sync(
-      password,
-      Buffer.from(walletData.salt, 'hex'),
-      100000,
-      32,
-      'sha256'
-    );
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      key,
-      Buffer.from(walletData.iv, 'hex')
-    );
-    decipher.setAuthTag(Buffer.from(walletData.auth_tag, 'hex'));
+    // Decrypt wallet key (support both new and legacy formats)
+    let privateKey: string;
     
-    let privateKey = decipher.update(walletData.encrypted_key, 'hex', 'utf8');
-    privateKey += decipher.final('utf8');
+    // Check if using new format (with auth_tag) or legacy format
+    if (walletData.auth_tag) {
+      // New format with GCM auth tag
+      const key = crypto.pbkdf2Sync(
+        password,
+        Buffer.from(walletData.salt, 'hex'),
+        100000,
+        32,
+        'sha256'
+      );
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        key,
+        Buffer.from(walletData.iv, 'hex')
+      );
+      decipher.setAuthTag(Buffer.from(walletData.auth_tag, 'hex'));
+      
+      privateKey = decipher.update(walletData.encrypted_key, 'hex', 'utf8');
+      privateKey += decipher.final('utf8');
+    } else {
+      // Legacy format (encryption_iv, encryption_salt, encrypted_private_key)
+      const salt = walletData.encryption_salt || walletData.salt;
+      const iv = walletData.encryption_iv || walletData.iv;
+      const encryptedKey = walletData.encrypted_private_key || walletData.encrypted_key;
+      
+      const key = crypto.pbkdf2Sync(
+        password,
+        Buffer.from(salt, 'hex'),
+        100000,
+        32,
+        'sha256'
+      );
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        key,
+        Buffer.from(iv, 'hex')
+      );
+      
+      privateKey = decipher.update(encryptedKey, 'hex', 'utf8');
+      privateKey += decipher.final('utf8');
+    }
 
     // Initialize provider & signer
     const rpcUrl = chainId === 8453 ? 'https://mainnet.base.org' :
@@ -156,11 +195,20 @@ serve(async (req) => {
 
     const accountId = BigInt(accountData.account_id);
 
-    // Get contract addresses
-    const addresses = {
-      1: { perpsMarket: '0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce' },
-      8453: { perpsMarket: '0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce' },
-      42161: { perpsMarket: '0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce' }
+    // Get contract addresses (Synthetix V3)
+    const addresses: Record<number, { perpsMarket: string; accountProxy: string }> = {
+      1: { 
+        perpsMarket: '0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce',
+        accountProxy: '0x0E429603D3Cb1DFae4E6F52Add5fE82d96d77Dac'
+      },
+      8453: { 
+        perpsMarket: '0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce',
+        accountProxy: '0x63f4Dd0434BEB5baeCD27F3778a909278d8cf5b8'
+      },
+      42161: { 
+        perpsMarket: '0x0A2AF931eFFd34b81ebcc57E3d3c9B1E1dE1C9Ce',
+        accountProxy: '0xcb68b813210aFa0373F076239Ad4803f8809e8cf'
+      }
     };
 
     const perpsMarketAddress = addresses[chainId as keyof typeof addresses]?.perpsMarket;

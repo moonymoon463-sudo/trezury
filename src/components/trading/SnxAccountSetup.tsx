@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,9 +22,19 @@ export const SnxAccountSetup = ({
   chainId
 }: SnxAccountSetupProps) => {
   const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
   const { toast } = useToast();
 
   const handleCreateAccount = async () => {
+    if (!password || password.length < 8) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Password',
+        description: 'Please enter your wallet password (minimum 8 characters)'
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -30,7 +42,8 @@ export const SnxAccountSetup = ({
       const { data, error } = await supabase.functions.invoke('snx-trade-executor', {
         body: {
           operation: 'create_account',
-          chainId
+          chainId,
+          password
         }
       });
 
@@ -39,8 +52,9 @@ export const SnxAccountSetup = ({
       if (data?.success && data?.accountId) {
         toast({
           title: 'Account Created',
-          description: `Synthetix trading account created on chain ${chainId}`
+          description: `Synthetix trading account created successfully!`
         });
+        setPassword(''); // Clear password
         onAccountCreated(BigInt(data.accountId));
         onClose();
       } else {
@@ -84,9 +98,24 @@ export const SnxAccountSetup = ({
             </AlertDescription>
           </Alert>
 
+          <div className="space-y-2">
+            <Label htmlFor="password">Wallet Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter your wallet password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use the same password you created when setting up your internal wallet
+            </p>
+          </div>
+
           <Button
             onClick={handleCreateAccount}
-            disabled={loading}
+            disabled={loading || !password}
             className="w-full"
             size="lg"
           >
