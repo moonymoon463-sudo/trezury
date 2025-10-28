@@ -6,18 +6,237 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ethers } from 'npm:ethers@6.15.0';
-import * as crypto from 'https://deno.land/std@0.168.0/node/crypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Web Crypto API decryption to match frontend
+async function decryptPrivateKey(
+  encryptedKey: string,
+  iv: string,
+  salt: string,
+  password: string
+): Promise<string> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  // Base64 decode
+  const encryptedBytes = Uint8Array.from(atob(encryptedKey), c => c.charCodeAt(0));
+  const ivBytes = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+  const saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
+
+  // Derive key using PBKDF2
+  const passwordKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+
+  const keyMaterial = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBytes,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    passwordKey,
+    256
+  );
+
+  const aesKey = await crypto.subtle.importKey(
+    'raw',
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+
+  // Decrypt
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivBytes },
+    aesKey,
+    encryptedBytes
+  );
+
+  return decoder.decode(decrypted);
+}
+
 // Perps Market ABI (minimal)
 const PERPS_MARKET_ABI = [
   'function commitOrder(tuple(uint128 marketId, uint128 accountId, int128 sizeDelta, uint128 settlementStrategyId, uint256 acceptablePrice, bytes32 trackingCode, address referrer) commitment) payable',
   'function settleOrder(uint128 accountId, uint128 marketId)'
 ];
+
+// Account Proxy ABI
+const ACCOUNT_PROXY_ABI = [
+  'function createAccount() external returns (uint128)',
+  'event AccountCreated(uint128 indexed accountId, address indexed owner)'
+];
+
+// Account creation handler
+async function handleAccountCreation(
+  user: any,
+  password: string,
+  chainId: number,
+  supabase: any
+) {
+  console.log('[CreateAccount] Starting for user:', user.id, 'chain:', chainId);
+
+  // Get wallet data
+  const { data: walletData, error: walletError } = await supabase
+    .from('encrypted_wallet_keys')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  if (walletError || !walletData) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Internal wallet not found' }),
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Decrypt private key
+  let privateKey: string;
+  try {
+    privateKey = await decryptPrivateKey(
+      walletData.encrypted_private_key,
+      walletData.encryption_iv,
+      walletData.encryption_salt,
+      password
+    );
+  } catch (err) {
+    console.error('[CreateAccount] Decryption failed:', err);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Incorrect password' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Initialize provider and wallet
+  const rpcUrl = chainId === 8453 ? 'https://mainnet.base.org' :
+                 chainId === 1 ? 'https://eth.llamarpc.com' :
+                 chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' :
+                 'https://mainnet.optimism.io';
+  
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
+
+  console.log('[CreateAccount] Wallet address:', wallet.address);
+
+  // Get account proxy address
+  const addresses: Record<number, string> = {
+    8453: '0x63f4Dd0434BEB5baeCD27F3778a909278d8cf5b8',
+    42161: '0xcb68b813210aFa0373F076239Ad4803f8809e8cf',
+    1: '0x0E429603D3Cb1DFae4E6F52Add5fE82d96d77Dac'
+  };
+
+  const accountProxyAddress = addresses[chainId];
+  if (!accountProxyAddress) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Chain not supported' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const accountProxy = new ethers.Contract(accountProxyAddress, ACCOUNT_PROXY_ABI, wallet);
+
+  // Check gas balance
+  const balance = await provider.getBalance(wallet.address);
+  const estimatedGas = await accountProxy.createAccount.estimateGas();
+  const feeData = await provider.getFeeData();
+  const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice ?? BigInt(0);
+  const estimatedCost = estimatedGas * gasPrice;
+
+  console.log('[CreateAccount] Balance:', ethers.formatEther(balance));
+  console.log('[CreateAccount] Estimated cost:', ethers.formatEther(estimatedCost));
+
+  if (balance < estimatedCost) {
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Insufficient gas funds',
+        walletAddress: wallet.address,
+        requiredGas: ethers.formatEther(estimatedCost),
+        currentBalance: ethers.formatEther(balance)
+      }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Create account
+  console.log('[CreateAccount] Calling createAccount()...');
+  const tx = await accountProxy.createAccount();
+  const receipt = await tx.wait();
+
+  console.log('[CreateAccount] Transaction hash:', receipt.hash);
+
+  // Parse account ID from logs
+  let accountId: bigint | undefined;
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() === accountProxyAddress.toLowerCase()) {
+      try {
+        const parsed = accountProxy.interface.parseLog({
+          topics: [...log.topics],
+          data: log.data
+        });
+        if (parsed && parsed.name === 'AccountCreated') {
+          accountId = parsed.args.accountId;
+          console.log('[CreateAccount] Account ID from event:', accountId.toString());
+          break;
+        }
+      } catch (e) {
+        // Try parsing from topics directly
+        if (log.topics.length > 1) {
+          accountId = BigInt(log.topics[1]);
+          console.log('[CreateAccount] Account ID from topics:', accountId.toString());
+          break;
+        }
+      }
+    }
+  }
+
+  if (!accountId) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Failed to parse account ID' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Store in database
+  const { error: insertError } = await supabase
+    .from('snx_accounts')
+    .insert({
+      user_id: user.id,
+      account_id: accountId.toString(),
+      chain_id: chainId,
+      wallet_address: wallet.address
+    });
+
+  if (insertError) {
+    console.error('[CreateAccount] Database insert failed:', insertError);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Failed to store account' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  console.log('[CreateAccount] Success! Account ID:', accountId.toString());
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      accountId: accountId.toString(),
+      txHash: receipt.hash,
+      walletAddress: wallet.address
+    }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
 // Rate limiting: Track last trade time per user
 const userRateLimit = new Map<string, number>();
@@ -56,7 +275,12 @@ serve(async (req) => {
     }
 
     // Parse request
-    const { request, chainId, password } = await req.json();
+    const { operation, request, chainId, password } = await req.json();
+
+    // Handle account creation
+    if (operation === 'create_account') {
+      return await handleAccountCreation(user, password, chainId, supabase);
+    }
 
     // Rate limiting check
     const lastTrade = userRateLimit.get(user.id) || 0;
@@ -108,23 +332,22 @@ serve(async (req) => {
       );
     }
 
-    // Decrypt wallet key
-    const key = crypto.pbkdf2Sync(
-      password,
-      Buffer.from(walletData.salt, 'hex'),
-      100000,
-      32,
-      'sha256'
-    );
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      key,
-      Buffer.from(walletData.iv, 'hex')
-    );
-    decipher.setAuthTag(Buffer.from(walletData.auth_tag, 'hex'));
-    
-    let privateKey = decipher.update(walletData.encrypted_key, 'hex', 'utf8');
-    privateKey += decipher.final('utf8');
+    // Decrypt wallet key using Web Crypto API
+    let privateKey: string;
+    try {
+      privateKey = await decryptPrivateKey(
+        walletData.encrypted_private_key,
+        walletData.encryption_iv,
+        walletData.encryption_salt,
+        password
+      );
+    } catch (err) {
+      console.error('[SnxTradeExecutor] Decryption failed:', err);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Incorrect password' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Initialize provider & signer
     const rpcUrl = chainId === 8453 ? 'https://mainnet.base.org' :

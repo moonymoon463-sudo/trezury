@@ -33,18 +33,22 @@ import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
 import { FundingRateDisplay } from '@/components/trading/FundingRateDisplay';
 import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBanner';
+import { SnxAccountSetup } from '@/components/trading/SnxAccountSetup';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
   const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
+  const [showSnxAccountSetup, setShowSnxAccountSetup] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [snxAccountId, setSnxAccountId] = useState<string | null>(null);
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
@@ -102,6 +106,26 @@ const TradingDashboard = () => {
       setShowDepositModal(true);
     }
   }, [hasDydxWallet, accountInfo]);
+
+  // Check for existing SNX account
+  useEffect(() => {
+    const checkSnxAccount = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from('snx_accounts')
+        .select('account_id')
+        .eq('user_id', user.id)
+        .eq('chain_id', 8453)
+        .maybeSingle();
+      
+      if (data) {
+        setSnxAccountId(data.account_id);
+      }
+    };
+    
+    checkSnxAccount();
+  }, [user]);
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
@@ -1073,6 +1097,23 @@ const TradingDashboard = () => {
           setShowWithdrawModal(false);
         }}
       />
+
+      {/* SNX Account Setup Dialog */}
+      <Dialog open={showSnxAccountSetup} onOpenChange={setShowSnxAccountSetup}>
+        <DialogContent>
+          <SnxAccountSetup
+            chainId={8453}
+            onAccountCreated={(accountId) => {
+              setSnxAccountId(accountId);
+              setShowSnxAccountSetup(false);
+              toast({
+                title: "Trading Account Created",
+                description: `Your Synthetix account is ready for trading`,
+              });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
