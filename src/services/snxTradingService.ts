@@ -115,8 +115,11 @@ class SnxTradingService {
     password?: string
   ): Promise<SnxTradeResponse> {
     try {
-      if (walletSource === 'internal') {
-        return await this.placeTradeInternal(request, chainId, password!);
+      // Note: With Alchemy Account Kit, all trades go through external wallet flow
+      // The "internal" wallet is deprecated in favor of Alchemy smart wallets
+      if (walletSource === 'internal' && password) {
+        // Legacy support - but recommend migrating to Alchemy
+        return await this.placeTradeInternal(request, chainId, password);
       } else {
         return await this.placeTradeExternal(request, chainId);
       }

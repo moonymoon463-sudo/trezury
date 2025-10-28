@@ -395,9 +395,16 @@ serve(async (req) => {
     // Parse request
     const { operation, request, chainId, password } = await req.json();
 
-    // Handle account creation
+    // Handle account creation - DEPRECATED
     if (operation === 'create_account') {
-      return await handleAccountCreation(user, password, chainId, supabase);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Account creation via edge function is deprecated. Please use Alchemy Account Kit integration in the UI.',
+          deprecated: true
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Rate limiting check

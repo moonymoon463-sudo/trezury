@@ -1107,7 +1107,7 @@ const TradingDashboard = () => {
           <SnxAccountSetup
             chainId={8453}
             onAccountCreated={(accountId) => {
-              setSnxAccountId(accountId);
+              setSnxAccountId(accountId.toString());
               setShowSnxAccountSetup(false);
               toast({
                 title: "Trading Account Created",
