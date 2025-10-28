@@ -138,12 +138,26 @@ export const DepositModal = ({
         // Parse structured error from edge function
         const errorCode = error?.error || error?.message;
         
-        if (errorCode === 'WALLET_DECRYPTION_FAILED' || error.message?.includes('Invalid wallet password')) {
+        if (errorCode === 'SQUID_API_UNREACHABLE') {
+          toast({
+            variant: 'destructive',
+            title: 'Bridging Service Unavailable',
+            description: 'Unable to connect to Squid Router. Please check your internet connection or try again in a few moments.',
+            duration: 6000
+          });
+        } else if (errorCode === 'WALLET_DECRYPTION_FAILED' || error.message?.includes('Invalid wallet password')) {
           toast({
             variant: 'destructive',
             title: 'Incorrect Wallet Password',
             description: 'This is the password you used when creating or importing your internal wallet, not your trading password.',
             duration: 8000
+          });
+        } else if (errorCode === 'SQUID_ROUTE_ERROR') {
+          toast({
+            variant: 'destructive',
+            title: 'Bridge Route Error',
+            description: error.hint || 'Failed to get bridge route. Please try again or contact support.',
+            duration: 6000
           });
         } else {
           toast({

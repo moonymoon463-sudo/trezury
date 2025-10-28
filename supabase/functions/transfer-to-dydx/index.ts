@@ -9,8 +9,8 @@ const corsHeaders = {
   'Vary': 'Origin',
 };
 
-// Squid Router API endpoint
-const SQUID_API_URL = 'https://api.squidrouter.com/v1/route';
+// Squid Router API endpoint - using v2 for production reliability
+const SQUID_API_URL = 'https://v2.api.squidrouter.com/v2/route';
 const SQUID_INTEGRATOR_ID = 'squid-swap-widget'; // Using demo ID for testing - register 'trezury-app' for production
 
 // USDC on Ethereum Mainnet
@@ -170,26 +170,45 @@ serve(async (req) => {
     console.log('[transfer-to-dydx] Fetching route from Squid Router API');
     const amountInBaseUnits = Math.floor(amount * 1_000_000).toString(); // USDC has 6 decimals
 
-    const routeResponse = await fetch(SQUID_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-integrator-id': SQUID_INTEGRATOR_ID,
-      },
-      body: JSON.stringify({
-        integratorId: SQUID_INTEGRATOR_ID, // Required: Integrator ID in body
-        fromChain: "1",  // Ethereum mainnet
-        fromToken: ETHEREUM_USDC,
-        fromAmount: amountInBaseUnits,
-        fromAddress: wallet.address,
-        toChain: "dydx-mainnet-1",
-        toToken: DYDX_USDC,
-        toAddress: destinationAddress,
-        slippage: 1.0,
-        enableForecall: true,
-        quoteOnly: false
-      }),
-    });
+    let routeResponse;
+    try {
+      routeResponse = await fetch(SQUID_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-integrator-id': SQUID_INTEGRATOR_ID,
+        },
+        body: JSON.stringify({
+          integratorId: SQUID_INTEGRATOR_ID, // Required: Integrator ID in body
+          fromChain: 1,  // Ethereum mainnet (number for v2 API)
+          fromToken: ETHEREUM_USDC,
+          fromAmount: amountInBaseUnits,
+          fromAddress: wallet.address,
+          toChain: "dydx-mainnet-1",
+          toToken: DYDX_USDC,
+          toAddress: destinationAddress,
+          slippage: 1.0,
+          enableForecall: true,
+          quoteOnly: false
+        }),
+      });
+    } catch (fetchError: any) {
+      // Handle DNS resolution failures
+      if (fetchError.message?.includes('dns error') || 
+          fetchError.message?.includes('failed to lookup') ||
+          fetchError.message?.includes('getaddrinfo')) {
+        console.error('[transfer-to-dydx] DNS resolution failed - Squid API unreachable:', fetchError);
+        return new Response(
+          JSON.stringify({
+            error: 'SQUID_API_UNREACHABLE',
+            message: 'Unable to reach bridging service. Please try again in a few moments.',
+            hint: 'Network connectivity issue - not a wallet or password problem.'
+          }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw fetchError; // Re-throw other errors
+    }
 
     if (!routeResponse.ok) {
       const errorData = await routeResponse.json().catch(() => ({ message: 'Unknown error' }));
