@@ -62,11 +62,42 @@ export const SnxAccountSetup = ({
       }
     } catch (error: any) {
       console.error('Account creation failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Account Creation Failed',
-        description: error.message || 'Failed to create Synthetix account'
-      });
+      
+      // Check if insufficient gas error
+      const errorData = error.response?.data || error;
+      if (errorData.walletAddress && errorData.requiredGas) {
+        toast({
+          variant: 'destructive',
+          title: 'Insufficient Gas',
+          description: (
+            <div className="space-y-2">
+              <p>Your internal wallet needs gas funds to create the trading account.</p>
+              <p className="text-xs font-mono bg-background/50 p-2 rounded">
+                {errorData.walletAddress}
+              </p>
+              <p className="text-xs">
+                Required: {errorData.requiredGas} ETH
+              </p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(errorData.walletAddress);
+                  toast({ title: 'Copied!', description: 'Wallet address copied to clipboard' });
+                }}
+                className="text-xs underline"
+              >
+                Copy address to fund wallet
+              </button>
+            </div>
+          ) as any,
+          duration: 10000
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Account Creation Failed',
+          description: errorData.error || error.message || 'Failed to create Synthetix account'
+        });
+      }
     } finally {
       setLoading(false);
     }

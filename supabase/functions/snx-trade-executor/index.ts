@@ -6,8 +6,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ethers } from 'npm:ethers@6.15.0';
-import * as crypto from 'https://deno.land/std@0.168.0/node/crypto.ts';
-import { handleCreateAccount } from './handleCreateAccount.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,10 +18,11 @@ const PERPS_MARKET_ABI = [
   'function settleOrder(uint128 accountId, uint128 marketId)'
 ];
 
-// Account Proxy ABI
+// Account Proxy ABI with events
 const ACCOUNT_PROXY_ABI = [
   'function createAccount() external returns (uint128 accountId)',
-  'function getAccountOwner(uint128 accountId) external view returns (address)'
+  'function getAccountOwner(uint128 accountId) external view returns (address)',
+  'event AccountCreated(uint128 indexed accountId, address indexed owner)'
 ];
 
 // Rate limiting: Track last trade time per user
@@ -67,7 +66,7 @@ serve(async (req) => {
 
     // Handle account creation operation
     if (operation === 'create_account') {
-      return await handleCreateAccount(user, chainId, password, supabase);
+      return await handleCreateAccountInline(user, chainId, password, supabase);
     }
 
     // Rate limiting check
@@ -120,49 +119,14 @@ serve(async (req) => {
       );
     }
 
-    // Decrypt wallet key (support both new and legacy formats)
+    // Decrypt wallet key - match frontend Web Crypto format
     let privateKey: string;
     
-    // Check if using new format (with auth_tag) or legacy format
-    if (walletData.auth_tag) {
-      // New format with GCM auth tag
-      const key = crypto.pbkdf2Sync(
-        password,
-        Buffer.from(walletData.salt, 'hex'),
-        100000,
-        32,
-        'sha256'
-      );
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        key,
-        Buffer.from(walletData.iv, 'hex')
-      );
-      decipher.setAuthTag(Buffer.from(walletData.auth_tag, 'hex'));
-      
-      privateKey = decipher.update(walletData.encrypted_key, 'hex', 'utf8');
-      privateKey += decipher.final('utf8');
-    } else {
-      // Legacy format (encryption_iv, encryption_salt, encrypted_private_key)
-      const salt = walletData.encryption_salt || walletData.salt;
-      const iv = walletData.encryption_iv || walletData.iv;
-      const encryptedKey = walletData.encrypted_private_key || walletData.encrypted_key;
-      
-      const key = crypto.pbkdf2Sync(
-        password,
-        Buffer.from(salt, 'hex'),
-        100000,
-        32,
-        'sha256'
-      );
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        key,
-        Buffer.from(iv, 'hex')
-      );
-      
-      privateKey = decipher.update(encryptedKey, 'hex', 'utf8');
-      privateKey += decipher.final('utf8');
+    try {
+      privateKey = await decryptPrivateKeyWebCrypto(walletData, password);
+    } catch (error) {
+      console.error('[Decryption] Failed:', error);
+      throw new Error('Incorrect password or wallet data mismatch');
     }
 
     // Initialize provider & signer
@@ -324,3 +288,276 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Decrypt private key using Web Crypto API (matches frontend encryption)
+ */
+async function decryptPrivateKeyWebCrypto(
+  walletData: any,
+  password: string
+): Promise<string> {
+  // Frontend uses base64-encoded fields: encrypted_private_key, encryption_iv, encryption_salt
+  const encryptedPrivateKey = walletData.encrypted_private_key;
+  const encryptionIv = walletData.encryption_iv;
+  const encryptionSalt = walletData.encryption_salt;
+  
+  if (!encryptedPrivateKey || !encryptionIv || !encryptionSalt) {
+    throw new Error('Missing encryption fields in wallet data');
+  }
+  
+  // Decode base64 to Uint8Array
+  const salt = Uint8Array.from(atob(encryptionSalt), c => c.charCodeAt(0));
+  const iv = Uint8Array.from(atob(encryptionIv), c => c.charCodeAt(0));
+  const encryptedData = Uint8Array.from(atob(encryptedPrivateKey), c => c.charCodeAt(0));
+  
+  // Determine decryption password (legacy uses userId)
+  const decryptionPassword = walletData.encryption_method === 'legacy_userid' 
+    ? walletData.user_id 
+    : password;
+  
+  // Derive key using PBKDF2
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(decryptionPassword),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+  
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  
+  // Decrypt (auth tag is included in encryptedData for GCM mode)
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    encryptedData
+  );
+  
+  return new TextDecoder().decode(decrypted);
+}
+
+/**
+ * Handle Synthetix Account Creation (merged inline for compliance)
+ */
+async function handleCreateAccountInline(
+  user: any,
+  chainId: number,
+  password: string,
+  supabase: any
+): Promise<Response> {
+  try {
+    console.log('[CreateAccount] Starting for user:', user.id, 'chain:', chainId);
+
+    // Check if account already exists
+    const { data: existingAccount } = await supabase
+      .from('snx_accounts')
+      .select('account_id')
+      .eq('user_id', user.id)
+      .eq('chain_id', chainId)
+      .maybeSingle();
+
+    if (existingAccount) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          accountId: existingAccount.account_id,
+          message: 'Account already exists'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get user's wallet
+    const { data: walletData, error: walletError } = await supabase
+      .from('encrypted_wallet_keys')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (walletError || !walletData) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Internal wallet not found. Please create a wallet first.' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Decrypt wallet key using Web Crypto
+    let privateKey: string;
+    
+    try {
+      privateKey = await decryptPrivateKeyWebCrypto(walletData, password);
+    } catch (error) {
+      console.error('[CreateAccount] Decryption failed:', error);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Incorrect password or wallet data mismatch. If you imported an older wallet, please contact support.' 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize provider
+    const rpcUrl = chainId === 8453 ? 'https://mainnet.base.org' :
+                   chainId === 1 ? 'https://eth.llamarpc.com' :
+                   chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' :
+                   'https://mainnet.optimism.io';
+    
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const wallet = new ethers.Wallet(privateKey, provider);
+
+    console.log('[CreateAccount] Wallet address:', wallet.address, 'Chain:', chainId, 'RPC:', rpcUrl);
+
+    // Get AccountProxy address (validated against src/config/snxAddresses.ts)
+    const accountProxyAddresses: Record<number, string> = {
+      1: '0x0E429603D3Cb1DFae4E6F52Add5fE82d96d77Dac',      // Ethereum
+      8453: '0x63f4Dd0434BEB5baeCD27F3778a909278d8cf5b8',   // Base
+      42161: '0xcb68b813210aFa0373F076239Ad4803f8809e8cf'   // Arbitrum
+    };
+
+    const accountProxyAddress = accountProxyAddresses[chainId];
+    if (!accountProxyAddress) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Chain ${chainId} not supported for Synthetix trading` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const accountProxy = new ethers.Contract(accountProxyAddress, ACCOUNT_PROXY_ABI, wallet);
+
+    // Check gas balance
+    console.log('[CreateAccount] Checking gas balance...');
+    const balance = await provider.getBalance(wallet.address);
+    
+    // Correct gas estimation API
+    let estimatedGas: bigint;
+    try {
+      estimatedGas = await accountProxy.estimateGas.createAccount();
+    } catch (error) {
+      console.error('[CreateAccount] Gas estimation failed:', error);
+      estimatedGas = BigInt(150000); // Fallback
+    }
+    
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice ?? BigInt(0);
+    const estimatedCost = estimatedGas * gasPrice;
+
+    console.log('[CreateAccount] Balance:', ethers.formatEther(balance), 
+                'Estimated gas:', estimatedGas.toString(),
+                'Gas price:', ethers.formatUnits(gasPrice, 'gwei'), 'gwei',
+                'Estimated cost:', ethers.formatEther(estimatedCost));
+
+    if (balance < estimatedCost) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Insufficient gas funds`,
+          walletAddress: wallet.address,
+          requiredGas: ethers.formatEther(estimatedCost),
+          currentBalance: ethers.formatEther(balance),
+          chainId: chainId
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create account on-chain
+    console.log('[CreateAccount] Calling createAccount() on contract:', accountProxyAddress);
+    const tx = await accountProxy.createAccount();
+    console.log('[CreateAccount] Transaction sent:', tx.hash);
+    
+    const receipt = await tx.wait();
+    console.log('[CreateAccount] Transaction confirmed:', receipt.hash);
+
+    // Parse account ID from events
+    let accountId: bigint | undefined;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = accountProxy.interface.parseLog({
+          topics: [...log.topics],
+          data: log.data
+        });
+        
+        if (parsedLog && parsedLog.name === 'AccountCreated') {
+          accountId = parsedLog.args.accountId;
+          console.log('[CreateAccount] Parsed account ID:', accountId.toString());
+          break;
+        }
+      } catch (e) {
+        // Not our event
+      }
+    }
+
+    if (!accountId) {
+      console.error('[CreateAccount] Failed to parse account ID from logs');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to parse account ID from transaction receipt. This may be a contract issue.',
+          txHash: receipt.hash 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Store in database
+    const { error: insertError } = await supabase
+      .from('snx_accounts')
+      .insert({
+        user_id: user.id,
+        account_id: accountId.toString(),
+        chain_id: chainId,
+        wallet_address: wallet.address,
+        created_tx_hash: receipt.hash
+      });
+
+    if (insertError) {
+      console.error('[CreateAccount] DB insert failed:', insertError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to store account in database' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[CreateAccount] Success! Account ID:', accountId.toString());
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        accountId: accountId.toString(),
+        txHash: receipt.hash,
+        walletAddress: wallet.address
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('[CreateAccount] Error:', error);
+    
+    let errorMessage = 'Failed to create account';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: errorMessage,
+        errorCode: 'ACCOUNT_CREATION_FAILED'
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
