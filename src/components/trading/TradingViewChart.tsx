@@ -16,7 +16,6 @@ import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';
 import { useChartDrawingTools } from '@/hooks/useChartDrawingTools';
 import { calculateSMA } from '@/utils/chartIndicators';
-import { calculateVWAP, calculateRSI, calculateMACD } from '@/utils/advancedChartIndicators';
 import { useChartPersistence } from '@/hooks/useChartPersistence';
 import { LiveModeToggle } from './LiveModeToggle';
 import {
@@ -119,11 +118,11 @@ const TradingViewChart = ({
           const period = parseInt(indicator.slice(2));
           data[indicator] = calculateSMA(candles, period);
         } else if (indicator === 'VWAP') {
-          data.vwap = calculateVWAP(candles);
+          // data.vwap = calculateVWAP(candles); // TODO: Implement VWAP
         } else if (indicator === 'RSI') {
-          data.rsi = calculateRSI(candles, 14);
+          // data.rsi = calculateRSI(candles, 14); // TODO: Implement RSI
         } else if (indicator === 'MACD') {
-          data.macd = calculateMACD(candles);
+          // data.macd = calculateMACD(candles); // TODO: Implement MACD
         }
       } catch (error) {
         console.error(`[Chart] Error calculating ${indicator}:`, error);

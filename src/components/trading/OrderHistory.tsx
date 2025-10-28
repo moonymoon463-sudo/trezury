@@ -30,18 +30,20 @@ export const OrderHistory = () => {
     loadOrders();
   }, [user]);
 
-  const openOrders = orders.filter(o => o.status === 'pending');
-  const completedOrders = orders.filter(o => o.status === 'completed');
-  const cancelledOrders = orders.filter(o => o.status === 'cancelled');
+  const openOrders = orders.filter(o => o.status === 'PENDING');
+  const completedOrders = orders.filter(o => o.status === 'FILLED');
+  const cancelledOrders = orders.filter(o => o.status === 'CANCELLED');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed':
-        return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
-      case 'cancelled':
+      case 'FILLED':
+        return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Filled</Badge>;
+      case 'CANCELLED':
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
-      case 'pending':
+      case 'PENDING':
         return <Badge variant="outline"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case 'FAILED':
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -53,7 +55,7 @@ export const OrderHistory = () => {
         <div>
           <div className="flex items-center gap-2">
             <span className="font-semibold">{order.marketKey}</span>
-            <Badge variant={order.side === 'LONG' ? 'default' : 'destructive'}>{order.side}</Badge>
+            <Badge variant={order.side === 'BUY' ? 'default' : 'destructive'}>{order.side}</Badge>
             {getStatusBadge(order.status)}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
