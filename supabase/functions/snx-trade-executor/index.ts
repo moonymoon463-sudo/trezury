@@ -78,7 +78,7 @@ const ACCOUNT_PROXY_ABI = [
   'event AccountCreated(uint128 indexed accountId, address indexed owner)'
 ];
 
-// Account creation handler
+  // Account creation handler
 async function handleAccountCreation(
   user: any,
   password: string,
@@ -95,6 +95,7 @@ async function handleAccountCreation(
     .single();
 
   if (walletError || !walletData) {
+    console.error('[CreateAccount] Wallet not found:', walletError);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal wallet not found' }),
       { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -146,17 +147,43 @@ async function handleAccountCreation(
 
   const accountProxy = new ethers.Contract(accountProxyAddress, ACCOUNT_PROXY_ABI, wallet);
 
-  // Check gas balance
+  // Check gas balance with robust error handling
+  console.log('[CreateAccount] Estimating gas requirements...');
   const balance = await provider.getBalance(wallet.address);
-  const estimatedGas = await accountProxy.createAccount.estimateGas();
+  
+  let estimatedGas: bigint;
+  try {
+    estimatedGas = await accountProxy.createAccount.estimateGas();
+    // Add 20% buffer for safety
+    estimatedGas = (estimatedGas * 120n) / 100n;
+    console.log('[CreateAccount] Gas estimate (with buffer):', estimatedGas.toString());
+  } catch (err: any) {
+    console.error('[CreateAccount] Gas estimation failed:', err);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Failed to estimate gas. Your wallet may need ETH funding first.',
+        details: err.message,
+        walletAddress: wallet.address,
+        currentBalance: ethers.formatEther(balance)
+      }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   const feeData = await provider.getFeeData();
   const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice ?? BigInt(0);
   const estimatedCost = estimatedGas * gasPrice;
 
-  console.log('[CreateAccount] Balance:', ethers.formatEther(balance));
-  console.log('[CreateAccount] Estimated cost:', ethers.formatEther(estimatedCost));
+  console.log('[CreateAccount] Gas details:', {
+    estimatedGas: estimatedGas.toString(),
+    gasPrice: ethers.formatUnits(gasPrice, 'gwei') + ' gwei',
+    estimatedCost: ethers.formatEther(estimatedCost) + ' ETH',
+    balance: ethers.formatEther(balance) + ' ETH'
+  });
 
   if (balance < estimatedCost) {
+    console.warn('[CreateAccount] Insufficient balance for gas');
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -169,12 +196,37 @@ async function handleAccountCreation(
     );
   }
 
-  // Create account
+  // Create account with better error handling
   console.log('[CreateAccount] Calling createAccount()...');
-  const tx = await accountProxy.createAccount();
-  const receipt = await tx.wait();
-
-  console.log('[CreateAccount] Transaction hash:', receipt.hash);
+  let tx, receipt;
+  try {
+    tx = await accountProxy.createAccount();
+    console.log('[CreateAccount] Transaction sent:', tx.hash);
+    receipt = await tx.wait();
+    console.log('[CreateAccount] Transaction confirmed:', receipt.hash);
+  } catch (err: any) {
+    console.error('[CreateAccount] Transaction failed:', err);
+    
+    // Parse Ethers error for better user feedback
+    let errorMsg = 'Transaction failed';
+    if (err.reason) {
+      errorMsg = err.reason;
+    } else if (err.message?.includes('insufficient funds')) {
+      errorMsg = 'Insufficient ETH for gas fees';
+    } else if (err.message?.includes('execution reverted')) {
+      errorMsg = 'Transaction reverted. The contract may have rejected the operation.';
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: errorMsg,
+        details: err.message,
+        walletAddress: wallet.address
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
 
   // Parse account ID from logs
   let accountId: bigint | undefined;
