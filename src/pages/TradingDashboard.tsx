@@ -121,6 +121,9 @@ const TradingDashboard = () => {
       
       if (data) {
         setSnxAccountId(data.account_id);
+      } else {
+        // Show setup modal if no account exists
+        setShowSnxAccountSetup(true);
       }
     };
     

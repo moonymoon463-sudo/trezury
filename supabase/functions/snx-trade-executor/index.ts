@@ -68,7 +68,8 @@ async function decryptPrivateKey(
 // Perps Market ABI (minimal)
 const PERPS_MARKET_ABI = [
   'function commitOrder(tuple(uint128 marketId, uint128 accountId, int128 sizeDelta, uint128 settlementStrategyId, uint256 acceptablePrice, bytes32 trackingCode, address referrer) commitment) payable',
-  'function settleOrder(uint128 accountId, uint128 marketId)'
+  'function settleOrder(uint128 accountId, uint128 marketId)',
+  'function indexPrice(uint128 marketId) view returns (uint256)'
 ];
 
 // Account Proxy ABI
@@ -201,6 +202,7 @@ async function handleAccountCreation(
   }
 
   if (!accountId) {
+    console.warn('[CreateAccount] Failed to parse account ID from logs. Receipt:', JSON.stringify(receipt, null, 2));
     return new Response(
       JSON.stringify({ success: false, error: 'Failed to parse account ID' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -414,8 +416,20 @@ serve(async (req) => {
     // Calculate size delta (positive for long, negative for short)
     const sizeDelta = request.side === 'BUY' ? request.size : -request.size;
 
-    // Get current price (simplified - use oracle price)
-    const currentPrice = 3500; // TODO: Fetch from Pyth oracle
+    // Fetch real-time price from Synthetix oracle
+    let currentPrice: number;
+    try {
+      const priceRaw = await perpsMarket.indexPrice(BigInt(marketInfo.marketId));
+      currentPrice = Number(ethers.formatEther(priceRaw));
+      console.log('[SnxTradeExecutor] Real-time price from oracle:', currentPrice);
+    } catch (err) {
+      console.error('[SnxTradeExecutor] Failed to fetch oracle price:', err);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to fetch market price' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const slippageBps = request.slippageBps || 50;
     const acceptablePrice = request.side === 'BUY'
       ? currentPrice * (1 + slippageBps / 10000)
@@ -439,7 +453,7 @@ serve(async (req) => {
 
     console.log('[SnxTradeExecutor] Order committed:', receipt.hash);
 
-    // Record order in database
+    // Record order in database with settlement metadata
     const { error: insertError } = await supabase
       .from('snx_orders')
       .insert({
@@ -452,12 +466,17 @@ serve(async (req) => {
         size: request.size,
         leverage: request.leverage,
         price: request.price,
-        status: 'FILLED',
+        status: 'PENDING',
         filled_size: request.size,
         filled_price: currentPrice,
         tx_hash: receipt.hash,
         chain_id: chainId,
-        wallet_source: 'internal'
+        wallet_source: 'internal',
+        metadata: {
+          needsSettlement: true,
+          commitTime: Date.now(),
+          settlementDelay: 10
+        }
       });
 
     if (insertError) {
