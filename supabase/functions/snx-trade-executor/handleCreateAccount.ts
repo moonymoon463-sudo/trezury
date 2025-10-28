@@ -4,10 +4,12 @@
 
 import { ethers } from 'npm:ethers@6.15.0';
 import * as crypto from 'https://deno.land/std@0.168.0/node/crypto.ts';
+import { Buffer } from 'https://deno.land/std@0.168.0/node/buffer.ts';
 
 const ACCOUNT_PROXY_ABI = [
   'function createAccount() external returns (uint128 accountId)',
-  'function getAccountOwner(uint128 accountId) external view returns (address)'
+  'function getAccountOwner(uint128 accountId) external view returns (address)',
+  'event AccountCreated(uint128 indexed accountId, address indexed owner)'
 ];
 
 const corsHeaders = {
@@ -127,6 +129,28 @@ export async function handleCreateAccount(
 
     const accountProxy = new ethers.Contract(accountProxyAddress, ACCOUNT_PROXY_ABI, wallet);
 
+    // Check if wallet has enough gas
+    console.log('[CreateAccount] Checking gas balance...');
+    const balance = await provider.getBalance(wallet.address);
+    const estimatedGas = await accountProxy.createAccount.estimateGas();
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.gasPrice || BigInt(0);
+    const estimatedCost = estimatedGas * gasPrice;
+
+    console.log('[CreateAccount] Balance:', ethers.formatEther(balance), 'Estimated cost:', ethers.formatEther(estimatedCost));
+
+    if (balance < estimatedCost) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: `Insufficient gas funds. Need ${ethers.formatEther(estimatedCost)} ETH but have ${ethers.formatEther(balance)} ETH`,
+          requiredGas: ethers.formatEther(estimatedCost),
+          currentBalance: ethers.formatEther(balance)
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('[CreateAccount] Calling createAccount() on-chain...');
     
     // Create account on-chain
@@ -135,18 +159,36 @@ export async function handleCreateAccount(
 
     console.log('[CreateAccount] Transaction confirmed:', receipt.hash);
 
-    // Parse account ID from logs
-    // The createAccount function returns the account ID, but we need to parse it from events
-    let accountId: bigint;
-    
-    // Try to get return value from transaction (if available)
-    try {
-      // Call the function again as a view to get the latest account ID
-      // This is a workaround since we can't easily parse the return value from a transaction
-      // We'll store a placeholder and update it later
-      accountId = BigInt(Date.now()); // Temporary - should be parsed from event logs
-    } catch {
-      accountId = BigInt(Date.now());
+    // Parse account ID from transaction receipt events
+    let accountId: bigint | undefined;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = accountProxy.interface.parseLog({
+          topics: [...log.topics],
+          data: log.data
+        });
+        
+        if (parsedLog && parsedLog.name === 'AccountCreated') {
+          accountId = parsedLog.args.accountId;
+          console.log('[CreateAccount] Parsed account ID from event:', accountId.toString());
+          break;
+        }
+      } catch (e) {
+        // Not our event, continue
+      }
+    }
+
+    if (!accountId) {
+      console.error('[CreateAccount] Failed to parse account ID from transaction receipt');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to parse account ID from transaction receipt',
+          txHash: receipt.hash 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Store account in database
