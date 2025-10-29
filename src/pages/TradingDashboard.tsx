@@ -19,6 +19,7 @@ import { useMarketRules } from '@/hooks/useMarketRules';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
+import { useNavigate } from 'react-router-dom';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
@@ -28,6 +29,7 @@ import { DepositModal } from '@/components/trading/DepositModal';
 import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
 import { OrderHistory } from '@/components/trading/OrderHistory';
+import { WalletTransferModal } from '@/components/wallet/WalletTransferModal';
 import { PositionManager } from '@/components/trading/PositionManager';
 import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
@@ -39,12 +41,14 @@ import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
 
 const TradingDashboard = () => {
+  const navigate = useNavigate();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
   const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
@@ -182,6 +186,37 @@ const TradingDashboard = () => {
     toast({
       title: "Internal Wallet Ready",
       description: "Your secure wallet has been set up successfully!",
+    });
+  };
+
+  // Prepare wallet data for transfer modal
+  const availableWallets = [
+    ...(dydxAddress ? [{
+      type: 'dydx' as const,
+      address: dydxAddress,
+      balance: accountInfo?.equity || 0,
+      label: 'dYdX Trading Wallet'
+    }] : []),
+    ...(internalAddress ? [{
+      type: 'internal' as const,
+      address: internalAddress,
+      balance: totalValue,
+      label: 'Internal Wallet (Gold App)'
+    }] : []),
+    ...(wallet.address ? [{
+      type: 'evm' as const,
+      address: wallet.address,
+      balance: parseFloat(wallet.balance || '0'),
+      label: 'External Wallet (MetaMask)'
+    }] : [])
+  ];
+
+  const handleTransferComplete = async () => {
+    await refreshBalances();
+    await refreshAccount();
+    toast({
+      title: "Transfer Complete",
+      description: "Funds have been transferred successfully",
     });
   };
 
@@ -404,6 +439,14 @@ const TradingDashboard = () => {
                       className="w-full h-7 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold transition-colors duration-150 text-xs"
                     >
                       Withdraw
+                    </Button>
+                    <Button 
+                      onClick={() => setShowTransferModal(true)}
+                      variant="outline"
+                      className="w-full h-7 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold transition-colors duration-150 text-xs"
+                      disabled={availableWallets.length < 2}
+                    >
+                      Transfer
                     </Button>
                   </>
                 )}
@@ -979,6 +1022,17 @@ const TradingDashboard = () => {
           <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
             {dydxAddress ? (
               <>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-white text-sm font-semibold">Recent Activity</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/dydx-trades')}
+                    className="text-[#e6b951] hover:text-white hover:bg-[#463c25] h-7 px-2 text-xs"
+                  >
+                    View All Trades →
+                  </Button>
+                </div>
                 <PositionManager address={dydxAddress} currentPrices={currentPrices} />
                 <OrderHistory address={dydxAddress} />
               </>
@@ -1072,6 +1126,14 @@ const TradingDashboard = () => {
           refreshBalances();
           setShowWithdrawModal(false);
         }}
+      />
+
+      {/* Transfer Modal */}
+      <WalletTransferModal
+        open={showTransferModal}
+        onOpenChange={setShowTransferModal}
+        wallets={availableWallets}
+        onTransferComplete={handleTransferComplete}
       />
     </div>
   );
