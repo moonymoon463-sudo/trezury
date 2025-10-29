@@ -131,9 +131,20 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
 
     try {
       console.log('[SnxAccountSetup] Verifying OTP code');
-      // The OTP verification happens automatically through Alchemy's email flow
-      // We just need to show feedback while waiting for authentication to complete
-      toast.success('Verifying code...');
+      
+      // Actually verify the OTP with Alchemy
+      await authenticate({
+        type: "email",
+        email: emailForOTP,
+        bundle: otpCode
+      });
+      
+      toast.success('Verification successful!');
+      setIsAwaitingOTP(false);
+      setOtpCode('');
+      
+      // Check for Synthetix account after successful authentication
+      checkForSynthetixAccount();
     } catch (error) {
       toast.error('Invalid or expired code');
       console.error('Email OTP verify error:', error);
