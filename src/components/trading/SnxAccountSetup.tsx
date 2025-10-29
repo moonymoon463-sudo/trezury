@@ -17,10 +17,11 @@ import { useAuth } from '@/hooks/useAuth';
 interface SnxAccountSetupProps {
   chainId: number;
   onAccountCreated: (accountId: bigint) => void;
-  useInternalWallet?: boolean;
+  walletSource: 'alchemy' | 'internal' | 'external';
+  walletAddress?: string; // For internal/external wallets
 }
 
-export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet = false }: SnxAccountSetupProps) {
+export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walletAddress }: SnxAccountSetupProps) {
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
@@ -38,10 +39,17 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   
-  // UI state derived from signer status only
-  const showOTPInput = signerStatus.status === "AWAITING_EMAIL_AUTH";
-  const showEmailInput = !signerStatus.isConnected && !showOTPInput;
-  const showAccountCheck = signerStatus.isConnected;
+  // UI state derived from wallet source and connection status
+  const isAlchemyFlow = walletSource === 'alchemy';
+  const isInternalFlow = walletSource === 'internal';
+  const isExternalFlow = walletSource === 'external';
+  
+  const showOTPInput = isAlchemyFlow && signerStatus.status === "AWAITING_EMAIL_AUTH";
+  const showEmailInput = isAlchemyFlow && !signerStatus.isConnected && !showOTPInput;
+  const showAccountCheck = 
+    (isAlchemyFlow && signerStatus.isConnected) || 
+    (isInternalFlow && walletAddress) || 
+    (isExternalFlow && walletAddress);
 
   // Debug logging for authentication state changes
   useEffect(() => {
@@ -56,12 +64,17 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
     });
   }, [signerStatus.status, signerStatus.isConnected, address, showOTPInput, showEmailInput, showAccountCheck]);
 
-  // Check if user has a Synthetix account when connected
+  // Check if user has a Synthetix account when wallet is ready
   useEffect(() => {
-    if (signerStatus.isConnected && address) {
+    const walletReady = 
+      (isAlchemyFlow && signerStatus.isConnected && address) ||
+      (isInternalFlow && walletAddress) ||
+      (isExternalFlow && walletAddress);
+      
+    if (walletReady) {
       checkForSynthetixAccount();
     }
-  }, [signerStatus.isConnected, address]);
+  }, [signerStatus.isConnected, address, walletAddress, isAlchemyFlow, isInternalFlow, isExternalFlow]);
 
   // Notify parent component when account is found
   useEffect(() => {
@@ -104,18 +117,20 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
   }, [signerStatus.isConnected, signerStatus.status]);
 
   const checkForSynthetixAccount = async () => {
-    if (!address) return;
+    // Determine which address to check based on wallet source
+    const addressToCheck = isAlchemyFlow ? address : walletAddress;
+    if (!addressToCheck) return;
     
     setIsCheckingAccount(true);
     try {
       // Check for SNX account by wallet address
-      console.log('[SNX Account Setup] Checking for SNX account:', address);
+      console.log('[SNX Account Setup] Checking for SNX account:', addressToCheck, 'source:', walletSource);
       const { data, error } = await supabase
         .from('snx_accounts')
         .select('account_id')
-        .eq('wallet_address', address.toLowerCase())
+        .eq('wallet_address', addressToCheck.toLowerCase())
         .eq('chain_id', chainId)
-        .single();
+        .maybeSingle();
 
       if (data && !error) {
         console.log('[SNX Account Setup] Account found:', data.account_id);
@@ -195,62 +210,99 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
   };
 
   const handleCreateAccount = async () => {
-    if (useInternalWallet) {
-      // Show password prompt for internal wallet
+    // Internal wallet flow - prompt for password
+    if (isInternalFlow) {
       setNeedsPassword(true);
       return;
     }
 
     // Alchemy wallet flow
-    if (!address || !client) {
-      toast.error('Wallet not connected');
+    if (isAlchemyFlow) {
+      if (!address || !client) {
+        toast.error('Wallet not connected');
+        return;
+      }
+
+      setIsCreatingAccount(true);
+      try {
+        console.log('[SNX Account Setup] Creating Synthetix account with Alchemy wallet...');
+        
+        // Use Account Kit's native signer via window.ethereum (provided by Account Kit)
+        if (!window.ethereum) {
+          throw new Error('No wallet provider detected');
+        }
+        
+        const provider = new ethers.BrowserProvider(window.ethereum as any);
+        const signer = await provider.getSigner();
+        
+        toast.info('Creating your Synthetix account...', { duration: 2000 });
+        
+        const result = await snxAccountService.createAccount(signer, chainId);
+        
+        if (result.success && result.accountId) {
+          toast.success('Trading account created successfully!');
+          setAccountId(result.accountId);
+          console.log('[SNX Account Setup] Account created:', result.accountId);
+        } else {
+          toast.error(result.error || 'Failed to create account');
+        }
+      } catch (error) {
+        console.error('[SNX Account Setup] Account creation error:', error);
+        handleAccountCreationError(error);
+      } finally {
+        setIsCreatingAccount(false);
+      }
       return;
     }
 
-    setIsCreatingAccount(true);
-    try {
-      console.log('[SNX Account Setup] Creating Synthetix account...');
-      
-      // Use Account Kit's native signer via window.ethereum (provided by Account Kit)
-      // Account Kit injects a compatible provider at window.ethereum
+    // External wallet flow (MetaMask)
+    if (isExternalFlow) {
       if (!window.ethereum) {
-        throw new Error('No wallet provider detected');
+        toast.error('MetaMask not detected');
+        return;
       }
-      
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
-      const signer = await provider.getSigner();
-      
-      toast.info('Creating your Synthetix account...', { duration: 2000 });
-      
-      const result = await snxAccountService.createAccount(signer, chainId);
-      
-      if (result.success && result.accountId) {
-        toast.success('Trading account created successfully!');
-        setAccountId(result.accountId);
-        console.log('[SNX Account Setup] Account created:', result.accountId);
-      } else {
-        toast.error(result.error || 'Failed to create account');
-      }
-    } catch (error) {
-      console.error('[SNX Account Setup] Account creation error:', error);
-      
-      let errorMessage = 'Failed to create account';
-      if (error instanceof Error) {
-        if (error.message.includes('gas')) {
-          errorMessage = 'Gas estimation failed. Your wallet may need ETH for gas fees.';
-        } else if (error.message.includes('user rejected')) {
-          errorMessage = 'Transaction cancelled';
-        } else if (error.message.includes('insufficient funds')) {
-          errorMessage = 'Insufficient funds for gas';
+
+      setIsCreatingAccount(true);
+      try {
+        console.log('[SNX Account Setup] Creating Synthetix account with external wallet...');
+        
+        const provider = new ethers.BrowserProvider(window.ethereum as any);
+        const signer = await provider.getSigner();
+        
+        toast.info('Creating your Synthetix account...', { duration: 2000 });
+        
+        const result = await snxAccountService.createAccount(signer, chainId);
+        
+        if (result.success && result.accountId) {
+          toast.success('Trading account created successfully!');
+          setAccountId(result.accountId);
+          console.log('[SNX Account Setup] Account created:', result.accountId);
         } else {
-          errorMessage = error.message;
+          toast.error(result.error || 'Failed to create account');
         }
+      } catch (error) {
+        console.error('[SNX Account Setup] Account creation error:', error);
+        handleAccountCreationError(error);
+      } finally {
+        setIsCreatingAccount(false);
       }
-      
-      toast.error(errorMessage);
-    } finally {
-      setIsCreatingAccount(false);
     }
+  };
+
+  const handleAccountCreationError = (error: unknown) => {
+    let errorMessage = 'Failed to create account';
+    if (error instanceof Error) {
+      if (error.message.includes('gas')) {
+        errorMessage = 'Gas estimation failed. Your wallet may need ETH for gas fees.';
+      } else if (error.message.includes('user rejected')) {
+        errorMessage = 'Transaction cancelled';
+      } else if (error.message.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for gas';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    toast.error(errorMessage);
   };
 
   const handleCreateWithInternalWallet = async () => {
@@ -319,16 +371,15 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Synthetix Trading Account</CardTitle>
-      <CardDescription>
-        {useInternalWallet 
-          ? 'Create your trading account using your secure internal wallet'
-          : 'Sign in with email to access perpetual futures trading'
-        }
-      </CardDescription>
+        <CardDescription>
+          {isAlchemyFlow && 'Sign in with email to access perpetual futures trading'}
+          {isInternalFlow && 'Create your trading account using your secure internal wallet'}
+          {isExternalFlow && 'Create your trading account with your connected wallet'}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Password prompt for internal wallet */}
-        {useInternalWallet && needsPassword && (
+        {isInternalFlow && needsPassword && (
           <div className="space-y-4">
             <Alert>
               <Shield className="h-4 w-4" />
@@ -389,8 +440,8 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
           </div>
         )}
 
-        {/* Show email/OTP flow only if not using internal wallet or password not needed */}
-        {!useInternalWallet && showEmailInput && (
+        {/* Show email/OTP flow only for Alchemy wallet */}
+        {isAlchemyFlow && showEmailInput && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -423,7 +474,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
           </div>
         )}
 
-        {!useInternalWallet && showOTPInput && (
+        {isAlchemyFlow && showOTPInput && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="otp">Verification Code</Label>
@@ -493,7 +544,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
           </div>
         )}
 
-        {!useInternalWallet && showAccountCheck && (
+        {showAccountCheck && (
           <>
             {isCheckingAccount ? (
               <Alert>
@@ -508,7 +559,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
                 <AlertDescription>
                   <strong className="text-green-700 dark:text-green-400">✓ Account Found!</strong>
                   <div className="text-sm mt-2 space-y-1">
-                    <div>Wallet: <code>{address?.slice(0, 6)}...{address?.slice(-4)}</code></div>
+                    <div>Wallet: <code>{(isAlchemyFlow ? address : walletAddress)?.slice(0, 6)}...{(isAlchemyFlow ? address : walletAddress)?.slice(-4)}</code></div>
                     <div>Account ID: <code>{accountId.toString()}</code></div>
                   </div>
                 </AlertDescription>
@@ -521,7 +572,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
                     <strong>Create Your Trading Account</strong>
                   </div>
                   <div className="text-sm">
-                    Connected wallet: <code className="text-xs">{address?.slice(0, 6)}...{address?.slice(-4)}</code>
+                    Connected wallet: <code className="text-xs">{(isAlchemyFlow ? address : walletAddress)?.slice(0, 6)}...{(isAlchemyFlow ? address : walletAddress)?.slice(-4)}</code>
                   </div>
                   <div className="text-sm text-muted-foreground">
                     You'll need a trading account to start trading perps on Synthetix.
@@ -566,7 +617,8 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
           </>
         )}
 
-        {!useInternalWallet && (
+        {/* Info footer based on wallet source */}
+        {isAlchemyFlow && (
           <Alert>
             <AlertDescription className="text-xs text-muted-foreground">
               <strong>Powered by Alchemy Account Kit</strong>
@@ -577,13 +629,25 @@ export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet =
           </Alert>
         )}
         
-        {useInternalWallet && !needsPassword && (
+        {isInternalFlow && !needsPassword && (
           <Alert>
             <Shield className="h-4 w-4" />
             <AlertDescription className="text-xs text-muted-foreground">
               <strong>Using Your Secure Internal Wallet</strong>
               <div className="mt-1">
                 Your trading account will be created using your internal wallet which has ETH for gas fees.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {isExternalFlow && (
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertDescription className="text-xs text-muted-foreground">
+              <strong>Using Your External Wallet</strong>
+              <div className="mt-1">
+                MetaMask will prompt you to sign the account creation transaction. You'll need ETH for gas fees.
               </div>
             </AlertDescription>
           </Alert>

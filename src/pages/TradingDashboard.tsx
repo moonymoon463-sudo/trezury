@@ -1120,7 +1120,18 @@ const TradingDashboard = () => {
                 description: `Your Synthetix account is ready for trading`,
               });
             }}
-            useInternalWallet={true}
+            walletSource={
+              hasDydxWallet ? 'alchemy' : // dYdX wallet means user has Alchemy
+              internalConnected ? 'internal' : // Internal wallet from gold app
+              wallet.isConnected ? 'external' : // MetaMask connected
+              'alchemy' // Default to Alchemy for new users
+            }
+            walletAddress={
+              hasDydxWallet ? dydxAddress || undefined :
+              internalConnected ? internalAddress || undefined :
+              wallet.isConnected ? wallet.address || undefined :
+              undefined
+            }
           />
         </DialogContent>
       </Dialog>
