@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, ExternalLink, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, Sparkles, AlertCircle } from 'lucide-react';
 import { useAccount, useAuthenticate, useSignerStatus } from '@account-kit/react';
+import { snxAccountService } from '@/services/snxAccountService';
+import { ethers } from 'ethers';
 
 interface SnxAccountSetupProps {
   chainId: number;
@@ -27,6 +29,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   
   // UI state derived from signer status only
   const showOTPInput = signerStatus.status === "AWAITING_EMAIL_AUTH";
@@ -184,9 +187,63 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     setOtpCode('');
   };
 
-  const openSynthetixExchange = () => {
-    window.open('https://exchange.synthetix.io', '_blank');
-    toast.info('Create your account on Synthetix Exchange, then come back here');
+  const handleCreateAccount = async () => {
+    if (!address) {
+      toast.error('Wallet not connected');
+      return;
+    }
+
+    setIsCreatingAccount(true);
+    try {
+      console.log('[SNX Account Setup] Creating Synthetix account...');
+      
+      // Get signer from browser wallet (Alchemy Account Kit provides window.ethereum)
+      if (!window.ethereum) {
+        throw new Error('No wallet detected');
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      // Ensure we're on the correct network
+      const network = await provider.getNetwork();
+      if (Number(network.chainId) !== chainId) {
+        toast.info(`Switching to ${chainId === 8453 ? 'Base' : 'network'}...`);
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${chainId.toString(16)}` }]
+        });
+      }
+
+      toast.info('Creating your Synthetix account...', { duration: 2000 });
+      
+      const result = await snxAccountService.createAccount(signer, chainId);
+      
+      if (result.success && result.accountId) {
+        toast.success('Account created successfully!');
+        setAccountId(result.accountId);
+        console.log('[SNX Account Setup] Account created:', result.accountId);
+      } else {
+        toast.error(result.error || 'Failed to create account');
+      }
+    } catch (error) {
+      console.error('[SNX Account Setup] Account creation error:', error);
+      
+      let errorMessage = 'Failed to create account';
+      if (error instanceof Error) {
+        if (error.message.includes('user rejected')) {
+          errorMessage = 'Transaction cancelled';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient funds for gas';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsCreatingAccount(false);
+    }
   };
 
   return (
@@ -326,29 +383,40 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="space-y-3">
                   <div>
-                    <strong>No Synthetix Account Found</strong>
+                    <strong>Create Your Trading Account</strong>
                   </div>
                   <div className="text-sm">
                     Connected wallet: <code className="text-xs">{address?.slice(0, 6)}...{address?.slice(-4)}</code>
                   </div>
-                  <div className="text-sm">
-                    You need to create a Synthetix trading account on their exchange first.
+                  <div className="text-sm text-muted-foreground">
+                    You'll need a Synthetix trading account to start trading perps. This creates an account NFT in your wallet.
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={openSynthetixExchange}
+                      onClick={handleCreateAccount}
+                      disabled={isCreatingAccount}
                       className="flex-1"
                     >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Create Account
+                      {isCreatingAccount ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Create Account
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={checkForSynthetixAccount}
-                      disabled={isCheckingAccount}
+                      disabled={isCheckingAccount || isCreatingAccount}
+                      title="Check if account exists"
                     >
                       {isCheckingAccount ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

@@ -161,10 +161,7 @@ export function useAlchemyAccount(chainId: number = 8453) {
   };
 
 
-  const openSynthetixExchange = () => {
-    window.open('https://exchange.synthetix.io', '_blank');
-    toast.info('Create your account on Synthetix Exchange, then come back here');
-  };
+  // Removed openSynthetixExchange - accounts are now created in-app
 
   return {
     // Alchemy account state
@@ -190,7 +187,6 @@ export function useAlchemyAccount(chainId: number = 8453) {
     verifyEmailOTP,
     resendEmailOTP,
     cancelOTPFlow,
-    openSynthetixExchange,
     isAuthenticating,
     
     // Utils
