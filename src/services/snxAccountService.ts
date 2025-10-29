@@ -37,6 +37,21 @@ class SnxAccountService {
       const address = await signer.getAddress();
       
       console.log('[SnxAccountService] Creating account for:', address);
+      console.log('[SnxAccountService] Using contract:', addresses.accountProxy);
+
+      // Check wallet balance before attempting
+      const provider = signer.provider;
+      if (provider) {
+        const balance = await provider.getBalance(address);
+        console.log('[SnxAccountService] Wallet balance:', ethers.formatEther(balance), 'ETH');
+        
+        if (balance === 0n) {
+          return {
+            success: false,
+            error: 'Wallet has no ETH for gas. Please fund your wallet or enable gas sponsorship.'
+          };
+        }
+      }
 
       // Connect to Account NFT contract
       const accountNFT = new ethers.Contract(
@@ -67,6 +82,18 @@ class SnxAccountService {
       
       console.log('[SnxAccountService] Minting new account with ID:', randomAccountId);
 
+      // Estimate gas before sending transaction
+      try {
+        const gasEstimate = await accountNFT.mint.estimateGas(randomAccountId, address);
+        console.log('[SnxAccountService] Estimated gas:', gasEstimate.toString());
+      } catch (gasError) {
+        console.error('[SnxAccountService] Gas estimation failed:', gasError);
+        return {
+          success: false,
+          error: 'Gas estimation failed. The transaction may not succeed. Ensure you have enough ETH or enable gas sponsorship.'
+        };
+      }
+
       // Mint new account NFT
       const tx = await accountNFT.mint(randomAccountId, address);
       console.log('[SnxAccountService] Transaction sent:', tx.hash);
@@ -92,10 +119,14 @@ class SnxAccountService {
       // Parse error message for user-friendly feedback
       let errorMessage = 'Failed to create account';
       if (error instanceof Error) {
-        if (error.message.includes('user rejected')) {
+        if (error.message.includes('cannot estimate gas')) {
+          errorMessage = 'Gas estimation failed - wallet may need ETH or contract may be paused';
+        } else if (error.message.includes('user rejected')) {
           errorMessage = 'Transaction cancelled by user';
         } else if (error.message.includes('insufficient funds')) {
           errorMessage = 'Insufficient funds for gas';
+        } else if (error.message.includes('nonce')) {
+          errorMessage = 'Transaction nonce error - please try again';
         } else {
           errorMessage = error.message;
         }

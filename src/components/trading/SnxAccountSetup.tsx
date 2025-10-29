@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, Sparkles, AlertCircle } from 'lucide-react';
-import { useAccount, useAuthenticate, useSignerStatus } from '@account-kit/react';
+import { useAccount, useAuthenticate, useSignerStatus, useSmartAccountClient } from '@account-kit/react';
 import { snxAccountService } from '@/services/snxAccountService';
 import { ethers } from 'ethers';
 
@@ -26,6 +26,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
+  const { client } = useSmartAccountClient({ type: "LightAccount" });
   
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
@@ -188,7 +189,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   };
 
   const handleCreateAccount = async () => {
-    if (!address) {
+    if (!address || !client) {
       toast.error('Wallet not connected');
       return;
     }
@@ -197,24 +198,15 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     try {
       console.log('[SNX Account Setup] Creating Synthetix account...');
       
-      // Get signer from browser wallet (Alchemy Account Kit provides window.ethereum)
+      // Use Account Kit's native signer via window.ethereum (provided by Account Kit)
+      // Account Kit injects a compatible provider at window.ethereum
       if (!window.ethereum) {
-        throw new Error('No wallet detected');
+        throw new Error('No wallet provider detected');
       }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
       const signer = await provider.getSigner();
       
-      // Ensure we're on the correct network
-      const network = await provider.getNetwork();
-      if (Number(network.chainId) !== chainId) {
-        toast.info(`Switching to ${chainId === 8453 ? 'Base' : 'network'}...`);
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: `0x${chainId.toString(16)}` }]
-        });
-      }
-
       toast.info('Creating your Synthetix account...', { duration: 2000 });
       
       const result = await snxAccountService.createAccount(signer, chainId);
@@ -231,7 +223,9 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       
       let errorMessage = 'Failed to create account';
       if (error instanceof Error) {
-        if (error.message.includes('user rejected')) {
+        if (error.message.includes('gas')) {
+          errorMessage = 'Gas estimation failed. Your wallet may need ETH for gas fees.';
+        } else if (error.message.includes('user rejected')) {
           errorMessage = 'Transaction cancelled';
         } else if (error.message.includes('insufficient funds')) {
           errorMessage = 'Insufficient funds for gas';
