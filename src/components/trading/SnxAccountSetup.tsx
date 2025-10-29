@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, Sparkles, AlertCircle, Shield } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, Sparkles, AlertCircle, Shield, ExternalLink, Copy } from 'lucide-react';
 import { useAccount, useAuthenticate, useSignerStatus, useSmartAccountClient } from '@account-kit/react';
 import { snxAccountService } from '@/services/snxAccountService';
 import { ethers } from 'ethers';
@@ -773,8 +773,16 @@ export function SnxAccountSetup({
                       variant="default"
                       size="sm"
                       onClick={handleCreateAccount}
-                      disabled={isCreatingAccount}
+                      disabled={
+                        isCreatingAccount ||
+                        (isAlchemyFlow && !hasGasPolicy && alchemyEthBalance !== null && alchemyEthBalance !== 'sponsored' && parseFloat(alchemyEthBalance) < 0.001)
+                      }
                       className="flex-1"
+                      title={
+                        isAlchemyFlow && !hasGasPolicy && alchemyEthBalance !== null && parseFloat(alchemyEthBalance) < 0.001
+                          ? 'Add ~0.001 ETH on Base or enable gas sponsorship'
+                          : undefined
+                      }
                     >
                       {isCreatingAccount ? (
                         <>
