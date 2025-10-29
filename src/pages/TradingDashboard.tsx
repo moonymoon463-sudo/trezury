@@ -926,49 +926,59 @@ const TradingDashboard = () => {
                 )}
               </div>
 
-              {/* Leverage */}
-              {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) && (
-                <div className="space-y-2.5 mt-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
-                    <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
-                  </div>
-                  
-                  {/* Quick Leverage Buttons */}
-                  <div className="flex gap-1.5">
-                    {['1x', '5x', '10x', '20x'].map((lvg) => (
-                      <Button
-                        key={lvg}
-                        size="sm"
-                        variant={leverage === parseInt(lvg) ? "default" : "ghost"}
-                        onClick={() => setLeverage(parseInt(lvg))}
-                        className={leverage === parseInt(lvg) 
-                          ? 'flex-1 text-xs py-0.5 h-6 bg-[#e6b951] text-black transition-colors duration-150' 
-                          : 'flex-1 text-xs py-0.5 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150'
-                        }
-                      >
-                        {lvg}
-                      </Button>
-                    ))}
-                  </div>
-
-                  {/* Custom Leverage Slider */}
-                  <div className="px-1 pt-1">
-                    <Slider
-                      value={[leverage]}
-                      onValueChange={(value) => setLeverage(value[0])}
-                      min={1}
-                      max={20}
-                      step={1}
-                      className="cursor-pointer"
-                    />
-                    <div className="flex justify-between mt-1.5 text-[10px] text-[#c6b795]/60">
-                      <span>1x</span>
-                      <span>20x</span>
-                    </div>
-                  </div>
+              {/* Leverage Section - Always Show with Message */}
+              <div className="space-y-2.5 mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
+                  <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
                 </div>
-              )}
+                
+                {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
+                  <>
+                    {/* Quick Leverage Buttons */}
+                    <div className="flex gap-1.5">
+                      {['1x', '5x', '10x', '20x'].map((lvg) => (
+                        <Button
+                          key={lvg}
+                          size="sm"
+                          variant={leverage === parseInt(lvg) ? "default" : "ghost"}
+                          onClick={() => setLeverage(parseInt(lvg))}
+                          className={leverage === parseInt(lvg) 
+                            ? 'flex-1 text-xs py-0.5 h-6 bg-[#e6b951] text-black transition-colors duration-150' 
+                            : 'flex-1 text-xs py-0.5 h-6 bg-[#211d12] text-[#c6b795] hover:bg-[#463c25] hover:text-white transition-colors duration-150'
+                          }
+                        >
+                          {lvg}
+                        </Button>
+                      ))}
+                    </div>
+
+                    {/* Custom Leverage Slider */}
+                    <div className="px-1 pt-1">
+                      <Slider
+                        value={[leverage]}
+                        onValueChange={(value) => setLeverage(value[0])}
+                        min={1}
+                        max={20}
+                        step={1}
+                        className="cursor-pointer"
+                      />
+                      <div className="flex justify-between mt-1.5 text-[10px] text-[#c6b795]/60">
+                        <span>1x</span>
+                        <span>20x</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-3 bg-[#211d12] rounded-lg border border-[#463c25]/50">
+                    <p className="text-[#c6b795] text-xs text-center">
+                      Leverage not available for {selectedAsset?.split('-')[0] || 'this asset'}. 
+                      <br />
+                      Switch to BTC, ETH, or SOL for leverage trading.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Total, Available and Confirm Button - Sticky at Bottom */}
