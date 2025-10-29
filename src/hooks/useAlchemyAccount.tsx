@@ -97,11 +97,17 @@ export function useAlchemyAccount(chainId: number = 8453) {
     setIsVerifyingOTP(true);
     try {
       console.log('[Alchemy Account] Verifying OTP code');
-      // Alchemy completes the authentication when you enter the code
-      // The authenticate call should have already started the flow
-      // Now we just need to wait for the authentication to complete
+      
+      // Actually verify the OTP with Alchemy
+      await authenticate({ 
+        type: "email", 
+        email: emailForOTP,
+        bundle: otpCode
+      });
+      
       toast.success('Verification successful!');
       setIsAwaitingOTPInput(false);
+      setEmailForOTP('');
     } catch (error) {
       toast.error('Invalid or expired code');
       console.error('Email OTP verify error:', error);
