@@ -28,13 +28,14 @@ export function useAlchemyAccount(chainId: number = 8453) {
   // Debug logging for authentication state changes
   useEffect(() => {
     console.log('[Alchemy Account] Auth state:', {
+      signerStatus: signerStatus.status,
       isConnected: signerStatus.isConnected,
       hasAddress: !!address,
       hasUser: !!user,
       isFullyAuthenticated,
       address: address?.slice(0, 10),
     });
-  }, [signerStatus.isConnected, address, user, isFullyAuthenticated]);
+  }, [signerStatus.status, signerStatus.isConnected, address, user, isFullyAuthenticated]);
 
   // Check if user has a Synthetix account
   useEffect(() => {
@@ -48,25 +49,43 @@ export function useAlchemyAccount(chainId: number = 8453) {
     
     setIsCheckingAccount(true);
     try {
-      // Check if this address has a Synthetix account in our DB
+      // Try to check by Supabase user_id first
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return;
-
-      const { data, error } = await supabase
-        .from('snx_accounts')
-        .select('account_id')
-        .eq('user_id', authData.user.id)
-        .eq('chain_id', chainId)
-        .single();
+      
+      let data, error;
+      
+      if (authData.user) {
+        console.log('[Alchemy Account] Checking by user_id:', authData.user.id);
+        const result = await supabase
+          .from('snx_accounts')
+          .select('account_id')
+          .eq('user_id', authData.user.id)
+          .eq('chain_id', chainId)
+          .single();
+        data = result.data;
+        error = result.error;
+      } else {
+        console.log('[Alchemy Account] No Supabase user, checking by wallet_address');
+        // Fallback: check by wallet_address for Alchemy-only auth
+        const result = await supabase
+          .from('snx_accounts')
+          .select('account_id')
+          .eq('wallet_address', address.toLowerCase())
+          .eq('chain_id', chainId)
+          .single();
+        data = result.data;
+        error = result.error;
+      }
 
       if (data && !error) {
+        console.log('[Alchemy Account] Account found:', data.account_id);
         setAccountId(BigInt(data.account_id));
       } else {
-        // Try to create account via Synthetix UI
+        console.log('[Alchemy Account] No account found');
         setAccountId(null);
       }
     } catch (error) {
-      console.error('Error checking for Synthetix account:', error);
+      console.error('[Alchemy Account] Error checking for Synthetix account:', error);
     } finally {
       setIsCheckingAccount(false);
     }
@@ -76,13 +95,14 @@ export function useAlchemyAccount(chainId: number = 8453) {
     setIsSendingOTP(true);
     try {
       console.log('[Alchemy Account] Sending OTP to:', email);
-      await authenticate({ type: "email", email });
+      await authenticate({ type: "email", emailMode: "otp", email });
       setEmailForOTP(email);
       setIsAwaitingOTPInput(true);
       toast.success('Verification code sent! Check your email');
+      console.log('[Alchemy Account] OTP sent successfully');
     } catch (error) {
       toast.error('Failed to send verification code');
-      console.error('Email OTP send error:', error);
+      console.error('[Alchemy Account] Email OTP send error:', error);
     } finally {
       setIsSendingOTP(false);
     }
@@ -96,21 +116,21 @@ export function useAlchemyAccount(chainId: number = 8453) {
 
     setIsVerifyingOTP(true);
     try {
-      console.log('[Alchemy Account] Verifying OTP code');
+      console.log('[Alchemy Account] Verifying OTP code...');
       
-      // Actually verify the OTP with Alchemy
+      // Verify OTP with Alchemy using correct API
       await authenticate({ 
-        type: "email", 
-        email: emailForOTP,
-        bundle: otpCode
+        type: "otp", 
+        otpCode
       });
       
+      console.log('[Alchemy Account] OTP verified successfully!');
       toast.success('Verification successful!');
       setIsAwaitingOTPInput(false);
       setEmailForOTP('');
     } catch (error) {
       toast.error('Invalid or expired code');
-      console.error('Email OTP verify error:', error);
+      console.error('[Alchemy Account] Email OTP verify error:', error);
     } finally {
       setIsVerifyingOTP(false);
     }

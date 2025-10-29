@@ -41,16 +41,17 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
   // Use multiple signals for authentication state
   const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
 
-  // Debug authentication state
+  // Debug authentication state with detailed status
   useEffect(() => {
     console.log('[SnxAccountSetup] Auth state changed:', {
+      signerStatus: signerStatus.status,
       isConnected: signerStatus.isConnected,
       hasAddress: !!address,
       hasUser: !!user,
       isFullyAuthenticated,
       address: address?.slice(0, 10),
     });
-  }, [signerStatus.isConnected, address, user, isFullyAuthenticated]);
+  }, [signerStatus.status, signerStatus.isConnected, address, user, isFullyAuthenticated]);
 
   // Check for Synthetix account when fully authenticated
   useEffect(() => {
@@ -73,28 +74,43 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
       return;
     }
     
-    console.log('[SnxAccountSetup] Checking for Synthetix account...', { address });
+    console.log('[SnxAccountSetup] Checking for Synthetix account...', { address, chainId });
     setIsCheckingAccount(true);
     try {
+      // Try to check by Supabase user_id first
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) {
-        console.log('[SnxAccountSetup] No Supabase user found');
-        return;
+      
+      let data, error;
+      
+      if (authData.user) {
+        console.log('[SnxAccountSetup] Checking by user_id:', authData.user.id);
+        const result = await supabase
+          .from('snx_accounts')
+          .select('account_id')
+          .eq('user_id', authData.user.id)
+          .eq('chain_id', chainId)
+          .single();
+        data = result.data;
+        error = result.error;
+      } else {
+        console.log('[SnxAccountSetup] No Supabase user, checking by wallet_address');
+        // Fallback: check by wallet_address for Alchemy-only auth
+        const result = await supabase
+          .from('snx_accounts')
+          .select('account_id')
+          .eq('wallet_address', address.toLowerCase())
+          .eq('chain_id', chainId)
+          .single();
+        data = result.data;
+        error = result.error;
       }
-
-      const { data, error } = await supabase
-        .from('snx_accounts')
-        .select('account_id')
-        .eq('user_id', authData.user.id)
-        .eq('chain_id', chainId)
-        .single();
 
       if (data && !error) {
         console.log('[SnxAccountSetup] Account found:', data.account_id);
         setAccountId(BigInt(data.account_id));
         toast.success('Synthetix account found!');
       } else {
-        console.log('[SnxAccountSetup] No account found');
+        console.log('[SnxAccountSetup] No account found', error);
         setAccountId(null);
       }
     } catch (error) {
@@ -112,13 +128,14 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
     }
     try {
       console.log('[SnxAccountSetup] Sending OTP to:', email);
-      await authenticate({ type: "email", email });
+      await authenticate({ type: "email", emailMode: "otp", email });
       setEmailForOTP(email);
       setIsAwaitingOTP(true);
       toast.success('Verification code sent! Check your email');
+      console.log('[SnxAccountSetup] OTP sent successfully');
     } catch (error) {
       toast.error('Failed to send verification code');
-      console.error('Email OTP send error:', error);
+      console.error('[SnxAccountSetup] Email OTP send error:', error);
     }
   };
 
@@ -130,15 +147,15 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
     }
 
     try {
-      console.log('[SnxAccountSetup] Verifying OTP code');
+      console.log('[SnxAccountSetup] Verifying OTP code...');
       
-      // Actually verify the OTP with Alchemy
+      // Verify OTP with Alchemy using correct API
       await authenticate({
-        type: "email",
-        email: emailForOTP,
-        bundle: otpCode
+        type: "otp",
+        otpCode
       });
       
+      console.log('[SnxAccountSetup] OTP verified successfully!');
       toast.success('Verification successful!');
       setIsAwaitingOTP(false);
       setOtpCode('');
@@ -147,17 +164,19 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
       checkForSynthetixAccount();
     } catch (error) {
       toast.error('Invalid or expired code');
-      console.error('Email OTP verify error:', error);
+      console.error('[SnxAccountSetup] Email OTP verify error:', error);
     }
   };
 
   const handleResendOTP = async () => {
     if (emailForOTP) {
       try {
-        await authenticate({ type: "email", email: emailForOTP });
+        console.log('[SnxAccountSetup] Resending OTP to:', emailForOTP);
+        await authenticate({ type: "email", emailMode: "otp", email: emailForOTP });
         toast.success('New code sent!');
       } catch (error) {
         toast.error('Failed to resend code');
+        console.error('[SnxAccountSetup] Resend error:', error);
       }
     }
   };
@@ -303,14 +322,16 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
                   <button
                     type="button"
                     onClick={handleResendOTP}
-                    className="text-primary hover:underline"
+                    disabled={isAuthenticating}
+                    className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Resend Code
                   </button>
                   <button
                     type="button"
                     onClick={handleCancelOTP}
-                    className="text-muted-foreground hover:underline"
+                    disabled={isAuthenticating}
+                    className="text-muted-foreground hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Change Email
                   </button>
