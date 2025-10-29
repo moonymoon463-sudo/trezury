@@ -78,7 +78,7 @@ const TradingDashboard = () => {
   }
   
   // External wallet (MetaMask)
-  const { wallet, connectWallet } = useWalletConnection();
+  const { wallet, connectWallet, connecting } = useWalletConnection();
   
   // Internal wallet (secure wallet) - automatically loads existing wallet from gold app
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
@@ -149,14 +149,19 @@ const TradingDashboard = () => {
     try {
       await connectWallet();
       setShowWalletModal(false);
+      
+      // Auto-switch to external wallet view after connection
+      setWalletType('external');
+      
       toast({
-        title: "Wallet Connected",
+        title: "MetaMask Connected Successfully",
         description: `Connected to ${wallet.address?.slice(0, 6)}...${wallet.address?.slice(-4)}`,
       });
     } catch (error) {
+      console.error('Wallet connection error:', error);
       toast({
-        title: "Connection Failed",
-        description: "Failed to connect wallet. Please try again.",
+        title: "MetaMask Connection Failed",
+        description: error instanceof Error ? error.message : "Please ensure MetaMask is installed and try again.",
         variant: "destructive"
       });
     }
@@ -586,11 +591,35 @@ const TradingDashboard = () => {
                   </p>
                   <Button
                     onClick={handleConnectWallet}
-                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold transition-all hover:scale-105"
+                    disabled={connecting}
                   >
-                    <WalletIcon className="h-4 w-4 mr-2" />
-                    Connect MetaMask
+                    {connecting ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <WalletIcon className="h-4 w-4 mr-2" />
+                        Connect MetaMask
+                      </>
+                    )}
                   </Button>
+                  
+                  <div className="mt-3 p-2 bg-[#463c25]/30 rounded-lg">
+                    <p className="text-[#c6b795] text-[10px] text-center">
+                      Don't have MetaMask?{' '}
+                      <a 
+                        href="https://metamask.io/download/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[#e6b951] hover:underline"
+                      >
+                        Download here
+                      </a>
+                    </p>
+                  </div>
                 </div>
               </div>
             )
