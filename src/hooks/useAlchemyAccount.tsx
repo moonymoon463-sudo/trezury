@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAccount, useAuthenticate, useSignerStatus, useUser } from '@account-kit/react';
+import { useAccount, useAuthenticate, useSignerStatus } from '@account-kit/react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -12,7 +12,6 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
-  const user = useUser();
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
   
@@ -23,9 +22,8 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
   const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Computed authentication state - only requires signer and address
-  // Per Alchemy docs, user may be null even when authenticated
-  const isFullyAuthenticated = signerStatus.isConnected && !!address;
+  // Computed authentication state - only requires connected signer
+  const isAuthenticated = signerStatus.isConnected;
 
   // Debug logging for authentication state changes
   useEffect(() => {
@@ -33,11 +31,10 @@ export function useAlchemyAccount(chainId: number = 8453) {
       signerStatus: signerStatus.status,
       isConnected: signerStatus.isConnected,
       hasAddress: !!address,
-      hasUser: !!user,
-      isFullyAuthenticated,
+      isAuthenticated,
       address: address?.slice(0, 10),
     });
-  }, [signerStatus.status, signerStatus.isConnected, address, user, isFullyAuthenticated]);
+  }, [signerStatus.status, signerStatus.isConnected, address, isAuthenticated]);
 
   // Check if user has a Synthetix account when connected
   useEffect(() => {
@@ -56,33 +53,14 @@ export function useAlchemyAccount(chainId: number = 8453) {
     
     setIsCheckingAccount(true);
     try {
-      // Try to check by Supabase user_id first
-      const { data: authData } = await supabase.auth.getUser();
-      
-      let data, error;
-      
-      if (authData.user) {
-        console.log('[Alchemy Account] Checking by user_id:', authData.user.id);
-        const result = await supabase
-          .from('snx_accounts')
-          .select('account_id')
-          .eq('user_id', authData.user.id)
-          .eq('chain_id', chainId)
-          .single();
-        data = result.data;
-        error = result.error;
-      } else {
-        console.log('[Alchemy Account] No Supabase user, checking by wallet_address');
-        // Fallback: check by wallet_address for Alchemy-only auth
-        const result = await supabase
-          .from('snx_accounts')
-          .select('account_id')
-          .eq('wallet_address', address.toLowerCase())
-          .eq('chain_id', chainId)
-          .single();
-        data = result.data;
-        error = result.error;
-      }
+      // Check for SNX account by wallet address
+      console.log('[Alchemy Account] Checking for SNX account:', address);
+      const { data, error } = await supabase
+        .from('snx_accounts')
+        .select('account_id')
+        .eq('wallet_address', address.toLowerCase())
+        .eq('chain_id', chainId)
+        .single();
 
       if (data && !error) {
         console.log('[Alchemy Account] Account found:', data.account_id);
@@ -173,15 +151,6 @@ export function useAlchemyAccount(chainId: number = 8453) {
     await sendEmailOTP(email);
   };
 
-  const loginWithPasskey = async () => {
-    try {
-      await authenticate({ type: "passkey", createNew: false });
-      toast.success('Passkey authentication successful');
-    } catch (error) {
-      toast.error('Passkey authentication failed');
-      console.error('Passkey auth error:', error);
-    }
-  };
 
   const openSynthetixExchange = () => {
     window.open('https://exchange.synthetix.io', '_blank');
@@ -191,9 +160,9 @@ export function useAlchemyAccount(chainId: number = 8453) {
   return {
     // Alchemy account state
     address,
-    isAuthenticated: isFullyAuthenticated,
+    isAuthenticated,
     isConnected: signerStatus.isConnected,
-    user,
+    signerStatus: signerStatus.status,
     
     // Synthetix account state
     accountId,
@@ -212,7 +181,6 @@ export function useAlchemyAccount(chainId: number = 8453) {
     verifyEmailOTP,
     resendEmailOTP,
     cancelOTPFlow,
-    loginWithPasskey,
     openSynthetixExchange,
     isAuthenticating,
     

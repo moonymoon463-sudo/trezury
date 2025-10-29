@@ -1,19 +1,14 @@
-/**
- * Synthetix Account Setup with Alchemy Integration
- * Creates trading accounts using Alchemy's embedded wallet system
- */
-
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { ExternalLink, Loader2, Mail, Key, CheckCircle, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
-import { useAccount, useAuthenticate, useSignerStatus, useUser } from "@account-kit/react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, ExternalLink, AlertCircle } from 'lucide-react';
+import { useAccount, useAuthenticate, useSignerStatus } from '@account-kit/react';
 
 interface SnxAccountSetupProps {
   chainId: number;
@@ -21,199 +16,153 @@ interface SnxAccountSetupProps {
 }
 
 export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupProps) {
-  const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
+  const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
-  const [emailForOTP, setEmailForOTP] = useState("");
   
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
-  const user = useUser();
   
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
-  const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Computed authentication state - only requires connected signer
+  const isAuthenticated = signerStatus.isConnected;
 
-  // Use signer status and address for authentication state
-  // Per Alchemy docs, user may be null even when authenticated
-  const isFullyAuthenticated = signerStatus.isConnected && !!address;
-
-  // Debug authentication state with detailed status
+  // Debug logging for authentication state changes
   useEffect(() => {
-    console.log('[SnxAccountSetup] Auth state changed:', {
+    console.log('[SNX Account Setup] Auth state:', {
       signerStatus: signerStatus.status,
       isConnected: signerStatus.isConnected,
       hasAddress: !!address,
-      hasUser: !!user,
-      isFullyAuthenticated,
+      isAuthenticated,
       address: address?.slice(0, 10),
     });
-  }, [signerStatus.status, signerStatus.isConnected, address, user, isFullyAuthenticated]);
+  }, [signerStatus.status, signerStatus.isConnected, address, isAuthenticated]);
 
-  // Check for Synthetix account when connected
+  // Check if user has a Synthetix account when connected
   useEffect(() => {
     if (signerStatus.isConnected && address) {
-      console.log('[SnxAccountSetup] Authenticated with address, checking for account...');
-      // Clear timeout if we successfully authenticated
-      if (verificationTimeout) {
-        clearTimeout(verificationTimeout);
-        setVerificationTimeout(null);
-      }
       checkForSynthetixAccount();
     }
   }, [signerStatus.isConnected, address]);
 
-  // Notify parent when account is found
+  // Notify parent component when account is found
   useEffect(() => {
-    if (accountId) {
+    if (accountId !== null) {
+      console.log('[SNX Account Setup] Notifying parent of account:', accountId);
       onAccountCreated(accountId);
     }
-  }, [accountId]);
+  }, [accountId, onAccountCreated]);
 
   const checkForSynthetixAccount = async () => {
-    if (!address) {
-      console.log('[SnxAccountSetup] Cannot check account - no address');
-      return;
-    }
+    if (!address) return;
     
-    console.log('[SnxAccountSetup] Checking for Synthetix account...', { address, chainId });
     setIsCheckingAccount(true);
     try {
-      // Try to check by Supabase user_id first
-      const { data: authData } = await supabase.auth.getUser();
-      
-      let data, error;
-      
-      if (authData.user) {
-        console.log('[SnxAccountSetup] Checking by user_id:', authData.user.id);
-        const result = await supabase
-          .from('snx_accounts')
-          .select('account_id')
-          .eq('user_id', authData.user.id)
-          .eq('chain_id', chainId)
-          .single();
-        data = result.data;
-        error = result.error;
-      } else {
-        console.log('[SnxAccountSetup] No Supabase user, checking by wallet_address');
-        // Fallback: check by wallet_address for Alchemy-only auth
-        const result = await supabase
-          .from('snx_accounts')
-          .select('account_id')
-          .eq('wallet_address', address.toLowerCase())
-          .eq('chain_id', chainId)
-          .single();
-        data = result.data;
-        error = result.error;
-      }
+      // Check for SNX account by wallet address
+      console.log('[SNX Account Setup] Checking for SNX account:', address);
+      const { data, error } = await supabase
+        .from('snx_accounts')
+        .select('account_id')
+        .eq('wallet_address', address.toLowerCase())
+        .eq('chain_id', chainId)
+        .single();
 
       if (data && !error) {
-        console.log('[SnxAccountSetup] Account found:', data.account_id);
+        console.log('[SNX Account Setup] Account found:', data.account_id);
         setAccountId(BigInt(data.account_id));
-        toast.success('Synthetix account found!');
       } else {
-        console.log('[SnxAccountSetup] No account found', error);
+        console.log('[SNX Account Setup] No account found');
         setAccountId(null);
       }
     } catch (error) {
-      console.error('[SnxAccountSetup] Error checking for Synthetix account:', error);
+      console.error('[SNX Account Setup] Error checking for Synthetix account:', error);
     } finally {
       setIsCheckingAccount(false);
     }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEmailLogin = async () => {
     if (!email) {
-      toast.error("Please enter your email");
+      toast.error('Please enter your email');
       return;
     }
+    
     try {
-      console.log('[SnxAccountSetup] Sending OTP to:', email);
+      console.log('[SNX Account Setup] Sending OTP to:', email);
       await authenticate({ type: "email", emailMode: "otp", email });
-      setEmailForOTP(email);
       setIsAwaitingOTP(true);
       toast.success('Verification code sent! Check your email');
-      console.log('[SnxAccountSetup] OTP sent successfully');
+      console.log('[SNX Account Setup] OTP sent successfully');
     } catch (error) {
       toast.error('Failed to send verification code');
-      console.error('[SnxAccountSetup] Email OTP send error:', error);
+      console.error('[SNX Account Setup] Email OTP send error:', error);
     }
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyOTP = async () => {
     if (otpCode.length !== 6) {
       toast.error('Please enter a 6-digit code');
       return;
     }
 
     try {
-      console.log('[SnxAccountSetup] Verifying OTP code...');
+      console.log('[SNX Account Setup] Verifying OTP code...');
       
-      // Verify OTP with Alchemy using correct API
-      await authenticate({
-        type: "otp",
+      // Verify OTP with Alchemy
+      await authenticate({ 
+        type: "otp", 
         otpCode
       });
       
-      console.log('[SnxAccountSetup] OTP verified successfully!');
+      console.log('[SNX Account Setup] OTP verified successfully!');
       
       // Set up a 30s timeout watchdog
-      const timeout = setTimeout(() => {
+      setTimeout(() => {
         if (!signerStatus.isConnected) {
           toast.error('Authentication timeout', {
             description: 'Check: 1) Real API key is set, 2) Allowed origins in Alchemy dashboard, 3) Email OTP enabled',
             duration: 8000,
           });
-          console.error('[SnxAccountSetup] Timeout waiting for CONNECTED status');
-          setIsAwaitingOTP(false); // Allow retry
+          console.error('[SNX Account Setup] Timeout waiting for CONNECTED status');
+          setIsAwaitingOTP(false);
+          setOtpCode('');
         }
       }, 30000);
-      setVerificationTimeout(timeout);
       
       toast.success('Verification successful! Setting up your account...');
       setIsAwaitingOTP(false);
       setOtpCode('');
     } catch (error) {
       toast.error('Invalid or expired code');
-      console.error('[SnxAccountSetup] Email OTP verify error:', error);
+      console.error('[SNX Account Setup] Email OTP verify error:', error);
     }
   };
 
   const handleResendOTP = async () => {
-    if (emailForOTP) {
+    if (email) {
       try {
-        console.log('[SnxAccountSetup] Resending OTP to:', emailForOTP);
-        await authenticate({ type: "email", emailMode: "otp", email: emailForOTP });
+        console.log('[SNX Account Setup] Resending OTP to:', email);
+        await authenticate({ type: "email", emailMode: "otp", email });
         toast.success('New code sent!');
       } catch (error) {
         toast.error('Failed to resend code');
-        console.error('[SnxAccountSetup] Resend error:', error);
+        console.error('[SNX Account Setup] Resend error:', error);
       }
     }
   };
 
   const handleCancelOTP = () => {
     setIsAwaitingOTP(false);
-    setEmailForOTP('');
+    setEmail('');
     setOtpCode('');
-  };
-
-  const handlePasskeyLogin = async () => {
-    try {
-      await authenticate({ type: "passkey", createNew: false });
-      toast.success('Passkey authentication successful');
-    } catch (error) {
-      toast.error('Passkey authentication failed');
-      console.error('Passkey auth error:', error);
-    }
   };
 
   const openSynthetixExchange = () => {
     window.open('https://exchange.synthetix.io', '_blank');
-    toast.info('Create your account on Synthetix Exchange, then come back and refresh');
+    toast.info('Create your account on Synthetix Exchange, then come back here');
   };
 
   return (
@@ -221,83 +170,49 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       <CardHeader>
         <CardTitle>Synthetix Trading Account</CardTitle>
         <CardDescription>
-          Sign in with email or passkey to access Synthetix perpetuals trading
+          Sign up with email to create your Synthetix account
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {!isFullyAuthenticated ? (
-          <>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>New Authentication System</strong>
-                <div className="mt-1">
-                  Synthetix now uses Alchemy Account Kit for gasless trading with email/passkey authentication.
-                </div>
-              </AlertDescription>
-            </Alert>
-
+      <CardContent className="space-y-6">
+        {!isAuthenticated ? (
+          <div className="space-y-4">
             {!isAwaitingOTP ? (
-              <>
-                {/* Email Login */}
-                <form onSubmit={handleEmailLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={isAuthenticating}
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="submit"
-                    disabled={isAuthenticating || !email}
-                    className="w-full"
-                  >
-                    {isAuthenticating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending Code...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Send Verification Code
-                      </>
-                    )}
-                  </Button>
-                </form>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or</span>
-                  </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isAuthenticating}
+                  />
                 </div>
-
-                {/* Passkey Login */}
-                <Button 
-                  onClick={handlePasskeyLogin}
-                  disabled={isAuthenticating}
-                  variant="outline"
+                <Button
+                  onClick={handleEmailLogin}
+                  disabled={!email || isAuthenticating}
                   className="w-full"
                 >
-                  <Key className="mr-2 h-4 w-4" />
-                  Sign in with Passkey
+                  {isAuthenticating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending code...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Sign up with Email
+                    </>
+                  )}
                 </Button>
-              </>
+              </div>
             ) : (
-              <form onSubmit={handleVerifyOTP} className="space-y-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="otp">Verification Code</Label>
                   <p className="text-sm text-muted-foreground">
-                    Enter the 6-digit code sent to {emailForOTP}
+                    Enter the 6-digit code sent to {email}
                   </p>
                   <div className="flex justify-center py-4">
                     <InputOTP
@@ -318,7 +233,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                 </div>
 
                 <Button 
-                  type="submit" 
+                  onClick={handleVerifyOTP}
                   className="w-full"
                   disabled={isAuthenticating || otpCode.length !== 6}
                 >
@@ -337,7 +252,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                     type="button"
                     onClick={handleResendOTP}
                     disabled={isAuthenticating}
-                    className="text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-primary hover:underline disabled:opacity-50"
                   >
                     Resend Code
                   </button>
@@ -345,14 +260,14 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                     type="button"
                     onClick={handleCancelOTP}
                     disabled={isAuthenticating}
-                    className="text-muted-foreground hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-muted-foreground hover:underline disabled:opacity-50"
                   >
                     Change Email
                   </button>
                 </div>
-              </form>
+              </div>
             )}
-          </>
+          </div>
         ) : (
           <>
             {isCheckingAccount ? (
@@ -364,7 +279,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
               </Alert>
             ) : accountId ? (
               <Alert>
-                <CheckCircle className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
                 <AlertDescription>
                   <strong className="text-green-700 dark:text-green-400">✓ Account Found!</strong>
                   <div className="text-sm mt-2 space-y-1">
@@ -405,7 +320,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                       {isCheckingAccount ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        'Refresh'
+                        <RefreshCw className="h-4 w-4" />
                       )}
                     </Button>
                   </div>
@@ -419,7 +334,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
           <AlertDescription className="text-xs text-muted-foreground">
             <strong>Powered by Alchemy Account Kit</strong>
             <div className="mt-1">
-              Email/passkey authentication with embedded smart wallet for gasless trading
+              Email authentication with embedded smart wallet for gasless trading
             </div>
           </AlertDescription>
         </Alert>
@@ -427,4 +342,3 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     </Card>
   );
 }
-
