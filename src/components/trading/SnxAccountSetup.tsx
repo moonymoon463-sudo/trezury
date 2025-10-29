@@ -27,8 +27,10 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
   
-  // Computed authentication state - only requires connected signer
-  const isAuthenticated = signerStatus.isConnected;
+  // UI state derived from signer status only
+  const showOTPInput = signerStatus.status === "AWAITING_EMAIL_AUTH";
+  const showEmailInput = !signerStatus.isConnected && !showOTPInput;
+  const showAccountCheck = signerStatus.isConnected;
 
   // Debug logging for authentication state changes
   useEffect(() => {
@@ -36,10 +38,12 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       signerStatus: signerStatus.status,
       isConnected: signerStatus.isConnected,
       hasAddress: !!address,
-      isAuthenticated,
+      showOTPInput,
+      showEmailInput,
+      showAccountCheck,
       address: address?.slice(0, 10),
     });
-  }, [signerStatus.status, signerStatus.isConnected, address, isAuthenticated]);
+  }, [signerStatus.status, signerStatus.isConnected, address, showOTPInput, showEmailInput, showAccountCheck]);
 
   // Check if user has a Synthetix account when connected
   useEffect(() => {
@@ -109,35 +113,47 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     }
 
     try {
-      console.log('[SNX Account Setup] Verifying OTP code...');
+      console.log('[SNX Account Setup] Verifying OTP...');
       
-      // Verify OTP with Alchemy
       await authenticate({ 
         type: "otp", 
-        otpCode
+        otpCode 
       });
       
-      console.log('[SNX Account Setup] OTP verified successfully!');
+      console.log('[SNX Account Setup] OTP verified; waiting for signer to connect...');
       
-      // Set up a 30s timeout watchdog
-      setTimeout(() => {
-        if (!signerStatus.isConnected) {
-          toast.error('Authentication timeout', {
-            description: 'Check: 1) Real API key is set, 2) Allowed origins in Alchemy dashboard, 3) Email OTP enabled',
-            duration: 8000,
-          });
-          console.error('[SNX Account Setup] Timeout waiting for CONNECTED status');
-          setIsAwaitingOTP(false);
-          setOtpCode('');
-        }
-      }, 30000);
+      // Explicitly poll for signer connection for up to 60s
+      const startedAt = Date.now();
+      const timeoutMs = 60000;
+      const stepMs = 1500;
       
-      toast.success('Verification successful! Setting up your account...');
+      let connected = signerStatus.isConnected;
+      while (!connected && Date.now() - startedAt < timeoutMs) {
+        await new Promise(r => setTimeout(r, stepMs));
+        connected = signerStatus.isConnected;
+        console.log('[SNX Account Setup][DEBUG] signer status:', signerStatus.status, 'isConnected:', signerStatus.isConnected);
+      }
+      
+      if (!connected) {
+        toast.error('Authentication timeout', {
+          description: 'Signer did not connect. Check: 1) Allowed Origins in Alchemy dashboard, 2) Account Kit API key, 3) Email OTP enabled',
+          duration: 8000,
+        });
+        console.error('[SNX Account Setup] Timeout: signer never connected after 60s');
+        setIsAwaitingOTP(false);
+        setOtpCode('');
+        return;
+      }
+      
+      console.log('[SNX Account Setup] ✅ Signer connected successfully!');
+      toast.success('You\'re signed in! Checking your Synthetix account...');
+      
+      // Reset OTP state
       setIsAwaitingOTP(false);
       setOtpCode('');
     } catch (error) {
       toast.error('Invalid or expired code');
-      console.error('[SNX Account Setup] Email OTP verify error:', error);
+      console.error('[SNX Account Setup] OTP verification error:', error);
     }
   };
 
@@ -174,101 +190,101 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {!isAuthenticated ? (
+        {showEmailInput && (
           <div className="space-y-4">
-            {!isAwaitingOTP ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isAuthenticating}
-                  />
-                </div>
-                <Button
-                  onClick={handleEmailLogin}
-                  disabled={!email || isAuthenticating}
-                  className="w-full"
-                >
-                  {isAuthenticating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending code...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Sign up with Email
-                    </>
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="otp">Verification Code</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Enter the 6-digit code sent to {email}
-                  </p>
-                  <div className="flex justify-center py-4">
-                    <InputOTP
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(value) => setOtpCode(value)}
-                    >
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                </div>
-
-                <Button 
-                  onClick={handleVerifyOTP}
-                  className="w-full"
-                  disabled={isAuthenticating || otpCode.length !== 6}
-                >
-                  {isAuthenticating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    'Verify Code'
-                  )}
-                </Button>
-
-                <div className="flex justify-between text-sm">
-                  <button
-                    type="button"
-                    onClick={handleResendOTP}
-                    disabled={isAuthenticating}
-                    className="text-primary hover:underline disabled:opacity-50"
-                  >
-                    Resend Code
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelOTP}
-                    disabled={isAuthenticating}
-                    className="text-muted-foreground hover:underline disabled:opacity-50"
-                  >
-                    Change Email
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isAuthenticating}
+              />
+            </div>
+            <Button
+              onClick={handleEmailLogin}
+              disabled={!email || isAuthenticating}
+              className="w-full"
+            >
+              {isAuthenticating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending code...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Sign up with Email
+                </>
+              )}
+            </Button>
           </div>
-        ) : (
+        )}
+
+        {showOTPInput && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="otp">Verification Code</Label>
+              <p className="text-sm text-muted-foreground">
+                Enter the 6-digit code sent to {email}
+              </p>
+              <div className="flex justify-center py-4">
+                <InputOTP
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(value) => setOtpCode(value)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleVerifyOTP}
+              className="w-full"
+              disabled={isAuthenticating || otpCode.length !== 6}
+            >
+              {isAuthenticating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify Code'
+              )}
+            </Button>
+
+            <div className="flex justify-between text-sm">
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                disabled={isAuthenticating}
+                className="text-primary hover:underline disabled:opacity-50"
+              >
+                Resend Code
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelOTP}
+                disabled={isAuthenticating}
+                className="text-muted-foreground hover:underline disabled:opacity-50"
+              >
+                Change Email
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showAccountCheck && (
           <>
             {isCheckingAccount ? (
               <Alert>

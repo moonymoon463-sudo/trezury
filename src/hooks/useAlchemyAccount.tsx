@@ -20,7 +20,6 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const [isAwaitingOTPInput, setIsAwaitingOTPInput] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
-  const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Computed authentication state - only requires connected signer
   const isAuthenticated = signerStatus.isConnected;
@@ -39,11 +38,6 @@ export function useAlchemyAccount(chainId: number = 8453) {
   // Check if user has a Synthetix account when connected
   useEffect(() => {
     if (signerStatus.isConnected && address) {
-      // Clear timeout if we successfully authenticated
-      if (verificationTimeout) {
-        clearTimeout(verificationTimeout);
-        setVerificationTimeout(null);
-      }
       checkForSynthetixAccount();
     }
   }, [signerStatus.isConnected, address]);
@@ -109,21 +103,31 @@ export function useAlchemyAccount(chainId: number = 8453) {
         otpCode
       });
       
-      console.log('[Alchemy Account] OTP verified successfully!');
+      console.log('[Alchemy Account] OTP verified; waiting for signer to connect...');
       
-      // Set up a 30s timeout watchdog
-      const timeout = setTimeout(() => {
-        if (!signerStatus.isConnected) {
-          toast.error('Authentication timeout', {
-            description: 'Check: 1) Real API key is set, 2) Allowed origins in Alchemy dashboard, 3) Email OTP enabled',
-            duration: 8000,
-          });
-          console.error('[Alchemy Account] Timeout waiting for CONNECTED status');
-          setIsAwaitingOTPInput(false); // Allow retry
-        }
-      }, 30000);
-      setVerificationTimeout(timeout);
+      // Explicitly poll for signer connection for up to 60s
+      const startedAt = Date.now();
+      const timeoutMs = 60000;
+      const stepMs = 1500;
       
+      let connected = signerStatus.isConnected;
+      while (!connected && Date.now() - startedAt < timeoutMs) {
+        await new Promise(r => setTimeout(r, stepMs));
+        connected = signerStatus.isConnected;
+        console.log('[Alchemy Account][DEBUG] signer status:', signerStatus.status, 'isConnected:', signerStatus.isConnected);
+      }
+      
+      if (!connected) {
+        toast.error('Authentication timeout', {
+          description: 'Signer did not connect. Check: 1) Allowed Origins in Alchemy dashboard, 2) Account Kit API key, 3) Email OTP enabled',
+          duration: 8000,
+        });
+        console.error('[Alchemy Account] Timeout: signer never connected after 60s');
+        setIsAwaitingOTPInput(false);
+        return;
+      }
+      
+      console.log('[Alchemy Account] ✅ Signer connected successfully!');
       toast.success('Verification successful! Setting up your account...');
       setIsAwaitingOTPInput(false);
       setEmailForOTP('');
