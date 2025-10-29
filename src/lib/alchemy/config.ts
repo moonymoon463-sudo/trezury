@@ -7,13 +7,16 @@ import { createConfig } from "@account-kit/react";
 import { alchemy, base } from "@account-kit/infra";
 import { toast } from "sonner";
 
-const API_KEY = import.meta.env.VITE_ALCHEMY_API_KEY || "demo";
+// IMPORTANT: Replace this with your actual Alchemy API key for Base network
+// Get your key from: https://dashboard.alchemy.com
+// This is client-exposed by design; security is via Alchemy's allowlisted origins
+const API_KEY = import.meta.env.VITE_ALCHEMY_API_KEY || "YOUR_ACTUAL_ALCHEMY_KEY";
 
-// Warn about demo key usage
-if (API_KEY === "demo") {
+// Warn if placeholder is still present
+if (API_KEY === "YOUR_ACTUAL_ALCHEMY_KEY") {
   setTimeout(() => {
-    toast.warning('Using Alchemy demo API key', {
-      description: 'Add VITE_ALCHEMY_API_KEY to .env for production use',
+    toast.error('Alchemy API key not configured', {
+      description: 'Replace YOUR_ACTUAL_ALCHEMY_KEY in config.ts or set VITE_ALCHEMY_API_KEY in .env',
       duration: 10000,
     });
   }, 2000);

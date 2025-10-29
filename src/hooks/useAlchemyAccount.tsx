@@ -23,8 +23,9 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
   const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Computed authentication state using multiple signals
-  const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
+  // Computed authentication state - only requires signer and address
+  // Per Alchemy docs, user may be null even when authenticated
+  const isFullyAuthenticated = signerStatus.isConnected && !!address;
 
   // Debug logging for authentication state changes
   useEffect(() => {
@@ -38,9 +39,9 @@ export function useAlchemyAccount(chainId: number = 8453) {
     });
   }, [signerStatus.status, signerStatus.isConnected, address, user, isFullyAuthenticated]);
 
-  // Check if user has a Synthetix account
+  // Check if user has a Synthetix account when connected
   useEffect(() => {
-    if (address) {
+    if (signerStatus.isConnected && address) {
       // Clear timeout if we successfully authenticated
       if (verificationTimeout) {
         clearTimeout(verificationTimeout);
@@ -48,7 +49,7 @@ export function useAlchemyAccount(chainId: number = 8453) {
       }
       checkForSynthetixAccount();
     }
-  }, [address]);
+  }, [signerStatus.isConnected, address]);
 
   const checkForSynthetixAccount = async () => {
     if (!address) return;
@@ -134,9 +135,13 @@ export function useAlchemyAccount(chainId: number = 8453) {
       
       // Set up a 30s timeout watchdog
       const timeout = setTimeout(() => {
-        if (!isFullyAuthenticated) {
-          toast.error('Authentication timeout. You may be rate-limited or need a valid API key.');
+        if (!signerStatus.isConnected) {
+          toast.error('Authentication timeout', {
+            description: 'Check: 1) Real API key is set, 2) Allowed origins in Alchemy dashboard, 3) Email OTP enabled',
+            duration: 8000,
+          });
           console.error('[Alchemy Account] Timeout waiting for CONNECTED status');
+          setIsAwaitingOTPInput(false); // Allow retry
         }
       }, 30000);
       setVerificationTimeout(timeout);

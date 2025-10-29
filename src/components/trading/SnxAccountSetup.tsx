@@ -35,8 +35,9 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
   const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Use multiple signals for authentication state
-  const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
+  // Use signer status and address for authentication state
+  // Per Alchemy docs, user may be null even when authenticated
+  const isFullyAuthenticated = signerStatus.isConnected && !!address;
 
   // Debug authentication state with detailed status
   useEffect(() => {
@@ -50,10 +51,10 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     });
   }, [signerStatus.status, signerStatus.isConnected, address, user, isFullyAuthenticated]);
 
-  // Check for Synthetix account when fully authenticated
+  // Check for Synthetix account when connected
   useEffect(() => {
-    if (isFullyAuthenticated && address) {
-      console.log('[SnxAccountSetup] Fully authenticated, checking for account...');
+    if (signerStatus.isConnected && address) {
+      console.log('[SnxAccountSetup] Authenticated with address, checking for account...');
       // Clear timeout if we successfully authenticated
       if (verificationTimeout) {
         clearTimeout(verificationTimeout);
@@ -61,7 +62,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       }
       checkForSynthetixAccount();
     }
-  }, [isFullyAuthenticated, address]);
+  }, [signerStatus.isConnected, address]);
 
   // Notify parent when account is found
   useEffect(() => {
@@ -161,9 +162,13 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       
       // Set up a 30s timeout watchdog
       const timeout = setTimeout(() => {
-        if (!isFullyAuthenticated) {
-          toast.error('Authentication timeout. Please try again or check your API key.');
+        if (!signerStatus.isConnected) {
+          toast.error('Authentication timeout', {
+            description: 'Check: 1) Real API key is set, 2) Allowed origins in Alchemy dashboard, 3) Email OTP enabled',
+            duration: 8000,
+          });
           console.error('[SnxAccountSetup] Timeout waiting for CONNECTED status');
+          setIsAwaitingOTP(false); // Allow retry
         }
       }, 30000);
       setVerificationTimeout(timeout);
