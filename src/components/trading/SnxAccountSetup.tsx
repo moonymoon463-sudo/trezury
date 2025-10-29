@@ -33,10 +33,6 @@ export function SnxAccountSetup({
 }: SnxAccountSetupProps) {
   // Wallet selection state
   const [selectedSource, setSelectedSource] = useState<'alchemy' | 'internal' | 'external'>(initialWalletSource);
-  const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [walletPassword, setWalletPassword] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
   const [ethBalance, setEthBalance] = useState<string | null>(null);
@@ -46,7 +42,6 @@ export function SnxAccountSetup({
   const hasGasPolicy = !!import.meta.env.VITE_ALCHEMY_GAS_POLICY_ID;
   
   const { address } = useAccount({ type: "LightAccount" });
-  const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
   const { client } = useSmartAccountClient({ type: "LightAccount" });
   const { user } = useAuth();
@@ -75,8 +70,7 @@ export function SnxAccountSetup({
   
   const hasMultipleSources = availableSources.length > 1;
   
-  const showOTPInput = isAlchemyFlow && signerStatus.status === "AWAITING_EMAIL_AUTH";
-  const showEmailInput = isAlchemyFlow && !signerStatus.isConnected && !showOTPInput;
+  // Show account check when wallet is ready
   const showAccountCheck = 
     (isAlchemyFlow && signerStatus.isConnected) || 
     (isInternalFlow && selectedAddress) || 
@@ -88,12 +82,10 @@ export function SnxAccountSetup({
       signerStatus: signerStatus.status,
       isConnected: signerStatus.isConnected,
       hasAddress: !!address,
-      showOTPInput,
-      showEmailInput,
       showAccountCheck,
       address: address?.slice(0, 10),
     });
-  }, [signerStatus.status, signerStatus.isConnected, address, showOTPInput, showEmailInput, showAccountCheck]);
+  }, [signerStatus.status, signerStatus.isConnected, address, showAccountCheck]);
 
   // Check if user has a Synthetix account when wallet is ready
   useEffect(() => {
@@ -169,38 +161,6 @@ export function SnxAccountSetup({
     }
   }, [accountId, onAccountCreated]);
 
-  // Reset isVerifying when connection succeeds or fails
-  useEffect(() => {
-    if (signerStatus.isConnected || signerStatus.status === "DISCONNECTED") {
-      setIsVerifying(false);
-    }
-  }, [signerStatus.isConnected, signerStatus.status]);
-
-  // Add timeout fallback for OTP flow
-  useEffect(() => {
-    if (showOTPInput) {
-      const timeoutId = setTimeout(() => {
-        if (!signerStatus.isConnected) {
-          toast.error('Signer Connection Failed', {
-            description: 'Alchemy could not establish a connection. Please check:\n\n1. Your URL is in Allowed Origins (Alchemy Dashboard)\n2. You\'re using the correct Account Kit API key\n3. Email OTP is enabled in your Alchemy app',
-            duration: 15000,
-          });
-          setIsAwaitingOTP(false);
-          setIsVerifying(false);
-        }
-      }, 60000); // 60 second timeout
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [showOTPInput, signerStatus.isConnected]);
-
-  // Show success when signer connects
-  useEffect(() => {
-    if (signerStatus.isConnected && signerStatus.status === "CONNECTED") {
-      toast.success('You\'re signed in! Checking your Synthetix account...');
-    }
-  }, [signerStatus.isConnected, signerStatus.status]);
-
   const checkForSynthetixAccount = async () => {
     // Use selected address from current wallet source
     const addressToCheck = selectedAddress;
@@ -241,69 +201,6 @@ export function SnxAccountSetup({
     } finally {
       setIsCheckingAccount(false);
     }
-  };
-
-  const handleEmailLogin = async () => {
-    if (!email) {
-      toast.error('Please enter your email');
-      return;
-    }
-    
-    try {
-      console.log('[SNX Account Setup] Sending OTP to:', email);
-      await authenticate({ type: "email", emailMode: "otp", email });
-      setIsAwaitingOTP(true);
-      toast.success('Verification code sent! Check your email');
-      console.log('[SNX Account Setup] OTP sent successfully');
-    } catch (error) {
-      toast.error('Failed to send verification code');
-      console.error('[SNX Account Setup] Email OTP send error:', error);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (otpCode.length !== 6) {
-      toast.error('Please enter a 6-digit code');
-      return;
-    }
-
-    setIsVerifying(true);
-    try {
-      console.log('[SNX Account Setup] Verifying OTP...');
-      
-      await authenticate({ 
-        type: "otp", 
-        otpCode 
-      });
-      
-      console.log('[SNX Account Setup] OTP verification request sent');
-      toast.info('Verifying code...', { duration: 2000 });
-      
-      setOtpCode('');
-    } catch (error) {
-      toast.error('Invalid or expired code');
-      console.error('[SNX Account Setup] OTP verification error:', error);
-      setIsVerifying(false);
-    }
-  };
-
-  const handleResendOTP = async () => {
-    if (email) {
-      try {
-        console.log('[SNX Account Setup] Resending OTP to:', email);
-        await authenticate({ type: "email", emailMode: "otp", email });
-        toast.success('New code sent!');
-      } catch (error) {
-        toast.error('Failed to resend code');
-        console.error('[SNX Account Setup] Resend error:', error);
-      }
-    }
-  };
-
-  const handleCancelOTP = () => {
-    setIsAwaitingOTP(false);
-    setEmail('');
-    setOtpCode('');
   };
 
   const handleCreateAccount = async () => {
@@ -631,108 +528,17 @@ export function SnxAccountSetup({
           </div>
         )}
 
-        {/* Show email/OTP flow only for Alchemy wallet */}
-        {isAlchemyFlow && showEmailInput && (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isAuthenticating}
-              />
-            </div>
-            <Button
-              onClick={handleEmailLogin}
-              disabled={!email || isAuthenticating}
-              className="w-full"
-            >
-              {isAuthenticating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending code...
-                </>
-              ) : (
-                <>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Sign up with Email
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {isAlchemyFlow && showOTPInput && (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="otp">Verification Code</Label>
-              <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code sent to {email}
-              </p>
-              <div className="flex justify-center py-4">
-                <InputOTP
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(value) => setOtpCode(value)}
-                >
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
+        {/* Alchemy wallet setup is handled by AlchemyWalletSetup component */}
+        {isAlchemyFlow && !signerStatus.isConnected && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Alchemy Wallet Required</strong>
+              <div className="text-sm mt-2">
+                Please complete the Alchemy wallet setup first before creating your trading account.
               </div>
-            </div>
-
-            <Button 
-              onClick={handleVerifyOTP}
-              className="w-full"
-              disabled={isVerifying || otpCode.length !== 6}
-            >
-              {isVerifying ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                'Verify Code'
-              )}
-            </Button>
-
-          {isVerifying && (
-            <Alert>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <AlertDescription>
-                Connecting your account... This may take up to 60 seconds.
-              </AlertDescription>
-            </Alert>
-          )}
-
-            <div className="flex justify-between text-sm">
-              <button
-                type="button"
-                onClick={handleResendOTP}
-                disabled={isAuthenticating}
-                className="text-primary hover:underline disabled:opacity-50"
-              >
-                Resend Code
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelOTP}
-                disabled={isAuthenticating}
-                className="text-muted-foreground hover:underline disabled:opacity-50"
-              >
-                Change Email
-              </button>
-            </div>
-          </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         {showAccountCheck && (
