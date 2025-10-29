@@ -19,6 +19,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
@@ -60,16 +61,24 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     }
   }, [accountId, onAccountCreated]);
 
+  // Reset isVerifying when connection succeeds or fails
+  useEffect(() => {
+    if (signerStatus.isConnected || signerStatus.status === "DISCONNECTED") {
+      setIsVerifying(false);
+    }
+  }, [signerStatus.isConnected, signerStatus.status]);
+
   // Add timeout fallback for OTP flow
   useEffect(() => {
     if (showOTPInput) {
       const timeoutId = setTimeout(() => {
         if (!signerStatus.isConnected) {
-          toast.error('Authentication timeout', {
-            description: 'Please check: 1) Alchemy Allowed Origins, 2) Account Kit API key is correct, 3) Email OTP is enabled in Alchemy dashboard',
-            duration: 10000,
+          toast.error('Signer Connection Failed', {
+            description: 'Alchemy could not establish a connection. Please check:\n\n1. Your URL is in Allowed Origins (Alchemy Dashboard)\n2. You\'re using the correct Account Kit API key\n3. Email OTP is enabled in your Alchemy app',
+            duration: 15000,
           });
           setIsAwaitingOTP(false);
+          setIsVerifying(false);
         }
       }, 60000); // 60 second timeout
       
@@ -136,10 +145,10 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       return;
     }
 
+    setIsVerifying(true);
     try {
       console.log('[SNX Account Setup] Verifying OTP...');
       
-      // Just verify the OTP - don't manually poll
       await authenticate({ 
         type: "otp", 
         otpCode 
@@ -148,11 +157,11 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       console.log('[SNX Account Setup] OTP verification request sent');
       toast.info('Verifying code...', { duration: 2000 });
       
-      // Let React's useEffect handle the rest - signerStatus will update automatically
       setOtpCode('');
     } catch (error) {
       toast.error('Invalid or expired code');
       console.error('[SNX Account Setup] OTP verification error:', error);
+      setIsVerifying(false);
     }
   };
 
@@ -250,9 +259,9 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
             <Button 
               onClick={handleVerifyOTP}
               className="w-full"
-              disabled={isAuthenticating || otpCode.length !== 6}
+              disabled={isVerifying || otpCode.length !== 6}
             >
-              {isAuthenticating ? (
+              {isVerifying ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Verifying...
@@ -262,14 +271,14 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
               )}
             </Button>
 
-            {isAuthenticating && (
-              <Alert>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <AlertDescription>
-                  Connecting your account... This may take up to 60 seconds.
-                </AlertDescription>
-              </Alert>
-            )}
+          {isVerifying && (
+            <Alert>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertDescription>
+                Connecting your account... This may take up to 60 seconds.
+              </AlertDescription>
+            </Alert>
+          )}
 
             <div className="flex justify-between text-sm">
               <button
