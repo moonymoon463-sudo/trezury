@@ -17,17 +17,29 @@ import { useAuth } from '@/hooks/useAuth';
 interface SnxAccountSetupProps {
   chainId: number;
   onAccountCreated: (accountId: bigint) => void;
-  walletSource: 'alchemy' | 'internal' | 'external';
-  walletAddress?: string; // For internal/external wallets
+  initialWalletSource: 'alchemy' | 'internal' | 'external';
+  alchemyAddress?: string;
+  internalAddress?: string;
+  externalAddress?: string;
 }
 
-export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walletAddress }: SnxAccountSetupProps) {
+export function SnxAccountSetup({ 
+  chainId, 
+  onAccountCreated, 
+  initialWalletSource,
+  alchemyAddress,
+  internalAddress,
+  externalAddress
+}: SnxAccountSetupProps) {
+  // Wallet selection state
+  const [selectedSource, setSelectedSource] = useState<'alchemy' | 'internal' | 'external'>(initialWalletSource);
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [walletPassword, setWalletPassword] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
+  const [ethBalance, setEthBalance] = useState<string | null>(null);
   
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
@@ -39,17 +51,32 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   
+  // Determine selected address based on source
+  const selectedAddress = 
+    selectedSource === 'alchemy' ? (address || alchemyAddress) :
+    selectedSource === 'internal' ? internalAddress :
+    externalAddress;
+  
   // UI state derived from wallet source and connection status
-  const isAlchemyFlow = walletSource === 'alchemy';
-  const isInternalFlow = walletSource === 'internal';
-  const isExternalFlow = walletSource === 'external';
+  const isAlchemyFlow = selectedSource === 'alchemy';
+  const isInternalFlow = selectedSource === 'internal';
+  const isExternalFlow = selectedSource === 'external';
+  
+  // Check if multiple wallet sources are available
+  const availableSources = [
+    internalAddress ? 'internal' as const : null,
+    externalAddress ? 'external' as const : null,
+    (alchemyAddress || signerStatus.isConnected) ? 'alchemy' as const : null,
+  ].filter(Boolean) as Array<'alchemy' | 'internal' | 'external'>;
+  
+  const hasMultipleSources = availableSources.length > 1;
   
   const showOTPInput = isAlchemyFlow && signerStatus.status === "AWAITING_EMAIL_AUTH";
   const showEmailInput = isAlchemyFlow && !signerStatus.isConnected && !showOTPInput;
   const showAccountCheck = 
     (isAlchemyFlow && signerStatus.isConnected) || 
-    (isInternalFlow && walletAddress) || 
-    (isExternalFlow && walletAddress);
+    (isInternalFlow && selectedAddress) || 
+    (isExternalFlow && selectedAddress);
 
   // Debug logging for authentication state changes
   useEffect(() => {
@@ -68,13 +95,41 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
   useEffect(() => {
     const walletReady = 
       (isAlchemyFlow && signerStatus.isConnected && address) ||
-      (isInternalFlow && walletAddress) ||
-      (isExternalFlow && walletAddress);
+      (isInternalFlow && selectedAddress) ||
+      (isExternalFlow && selectedAddress);
       
     if (walletReady) {
       checkForSynthetixAccount();
     }
-  }, [signerStatus.isConnected, address, walletAddress, isAlchemyFlow, isInternalFlow, isExternalFlow]);
+  }, [signerStatus.isConnected, address, selectedAddress, isAlchemyFlow, isInternalFlow, isExternalFlow]);
+
+  // Load ETH balance for internal wallet on Base
+  useEffect(() => {
+    const loadEthBalance = async () => {
+      if (isInternalFlow && internalAddress) {
+        try {
+          const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+          const balance = await provider.getBalance(internalAddress);
+          const ethAmount = ethers.formatEther(balance);
+          setEthBalance(parseFloat(ethAmount).toFixed(4));
+        } catch (error) {
+          console.error('[SNX Account Setup] Error loading ETH balance:', error);
+          setEthBalance(null);
+        }
+      } else {
+        setEthBalance(null);
+      }
+    };
+    
+    loadEthBalance();
+  }, [isInternalFlow, internalAddress]);
+
+  // Re-check for account when user switches wallet sources
+  useEffect(() => {
+    if (selectedAddress) {
+      checkForSynthetixAccount();
+    }
+  }, [selectedSource, selectedAddress]);
 
   // Notify parent component when account is found
   useEffect(() => {
@@ -117,14 +172,14 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
   }, [signerStatus.isConnected, signerStatus.status]);
 
   const checkForSynthetixAccount = async () => {
-    // Determine which address to check based on wallet source
-    const addressToCheck = isAlchemyFlow ? address : walletAddress;
+    // Use selected address from current wallet source
+    const addressToCheck = selectedAddress;
     if (!addressToCheck) return;
     
     setIsCheckingAccount(true);
     try {
-      // Check for SNX account by wallet address
-      console.log('[SNX Account Setup] Checking for SNX account:', addressToCheck, 'source:', walletSource);
+      // Check for SNX account by wallet address in Supabase
+      console.log('[SNX Account Setup] Checking for SNX account:', addressToCheck, 'source:', selectedSource);
       const { data, error } = await supabase
         .from('snx_accounts')
         .select('account_id')
@@ -133,14 +188,26 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
         .maybeSingle();
 
       if (data && !error) {
-        console.log('[SNX Account Setup] Account found:', data.account_id);
+        console.log('[SNX Account Setup] Account found in DB:', data.account_id);
         setAccountId(BigInt(data.account_id));
       } else {
-        console.log('[SNX Account Setup] No account found');
-        setAccountId(null);
+        console.log('[SNX Account Setup] No account in DB, checking on-chain...');
+        
+        // Fallback: Check on-chain if not found in database
+        const onChainAccountId = await snxAccountService.checkForAccount(addressToCheck, chainId);
+        
+        if (onChainAccountId) {
+          console.log('[SNX Account Setup] Account found on-chain:', onChainAccountId);
+          setAccountId(onChainAccountId);
+          // The service already stored it in DB
+        } else {
+          console.log('[SNX Account Setup] No account found');
+          setAccountId(null);
+        }
       }
     } catch (error) {
       console.error('[SNX Account Setup] Error checking for Synthetix account:', error);
+      setAccountId(null);
     } finally {
       setIsCheckingAccount(false);
     }
@@ -291,18 +358,30 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
 
   const handleAccountCreationError = (error: unknown) => {
     let errorMessage = 'Failed to create account';
+    let showSwitchToInternal = false;
+    
     if (error instanceof Error) {
-      if (error.message.includes('gas')) {
-        errorMessage = 'Gas estimation failed. Your wallet may need ETH for gas fees.';
+      if (error.message.includes('gas') || error.message.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for gas';
+        // Suggest switching to internal wallet if available and not already using it
+        if (internalAddress && selectedSource !== 'internal') {
+          showSwitchToInternal = true;
+          errorMessage += '. Try using your Internal Wallet instead.';
+        }
       } else if (error.message.includes('user rejected')) {
         errorMessage = 'Transaction cancelled';
-      } else if (error.message.includes('insufficient funds')) {
-        errorMessage = 'Insufficient funds for gas';
       } else {
         errorMessage = error.message;
       }
     }
-    toast.error(errorMessage);
+    
+    toast.error(errorMessage, {
+      duration: showSwitchToInternal ? 8000 : 4000,
+      action: showSwitchToInternal && internalAddress ? {
+        label: 'Switch to Internal',
+        onClick: () => setSelectedSource('internal')
+      } : undefined
+    });
   };
 
   const handleCreateWithInternalWallet = async () => {
@@ -378,6 +457,57 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Wallet Selector - Show if multiple sources available */}
+        {hasMultipleSources && !needsPassword && (
+          <div className="space-y-3">
+            <Label>Select Wallet</Label>
+            <div className="flex gap-2">
+              {availableSources.map((source) => (
+                <Button
+                  key={source}
+                  variant={selectedSource === source ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedSource(source)}
+                  className="flex-1"
+                  disabled={isCreatingAccount}
+                >
+                  {source === 'internal' && '🔒 Internal'}
+                  {source === 'external' && '🦊 External'}
+                  {source === 'alchemy' && '✉️ Email'}
+                </Button>
+              ))}
+            </div>
+            
+            {/* Show wallet address and ETH balance for selected source */}
+            {selectedAddress && (
+              <div className="text-sm space-y-1 p-3 bg-muted rounded-lg">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Address:</span>
+                  <code className="text-xs">{selectedAddress.slice(0, 6)}...{selectedAddress.slice(-4)}</code>
+                </div>
+                
+                {isInternalFlow && ethBalance !== null && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ETH on Base:</span>
+                    <span className={parseFloat(ethBalance) > 0 ? "text-green-600 dark:text-green-400 font-semibold" : "text-red-600 dark:text-red-400"}>
+                      {ethBalance} ETH
+                    </span>
+                  </div>
+                )}
+                
+                {isInternalFlow && ethBalance !== null && parseFloat(ethBalance) === 0 && (
+                  <Alert className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      No ETH on Base network. You'll need ETH for gas fees to create an account.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Password prompt for internal wallet */}
         {isInternalFlow && needsPassword && (
           <div className="space-y-4">
@@ -559,7 +689,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
                 <AlertDescription>
                   <strong className="text-green-700 dark:text-green-400">✓ Account Found!</strong>
                   <div className="text-sm mt-2 space-y-1">
-                    <div>Wallet: <code>{(isAlchemyFlow ? address : walletAddress)?.slice(0, 6)}...{(isAlchemyFlow ? address : walletAddress)?.slice(-4)}</code></div>
+                    <div>Wallet: <code>{selectedAddress?.slice(0, 6)}...{selectedAddress?.slice(-4)}</code></div>
                     <div>Account ID: <code>{accountId.toString()}</code></div>
                   </div>
                 </AlertDescription>
@@ -572,7 +702,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated, walletSource, walle
                     <strong>Create Your Trading Account</strong>
                   </div>
                   <div className="text-sm">
-                    Connected wallet: <code className="text-xs">{(isAlchemyFlow ? address : walletAddress)?.slice(0, 6)}...{(isAlchemyFlow ? address : walletAddress)?.slice(-4)}</code>
+                    Connected wallet: <code className="text-xs">{selectedAddress?.slice(0, 6)}...{selectedAddress?.slice(-4)}</code>
                   </div>
                   <div className="text-sm text-muted-foreground">
                     You'll need a trading account to start trading perps on Synthetix.
