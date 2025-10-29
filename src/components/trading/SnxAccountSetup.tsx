@@ -212,7 +212,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
       const result = await snxAccountService.createAccount(signer, chainId);
       
       if (result.success && result.accountId) {
-        toast.success('Account created successfully!');
+        toast.success('Trading account created successfully!');
         setAccountId(result.accountId);
         console.log('[SNX Account Setup] Account created:', result.accountId);
       } else {
@@ -244,9 +244,9 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Synthetix Trading Account</CardTitle>
-        <CardDescription>
-          Sign up with email to create your Synthetix account
-        </CardDescription>
+      <CardDescription>
+        Sign in with email to access perpetual futures trading
+      </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {showEmailInput && (
@@ -383,7 +383,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                     Connected wallet: <code className="text-xs">{address?.slice(0, 6)}...{address?.slice(-4)}</code>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    You'll need a Synthetix trading account to start trading perps. This creates an account NFT in your wallet.
+                    You'll need a trading account to start trading perps on Synthetix.
                   </div>
                   <div className="flex gap-2">
                     <Button
