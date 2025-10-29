@@ -34,6 +34,7 @@ import { OrderBook } from '@/components/trading/OrderBook';
 import { FundingRateDisplay } from '@/components/trading/FundingRateDisplay';
 import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBanner';
 import { SnxAccountSetup } from '@/components/trading/SnxAccountSetup';
+import { AlchemyDebugPanel } from '@/components/trading/AlchemyDebugPanel';
 import { dydxWalletService } from '@/services/dydxWalletService';
 import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
@@ -107,10 +108,15 @@ const TradingDashboard = () => {
     }
   }, [hasDydxWallet, accountInfo]);
 
-  // Check for existing SNX account
+  // Check for existing SNX account (works with or without Supabase auth)
   useEffect(() => {
     const checkSnxAccount = async () => {
-      if (!user) return;
+      // Allow checking even without Supabase user (for Alchemy-only auth)
+      if (!user) {
+        // If no Supabase user, show SNX setup (Alchemy auth will happen there)
+        setShowSnxAccountSetup(true);
+        return;
+      }
       
       const { data } = await supabase
         .from('snx_accounts')
@@ -1117,6 +1123,9 @@ const TradingDashboard = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Debug Panel (dev only) */}
+      <AlchemyDebugPanel />
     </div>
   );
 };

@@ -17,6 +17,8 @@ import { SupabaseHealthIndicator } from "@/components/SupabaseHealthIndicator";
 import { AssistantProvider } from "@/contexts/AssistantContext";
 import { FloatingAssistant } from "@/components/assistant/FloatingAssistant";
 import { AssistantDrawer } from "@/components/assistant/AssistantDrawer";
+import { AlchemyAccountProvider } from "@account-kit/react";
+import { alchemyConfig } from "@/lib/alchemy/config";
 import LandingPage from "@/components/LandingPage";
 import Index from "./pages/Index";
 import BuyGold from "./pages/BuyGold";
@@ -161,27 +163,29 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TradingPasswordProvider>
-        <PWAProvider>
-          <SessionHealthMonitor />
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AssistantProvider>
-                <ScrollToTop />
-                <AppRoutes />
-                <FloatingAssistant />
-                <AssistantDrawer />
-                <InstallPrompt />
-                <UpdatePrompt />
-                <OfflineIndicator />
-                <SupabaseHealthIndicator />
-              </AssistantProvider>
-            </BrowserRouter>
-          </TooltipProvider>
-        </PWAProvider>
-      </TradingPasswordProvider>
+      <AlchemyAccountProvider config={alchemyConfig} queryClient={queryClient}>
+        <TradingPasswordProvider>
+          <PWAProvider>
+            <SessionHealthMonitor />
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AssistantProvider>
+                  <ScrollToTop />
+                  <AppRoutes />
+                  <FloatingAssistant />
+                  <AssistantDrawer />
+                  <InstallPrompt />
+                  <UpdatePrompt />
+                  <OfflineIndicator />
+                  <SupabaseHealthIndicator />
+                </AssistantProvider>
+              </BrowserRouter>
+            </TooltipProvider>
+          </PWAProvider>
+        </TradingPasswordProvider>
+      </AlchemyAccountProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

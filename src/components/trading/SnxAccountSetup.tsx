@@ -12,9 +12,7 @@ import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ExternalLink, Loader2, Mail, Key, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { AlchemyAccountProvider, useAccount, useAuthenticate, useSignerStatus, useUser } from "@account-kit/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { alchemyConfig } from "@/lib/alchemy/config";
+import { useAccount, useAuthenticate, useSignerStatus, useUser } from "@account-kit/react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SnxAccountSetupProps {
@@ -22,9 +20,7 @@ interface SnxAccountSetupProps {
   onAccountCreated: (accountId: bigint) => void;
 }
 
-const queryClient = new QueryClient();
-
-function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProps) {
+export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupProps) {
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
@@ -37,6 +33,7 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
   
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
+  const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Use multiple signals for authentication state
   const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
@@ -57,6 +54,11 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
   useEffect(() => {
     if (isFullyAuthenticated && address) {
       console.log('[SnxAccountSetup] Fully authenticated, checking for account...');
+      // Clear timeout if we successfully authenticated
+      if (verificationTimeout) {
+        clearTimeout(verificationTimeout);
+        setVerificationTimeout(null);
+      }
       checkForSynthetixAccount();
     }
   }, [isFullyAuthenticated, address]);
@@ -156,12 +158,19 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
       });
       
       console.log('[SnxAccountSetup] OTP verified successfully!');
-      toast.success('Verification successful!');
+      
+      // Set up a 30s timeout watchdog
+      const timeout = setTimeout(() => {
+        if (!isFullyAuthenticated) {
+          toast.error('Authentication timeout. Please try again or check your API key.');
+          console.error('[SnxAccountSetup] Timeout waiting for CONNECTED status');
+        }
+      }, 30000);
+      setVerificationTimeout(timeout);
+      
+      toast.success('Verification successful! Setting up your account...');
       setIsAwaitingOTP(false);
       setOtpCode('');
-      
-      // Check for Synthetix account after successful authentication
-      checkForSynthetixAccount();
     } catch (error) {
       toast.error('Invalid or expired code');
       console.error('[SnxAccountSetup] Email OTP verify error:', error);
@@ -414,12 +423,3 @@ function SnxAccountSetupInner({ chainId, onAccountCreated }: SnxAccountSetupProp
   );
 }
 
-export function SnxAccountSetup(props: SnxAccountSetupProps) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AlchemyAccountProvider config={alchemyConfig} queryClient={queryClient}>
-        <SnxAccountSetupInner {...props} />
-      </AlchemyAccountProvider>
-    </QueryClientProvider>
-  );
-}

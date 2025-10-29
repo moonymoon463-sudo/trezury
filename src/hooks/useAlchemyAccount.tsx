@@ -21,6 +21,7 @@ export function useAlchemyAccount(chainId: number = 8453) {
   const [isAwaitingOTPInput, setIsAwaitingOTPInput] = useState(false);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Computed authentication state using multiple signals
   const isFullyAuthenticated = signerStatus.isConnected && !!address && !!user;
@@ -40,6 +41,11 @@ export function useAlchemyAccount(chainId: number = 8453) {
   // Check if user has a Synthetix account
   useEffect(() => {
     if (address) {
+      // Clear timeout if we successfully authenticated
+      if (verificationTimeout) {
+        clearTimeout(verificationTimeout);
+        setVerificationTimeout(null);
+      }
       checkForSynthetixAccount();
     }
   }, [address]);
@@ -125,7 +131,17 @@ export function useAlchemyAccount(chainId: number = 8453) {
       });
       
       console.log('[Alchemy Account] OTP verified successfully!');
-      toast.success('Verification successful!');
+      
+      // Set up a 30s timeout watchdog
+      const timeout = setTimeout(() => {
+        if (!isFullyAuthenticated) {
+          toast.error('Authentication timeout. You may be rate-limited or need a valid API key.');
+          console.error('[Alchemy Account] Timeout waiting for CONNECTED status');
+        }
+      }, 30000);
+      setVerificationTimeout(timeout);
+      
+      toast.success('Verification successful! Setting up your account...');
       setIsAwaitingOTPInput(false);
       setEmailForOTP('');
     } catch (error) {
