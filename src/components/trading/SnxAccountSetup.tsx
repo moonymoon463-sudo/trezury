@@ -60,6 +60,30 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     }
   }, [accountId, onAccountCreated]);
 
+  // Add timeout fallback for OTP flow
+  useEffect(() => {
+    if (showOTPInput) {
+      const timeoutId = setTimeout(() => {
+        if (!signerStatus.isConnected) {
+          toast.error('Authentication timeout', {
+            description: 'Please check: 1) Alchemy Allowed Origins, 2) Account Kit API key is correct, 3) Email OTP is enabled in Alchemy dashboard',
+            duration: 10000,
+          });
+          setIsAwaitingOTP(false);
+        }
+      }, 60000); // 60 second timeout
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [showOTPInput, signerStatus.isConnected]);
+
+  // Show success when signer connects
+  useEffect(() => {
+    if (signerStatus.isConnected && signerStatus.status === "CONNECTED") {
+      toast.success('You\'re signed in! Checking your Synthetix account...');
+    }
+  }, [signerStatus.isConnected, signerStatus.status]);
+
   const checkForSynthetixAccount = async () => {
     if (!address) return;
     
@@ -115,41 +139,16 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     try {
       console.log('[SNX Account Setup] Verifying OTP...');
       
+      // Just verify the OTP - don't manually poll
       await authenticate({ 
         type: "otp", 
         otpCode 
       });
       
-      console.log('[SNX Account Setup] OTP verified; waiting for signer to connect...');
+      console.log('[SNX Account Setup] OTP verification request sent');
+      toast.info('Verifying code...', { duration: 2000 });
       
-      // Explicitly poll for signer connection for up to 60s
-      const startedAt = Date.now();
-      const timeoutMs = 60000;
-      const stepMs = 1500;
-      
-      let connected = signerStatus.isConnected;
-      while (!connected && Date.now() - startedAt < timeoutMs) {
-        await new Promise(r => setTimeout(r, stepMs));
-        connected = signerStatus.isConnected;
-        console.log('[SNX Account Setup][DEBUG] signer status:', signerStatus.status, 'isConnected:', signerStatus.isConnected);
-      }
-      
-      if (!connected) {
-        toast.error('Authentication timeout', {
-          description: 'Signer did not connect. Check: 1) Allowed Origins in Alchemy dashboard, 2) Account Kit API key, 3) Email OTP enabled',
-          duration: 8000,
-        });
-        console.error('[SNX Account Setup] Timeout: signer never connected after 60s');
-        setIsAwaitingOTP(false);
-        setOtpCode('');
-        return;
-      }
-      
-      console.log('[SNX Account Setup] ✅ Signer connected successfully!');
-      toast.success('You\'re signed in! Checking your Synthetix account...');
-      
-      // Reset OTP state
-      setIsAwaitingOTP(false);
+      // Let React's useEffect handle the rest - signerStatus will update automatically
       setOtpCode('');
     } catch (error) {
       toast.error('Invalid or expired code');
@@ -262,6 +261,15 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
                 'Verify Code'
               )}
             </Button>
+
+            {isAuthenticating && (
+              <Alert>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <AlertDescription>
+                  Connecting your account... This may take up to 60 seconds.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="flex justify-between text-sm">
               <button
