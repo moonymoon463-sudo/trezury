@@ -7,8 +7,11 @@ import { useState, useEffect } from 'react';
 import { useAccount, useAuthenticate, useSignerStatus } from '@account-kit/react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from './useAuth';
+import { alchemyWalletService } from '@/services/alchemyWalletService';
 
 export function useAlchemyAccount(chainId: number = 8453) {
+  const { user } = useAuth();
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
@@ -34,6 +37,22 @@ export function useAlchemyAccount(chainId: number = 8453) {
       address: address?.slice(0, 10),
     });
   }, [signerStatus.status, signerStatus.isConnected, address, isAuthenticated]);
+
+  // Store Alchemy address when authenticated
+  useEffect(() => {
+    const storeAddress = async () => {
+      if (signerStatus.isConnected && address && user) {
+        try {
+          await alchemyWalletService.storeAlchemyAddress(user.id, address);
+          console.log('[Alchemy Account] Address stored:', address);
+        } catch (error) {
+          console.error('[Alchemy Account] Failed to store address:', error);
+        }
+      }
+    };
+
+    storeAddress();
+  }, [signerStatus.isConnected, address, user]);
 
   // Check if user has a Synthetix account when connected
   useEffect(() => {

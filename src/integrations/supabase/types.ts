@@ -1816,6 +1816,7 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          alchemy_address: string | null
           city: string | null
           country: string | null
           created_at: string
@@ -1840,6 +1841,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          alchemy_address?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -1864,6 +1866,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          alchemy_address?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
@@ -2436,6 +2439,7 @@ export type Database = {
       snx_accounts: {
         Row: {
           account_id: string
+          alchemy_address: string | null
           chain_id: number
           created_at: string | null
           id: string
@@ -2445,6 +2449,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          alchemy_address?: string | null
           chain_id: number
           created_at?: string | null
           id?: string
@@ -2454,6 +2459,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          alchemy_address?: string | null
           chain_id?: number
           created_at?: string | null
           id?: string
