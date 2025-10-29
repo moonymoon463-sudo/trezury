@@ -1,18 +1,9 @@
-import { useState, useMemo } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -21,16 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useDydxPositions } from '@/hooks/useDydxPositions';
 import type { DydxPosition } from '@/types/dydx';
 import { dydxTradingService } from '@/services/dydxTradingService';
-import { TrendingUp, TrendingDown, AlertCircle, ArrowUpDown, X, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 
@@ -77,61 +65,12 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
 
   const { toast } = useToast();
   const { getPassword } = useTradingPasswordContext();
-  const [sortField, setSortField] = useState<SortField>('market');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<DydxPosition | null>(null);
   const [closeOrderType, setCloseOrderType] = useState<'MARKET' | 'LIMIT'>('MARKET');
   const [closeLimitPrice, setCloseLimitPrice] = useState('');
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const sortedPositions = useMemo(() => {
-    if (!positions.length) return [];
-
-    return [...positions].sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortField) {
-        case 'market':
-          comparison = a.market.localeCompare(b.market);
-          break;
-        case 'size':
-          comparison = a.size - b.size;
-          break;
-        case 'pnl': {
-          const priceA = currentPrices[a.market] || a.entryPrice;
-          const priceB = currentPrices[b.market] || b.entryPrice;
-          const pnlA = a.side === 'LONG'
-            ? (priceA - a.entryPrice) * a.size
-            : (a.entryPrice - priceA) * a.size;
-          const pnlB = b.side === 'LONG'
-            ? (priceB - b.entryPrice) * b.size
-            : (b.entryPrice - priceB) * b.size;
-          comparison = pnlA - pnlB;
-          break;
-        }
-        case 'leverage':
-          // DydxPosition doesn't have leverage, so we'll skip sorting by it
-          comparison = 0;
-          break;
-        case 'liquidation':
-          // DydxPosition doesn't have liquidation_price in the type, so we'll calculate it
-          comparison = 0;
-          break;
-      }
-
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }, [positions, sortField, sortDirection, currentPrices]);
 
   const openCloseDialog = (position: DydxPosition) => {
     setSelectedPosition(position);
@@ -197,296 +136,187 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
     }
   };
 
-  const SortableHeader = ({ field, label, tooltip }: { field: SortField; label: string; tooltip: string }) => (
-    <TableHead className="h-7 text-muted-foreground/70 cursor-pointer hover:text-foreground transition-colors text-xs font-medium py-1" onClick={() => handleSort(field)}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex items-center gap-0.5">
-            <span>{label}</span>
-            <ArrowUpDown className="h-2 w-2 opacity-40" />
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          <p>{tooltip}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TableHead>
-  );
 
   if (loading) {
     return (
-      <Card className="bg-card/30 border-border/30">
-        <div className="p-4 flex items-center justify-center">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span className="ml-2 text-muted-foreground text-xs">Loading...</span>
-        </div>
-      </Card>
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="bg-card/30 border-border/30">
-        <div className="p-4 flex items-center justify-center text-destructive text-xs">
-          <AlertCircle className="h-4 w-4 mr-2" />
-          {error}
-        </div>
-      </Card>
+      <div className="flex items-center justify-center p-8 text-destructive">
+        <AlertTriangle className="h-4 w-4 mr-2" />
+        <span className="text-sm">{error}</span>
+      </div>
     );
   }
 
-  if (sortedPositions.length === 0) {
+  if (positions.length === 0) {
     return (
-      <Card className="bg-card/30 border-border/30">
-        <div className="p-6 text-center">
-          <div className="flex flex-col items-center gap-2">
-            <div className="h-12 w-12 rounded-full bg-accent/20 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-muted-foreground/50" />
-            </div>
-            <div>
-              <h3 className="text-foreground font-medium text-sm">No Open Positions</h3>
-              <p className="text-muted-foreground text-xs mt-0.5">No open positions at this time.</p>
-            </div>
-          </div>
-        </div>
-      </Card>
+      <div className="flex flex-col items-center justify-center p-8 text-center">
+        <div className="text-muted-foreground text-sm">No open positions</div>
+        <div className="text-muted-foreground/60 text-xs mt-1">Open a position to start trading</div>
+      </div>
     );
   }
 
   return (
-    <Card className="bg-card/30 border-border/30 h-full flex flex-col">
-      <div className="p-2 flex-shrink-0">
-        <div className="flex items-center justify-between mb-1 px-1">
-          <h3 className="text-foreground font-medium text-sm">Open Positions</h3>
-          <Badge variant="outline" className="text-[9px] h-5 px-1 text-primary/80 border-primary/20 bg-primary/5">
-            {sortedPositions.length}
-          </Badge>
-        </div>
+    <>
+      <ScrollArea className="h-full">
+        <div className="space-y-2 p-3">
+          {positions.map((position, index) => {
+            const currentPrice = currentPrices[position.market] || position.entryPrice;
+            const pnl = position.side === 'LONG'
+              ? (currentPrice - position.entryPrice) * position.size
+              : (position.entryPrice - currentPrice) * position.size;
+            const pnlPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * (position.side === 'LONG' ? 1 : -1);
+            const isProfit = pnl > 0;
+            
+            const leverage = 10;
+            const marginRequired = (currentPrice * position.size) / leverage;
+            const maintenanceMargin = 0.03;
+            const liquidationPrice = position.side === 'LONG'
+              ? position.entryPrice * (1 - (1 / leverage) + maintenanceMargin)
+              : position.entryPrice * (1 + (1 / leverage) - maintenanceMargin);
+            
+            const distanceToLiquidation = Math.abs(((currentPrice - liquidationPrice) / currentPrice) * 100);
+            const riskLevel = 
+              distanceToLiquidation < 5 ? 'critical' :
+              distanceToLiquidation < 15 ? 'high' :
+              distanceToLiquidation < 30 ? 'medium' : 'low';
 
-        <TooltipProvider>
-          <div className="overflow-x-auto overflow-y-auto max-h-[100px]">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/30 hover:bg-transparent">
-                  <SortableHeader 
-                    field="market" 
-                    label="Asset Pair" 
-                    tooltip="The trading pair for this position"
-                  />
+            return (
+              <Card key={`${position.market}-${index}`} className="bg-card/50 border-border/40 hover:bg-card/60 transition-colors">
+                <div className="p-3">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground font-semibold text-sm">{position.market}</span>
+                      <Badge
+                        variant={position.side === 'LONG' ? 'default' : 'destructive'}
+                        className="text-[10px] h-5 px-2"
+                      >
+                        {position.side}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] h-5 px-2">
+                        {leverage}x
+                      </Badge>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openCloseDialog(position)}
+                      disabled={closingPosition === position.market}
+                      className="h-7 px-2 text-xs"
+                    >
+                      {closingPosition === position.market ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        'Close'
+                      )}
+                    </Button>
+                  </div>
 
-                  <TableHead className="h-7 text-muted-foreground/70 text-xs font-medium py-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help">Entry</span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        <p>The price at which the position was opened</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-
-                  <TableHead className="h-7 text-muted-foreground/70 text-xs font-medium py-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help">Current</span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        <p>The current market price of the asset</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-
-                  <SortableHeader 
-                    field="size" 
-                    label="Size" 
-                    tooltip="Amount of the asset held in this position"
-                  />
-
-                  <SortableHeader 
-                    field="leverage" 
-                    label="Leverage" 
-                    tooltip="The leverage multiplier used for this position"
-                  />
-
-                  <SortableHeader 
-                    field="pnl" 
-                    label="P&L" 
-                    tooltip="Profit and Loss that would be realized if closed now"
-                  />
-
-                  <TableHead className="h-6 text-muted-foreground/70 text-[10px] font-medium py-0.5">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help">Margin</span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">
-                        <p>The amount of collateral required to maintain this position</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-
-                  <SortableHeader 
-                    field="liquidation" 
-                    label="Liq. Price" 
-                    tooltip="Price at which the position will be automatically liquidated"
-                  />
-
-                  <TableHead className="h-7 text-muted-foreground/70 text-xs font-medium w-10 py-1">Close</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                 {sortedPositions.map((position, index) => {
-                  const currentPrice = currentPrices[position.market] || position.entryPrice;
-                  const pnl = position.side === 'LONG'
-                    ? (currentPrice - position.entryPrice) * position.size
-                    : (position.entryPrice - currentPrice) * position.size;
-                  const pnlPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * (position.side === 'LONG' ? 1 : -1);
-                  const isProfit = pnl > 0;
-                  
-                  // Assume 10x leverage if not available in the position data
-                  const leverage = 10;
-                  const marginRequired = (currentPrice * position.size) / leverage;
-                  
-                  // Calculate liquidation price
-                  const maintenanceMargin = 0.03; // 3% maintenance margin
-                  const liquidationPrice = position.side === 'LONG'
-                    ? position.entryPrice * (1 - (1 / leverage) + maintenanceMargin)
-                    : position.entryPrice * (1 + (1 / leverage) - maintenanceMargin);
-                  
-                  // Calculate distance to liquidation
-                  const distanceToLiquidation = Math.abs(((currentPrice - liquidationPrice) / currentPrice) * 100);
-                  
-                  // Calculate breakeven price (entry + estimated fees)
-                  const estimatedFees = position.entryPrice * 0.001; // 0.1% total fees estimate
-                  const breakevenPrice = position.side === 'LONG' 
-                    ? position.entryPrice + estimatedFees
-                    : position.entryPrice - estimatedFees;
-                  
-                  // Determine risk level based on distance to liquidation
-                  const riskLevel = 
-                    distanceToLiquidation < 5 ? 'critical' :
-                    distanceToLiquidation < 15 ? 'high' :
-                    distanceToLiquidation < 30 ? 'medium' : 'low';
-
-                  return (
-                    <TableRow key={`${position.market}-${index}`} className="border-border/20 hover:bg-accent/5">
-                      <TableCell className="font-medium text-foreground py-1 px-2 text-[10px]">
-                        <div className="flex items-center gap-1">
-                          <span>{position.market}</span>
-                          <Badge
-                            variant={position.side === 'LONG' ? 'default' : 'destructive'}
-                            className="text-[8px] h-3 px-0.5 py-0"
-                          >
-                            {position.side}
-                          </Badge>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground text-xs py-1.5 px-2">
-                        ${position.entryPrice.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </TableCell>
-
-                      <TableCell className="text-foreground text-xs font-medium py-1.5 px-2">
-                        ${currentPrice.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground text-xs py-1.5 px-2">
+                  {/* Main Stats Grid */}
+                  <div className="grid grid-cols-3 gap-3 mb-2">
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-0.5">Size</div>
+                      <div className="text-xs font-medium text-foreground">
                         {position.size.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 4,
                         })}
-                      </TableCell>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-0.5">Entry</div>
+                      <div className="text-xs font-medium text-foreground">
+                        ${position.entryPrice.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-0.5">Mark</div>
+                      <div className="text-xs font-medium text-foreground">
+                        ${currentPrice.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    </div>
+                  </div>
 
-                      <TableCell className="py-1.5 px-2">
-                        <Badge variant="outline" className="text-[9px] h-4 px-0.5 text-primary/80 border-primary/20 bg-primary/5">
-                          {leverage}x
-                        </Badge>
-                      </TableCell>
+                  <Separator className="my-2" />
 
-                      <TableCell className="py-1.5 px-2">
-                        <div className="flex flex-col">
-                          <div className={`flex items-center gap-0.5 font-semibold text-xs ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                            {isProfit ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                            {isProfit ? '+' : ''}${pnl.toFixed(2)}
-                          </div>
-                          <span className={`text-[9px] ${isProfit ? 'text-green-500/50' : 'text-red-500/50'}`}>
-                            {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
-                          </span>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground text-xs py-1.5 px-2">
+                  {/* P&L and Risk */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-0.5">Unrealized P&L</div>
+                      <div className={`flex items-center gap-1 font-semibold text-sm ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                        {isProfit ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        <span>{isProfit ? '+' : ''}${pnl.toFixed(2)}</span>
+                        <span className="text-[10px] opacity-60">
+                          ({isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%)
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted-foreground mb-0.5">Margin Used</div>
+                      <div className="text-xs font-medium text-foreground">
                         ${marginRequired.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
-                      </TableCell>
+                      </div>
+                    </div>
+                  </div>
 
-                      <TableCell className="py-1.5 px-2">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-0.5">
-                            <span className="text-foreground text-xs">
-                              ${liquidationPrice.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </span>
-                            <div
-                              className={`h-1 w-1 rounded-full ${
-                                riskLevel === 'critical'
-                                  ? 'bg-red-500'
-                                  : riskLevel === 'high'
-                                  ? 'bg-orange-500'
-                                  : riskLevel === 'medium'
-                                  ? 'bg-yellow-500'
-                                  : 'bg-green-500'
-                              }`}
-                            />
-                          </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-[8px] text-muted-foreground/60 cursor-help">
-                                {distanceToLiquidation.toFixed(1)}% away | BE: ${breakevenPrice.toFixed(2)}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs">
-                              <p>Distance to Liquidation: {distanceToLiquidation.toFixed(2)}%</p>
-                              <p>Breakeven Price: ${breakevenPrice.toFixed(2)}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
+                  <Separator className="my-2" />
 
-                      <TableCell className="py-1 px-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openCloseDialog(position)}
-                          disabled={closingPosition === position.market}
-                          className="h-5 w-5 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                        >
-                          {closingPosition === position.market ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <X className="h-3 w-3" />
-                          )}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </TooltipProvider>
-      </div>
+                  {/* Liquidation */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="text-[10px] text-muted-foreground mb-0.5">Liq. Price</div>
+                      <div className="text-xs font-medium text-foreground">
+                        ${liquidationPrice.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          riskLevel === 'critical' ? 'bg-red-500 animate-pulse' :
+                          riskLevel === 'high' ? 'bg-orange-500' :
+                          riskLevel === 'medium' ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                      />
+                      <span className={`text-[10px] font-medium ${
+                        riskLevel === 'critical' ? 'text-red-500' :
+                        riskLevel === 'high' ? 'text-orange-500' :
+                        riskLevel === 'medium' ? 'text-yellow-500' :
+                        'text-green-500'
+                      }`}>
+                        {distanceToLiquidation.toFixed(1)}% away
+                      </span>
+                      {riskLevel === 'critical' && (
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </ScrollArea>
 
       <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -540,6 +370,6 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 };
