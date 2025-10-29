@@ -40,6 +40,10 @@ export function SnxAccountSetup({
   const [walletPassword, setWalletPassword] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
   const [ethBalance, setEthBalance] = useState<string | null>(null);
+  const [alchemyEthBalance, setAlchemyEthBalance] = useState<string | null>(null);
+  const [isCheckingAlchemyBalance, setIsCheckingAlchemyBalance] = useState(false);
+  
+  const hasGasPolicy = !!import.meta.env.VITE_ALCHEMY_GAS_POLICY_ID;
   
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
@@ -123,6 +127,32 @@ export function SnxAccountSetup({
     
     loadEthBalance();
   }, [isInternalFlow, internalAddress]);
+
+  // Load ETH balance for Alchemy wallet on Base
+  useEffect(() => {
+    const loadAlchemyBalance = async () => {
+      if (isAlchemyFlow && address && !hasGasPolicy) {
+        setIsCheckingAlchemyBalance(true);
+        try {
+          const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+          const balance = await provider.getBalance(address);
+          const ethAmount = ethers.formatEther(balance);
+          setAlchemyEthBalance(parseFloat(ethAmount).toFixed(4));
+        } catch (error) {
+          console.error('[SNX Account Setup] Error loading Alchemy ETH balance:', error);
+          setAlchemyEthBalance(null);
+        } finally {
+          setIsCheckingAlchemyBalance(false);
+        }
+      } else if (hasGasPolicy) {
+        setAlchemyEthBalance('sponsored');
+      } else {
+        setAlchemyEthBalance(null);
+      }
+    };
+    
+    loadAlchemyBalance();
+  }, [isAlchemyFlow, address, hasGasPolicy]);
 
   // Re-check for account when user switches wallet sources
   useEffect(() => {
@@ -367,6 +397,8 @@ export function SnxAccountSetup({
         if (internalAddress && selectedSource !== 'internal') {
           showSwitchToInternal = true;
           errorMessage += '. Try using your Internal Wallet instead.';
+        } else if (!hasGasPolicy && isAlchemyFlow) {
+          errorMessage += '. Please fund your Alchemy wallet with ETH on Base.';
         }
       } else if (error.message.includes('user rejected')) {
         errorMessage = 'Transaction cancelled';
@@ -495,11 +527,40 @@ export function SnxAccountSetup({
                   </div>
                 )}
                 
+                {isAlchemyFlow && hasGasPolicy && (
+                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                    <Sparkles className="h-3 w-3" />
+                    <span className="font-semibold">Gas Sponsored</span>
+                  </div>
+                )}
+                
+                {isAlchemyFlow && !hasGasPolicy && alchemyEthBalance !== null && alchemyEthBalance !== 'sponsored' && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ETH on Base:</span>
+                    <span className={parseFloat(alchemyEthBalance) >= 0.001 ? "text-green-600 dark:text-green-400 font-semibold" : "text-red-600 dark:text-red-400"}>
+                      {alchemyEthBalance} ETH
+                    </span>
+                  </div>
+                )}
+                
                 {isInternalFlow && ethBalance !== null && parseFloat(ethBalance) === 0 && (
                   <Alert className="mt-2">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
                       No ETH on Base network. You'll need ETH for gas fees to create an account.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {isAlchemyFlow && !hasGasPolicy && alchemyEthBalance !== null && alchemyEthBalance !== 'sponsored' && parseFloat(alchemyEthBalance) < 0.001 && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      <p className="font-semibold">⚠️ Insufficient ETH</p>
+                      <p className="mt-1">
+                        You need ~0.001 ETH on Base to create your trading account.
+                        {internalAddress && ' Switch to Internal Wallet or fund your Alchemy wallet.'}
+                      </p>
                     </AlertDescription>
                   </Alert>
                 )}
