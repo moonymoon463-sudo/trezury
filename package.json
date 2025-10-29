@@ -11,10 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@account-kit/infra": "^4.75.4",
-    "@account-kit/react": "^4.75.4",
-    "@account-kit/signer": "^4.75.4",
-    "@account-kit/smart-contracts": "^4.75.4",
     "@capacitor/android": "^7.4.3",
     "@capacitor/cli": "^7.4.3",
     "@capacitor/core": "^7.4.3",
@@ -87,7 +83,6 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
     "viem": "^2.21.54",
-    "wagmi": "^2.19.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

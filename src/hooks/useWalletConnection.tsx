@@ -15,8 +15,11 @@ interface EthereumProvider {
   providers?: EthereumProvider[];
 }
 
-// Note: Window.ethereum is already declared in vite-env.d.ts as 'any'
-// We'll cast it as needed rather than redeclaring
+declare global {
+  interface Window {
+    ethereum?: EthereumProvider;
+  }
+}
 
 export interface WalletConnectionState {
   isConnected: boolean;

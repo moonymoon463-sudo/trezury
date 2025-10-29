@@ -11,7 +11,7 @@ import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
 import { useDydxMarkets } from '@/hooks/useDydxMarkets';
 import { useDydxCandles } from '@/hooks/useDydxCandles';
-import { useAlchemyAccount } from '@/hooks/useAlchemyAccount';
+import { useDydxWallet } from '@/hooks/useDydxWallet';
 import { useDydxAccount } from '@/hooks/useDydxAccount';
 import { useDydxTrading } from '@/hooks/useDydxTrading';
 import { useFundingRate } from '@/hooks/useFundingRate';
@@ -22,7 +22,7 @@ import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
-import { AlchemyWalletSetup } from '@/components/trading/AlchemyWalletSetup';
+import { DydxWalletSetup } from '@/components/trading/DydxWalletSetup';
 import { DepositUSDC } from '@/components/trading/DepositUSDC';
 import { DepositModal } from '@/components/trading/DepositModal';
 import { WithdrawModal } from '@/components/trading/WithdrawModal';
@@ -33,23 +33,18 @@ import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
 import { FundingRateDisplay } from '@/components/trading/FundingRateDisplay';
 import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBanner';
-import { SnxAccountSetup } from '@/components/trading/SnxAccountSetup';
-import { AlchemyDebugPanel } from '@/components/trading/AlchemyDebugPanel';
-import { alchemyWalletService } from '@/services/alchemyWalletService';
+import { dydxWalletService } from '@/services/dydxWalletService';
 import { dydxWebSocketService } from '@/services/dydxWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 
 const TradingDashboard = () => {
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
-  const [showAlchemyWalletSetup, setShowAlchemyWalletSetup] = useState(false);
-  const [showSnxAccountSetup, setShowSnxAccountSetup] = useState(false);
+  const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [snxAccountId, setSnxAccountId] = useState<string | null>(null);
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
@@ -84,64 +79,29 @@ const TradingDashboard = () => {
   // Internal wallet (secure wallet) - automatically loads existing wallet from gold app
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
-  // Alchemy smart wallet for trading
-  const { address: alchemyAddress, isAuthenticated: hasAlchemyWallet, isConnected: alchemyConnected, refreshAccount: refreshAlchemyAccount } = useAlchemyAccount();
-  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useDydxAccount(alchemyAddress || undefined, true);
+  // dYdX wallet and account
+  const { hasDydxWallet, dydxAddress, loading: dydxWalletLoading, refresh: refreshDydxWallet } = useDydxWallet();
+  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useDydxAccount(dydxAddress || undefined, true);
   
-  // dYdX trading (with Alchemy address)
-  const { placeOrder, orderLoading } = useDydxTrading(alchemyAddress || undefined);
+  // dYdX trading
+  const { placeOrder, orderLoading } = useDydxTrading(dydxAddress || undefined);
   
   const { toast } = useToast();
   
 
-  // Show Alchemy wallet setup if user doesn't have one
+  // Show dYdX wallet setup if user doesn't have one
   useEffect(() => {
-    if (user && !hasAlchemyWallet && !alchemyConnected) {
-      setShowAlchemyWalletSetup(true);
+    if (user && !dydxWalletLoading && !hasDydxWallet) {
+      setShowDydxWalletSetup(true);
     }
-  }, [user, hasAlchemyWallet, alchemyConnected]);
+  }, [user, hasDydxWallet, dydxWalletLoading]);
 
-  // Show deposit modal if Alchemy wallet exists but balance is 0
+  // Show deposit modal if dYdX wallet exists but balance is 0
   useEffect(() => {
-    if (hasAlchemyWallet && accountInfo && accountInfo.equity === 0) {
+    if (hasDydxWallet && accountInfo && accountInfo.equity === 0) {
       setShowDepositModal(true);
     }
-  }, [hasAlchemyWallet, accountInfo]);
-
-  // Determine wallet source priority: Alchemy (primary) > Internal > External
-  const snxWalletSource: 'alchemy' | 'internal' | 'external' = 
-    alchemyConnected ? 'alchemy' :
-    internalConnected ? 'internal' :
-    wallet.isConnected ? 'external' :
-    'alchemy'; // Default to Alchemy for new users
-
-  // Check for existing SNX account (works with or without Supabase auth)
-  useEffect(() => {
-    const checkSnxAccount = async () => {
-      // Allow checking even without Supabase user (for Alchemy-only auth)
-      if (!user) {
-        // If no Supabase user, show SNX setup (Alchemy auth will happen there)
-        setShowSnxAccountSetup(true);
-        return;
-      }
-      
-      const { data } = await supabase
-        .from('snx_accounts')
-        .select('account_id')
-        .eq('user_id', user.id)
-        .eq('chain_id', 8453)
-        .maybeSingle();
-      
-      if (data) {
-        setSnxAccountId(data.account_id);
-      } else {
-        // Show setup modal if no account exists
-        setShowSnxAccountSetup(true);
-      }
-    };
-    
-    checkSnxAccount();
-  }, [user]);
+  }, [hasDydxWallet, accountInfo]);
 
   // Real dYdX market data
   const { markets, loading: marketsLoading } = useDydxMarkets();
@@ -225,11 +185,11 @@ const TradingDashboard = () => {
     });
   };
 
-  // Get current wallet data based on selection (use Alchemy account for trading)
-  const currentWalletAddress = alchemyAddress || (walletType === 'internal' ? internalAddress : wallet.address);
+  // Get current wallet data based on selection (use dYdX account for trading)
+  const currentWalletAddress = dydxAddress || (walletType === 'internal' ? internalAddress : wallet.address);
   const currentWalletBalance = accountInfo?.equity || (walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0'));
   const availableBalance = accountInfo?.freeCollateral || currentWalletBalance;
-  const isCurrentWalletConnected = hasAlchemyWallet && !!alchemyAddress;
+  const isCurrentWalletConnected = hasDydxWallet && !!dydxAddress;
 
   const handlePlaceOrder = async () => {
     if (!selectedAsset || !orderSize) {
@@ -390,17 +350,17 @@ const TradingDashboard = () => {
 
           {/* Wallet Info - Always show wallet type selector */}
           {walletType === 'trading' ? (
-            hasAlchemyWallet && alchemyAddress ? (
+            hasDydxWallet && dydxAddress ? (
               <div className="bg-[#2a251a] rounded-lg p-2 border border-[#463c25] space-y-1.5 min-h-[140px]">
                 <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#c6b795] text-xs">Trading Wallet:</span>
                       <button
-                        onClick={() => alchemyAddress && copyAddress(alchemyAddress)}
+                        onClick={() => dydxAddress && copyAddress(dydxAddress)}
                         className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
                       >
-                        {alchemyAddress?.slice(0, 6)}...{alchemyAddress?.slice(-4)}
+                        {dydxAddress?.slice(0, 6)}...{dydxAddress?.slice(-4)}
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
@@ -430,7 +390,7 @@ const TradingDashboard = () => {
                   Refresh Balances
                 </Button>
 
-                {hasAlchemyWallet && (
+                {hasDydxWallet && (
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
@@ -454,10 +414,10 @@ const TradingDashboard = () => {
                   <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
                   <p className="text-white text-sm font-semibold mb-1">No Trading Wallet Found</p>
                   <p className="text-[#c6b795] text-xs mb-3">
-                    Create your Alchemy smart wallet to start trading
+                    Create your dYdX trading wallet to start trading
                   </p>
                   <Button
-                    onClick={() => setShowAlchemyWalletSetup(true)}
+                    onClick={() => setShowDydxWalletSetup(true)}
                     className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
                   >
                     <Shield className="h-4 w-4 mr-2" />
@@ -553,7 +513,7 @@ const TradingDashboard = () => {
                   </div>
                 </div>
 
-                {hasAlchemyWallet && (
+                {hasDydxWallet && (
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
@@ -796,9 +756,9 @@ const TradingDashboard = () => {
         </div>
 
         {/* Open Positions Table */}
-        {hasAlchemyWallet && alchemyAddress && (
+        {hasDydxWallet && dydxAddress && (
           <div className="h-[100px] flex-shrink-0 overflow-hidden">
-            <OpenPositionsTable address={alchemyAddress} currentPrices={currentPrices} />
+            <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
           </div>
         )}
       </main>
@@ -1005,7 +965,7 @@ const TradingDashboard = () => {
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => setShowAlchemyWalletSetup(true)}
+                    onClick={() => setShowDydxWalletSetup(true)}
                     className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm transition-colors duration-150"
                   >
                     <Shield className="h-4 w-4 mr-2" />
@@ -1017,20 +977,20 @@ const TradingDashboard = () => {
           </>
         ) : (
           <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
-            {alchemyAddress ? (
+            {dydxAddress ? (
               <>
-                <PositionManager address={alchemyAddress} currentPrices={currentPrices} />
-                <OrderHistory address={alchemyAddress} />
+                <PositionManager address={dydxAddress} currentPrices={currentPrices} />
+                <OrderHistory address={dydxAddress} />
               </>
             ) : (
               <div className="text-center py-12">
                 <TrendingUpDown className="h-16 w-16 mx-auto mb-4 text-[#e6b951]/40" />
                 <h3 className="text-lg font-semibold text-white mb-2">No Trading Wallet</h3>
                 <p className="text-[#c6b795] text-sm mb-4">
-                  Set up your Alchemy smart wallet to view positions.
+                  Set up your dYdX trading wallet to view positions.
                 </p>
                 <Button
-                  onClick={() => setShowAlchemyWalletSetup(true)}
+                  onClick={() => setShowDydxWalletSetup(true)}
                   className="bg-[#e6b951] hover:bg-[#d4a840] text-black"
                 >
                   <Shield className="h-4 w-4 mr-2" />
@@ -1058,8 +1018,8 @@ const TradingDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Alchemy Wallet Setup Dialog */}
-      <Dialog open={showAlchemyWalletSetup} onOpenChange={setShowAlchemyWalletSetup}>
+      {/* dYdX Wallet Setup Dialog */}
+      <Dialog open={showDydxWalletSetup} onOpenChange={setShowDydxWalletSetup}>
         <DialogContent className="bg-[#2a251a] border-[#463c25]">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
@@ -1067,13 +1027,13 @@ const TradingDashboard = () => {
               Set Up Trading Wallet
             </DialogTitle>
             <DialogDescription className="text-[#c6b795]">
-              Create your Alchemy smart wallet to start trading with leverage.
+              Create your dYdX trading wallet to start trading with leverage.
             </DialogDescription>
           </DialogHeader>
-          <AlchemyWalletSetup 
+          <DydxWalletSetup 
             onComplete={() => {
-              setShowAlchemyWalletSetup(false);
-              refreshAlchemyAccount();
+              setShowDydxWalletSetup(false);
+              refreshDydxWallet();
             }} 
           />
         </DialogContent>
@@ -1090,7 +1050,7 @@ const TradingDashboard = () => {
       <DepositModal
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
-        dydxAddress={alchemyAddress || ''}
+        dydxAddress={dydxAddress || ''}
         internalAddress={internalAddress}
         externalAddress={wallet.address}
         onDepositComplete={() => {
@@ -1104,7 +1064,7 @@ const TradingDashboard = () => {
       <WithdrawModal
         isOpen={showWithdrawModal}
         onClose={() => setShowWithdrawModal(false)}
-        dydxAddress={alchemyAddress || ''}
+        dydxAddress={dydxAddress || ''}
         availableBalance={accountInfo?.freeCollateral || 0}
         internalAddress={internalAddress}
         onWithdrawComplete={() => {
@@ -1113,30 +1073,6 @@ const TradingDashboard = () => {
           setShowWithdrawModal(false);
         }}
       />
-
-      {/* SNX Account Setup Dialog */}
-      <Dialog open={showSnxAccountSetup} onOpenChange={setShowSnxAccountSetup}>
-        <DialogContent>
-          <SnxAccountSetup
-            chainId={8453}
-            onAccountCreated={(accountId) => {
-              setSnxAccountId(accountId.toString());
-              setShowSnxAccountSetup(false);
-              toast({
-                title: "Trading Account Created",
-                description: `Your Synthetix account is ready for trading`,
-              });
-            }}
-            initialWalletSource={snxWalletSource}
-            alchemyAddress={alchemyAddress || undefined}
-            internalAddress={internalAddress || undefined}
-            externalAddress={wallet.address || undefined}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Debug Panel (dev only) */}
-      <AlchemyDebugPanel />
     </div>
   );
 };

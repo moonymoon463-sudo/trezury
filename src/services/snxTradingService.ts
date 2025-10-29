@@ -10,9 +10,6 @@ import type {
   SnxAccount,
   SnxPosition,
   SnxOrder,
-  SnxOrderType,
-  SnxOrderSide,
-  SnxOrderStatus,
   SnxTradeRequest,
   SnxTradeResponse,
   SnxOrderDB,
@@ -115,11 +112,8 @@ class SnxTradingService {
     password?: string
   ): Promise<SnxTradeResponse> {
     try {
-      // Note: With Alchemy Account Kit, all trades go through external wallet flow
-      // The "internal" wallet is deprecated in favor of Alchemy smart wallets
-      if (walletSource === 'internal' && password) {
-        // Legacy support - but recommend migrating to Alchemy
-        return await this.placeTradeInternal(request, chainId, password);
+      if (walletSource === 'internal') {
+        return await this.placeTradeInternal(request, chainId, password!);
       } else {
         return await this.placeTradeExternal(request, chainId);
       }
@@ -223,7 +217,7 @@ class SnxTradingService {
       const receipt = await client.submitTradeTx(signer, tx);
 
       // Record in database
-      const { error: insertError } = await supabase.from('snx_orders').insert({
+      const order: Partial<SnxOrderDB> = {
         user_id: user.id,
         account_id: accountId.toString(),
         market_id: market.marketId.toString(),
@@ -239,11 +233,9 @@ class SnxTradingService {
         tx_hash: receipt.hash,
         chain_id: chainId,
         wallet_source: 'external'
-      });
+      };
 
-      if (insertError) {
-        console.error('[SnxTradingService] Failed to record order:', insertError);
-      }
+      await supabase.from('snx_orders').insert(order);
 
       return {
         success: true,
@@ -275,20 +267,20 @@ class SnxTradingService {
     return data.map(this.mapDbOrderToOrder);
   }
 
-  private mapDbOrderToOrder(dbOrder: any): SnxOrder {
+  private mapDbOrderToOrder(dbOrder: SnxOrderDB): SnxOrder {
     return {
       id: dbOrder.id,
       accountId: BigInt(dbOrder.account_id),
       marketId: BigInt(dbOrder.market_id),
       marketKey: dbOrder.market_key,
-      type: dbOrder.type as SnxOrderType,
-      side: dbOrder.side as SnxOrderSide,
-      size: Number(dbOrder.size),
-      leverage: Number(dbOrder.leverage),
-      price: dbOrder.price ? Number(dbOrder.price) : undefined,
-      status: dbOrder.status as SnxOrderStatus,
-      filledSize: Number(dbOrder.filled_size),
-      filledPrice: dbOrder.filled_price ? Number(dbOrder.filled_price) : undefined,
+      type: dbOrder.type,
+      side: dbOrder.side,
+      size: dbOrder.size,
+      leverage: dbOrder.leverage,
+      price: dbOrder.price,
+      status: dbOrder.status,
+      filledSize: dbOrder.filled_size,
+      filledPrice: dbOrder.filled_price,
       txHash: dbOrder.tx_hash,
       createdAt: new Date(dbOrder.created_at).getTime(),
       filledAt: dbOrder.filled_at ? new Date(dbOrder.filled_at).getTime() : undefined

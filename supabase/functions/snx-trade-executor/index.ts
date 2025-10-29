@@ -6,355 +6,18 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { ethers } from 'npm:ethers@6.15.0';
+import * as crypto from 'https://deno.land/std@0.168.0/node/crypto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Web Crypto API decryption to match frontend
-async function decryptPrivateKey(
-  encryptedKey: string,
-  iv: string,
-  salt: string,
-  password: string
-): Promise<string> {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  // Base64 decode
-  const encryptedBytes = Uint8Array.from(atob(encryptedKey), c => c.charCodeAt(0));
-  const ivBytes = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
-  const saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
-
-  // Derive key using PBKDF2
-  const passwordKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-
-  const keyMaterial = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt: saltBytes,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    passwordKey,
-    256
-  );
-
-  const aesKey = await crypto.subtle.importKey(
-    'raw',
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt']
-  );
-
-  // Decrypt
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: ivBytes },
-    aesKey,
-    encryptedBytes
-  );
-
-  return decoder.decode(decrypted);
-}
-
 // Perps Market ABI (minimal)
 const PERPS_MARKET_ABI = [
   'function commitOrder(tuple(uint128 marketId, uint128 accountId, int128 sizeDelta, uint128 settlementStrategyId, uint256 acceptablePrice, bytes32 trackingCode, address referrer) commitment) payable',
-  'function settleOrder(uint128 accountId, uint128 marketId)',
-  'function indexPrice(uint128 marketId) view returns (uint256)'
+  'function settleOrder(uint128 accountId, uint128 marketId)'
 ];
-
-// Account Proxy ABI
-const ACCOUNT_PROXY_ABI = [
-  'function createAccount() external returns (uint128)',
-  'event AccountCreated(uint128 indexed accountId, address indexed owner)'
-];
-
-  // Account creation handler
-async function handleAccountCreation(
-  user: any,
-  password: string,
-  chainId: number,
-  supabase: any
-) {
-  console.log('[CreateAccount] Starting for user:', user.id, 'chain:', chainId);
-
-  // Get wallet data
-  const { data: walletData, error: walletError } = await supabase
-    .from('encrypted_wallet_keys')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
-
-  if (walletError || !walletData) {
-    console.error('[CreateAccount] Wallet not found:', walletError);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Internal wallet not found' }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  // Decrypt private key
-  let privateKey: string;
-  try {
-    privateKey = await decryptPrivateKey(
-      walletData.encrypted_private_key,
-      walletData.encryption_iv,
-      walletData.encryption_salt,
-      password
-    );
-  } catch (err) {
-    console.error('[CreateAccount] Decryption failed:', err);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Incorrect password' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  // Initialize provider and wallet
-  const rpcUrl = chainId === 8453 ? 'https://mainnet.base.org' :
-                 chainId === 1 ? 'https://eth.llamarpc.com' :
-                 chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' :
-                 'https://mainnet.optimism.io';
-  
-  console.log('[CreateAccount] Using RPC:', rpcUrl);
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const wallet = new ethers.Wallet(privateKey, provider);
-
-  console.log('[CreateAccount] Wallet address:', wallet.address);
-
-  // Get account proxy address
-  const addresses: Record<number, string> = {
-    8453: '0x63f4Dd0434BEB5baeCD27F3778a909278d8cf5b8', // Base
-    42161: '0xcb68b813210aFa0373F076239Ad4803f8809e8cf', // Arbitrum
-    1: '0x0E429603D3Cb1DFae4E6F52Add5fE82d96d77Dac' // Ethereum
-  };
-
-  const accountProxyAddress = addresses[chainId];
-  if (!accountProxyAddress) {
-    console.error('[CreateAccount] Unsupported chainId:', chainId);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Chain not supported' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  console.log('[CreateAccount] AccountProxy address:', accountProxyAddress);
-
-  // Verify contract exists at address
-  try {
-    const contractCode = await provider.getCode(accountProxyAddress);
-    if (contractCode === '0x') {
-      console.error('[CreateAccount] No contract at address:', accountProxyAddress);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'AccountProxy contract not deployed',
-          details: `No bytecode at ${accountProxyAddress} on chain ${chainId}`,
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    console.log('[CreateAccount] Contract verified (bytecode length:', contractCode.length, 'bytes)');
-  } catch (err: any) {
-    console.error('[CreateAccount] Failed to verify contract:', err.message);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Failed to connect to blockchain',
-        details: err.message
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const accountProxy = new ethers.Contract(accountProxyAddress, ACCOUNT_PROXY_ABI, wallet);
-
-  // Check gas balance with robust error handling
-  console.log('[CreateAccount] Estimating gas requirements...');
-  const balance = await provider.getBalance(wallet.address);
-  
-  let estimatedGas: bigint;
-  try {
-    estimatedGas = await accountProxy.createAccount.estimateGas();
-    // Add 20% buffer for safety
-    estimatedGas = (estimatedGas * 120n) / 100n;
-    console.log('[CreateAccount] Gas estimate (with buffer):', estimatedGas.toString());
-  } catch (err: any) {
-    console.error('[CreateAccount] Gas estimation failed:', err);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Failed to estimate gas. Your wallet may need ETH funding first.',
-        details: err.message,
-        walletAddress: wallet.address,
-        currentBalance: ethers.formatEther(balance)
-      }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const feeData = await provider.getFeeData();
-  const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice ?? BigInt(0);
-  const estimatedCost = estimatedGas * gasPrice;
-
-  console.log('[CreateAccount] Gas details:', {
-    estimatedGas: estimatedGas.toString(),
-    gasPrice: ethers.formatUnits(gasPrice, 'gwei') + ' gwei',
-    estimatedCost: ethers.formatEther(estimatedCost) + ' ETH',
-    balance: ethers.formatEther(balance) + ' ETH'
-  });
-
-  if (balance < estimatedCost) {
-    console.warn('[CreateAccount] Insufficient balance for gas');
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Insufficient gas funds',
-        walletAddress: wallet.address,
-        requiredGas: ethers.formatEther(estimatedCost),
-        currentBalance: ethers.formatEther(balance)
-      }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  // Create account with comprehensive error handling and decoding
-  console.log('[CreateAccount] Contract details:', {
-    address: accountProxyAddress,
-    walletAddress: wallet.address,
-    chainId: chainId
-  });
-  
-  console.log('[CreateAccount] Calling createAccount()...');
-  let tx, receipt;
-  try {
-    tx = await accountProxy.createAccount();
-    console.log('[CreateAccount] Transaction sent:', tx.hash);
-    receipt = await tx.wait();
-    console.log('[CreateAccount] Transaction confirmed:', receipt.hash);
-  } catch (err: any) {
-    console.error('[CreateAccount] Transaction failed:', {
-      error: err.message,
-      code: err.code,
-      data: err.data,
-      reason: err.reason,
-      transaction: err.transaction
-    });
-    
-    // Decode custom error selector
-    let errorMsg = 'Transaction failed';
-    let errorDetails: any = { walletAddress: wallet.address };
-    
-    if (err.data) {
-      const errorData = typeof err.data === 'string' ? err.data : err.data.data;
-      console.log('[CreateAccount] Error data:', errorData);
-      
-      // Check for known error selectors
-      if (errorData?.startsWith('0xc2a825f5')) {
-        errorMsg = 'Account creation rejected by contract (error 0xc2a825f5)';
-        errorDetails.errorSelector = '0xc2a825f5';
-        errorDetails.hint = 'This may indicate insufficient permissions, feature flags, or contract configuration issues';
-      } else if (errorData?.startsWith('0x')) {
-        errorDetails.errorSelector = errorData.slice(0, 10);
-        errorMsg = `Contract reverted with error: ${errorDetails.errorSelector}`;
-      }
-    }
-    
-    if (err.reason) {
-      errorMsg = err.reason;
-    } else if (err.message?.includes('insufficient funds')) {
-      errorMsg = 'Insufficient ETH for gas fees';
-      errorDetails.requiredGas = ethers.formatEther(estimatedCost);
-      errorDetails.currentBalance = ethers.formatEther(balance);
-    } else if (err.message?.includes('execution reverted')) {
-      if (!errorMsg.includes('rejected')) {
-        errorMsg = 'Transaction reverted by contract';
-      }
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: errorMsg,
-        details: err.message,
-        ...errorDetails
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  // Parse account ID from logs
-  let accountId: bigint | undefined;
-  for (const log of receipt.logs) {
-    if (log.address.toLowerCase() === accountProxyAddress.toLowerCase()) {
-      try {
-        const parsed = accountProxy.interface.parseLog({
-          topics: [...log.topics],
-          data: log.data
-        });
-        if (parsed && parsed.name === 'AccountCreated') {
-          accountId = parsed.args.accountId;
-          console.log('[CreateAccount] Account ID from event:', accountId.toString());
-          break;
-        }
-      } catch (e) {
-        // Try parsing from topics directly
-        if (log.topics.length > 1) {
-          accountId = BigInt(log.topics[1]);
-          console.log('[CreateAccount] Account ID from topics:', accountId.toString());
-          break;
-        }
-      }
-    }
-  }
-
-  if (!accountId) {
-    console.warn('[CreateAccount] Failed to parse account ID from logs. Receipt:', JSON.stringify(receipt, null, 2));
-    return new Response(
-      JSON.stringify({ success: false, error: 'Failed to parse account ID' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  // Store in database
-  const { error: insertError } = await supabase
-    .from('snx_accounts')
-    .insert({
-      user_id: user.id,
-      account_id: accountId.toString(),
-      chain_id: chainId,
-      wallet_address: wallet.address
-    });
-
-  if (insertError) {
-    console.error('[CreateAccount] Database insert failed:', insertError);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Failed to store account' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  console.log('[CreateAccount] Success! Account ID:', accountId.toString());
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      accountId: accountId.toString(),
-      txHash: receipt.hash,
-      walletAddress: wallet.address
-    }),
-    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
 
 // Rate limiting: Track last trade time per user
 const userRateLimit = new Map<string, number>();
@@ -393,19 +56,7 @@ serve(async (req) => {
     }
 
     // Parse request
-    const { operation, request, chainId, password } = await req.json();
-
-    // Handle account creation - DEPRECATED
-    if (operation === 'create_account') {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Account creation via edge function is deprecated. Please use Alchemy Account Kit integration in the UI.',
-          deprecated: true
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { request, chainId, password } = await req.json();
 
     // Rate limiting check
     const lastTrade = userRateLimit.get(user.id) || 0;
@@ -457,22 +108,23 @@ serve(async (req) => {
       );
     }
 
-    // Decrypt wallet key using Web Crypto API
-    let privateKey: string;
-    try {
-      privateKey = await decryptPrivateKey(
-        walletData.encrypted_private_key,
-        walletData.encryption_iv,
-        walletData.encryption_salt,
-        password
-      );
-    } catch (err) {
-      console.error('[SnxTradeExecutor] Decryption failed:', err);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Incorrect password' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Decrypt wallet key
+    const key = crypto.pbkdf2Sync(
+      password,
+      Buffer.from(walletData.salt, 'hex'),
+      100000,
+      32,
+      'sha256'
+    );
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      key,
+      Buffer.from(walletData.iv, 'hex')
+    );
+    decipher.setAuthTag(Buffer.from(walletData.auth_tag, 'hex'));
+    
+    let privateKey = decipher.update(walletData.encrypted_key, 'hex', 'utf8');
+    privateKey += decipher.final('utf8');
 
     // Initialize provider & signer
     const rpcUrl = chainId === 8453 ? 'https://mainnet.base.org' :
@@ -539,20 +191,8 @@ serve(async (req) => {
     // Calculate size delta (positive for long, negative for short)
     const sizeDelta = request.side === 'BUY' ? request.size : -request.size;
 
-    // Fetch real-time price from Synthetix oracle
-    let currentPrice: number;
-    try {
-      const priceRaw = await perpsMarket.indexPrice(BigInt(marketInfo.marketId));
-      currentPrice = Number(ethers.formatEther(priceRaw));
-      console.log('[SnxTradeExecutor] Real-time price from oracle:', currentPrice);
-    } catch (err) {
-      console.error('[SnxTradeExecutor] Failed to fetch oracle price:', err);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch market price' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Get current price (simplified - use oracle price)
+    const currentPrice = 3500; // TODO: Fetch from Pyth oracle
     const slippageBps = request.slippageBps || 50;
     const acceptablePrice = request.side === 'BUY'
       ? currentPrice * (1 + slippageBps / 10000)
@@ -576,7 +216,7 @@ serve(async (req) => {
 
     console.log('[SnxTradeExecutor] Order committed:', receipt.hash);
 
-    // Record order in database with settlement metadata
+    // Record order in database
     const { error: insertError } = await supabase
       .from('snx_orders')
       .insert({
@@ -589,17 +229,12 @@ serve(async (req) => {
         size: request.size,
         leverage: request.leverage,
         price: request.price,
-        status: 'PENDING',
+        status: 'FILLED',
         filled_size: request.size,
         filled_price: currentPrice,
         tx_hash: receipt.hash,
         chain_id: chainId,
-        wallet_source: 'internal',
-        metadata: {
-          needsSettlement: true,
-          commitTime: Date.now(),
-          settlementDelay: 10
-        }
+        wallet_source: 'internal'
       });
 
     if (insertError) {
