@@ -7,26 +7,32 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, Sparkles, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, RefreshCw, Mail, Sparkles, AlertCircle, Shield } from 'lucide-react';
 import { useAccount, useAuthenticate, useSignerStatus, useSmartAccountClient } from '@account-kit/react';
 import { snxAccountService } from '@/services/snxAccountService';
 import { ethers } from 'ethers';
+import { secureWalletService } from '@/services/secureWalletService';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SnxAccountSetupProps {
   chainId: number;
   onAccountCreated: (accountId: bigint) => void;
+  useInternalWallet?: boolean;
 }
 
-export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupProps) {
+export function SnxAccountSetup({ chainId, onAccountCreated, useInternalWallet = false }: SnxAccountSetupProps) {
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [isAwaitingOTP, setIsAwaitingOTP] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [walletPassword, setWalletPassword] = useState('');
+  const [needsPassword, setNeedsPassword] = useState(false);
   
   const { address } = useAccount({ type: "LightAccount" });
   const { authenticate, isPending: isAuthenticating } = useAuthenticate();
   const signerStatus = useSignerStatus();
   const { client } = useSmartAccountClient({ type: "LightAccount" });
+  const { user } = useAuth();
   
   const [accountId, setAccountId] = useState<bigint | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(false);
@@ -189,6 +195,13 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
   };
 
   const handleCreateAccount = async () => {
+    if (useInternalWallet) {
+      // Show password prompt for internal wallet
+      setNeedsPassword(true);
+      return;
+    }
+
+    // Alchemy wallet flow
     if (!address || !client) {
       toast.error('Wallet not connected');
       return;
@@ -240,16 +253,144 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
     }
   };
 
+  const handleCreateWithInternalWallet = async () => {
+    if (!walletPassword) {
+      toast.error('Password required');
+      return;
+    }
+
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsCreatingAccount(true);
+    setNeedsPassword(false);
+    
+    try {
+      console.log('[SNX Account Setup] Creating account with internal wallet...');
+      
+      // Get private key from internal wallet
+      const privateKey = await secureWalletService.revealPrivateKey(user.id, walletPassword);
+      
+      // Create signer connected to Base network
+      const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
+      const wallet = new ethers.Wallet(privateKey, provider);
+      
+      console.log('[SNX Account Setup] Using internal wallet:', wallet.address);
+      
+      toast.info('Creating your Synthetix account...', { duration: 2000 });
+      
+      // Create Synthetix account
+      const result = await snxAccountService.createAccount(wallet, chainId);
+      
+      if (result.success && result.accountId) {
+        toast.success('Trading account created successfully!');
+        setAccountId(result.accountId);
+        console.log('[SNX Account Setup] Account created:', result.accountId);
+        setWalletPassword(''); // Clear password
+      } else {
+        toast.error(result.error || 'Failed to create account');
+      }
+    } catch (error) {
+      console.error('[SNX Account Setup] Account creation error:', error);
+      
+      let errorMessage = 'Failed to create account';
+      if (error instanceof Error) {
+        if (error.message.includes('password') || error.message.includes('decrypt')) {
+          errorMessage = 'Invalid password';
+        } else if (error.message.includes('gas')) {
+          errorMessage = 'Insufficient ETH for gas fees';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient ETH balance';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
+      setNeedsPassword(true); // Show password prompt again
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Synthetix Trading Account</CardTitle>
       <CardDescription>
-        Sign in with email to access perpetual futures trading
+        {useInternalWallet 
+          ? 'Create your trading account using your secure internal wallet'
+          : 'Sign in with email to access perpetual futures trading'
+        }
       </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {showEmailInput && (
+        {/* Password prompt for internal wallet */}
+        {useInternalWallet && needsPassword && (
+          <div className="space-y-4">
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Secure Wallet Authentication</strong>
+                <div className="text-sm mt-2">
+                  Enter your wallet password to create your trading account using your internal wallet (which has ETH for gas).
+                </div>
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-2">
+              <Label htmlFor="wallet-password">Wallet Password</Label>
+              <Input
+                id="wallet-password"
+                type="password"
+                placeholder="Enter your wallet password"
+                value={walletPassword}
+                onChange={(e) => setWalletPassword(e.target.value)}
+                disabled={isCreatingAccount}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && walletPassword) {
+                    handleCreateWithInternalWallet();
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCreateWithInternalWallet}
+                disabled={!walletPassword || isCreatingAccount}
+                className="flex-1"
+              >
+                {isCreatingAccount ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Create Account
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNeedsPassword(false);
+                  setWalletPassword('');
+                }}
+                disabled={isCreatingAccount}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Show email/OTP flow only if not using internal wallet or password not needed */}
+        {!useInternalWallet && showEmailInput && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -282,7 +423,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
           </div>
         )}
 
-        {showOTPInput && (
+        {!useInternalWallet && showOTPInput && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="otp">Verification Code</Label>
@@ -352,7 +493,7 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
           </div>
         )}
 
-        {showAccountCheck && (
+        {!useInternalWallet && showAccountCheck && (
           <>
             {isCheckingAccount ? (
               <Alert>
@@ -425,14 +566,28 @@ export function SnxAccountSetup({ chainId, onAccountCreated }: SnxAccountSetupPr
           </>
         )}
 
-        <Alert>
-          <AlertDescription className="text-xs text-muted-foreground">
-            <strong>Powered by Alchemy Account Kit</strong>
-            <div className="mt-1">
-              Email authentication with embedded smart wallet for gasless trading
-            </div>
-          </AlertDescription>
-        </Alert>
+        {!useInternalWallet && (
+          <Alert>
+            <AlertDescription className="text-xs text-muted-foreground">
+              <strong>Powered by Alchemy Account Kit</strong>
+              <div className="mt-1">
+                Email authentication with embedded smart wallet for gasless trading
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {useInternalWallet && !needsPassword && (
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertDescription className="text-xs text-muted-foreground">
+              <strong>Using Your Secure Internal Wallet</strong>
+              <div className="mt-1">
+                Your trading account will be created using your internal wallet which has ETH for gas fees.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );

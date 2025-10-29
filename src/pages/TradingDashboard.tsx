@@ -1120,6 +1120,7 @@ const TradingDashboard = () => {
                 description: `Your Synthetix account is ready for trading`,
               });
             }}
+            useInternalWallet={true}
           />
         </DialogContent>
       </Dialog>
