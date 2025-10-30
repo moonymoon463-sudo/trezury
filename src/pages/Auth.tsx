@@ -51,7 +51,8 @@ const Auth = () => {
     if (returnUrl && !returnUrl.startsWith('/auth')) {
       return <Navigate to={returnUrl} replace />;
     }
-    return <Navigate to="/" replace />;
+    // Default to trading dashboard for authenticated users
+    return <Navigate to="/trading-dashboard" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -68,7 +69,7 @@ const Auth = () => {
       if (returnUrl && !returnUrl.startsWith('/auth')) {
         window.location.href = returnUrl;
       } else {
-        window.location.href = '/';
+        window.location.href = '/trading-dashboard';
       }
     }
     setIsSubmitting(false);
@@ -130,7 +131,7 @@ const Auth = () => {
       if (returnUrl && !returnUrl.startsWith('/auth')) {
         window.location.href = returnUrl;
       } else {
-        window.location.href = '/';
+        window.location.href = '/trading-dashboard';
       }
     }
     setIsSubmitting(false);
