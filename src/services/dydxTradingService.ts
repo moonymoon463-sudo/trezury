@@ -46,8 +46,10 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      this.setCache(cacheKey, data, 5);
-      return data;
+      // Edge function returns { success: true, account: {...} }
+      const accountInfo = data.account || data;
+      this.setCache(cacheKey, accountInfo, 5);
+      return accountInfo;
     } catch (err) {
       console.error('[DydxTradingService] Failed to get account info:', err);
       throw err;
@@ -74,8 +76,10 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      this.setCache(cacheKey, data, 30);
-      return data;
+      // Edge function returns { success: true, config: {...} }
+      const config = data.config || data;
+      this.setCache(cacheKey, config, 30);
+      return config;
     } catch (err) {
       console.error('[DydxTradingService] Failed to get leverage config:', err);
       throw err;
@@ -136,6 +140,8 @@ class DydxTradingService {
 
   async placeMarketOrder(request: OrderRequest & { password: string }): Promise<OrderResponse> {
     try {
+      console.log('[DydxTradingService] Placing market order:', request);
+      
       const { data, error } = await supabase.functions.invoke('dydx-trading', {
         body: {
           operation: 'place_order',
@@ -144,7 +150,21 @@ class DydxTradingService {
       });
 
       if (error) {
-        return { success: false, error: error.message, errorCode: 'EXECUTION_ERROR' };
+        console.error('[DydxTradingService] Edge function error:', error);
+        return { 
+          success: false, 
+          error: error.message || 'Failed to place order', 
+          errorCode: 'EXECUTION_ERROR' 
+        };
+      }
+
+      // Handle both success/failure responses from edge function
+      if (data.success === false) {
+        return { 
+          success: false, 
+          error: data.message || data.error || 'Order failed', 
+          errorCode: data.error || 'ORDER_FAILED' 
+        };
       }
 
       return { success: true, order: data.order, txHash: data.txHash };
@@ -164,6 +184,8 @@ class DydxTradingService {
     }
 
     try {
+      console.log('[DydxTradingService] Placing limit order:', request);
+      
       const { data, error } = await supabase.functions.invoke('dydx-trading', {
         body: {
           operation: 'place_order',
@@ -172,7 +194,21 @@ class DydxTradingService {
       });
 
       if (error) {
-        return { success: false, error: error.message, errorCode: 'EXECUTION_ERROR' };
+        console.error('[DydxTradingService] Edge function error:', error);
+        return { 
+          success: false, 
+          error: error.message || 'Failed to place order', 
+          errorCode: 'EXECUTION_ERROR' 
+        };
+      }
+
+      // Handle both success/failure responses from edge function
+      if (data.success === false) {
+        return { 
+          success: false, 
+          error: data.message || data.error || 'Order failed', 
+          errorCode: data.error || 'ORDER_FAILED' 
+        };
       }
 
       return { success: true, order: data.order, txHash: data.txHash };
