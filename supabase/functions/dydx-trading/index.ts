@@ -35,8 +35,14 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 serve(async (req) => {
+  console.log('[dydx-trading] Request received:', req.method, req.url);
+  
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders });
+    return new Response('ok', { 
+      status: 200, 
+      statusText: 'OK',
+      headers: corsHeaders 
+    });
   }
 
   try {
@@ -46,13 +52,22 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('[dydx-trading] Authentication failed:', authError);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'UNAUTHORIZED',
+        message: 'Authentication required' 
+      }), {
         status: 401,
+        statusText: 'Unauthorized',
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('[dydx-trading] Authenticated user:', user.id);
+
     const { operation, params } = await req.json();
+    console.log('[dydx-trading] Operation:', operation, 'Params:', JSON.stringify(params));
     
     // dYdX Indexer URL (no SDK needed for read-only operations)
     const indexerUrl = Deno.env.get('DYDX_NETWORK') === 'mainnet'
@@ -61,7 +76,16 @@ serve(async (req) => {
 
     // Ping operation for health checks
     if (operation === 'ping') {
-      return new Response(JSON.stringify({ ok: true, timestamp: Date.now() }), {
+      console.log('[dydx-trading] Ping received');
+      return new Response(JSON.stringify({ 
+        success: true, 
+        ok: true, 
+        timestamp: Date.now(),
+        service: 'dydx-trading',
+        version: '2.0.0'
+      }), {
+        status: 200,
+        statusText: 'OK',
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
@@ -73,10 +97,15 @@ serve(async (req) => {
         
         if (!response.ok) {
           console.error(`[dydx-trading] Indexer error: ${response.status}`);
-          return new Response(JSON.stringify({
-            success: false,
-            error: `Indexer API error: ${response.status}`
-          }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'INDEXER_ERROR',
+          message: `dYdX Indexer API returned ${response.status}`
+        }), { 
+          status: 502, 
+          statusText: 'Bad Gateway',
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
         }
         
         const data = await response.json();
@@ -96,24 +125,43 @@ serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           account: accountInfo
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }), { 
+          status: 200,
+          statusText: 'OK',
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       } catch (err) {
         console.error('[dydx-trading] get_account error:', err);
         return new Response(JSON.stringify({
           success: false,
-          error: err.message || 'Failed to fetch account'
-        }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          error: 'ACCOUNT_FETCH_ERROR',
+          message: err.message || 'Failed to fetch account'
+        }), { 
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       }
     }
 
     if (operation === 'get_leverage_config') {
+      console.log('[dydx-trading] Getting leverage config for:', params.market);
       const limits: Record<string, number> = { 'BTC-USD': 20, 'ETH-USD': 20, 'SOL-USD': 10, 'DOGE-USD': 10 };
       const max = limits[params.market] || 10;
       
       return new Response(JSON.stringify({
         success: true,
-        config: { market: params.market, maxLeverage: max, initialMarginFraction: 1/max, maintenanceMarginFraction: 1/(max*2) }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        config: { 
+          market: params.market, 
+          maxLeverage: max, 
+          initialMarginFraction: 1/max, 
+          maintenanceMarginFraction: 1/(max*2) 
+        }
+      }), { 
+        status: 200,
+        statusText: 'OK',
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     if (operation === 'place_order') {
@@ -198,8 +246,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ 
           success: true, 
           order, 
-          txHash: tx.hash 
+          txHash: tx.hash,
+          message: 'Order placed successfully'
         }), {
+          status: 200,
+          statusText: 'OK',
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       } catch (error) {
@@ -230,13 +281,27 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: 'Unknown operation' }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    console.error('[dydx-trading] Unknown operation:', operation);
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: 'UNKNOWN_OPERATION',
+      message: `Operation '${operation}' is not supported` 
+    }), {
+      status: 400, 
+      statusText: 'Bad Request',
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
-    console.error('dydx-trading error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    console.error('[dydx-trading] Unhandled error:', error);
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: error.message || 'Internal server error',
+      stack: error.stack
+    }), {
+      status: 500, 
+      statusText: 'Internal Server Error',
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
