@@ -69,6 +69,7 @@ import AlertManagementSystem from "./components/admin/AlertManagementSystem";
 import CapacityPlanningDashboard from "./components/admin/CapacityPlanningDashboard";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import TradingDashboard from "./pages/TradingDashboard";
+import O1TradingDashboard from "./pages/O1TradingDashboard";
 import DydxTradesHistory from "./pages/DydxTradesHistory";
 
 const queryClient = new QueryClient();
@@ -153,6 +154,7 @@ const AppRoutes = () => {
       <Route path="/admin/airdrops" element={<ProtectedRoute><AdminAirdrops /></ProtectedRoute>} />
       <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
       <Route path="/trading-dashboard" element={<ProtectedRoute><TradingDashboard /></ProtectedRoute>} />
+      <Route path="/trading/01" element={<ProtectedRoute><O1TradingDashboard /></ProtectedRoute>} />
       <Route path="/dydx-trades" element={<ProtectedRoute><DydxTradesHistory /></ProtectedRoute>} />
       <Route path="/moonpay/callback" element={<ProtectedRoute><MoonPayCallback /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
