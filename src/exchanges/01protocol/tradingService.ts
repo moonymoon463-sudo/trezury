@@ -176,15 +176,92 @@ class ZoTradingService {
    */
   async getMarkets(): Promise<any[]> {
     try {
-      // This would call the market data service we created earlier
-      const response = await fetch('https://api.01.xyz/v1/markets');
-      if (!response.ok) {
-        throw new Error('Failed to fetch markets');
-      }
-      const data = await response.json();
-      return data.markets || [];
-    } catch (err) {
-      console.error('[01Trading] Failed to fetch markets:', err);
+      const { data, error } = await supabase.functions.invoke('01-market-data', {
+        body: { action: 'getMarkets' }
+      });
+
+      if (error) throw error;
+      if (!data.ok) throw new Error(data.error);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching markets:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get orderbook for a market
+   */
+  async getOrderbook(symbol: string, depth: number = 20): Promise<any> {
+    try {
+      const { data, error } = await supabase.functions.invoke('01-market-data', {
+        body: { action: 'getOrderbook', symbol, depth }
+      });
+
+      if (error) throw error;
+      if (!data.ok) throw new Error(data.error);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching orderbook:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get recent trades for a market
+   */
+  async getTrades(symbol: string, limit: number = 50): Promise<any[]> {
+    try {
+      const { data, error } = await supabase.functions.invoke('01-market-data', {
+        body: { action: 'getTrades', symbol, limit }
+      });
+
+      if (error) throw error;
+      if (!data.ok) throw new Error(data.error);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching trades:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get funding rate for a market
+   */
+  async getFundingRate(symbol: string): Promise<any> {
+    try {
+      const { data, error } = await supabase.functions.invoke('01-market-data', {
+        body: { action: 'getFundingRate', symbol }
+      });
+
+      if (error) throw error;
+      if (!data.ok) throw new Error(data.error);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching funding rate:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get candles/OHLCV data for a market
+   */
+  async getCandles(symbol: string, interval: string = '1h', limit: number = 100): Promise<any[]> {
+    try {
+      const { data, error } = await supabase.functions.invoke('01-market-data', {
+        body: { action: 'getCandles', symbol, interval, limit }
+      });
+
+      if (error) throw error;
+      if (!data.ok) throw new Error(data.error);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching candles:', error);
       return [];
     }
   }

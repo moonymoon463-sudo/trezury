@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { TrendingUp, TrendingDown, Loader2, X } from 'lucide-react';
 import { use01Trading } from '@/hooks/use01Trading';
+import { use01Ticker } from '@/hooks/use01Ticker';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -39,6 +40,23 @@ export const O1PositionsTable = () => {
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<typeof mockPositions[0] | null>(null);
   const [password, setPassword] = useState('');
+
+  // Subscribe to real-time prices for all positions
+  const solTicker = use01Ticker('SOL-PERP');
+  
+  // Calculate real-time P&L
+  const getPositionPnL = (position: typeof mockPositions[0]) => {
+    const ticker = position.market === 'SOL-PERP' ? solTicker.ticker : null;
+    const currentPrice = ticker?.price || position.markPrice;
+    
+    const pnl = position.side === 'long'
+      ? (currentPrice - position.entryPrice) * position.size
+      : (position.entryPrice - currentPrice) * position.size;
+    
+    const pnlPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100;
+    
+    return { pnl, pnlPercent: position.side === 'long' ? pnlPercent : -pnlPercent };
+  };
 
   const handleOpenCloseDialog = (position: typeof mockPositions[0]) => {
     setSelectedPosition(position);
@@ -84,7 +102,8 @@ export const O1PositionsTable = () => {
       <ScrollArea className="h-full">
         <div className="p-4 space-y-3">
           {positions.map((position) => {
-            const isProfit = position.unrealizedPnl > 0;
+            const { pnl, pnlPercent } = getPositionPnL(position);
+            const isProfit = pnl > 0;
             const isClosing = closingMarket === position.market;
 
             return (
@@ -160,10 +179,10 @@ export const O1PositionsTable = () => {
                         <TrendingDown className="h-4 w-4" />
                       )}
                       <span>
-                        {isProfit ? '+' : ''}${position.unrealizedPnl.toFixed(2)}
+                        {isProfit ? '+' : ''}${pnl.toFixed(2)}
                       </span>
                       <span className="text-sm opacity-70">
-                        ({isProfit ? '+' : ''}{position.pnlPercent.toFixed(2)}%)
+                        ({isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%)
                       </span>
                     </div>
                   </div>

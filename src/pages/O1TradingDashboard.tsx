@@ -3,24 +3,28 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, TrendingUp, TrendingDown, Settings } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Settings, Activity } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { use01Markets } from '@/hooks/use01Markets';
+import { use01Ticker } from '@/hooks/use01Ticker';
 import AurumLogo from '@/components/AurumLogo';
 import { O1MarketList } from '@/components/trading/O1MarketList';
 import { O1OrderEntry } from '@/components/trading/O1OrderEntry';
 import { O1PositionsTable } from '@/components/trading/O1PositionsTable';
 import { O1OrderHistory } from '@/components/trading/O1OrderHistory';
+import { O1Orderbook } from '@/components/trading/O1Orderbook';
+import { O1DepthChart } from '@/components/trading/O1DepthChart';
 
 const O1TradingDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { markets, loading: marketsLoading, error: marketsError, refetch: refetchMarkets } = use01Markets();
-  
   const [selectedMarket, setSelectedMarket] = useState('SOL-PERP');
   const [activeTab, setActiveTab] = useState<'trade' | 'positions' | 'history'>('trade');
   const [refreshing, setRefreshing] = useState(false);
+  
+  const { markets, loading: marketsLoading, error: marketsError, refetch: refetchMarkets } = use01Markets();
+  const { ticker, loading: tickerLoading } = use01Ticker(selectedMarket);
 
   // Auto-select first market when data loads
   useEffect(() => {
@@ -51,7 +55,9 @@ const O1TradingDashboard = () => {
   }
 
   const currentMarket = markets.find(m => m.symbol === selectedMarket);
-  const isPriceUp = currentMarket ? currentMarket.change24h >= 0 : true;
+  const isPriceUp = ticker ? ticker.change24h >= 0 : (currentMarket ? currentMarket.change24h >= 0 : true);
+  const displayPrice = ticker?.price || currentMarket?.markPrice || 0;
+  const displayChange = ticker?.change24h || currentMarket?.change24h || 0;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -106,15 +112,18 @@ const O1TradingDashboard = () => {
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50">
           <div className="flex items-center gap-4">
             <div>
-              <h2 className="text-foreground text-2xl font-bold">{selectedMarket}</h2>
-              {currentMarket && (
+              <h2 className="text-foreground text-2xl font-bold flex items-center gap-2">
+                {selectedMarket}
+                {!tickerLoading && <Activity className="h-4 w-4 text-status-success animate-pulse" />}
+              </h2>
+              {(ticker || currentMarket) && (
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-foreground text-xl font-semibold">
-                    ${currentMarket.markPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <Badge variant={isPriceUp ? 'default' : 'destructive'} className="gap-1">
                     {isPriceUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {isPriceUp ? '+' : ''}{currentMarket.change24h.toFixed(2)}%
+                    {isPriceUp ? '+' : ''}{displayChange.toFixed(2)}%
                   </Badge>
                 </div>
               )}
@@ -131,14 +140,25 @@ const O1TradingDashboard = () => {
 
         {/* Main Trading Area */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Chart Area (Placeholder for now) */}
-          <div className="flex-1 p-4">
-            <Card className="h-full bg-card/50 border-border/40 flex items-center justify-center">
+          {/* Left - Chart & Depth */}
+          <div className="flex-1 flex flex-col p-4 gap-4">
+            {/* Price Chart */}
+            <Card className="flex-1 bg-card/50 border-border/40 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-muted-foreground text-sm mb-2">Chart Coming Soon</p>
-                <p className="text-muted-foreground/60 text-xs">Real-time price chart will be integrated here</p>
+                <p className="text-muted-foreground text-sm mb-2">TradingView Chart</p>
+                <p className="text-muted-foreground/60 text-xs">Advanced charting coming soon</p>
               </div>
             </Card>
+
+            {/* Depth Chart */}
+            <div className="h-64">
+              <O1DepthChart symbol={selectedMarket} />
+            </div>
+          </div>
+
+          {/* Middle - Orderbook */}
+          <div className="w-80 border-l border-border">
+            <O1Orderbook symbol={selectedMarket} />
           </div>
 
           {/* Right Panel - Order Entry & Positions */}
@@ -157,7 +177,7 @@ const O1TradingDashboard = () => {
               {activeTab === 'trade' && (
                 <O1OrderEntry 
                   market={selectedMarket}
-                  currentPrice={currentMarket?.markPrice || 0}
+                  currentPrice={displayPrice}
                 />
               )}
               {activeTab === 'positions' && (
