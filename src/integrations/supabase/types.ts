@@ -2956,6 +2956,51 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          market: string | null
+          operation: string
+          order_id: string | null
+          price: number | null
+          result: Json | null
+          side: string | null
+          size: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          market?: string | null
+          operation: string
+          order_id?: string | null
+          price?: number | null
+          result?: Json | null
+          side?: string | null
+          size?: number | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          market?: string | null
+          operation?: string
+          order_id?: string | null
+          price?: number | null
+          result?: Json | null
+          side?: string | null
+          size?: number | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_alerts: {
         Row: {
           alert_type: string
