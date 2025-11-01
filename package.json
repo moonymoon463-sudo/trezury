@@ -49,6 +49,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@skip-go/widget": "^3.14.15",
+    "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.57.4",
     "@synthetixio/contracts": "^1.2.5",
     "@synthetixio/wei": "^2.74.4",
@@ -56,6 +57,7 @@
     "@types/crypto-js": "^4.2.2",
     "@types/dompurify": "^3.2.0",
     "@types/qrcode": "^1.5.5",
+    "bs58": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -83,6 +85,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
     "viem": "^2.21.54",
+    "zo-sdk": "^0.1.38",
     "zod": "^3.25.76"
   },
   "devDependencies": {
