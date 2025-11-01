@@ -237,33 +237,37 @@ serve(async (req) => {
       throw new Error('No executable transaction returned from Squid API');
     }
 
-    // Step 5: Execute via Gelato Paymaster for gasless transaction
-    console.log('[transfer-to-dydx] Submitting to Gelato for gas sponsorship');
+    // Step 5: Execute transaction directly (bypass Gelato for now due to SDK issues)
+    console.log('[transfer-to-dydx] Executing transaction via wallet');
     
-    const { GelatoRelay } = await import('https://esm.sh/@gelatonetwork/relay-sdk@5.6.0');
-    const relay = new GelatoRelay();
-    const GELATO_API_KEY = Deno.env.get('GELATO_SPONSOR_API_KEY');
-
-    if (!GELATO_API_KEY) {
-      throw new Error('GELATO_SPONSOR_API_KEY not configured');
+    let gelatoResponse;
+    try {
+      // Send transaction directly from user's wallet
+      const tx = await wallet.sendTransaction({
+        to: txRequest.target || txRequest.targetAddress,
+        data: txRequest.data,
+        value: txRequest.value || '0',
+        gasLimit: txRequest.gasLimit || 500000,
+      });
+      
+      console.log('[transfer-to-dydx] Transaction sent:', tx.hash);
+      await tx.wait();
+      console.log('[transfer-to-dydx] Transaction confirmed:', tx.hash);
+      
+      gelatoResponse = { taskId: tx.hash };
+    } catch (txError: any) {
+      console.error('[transfer-to-dydx] Transaction execution failed:', txError);
+      return new Response(
+        JSON.stringify({
+          error: 'TRANSACTION_FAILED',
+          message: txError.message || 'Failed to execute bridge transaction',
+          hint: 'Please ensure your wallet has enough ETH for gas fees'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Build sponsored transaction
-    const sponsoredTx = {
-      chainId: BigInt(1),
-      target: txRequest.target,
-      data: txRequest.data,
-      user: wallet.address,
-      feeToken: "0x0000000000000000000000000000000000000000",
-      isRelayContext: true
-    };
-
-    const gelatoResponse = await relay.sponsoredCallERC2771(
-      sponsoredTx,
-      GELATO_API_KEY
-    );
-
-    console.log('[transfer-to-dydx] ⚡ Gelato task created:', gelatoResponse.taskId);
+    console.log('[transfer-to-dydx] Transaction created:', gelatoResponse.taskId);
 
     // Step 6: Record transaction in database
     const transactionId = crypto.randomUUID();
@@ -282,10 +286,9 @@ serve(async (req) => {
           destination_address: destinationAddress,
           bridge_method: 'squid_router',
           squid_route_id: route.route?.requestId || '',
-          gelato_task_id: gelatoResponse.taskId,
+          transaction_hash: gelatoResponse.taskId,
           estimated_time_seconds: route.route?.estimate?.estimatedRouteDuration || 20,
-          gas_mode: 'sponsored',
-          gas_sponsor: 'gelato_paymaster',
+          gas_mode: 'user_paid',
           source_chain: 'ethereum',
           dest_chain: 'dydx',
           axelar_tracking_url: `https://axelarscan.io/gmp/${gelatoResponse.taskId}`,
@@ -306,17 +309,17 @@ serve(async (req) => {
         snapshot_at: new Date().toISOString()
       });
 
-    console.log('[transfer-to-dydx] ⚡ Gasless deposit initiated successfully');
+    console.log('[transfer-to-dydx] Deposit initiated successfully');
 
     return new Response(
       JSON.stringify({
         success: true,
         transactionId,
-        gelatoTaskId: gelatoResponse.taskId,
+        transactionHash: gelatoResponse.taskId,
         squidRouteId: route.route?.requestId || '',
         estimatedTime: Math.ceil(route.route?.estimate?.estimatedRouteDuration || 20),
         axelarTrackingUrl: `https://axelarscan.io/gmp/${gelatoResponse.taskId}`,
-        message: '⚡ Gasless deposit initiated via Squid Router + Gelato',
+        message: 'Deposit initiated via Squid Router',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

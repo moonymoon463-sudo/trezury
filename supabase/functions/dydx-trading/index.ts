@@ -96,6 +96,32 @@ Deno.serve(async (req) => {
         const response = await fetch(`${indexerUrl}/addresses/${params.address}/subaccountNumber/0`);
         
         if (!response.ok) {
+          // Handle 404 specifically - account doesn't exist yet (unfunded)
+          if (response.status === 404) {
+            console.log(`[dydx-trading] Account not found (unfunded): ${params.address}`);
+            // Return zero balances for unfunded accounts
+            const emptyAccountInfo = {
+              address: params.address,
+              equity: 0,
+              freeCollateral: 0,
+              marginUsage: 0,
+              openPositions: 0,
+              unrealizedPnl: 0,
+            };
+            
+            return new Response(JSON.stringify({
+              ok: true,
+              message: 'Account not found - needs funding',
+              data: { 
+                account: emptyAccountInfo,
+                needsFunding: true
+              }
+            }), { 
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            });
+          }
+          
           console.error(`[dydx-trading] Indexer error: ${response.status}`);
           return new Response(JSON.stringify({
             ok: false,
