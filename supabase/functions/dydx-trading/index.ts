@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
+const isDev = Deno.env.get("ENV") !== "production";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -55,9 +57,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ 
         ok: false,
         message: 'Authentication required',
-        data: { errorCode: 'UNAUTHORIZED' }
+        error: 'UNAUTHORIZED'
       }), {
-        status: 200,
+        status: isDev ? 200 : 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -126,9 +128,9 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({
             ok: false,
             message: `dYdX Indexer API returned ${response.status}`,
-            data: { errorCode: 'INDEXER_ERROR' }
+            error: 'INDEXER_ERROR'
           }), { 
-            status: 200,
+            status: isDev ? 200 : 502,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         }
@@ -159,10 +161,10 @@ Deno.serve(async (req) => {
         console.error('[dydx-trading] get_account error:', err);
         return new Response(JSON.stringify({
           ok: false,
-          message: err.message || 'Failed to fetch account',
-          data: { errorCode: 'ACCOUNT_FETCH_ERROR' }
+          message: 'Failed to fetch account',
+          error: err.message || 'ACCOUNT_FETCH_ERROR'
         }), { 
-          status: 200,
+          status: isDev ? 200 : 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         });
       }
@@ -217,9 +219,9 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({
             ok: false,
             message: 'dYdX wallet not found. Please set up your trading wallet first.',
-            data: { errorCode: 'NO_WALLET' }
+            error: 'NO_WALLET'
           }), {
-            status: 200,
+            status: isDev ? 200 : 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
@@ -307,9 +309,9 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ 
           ok: false,
           message: errorMessage,
-          data: { errorCode }
+          error: errorCode
         }), {
-          status: 200,
+          status: isDev ? 200 : 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
@@ -319,9 +321,9 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       ok: false,
       message: `Operation '${operation}' is not supported`,
-      data: { errorCode: 'UNKNOWN_OPERATION' }
+      error: 'UNKNOWN_OPERATION'
     }), {
-      status: 200,
+      status: isDev ? 200 : 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
@@ -329,9 +331,9 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       ok: false,
       message: error?.message || 'Internal server error',
-      data: { errorCode: 'INTERNAL_ERROR' }
+      error: 'INTERNAL_ERROR'
     }), {
-      status: 200,
+      status: isDev ? 200 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

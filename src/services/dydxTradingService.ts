@@ -46,12 +46,12 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      // Edge function returns { ok: true, data: { account: {...} } }
-      if (!data?.ok || !data?.data?.account) {
-        throw new Error(data?.message || 'Invalid response from dYdX trading service');
+      // Edge function returns { ok: true/false, message, error, data }
+      if (!data?.ok) {
+        throw new Error(data?.message || data?.error || 'Invalid response from dYdX trading service');
       }
       
-      const accountInfo = data.data.account;
+      const accountInfo = data.data?.account || data.data;
       this.setCache(cacheKey, accountInfo, 5);
       return accountInfo;
     } catch (err) {
@@ -80,12 +80,12 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      // Edge function returns { ok: true, data: { config: {...} } }
-      if (!data?.ok || !data?.data?.config) {
-        throw new Error(data?.message || 'Invalid response from leverage config service');
+      // Edge function returns { ok: true/false, message, error, data }
+      if (!data?.ok) {
+        throw new Error(data?.message || data?.error || 'Invalid response from leverage config service');
       }
       
-      const config = data.data.config;
+      const config = data.data?.config || data.data;
       this.setCache(cacheKey, config, 30);
       return config;
     } catch (err) {
@@ -166,16 +166,16 @@ class DydxTradingService {
         };
       }
 
-      // Edge function returns { ok: true/false, message, data: { order, txHash } }
+      // Edge function returns { ok: true/false, message, error, data }
       if (!data?.ok) {
         return { 
           success: false, 
           error: data?.message || 'Order failed', 
-          errorCode: data?.data?.errorCode || 'ORDER_FAILED' 
+          errorCode: data?.error || 'ORDER_FAILED' 
         };
       }
 
-      return { success: true, order: data.data.order, txHash: data.data.txHash };
+      return { success: true, order: data.data?.order, txHash: data.data?.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Market order failed:', err);
       return {
@@ -210,16 +210,16 @@ class DydxTradingService {
         };
       }
 
-      // Edge function returns { ok: true/false, message, data: { order, txHash } }
+      // Edge function returns { ok: true/false, message, error, data }
       if (!data?.ok) {
         return { 
           success: false, 
           error: data?.message || 'Order failed', 
-          errorCode: data?.data?.errorCode || 'ORDER_FAILED' 
+          errorCode: data?.error || 'ORDER_FAILED' 
         };
       }
 
-      return { success: true, order: data.data.order, txHash: data.data.txHash };
+      return { success: true, order: data.data?.order, txHash: data.data?.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Limit order failed:', err);
       return {

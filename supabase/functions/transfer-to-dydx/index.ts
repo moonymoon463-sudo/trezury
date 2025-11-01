@@ -1,7 +1,9 @@
-// Transfer USDC from Ethereum to dYdX using Squid Router v2 + Gelato (gasless)
+// Transfer USDC from Ethereum to dYdX using Squid Router v2
 // Deployment: 2025-10-28T05:55:00Z - Fixed Squid API endpoint to v2
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+
+const isDev = Deno.env.get("ENV") !== "production";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +22,7 @@ const ETHEREUM_USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 // USDC on dYdX Chain (IBC denom)
 const DYDX_USDC = 'ibc/8E27BA2D5493AF5636760E354E46004562C46AB7EC0CC4C1CA14E9E20E2545B5';
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders });
   }
@@ -57,8 +59,8 @@ serve(async (req) => {
     if (authError || !user) {
       console.error('[transfer-to-dydx] Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, message: 'Authentication required', error: 'Unauthorized' }),
+        { status: isDev ? 200 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -73,22 +75,22 @@ serve(async (req) => {
     // Validate inputs
     if (!amount || amount <= 0) {
       return new Response(
-        JSON.stringify({ error: 'Invalid amount' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, message: 'Invalid amount', error: 'INVALID_AMOUNT' }),
+        { status: isDev ? 200 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!password) {
       return new Response(
-        JSON.stringify({ error: 'Password required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, message: 'Password required', error: 'PASSWORD_REQUIRED' }),
+        { status: isDev ? 200 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!destinationAddress || !destinationAddress.startsWith('dydx1')) {
       return new Response(
-        JSON.stringify({ error: 'Invalid dYdX address' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, message: 'Invalid dYdX address', error: 'INVALID_ADDRESS' }),
+        { status: isDev ? 200 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -102,8 +104,8 @@ serve(async (req) => {
     if (walletError || !walletData) {
       console.error('[transfer-to-dydx] Wallet not found:', walletError);
       return new Response(
-        JSON.stringify({ error: 'Internal wallet not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, message: 'Internal wallet not found', error: 'NO_WALLET' }),
+        { status: isDev ? 200 : 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -149,14 +151,15 @@ serve(async (req) => {
           legacyError: legacyError.message
         });
         
-        // Return structured error with 400 status
+        // Return structured error
         return new Response(
           JSON.stringify({ 
-            error: 'WALLET_DECRYPTION_FAILED',
+            ok: false,
             message: 'Invalid wallet password. This is the password you used when creating or importing your internal wallet.',
+            error: 'WALLET_DECRYPTION_FAILED',
             hint: 'Try the password you set when you created your wallet, not your trading password.'
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: isDev ? 200 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -202,11 +205,12 @@ serve(async (req) => {
         console.error('[transfer-to-dydx] DNS resolution failed - Squid API unreachable:', fetchError);
         return new Response(
           JSON.stringify({
-            error: 'SQUID_API_UNREACHABLE',
+            ok: false,
             message: 'Unable to reach bridging service. Please try again in a few moments.',
+            error: 'SQUID_API_UNREACHABLE',
             hint: 'Network connectivity issue - not a wallet or password problem.'
           }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: isDev ? 200 : 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       throw fetchError; // Re-throw other errors
@@ -218,13 +222,14 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ 
-          error: 'SQUID_ROUTE_ERROR',
+          ok: false,
           message: errorData.message || 'Failed to get bridge route',
+          error: 'SQUID_ROUTE_ERROR',
           hint: errorData.type === 'UNAUTHORIZED' 
             ? 'Invalid Integrator ID - please contact support'
             : 'Please try again or contact support if the issue persists'
         }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: isDev ? 200 : 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -257,13 +262,17 @@ serve(async (req) => {
       gelatoResponse = { taskId: tx.hash };
     } catch (txError: any) {
       console.error('[transfer-to-dydx] Transaction execution failed:', txError);
+      const errorMsg = txError?.reason || txError?.message || 'Failed to execute bridge transaction';
+      const isGasError = errorMsg.toLowerCase().includes('gas') || errorMsg.toLowerCase().includes('insufficient');
+      
       return new Response(
         JSON.stringify({
+          ok: false,
+          message: isGasError ? 'Not enough ETH to pay gas fees' : errorMsg,
           error: 'TRANSACTION_FAILED',
-          message: txError.message || 'Failed to execute bridge transaction',
           hint: 'Please ensure your wallet has enough ETH for gas fees'
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: isDev ? 200 : (isGasError ? 400 : 500), headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -326,9 +335,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[transfer-to-dydx] Error:', error);
+    const errorMsg = error?.reason || error?.message || 'Internal server error';
+    
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        ok: false, 
+        message: errorMsg,
+        error: 'INTERNAL_ERROR'
+      }),
+      { status: isDev ? 200 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
