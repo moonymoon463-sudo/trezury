@@ -3912,6 +3912,8 @@ export type Database = {
       get_reconciliation_cron_health: { Args: never; Returns: Json }
       get_security_dashboard_metrics: { Args: never; Returns: Json }
       get_security_metrics: { Args: never; Returns: Json }
+      get_solana_public_key: { Args: { p_user_id: string }; Returns: string }
+      get_solana_wallet: { Args: { p_user_id: string }; Returns: Json }
       get_system_health_metrics: { Args: never; Returns: Json }
       get_trzry_holding_status: {
         Args: { p_user_id: string }
@@ -3925,6 +3927,7 @@ export type Database = {
       }
       get_user_email: { Args: { _user_id: string }; Returns: string }
       get_user_referral_stats: { Args: { p_user_id?: string }; Returns: Json }
+      get_user_salt: { Args: { p_user_id: string }; Returns: string }
       get_verified_pii_field: {
         Args: { field_name: string; target_user_id?: string }
         Returns: string
@@ -4042,6 +4045,10 @@ export type Database = {
         Returns: string
       }
       replay_webhook_from_dlq: { Args: { dlq_id: string }; Returns: Json }
+      set_user_salt: {
+        Args: { p_salt: string; p_user_id: string }
+        Returns: undefined
+      }
       test_gold_price_collection: { Args: never; Returns: Json }
       trigger_financial_news_collection: { Args: never; Returns: Json }
       trigger_gold_price_collection: { Args: never; Returns: Json }
@@ -4077,6 +4084,16 @@ export type Database = {
           p_zip_code?: string
         }
         Returns: Json
+      }
+      upsert_solana_wallet: {
+        Args: {
+          p_encrypted_key: string
+          p_iv: string
+          p_public_key: string
+          p_salt: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       user_can_see_sensitive_data: { Args: never; Returns: boolean }
       validate_and_apply_referral_code: {
