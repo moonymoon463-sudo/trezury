@@ -4,8 +4,9 @@
  * Mirrors the Ethereum wallet service architecture
  */
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
+import nacl from 'tweetnacl';
 import { supabase } from '@/integrations/supabase/client';
 
 const PBKDF2_ITERATIONS = 100000;
@@ -16,24 +17,19 @@ const SALT_BYTES = 32;
  */
 async function getOrCreateSalt(userId: string): Promise<Uint8Array> {
   const { data, error } = await supabase
-    .from('user_salts')
-    .select('salt')
-    .eq('user_id', userId)
-    .single();
+    .rpc('get_user_salt', { p_user_id: userId });
 
-  if (data?.salt) {
-    return bs58.decode(data.salt);
+  if (data) {
+    return bs58.decode(data);
   }
 
   // Generate new salt
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   
-  const { error: insertError } = await supabase
-    .from('user_salts')
-    .insert({
-      user_id: userId,
-      salt: bs58.encode(salt),
-    });
+  const { error: insertError } = await supabase.rpc('set_user_salt', {
+    p_user_id: userId,
+    p_salt: bs58.encode(salt),
+  });
 
   if (insertError) {
     console.error('[SolanaWallet] Failed to save salt:', insertError);
@@ -69,7 +65,7 @@ async function deriveKeypair(
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
-      salt,
+      salt: salt.buffer,
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },
@@ -106,7 +102,7 @@ async function encryptAndStoreKeypair(
   const encryptionKey = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt,
+      salt: salt.buffer,
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },
@@ -120,22 +116,19 @@ async function encryptAndStoreKeypair(
   
   // Encrypt the secret key
   const encryptedData = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
+    { name: 'AES-GCM', iv: iv.buffer },
     encryptionKey,
     keypair.secretKey
   );
 
   // Store encrypted keypair
-  const { error } = await supabase
-    .from('solana_wallets')
-    .upsert({
-      user_id: userId,
-      encrypted_private_key: bs58.encode(new Uint8Array(encryptedData)),
-      public_key: keypair.publicKey.toBase58(),
-      encryption_salt: bs58.encode(salt),
-      encryption_iv: bs58.encode(iv),
-      encryption_method: 'AES-GCM-256',
-    });
+  const { error } = await supabase.rpc('upsert_solana_wallet', {
+    p_user_id: userId,
+    p_encrypted_key: bs58.encode(new Uint8Array(encryptedData)),
+    p_public_key: keypair.publicKey.toBase58(),
+    p_salt: bs58.encode(salt),
+    p_iv: bs58.encode(iv),
+  });
 
   if (error) {
     console.error('[SolanaWallet] Failed to store encrypted keypair:', error);
@@ -150,15 +143,15 @@ async function decryptKeypair(
   userId: string,
   password: string
 ): Promise<Keypair> {
-  const { data, error } = await supabase
-    .from('solana_wallets')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+  const { data, error } = await supabase.rpc('get_solana_wallet', {
+    p_user_id: userId,
+  });
 
   if (error || !data) {
     throw new Error('Wallet not found');
   }
+
+  const walletData = data as any;
 
   const encoder = new TextEncoder();
   const passwordData = encoder.encode(password);
@@ -171,13 +164,13 @@ async function decryptKeypair(
     ['deriveKey']
   );
 
-  const salt = bs58.decode(data.encryption_salt);
-  const iv = bs58.decode(data.encryption_iv);
+  const salt = bs58.decode(walletData.encryption_salt);
+  const iv = bs58.decode(walletData.encryption_iv);
 
   const decryptionKey = await crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt,
+      salt: salt.buffer,
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },
@@ -187,11 +180,11 @@ async function decryptKeypair(
     ['decrypt']
   );
 
-  const encryptedData = bs58.decode(data.encrypted_private_key);
+  const encryptedData = bs58.decode(walletData.encrypted_private_key);
 
   try {
     const decryptedData = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
+      { name: 'AES-GCM', iv: iv.buffer },
       decryptionKey,
       encryptedData
     );
@@ -225,13 +218,11 @@ export async function getSolanaKeypair(
  * Get Solana public key for user
  */
 export async function getSolanaPublicKey(userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('solana_wallets')
-    .select('public_key')
-    .eq('user_id', userId)
-    .single();
+  const { data } = await supabase.rpc('get_solana_public_key', {
+    p_user_id: userId,
+  });
 
-  return data?.public_key || null;
+  return data as string | null;
 }
 
 /**
@@ -245,7 +236,7 @@ export function exportKeypairBase58(keypair: Keypair): string {
  * Sign message with Solana keypair
  */
 export function signMessage(keypair: Keypair, message: Uint8Array): Uint8Array {
-  return keypair.sign(message).signature;
+  return nacl.sign.detached(message, keypair.secretKey);
 }
 
 export const solanaWalletService = {
