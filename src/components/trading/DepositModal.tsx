@@ -100,18 +100,32 @@ export const DepositModal = ({
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('[DepositModal] Transfer invocation failed:', error);
+          throw new Error(error.message || 'Failed to initiate transfer');
+        }
+
+        // Handle edge function response (new format: { ok, message, error, data })
+        if (!data?.ok) {
+          console.error('[DepositModal] Transfer failed:', data);
+          const errorObj = new Error(data?.message || 'Transfer failed');
+          (errorObj as any).error = data?.error;
+          (errorObj as any).hint = data?.hint;
+          throw errorObj;
+        }
+
+        console.log('[DepositModal] Transfer successful:', data);
 
       toast({
-        title: '⚡ Gasless Deposit Initiated',
+        title: '⚡ Deposit Initiated',
         description: (
           <div>
-            <p>Bridging {amount} USDC to dYdX (gasless!)</p>
+            <p>Bridging {amount} USDC to dYdX via Squid Router</p>
             <p className="text-xs mt-1 text-[#c6b795]">
               Est. arrival: <span className="font-semibold text-white">&lt;20 seconds</span>
             </p>
             <p className="text-xs mt-1 text-[#c6b795]">
-              ⚡ Powered by Squid Router + Gelato
+              Powered by Squid Router + Axelar
             </p>
             {data?.axelarTrackingUrl && (
               <a 
@@ -133,37 +147,53 @@ export const DepositModal = ({
       onDepositComplete();
       onClose();
       } catch (error: any) {
-        console.error('Deposit failed:', error);
+        console.error('[DepositModal] Deposit failed:', error);
         
         // Parse structured error from edge function
         const errorCode = error?.error || error?.message;
+        const errorHint = error?.hint;
         
         if (errorCode === 'SQUID_API_UNREACHABLE') {
           toast({
             variant: 'destructive',
             title: 'Bridging Service Unavailable',
-            description: 'Unable to connect to Squid Router. Please check your internet connection or try again in a few moments.',
+            description: errorHint || 'Unable to connect to Squid Router. Please try again in a few moments.',
             duration: 6000
           });
-        } else if (errorCode === 'WALLET_DECRYPTION_FAILED' || error.message?.includes('Invalid wallet password')) {
+        } else if (errorCode === 'WALLET_DECRYPTION_FAILED' || errorCode === 'NO_WALLET') {
           toast({
             variant: 'destructive',
-            title: 'Incorrect Wallet Password',
-            description: 'This is the password you used when creating or importing your internal wallet, not your trading password.',
+            title: 'Wallet Error',
+            description: error.message || 'Failed to access your wallet. Please verify your password.',
             duration: 8000
           });
         } else if (errorCode === 'SQUID_ROUTE_ERROR') {
           toast({
             variant: 'destructive',
             title: 'Bridge Route Error',
-            description: error.hint || 'Failed to get bridge route. Please try again or contact support.',
+            description: errorHint || error.message || 'Failed to get bridge route.',
             duration: 6000
+          });
+        } else if (errorCode === 'TRANSACTION_FAILED') {
+          toast({
+            variant: 'destructive',
+            title: 'Transaction Failed',
+            description: error.message || 'Failed to execute transaction. Please check your wallet has enough ETH for gas.',
+            duration: 8000
+          });
+        } else if (errorCode === 'INVALID_AMOUNT' || errorCode === 'INVALID_ADDRESS' || errorCode === 'PASSWORD_REQUIRED') {
+          toast({
+            variant: 'destructive',
+            title: 'Invalid Input',
+            description: error.message || 'Please check your input and try again.',
+            duration: 5000
           });
         } else {
           toast({
             variant: 'destructive',
             title: 'Deposit Failed',
-            description: error.message || 'Failed to initiate deposit'
+            description: error.message || 'Failed to initiate deposit. Please try again.',
+            duration: 6000
           });
         }
       } finally {
@@ -196,10 +226,10 @@ export const DepositModal = ({
               <Zap className="h-4 w-4 text-[#e6b951]" />
               <AlertDescription className="ml-2">
                 <div className="text-sm font-semibold text-white">
-                  ⚡ Gasless Transaction - No ETH Required!
+                  ⚡ Fast Cross-Chain Bridge
                 </div>
                 <div className="text-xs text-[#c6b795] mt-1">
-                  Gas fees sponsored by Trezury via Gelato Paymaster
+                  Powered by Squid Router + Axelar (arrival in &lt;20 seconds)
                 </div>
               </AlertDescription>
             </Alert>
@@ -318,7 +348,7 @@ export const DepositModal = ({
           {/* Info Text */}
           <p className="text-[#c6b795] text-xs text-center">
             {source === 'internal' 
-              ? '⚡ Powered by Squid Router + Gelato - Cross-chain bridging via Axelar (<20 sec, gasless!)'
+              ? '⚡ Powered by Squid Router + Axelar - Cross-chain bridging in &lt;20 seconds (requires ETH for gas)'
               : 'Send USDC from your external wallet to complete deposit'}
           </p>
         </div>
