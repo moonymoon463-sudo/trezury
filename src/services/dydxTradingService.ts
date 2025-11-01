@@ -46,8 +46,12 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      // Edge function returns { success: true, account: {...} }
-      const accountInfo = data.account || data;
+      // Edge function returns { ok: true, data: { account: {...} } }
+      if (!data?.ok || !data?.data?.account) {
+        throw new Error(data?.message || 'Invalid response from dYdX trading service');
+      }
+      
+      const accountInfo = data.data.account;
       this.setCache(cacheKey, accountInfo, 5);
       return accountInfo;
     } catch (err) {
@@ -76,8 +80,12 @@ class DydxTradingService {
 
       if (error) throw error;
       
-      // Edge function returns { success: true, config: {...} }
-      const config = data.config || data;
+      // Edge function returns { ok: true, data: { config: {...} } }
+      if (!data?.ok || !data?.data?.config) {
+        throw new Error(data?.message || 'Invalid response from leverage config service');
+      }
+      
+      const config = data.data.config;
       this.setCache(cacheKey, config, 30);
       return config;
     } catch (err) {
@@ -158,16 +166,16 @@ class DydxTradingService {
         };
       }
 
-      // Handle both success/failure responses from edge function
-      if (data.success === false) {
+      // Edge function returns { ok: true/false, message, data: { order, txHash } }
+      if (!data?.ok) {
         return { 
           success: false, 
-          error: data.message || data.error || 'Order failed', 
-          errorCode: data.error || 'ORDER_FAILED' 
+          error: data?.message || 'Order failed', 
+          errorCode: data?.data?.errorCode || 'ORDER_FAILED' 
         };
       }
 
-      return { success: true, order: data.order, txHash: data.txHash };
+      return { success: true, order: data.data.order, txHash: data.data.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Market order failed:', err);
       return {
@@ -202,16 +210,16 @@ class DydxTradingService {
         };
       }
 
-      // Handle both success/failure responses from edge function
-      if (data.success === false) {
+      // Edge function returns { ok: true/false, message, data: { order, txHash } }
+      if (!data?.ok) {
         return { 
           success: false, 
-          error: data.message || data.error || 'Order failed', 
-          errorCode: data.error || 'ORDER_FAILED' 
+          error: data?.message || 'Order failed', 
+          errorCode: data?.data?.errorCode || 'ORDER_FAILED' 
         };
       }
 
-      return { success: true, order: data.order, txHash: data.txHash };
+      return { success: true, order: data.data.order, txHash: data.data.txHash };
     } catch (err) {
       console.error('[DydxTradingService] Limit order failed:', err);
       return {
