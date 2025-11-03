@@ -129,17 +129,19 @@ export interface HyperliquidTrade {
   tid: number;
 }
 
+// Hyperliquid API returns candleSnapshot as: [[timestamp, open, high, low, close, volume], ...]
+// This interface represents the transformed format we use in the app
 export interface HyperliquidCandle {
-  t: number; // timestamp
-  T: number; // close timestamp
-  s: string; // symbol
-  i: string; // interval
-  o: string; // open
-  c: string; // close
-  h: string; // high
-  l: string; // low
+  t: number; // timestamp in ms
+  T: number; // close timestamp in ms
+  s: string; // symbol (e.g., "BTC-USD")
+  i: string; // interval (e.g., "1m", "1h", "1d")
+  o: string; // open price
+  c: string; // close price
+  h: string; // high price
+  l: string; // low price
   v: string; // volume
-  n: number; // number of trades
+  n: number; // number of trades (may be 0 if not provided)
 }
 
 export interface HyperliquidFundingRate {

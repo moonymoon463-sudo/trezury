@@ -39,6 +39,19 @@ const normalizeTime = (t: any): number | undefined => {
   return Math.floor(n);
 };
 
+// Helper to get interval in milliseconds
+const getIntervalMs = (interval: string): number => {
+  const map: Record<string, number> = {
+    '1m': 60_000,
+    '5m': 300_000,
+    '15m': 900_000,
+    '1h': 3_600_000,
+    '4h': 14_400_000,
+    '1d': 86_400_000
+  };
+  return map[interval] || 60_000;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -81,6 +94,7 @@ serve(async (req) => {
             endTime: end
           }
         };
+        console.log('[Hyperliquid] Candle request:', JSON.stringify(requestBody));
         break;
       case 'get_user_state':
         requestBody = { type: 'clearinghouseState', user: params.address };
@@ -118,6 +132,35 @@ serve(async (req) => {
     
     if (operation === 'get_markets') {
       result = data.universe || [];
+    } else if (operation === 'get_candles') {
+      // Hyperliquid candleSnapshot returns array format: [[timestamp, open, high, low, close, volume], ...]
+      // Transform to object format: { t, T, s, i, o, c, h, l, v, n }
+      console.log('[Hyperliquid] Raw candle response:', JSON.stringify(data).slice(0, 500));
+      
+      const interval = normalizeInterval(params.interval);
+      const intervalMs = getIntervalMs(interval);
+      const candles = Array.isArray(data) ? data : [];
+      
+      result = candles.map((candle: any) => {
+        // Handle both array format and object format
+        const isArray = Array.isArray(candle);
+        const timestamp = isArray ? candle[0] : (candle.t || candle.timestamp);
+        
+        return {
+          t: timestamp, // timestamp in ms
+          T: timestamp + intervalMs, // close time
+          s: params.market, // symbol
+          i: interval, // interval
+          o: String(isArray ? candle[1] : (candle.o || candle.open)), // open
+          c: String(isArray ? candle[4] : (candle.c || candle.close)), // close
+          h: String(isArray ? candle[2] : (candle.h || candle.high)), // high
+          l: String(isArray ? candle[3] : (candle.l || candle.low)), // low
+          v: String(isArray ? (candle[5] || '0') : (candle.v || candle.volume || '0')), // volume
+          n: isArray ? 0 : (candle.n || 0) // number of trades
+        };
+      });
+      
+      console.log('[Hyperliquid] Transformed candles:', result.length, 'candles');
     } else if (operation === 'get_trades') {
       result = (data || []).slice(0, params.limit || 50);
     } else if (operation === 'get_user_fills') {

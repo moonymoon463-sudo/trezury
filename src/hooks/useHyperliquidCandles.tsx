@@ -42,6 +42,9 @@ export const useHyperliquidCandles = (
 
         if (funcError) throw funcError;
 
+        console.log('[useHyperliquidCandles] Received candles:', data?.length || 0, 'for', market, interval);
+        console.log('[useHyperliquidCandles] First candle:', data?.[0]);
+
         if (mounted) {
           setCandles(data || []);
         }
