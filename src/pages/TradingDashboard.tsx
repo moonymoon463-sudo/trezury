@@ -111,7 +111,7 @@ const TradingDashboard = () => {
 
   // Real Hyperliquid market data
   const { markets, loading: marketsLoading } = useHyperliquidMarkets();
-  const { candles, loading: candlesLoading, error: candlesError } = useHyperliquidCandles(selectedAsset, chartResolution, 200);
+  const { candles, loading: candlesLoading, error: candlesError, loadMoreHistory, isLoadingMore } = useHyperliquidCandles(selectedAsset, chartResolution, 500);
   const { fundingRate, nextFundingTime, formatTimeUntil } = useHyperliquidFunding(selectedAsset || '');
   const { prices: currentPrices } = useHyperliquidTicker();
 
@@ -299,7 +299,11 @@ const TradingDashboard = () => {
 
   // currentPrices now comes from useHyperliquidTicker hook
 
-  const chartResolutionMap: Record<string, string> = {
+  // Note: chartResolution is already in the correct format ('1HOUR', '5MINS', etc.)
+  // It's passed directly to useHyperliquidCandles which handles the normalization
+  
+  // Mapping for timeframe buttons
+  const intervalToResolution: Record<string, string> = {
     '1m': '1MIN',
     '5m': '5MINS',
     '15m': '15MINS',
@@ -754,10 +758,10 @@ const TradingDashboard = () => {
                 key={interval}
                 size="sm"
                 variant="ghost"
-                onClick={() => setChartResolution(chartResolutionMap[interval])}
+                onClick={() => setChartResolution(intervalToResolution[interval])}
                 className={`h-6 px-2 text-[10px] transition-colors duration-150 ${
                   idx === 0 ? 'rounded-r-none' : idx === 5 ? 'rounded-l-none' : 'rounded-none'
-                } ${chartResolution === chartResolutionMap[interval] ? 'bg-[#463c25] text-white' : 'text-[#c6b795] hover:text-white hover:bg-[#463c25]'}`}
+                } ${chartResolution === intervalToResolution[interval] ? 'bg-[#463c25] text-white' : 'text-[#c6b795] hover:text-white hover:bg-[#463c25]'}`}
               >
                 {interval}
               </Button>
@@ -789,6 +793,8 @@ const TradingDashboard = () => {
               onResolutionChange={setChartResolution}
               loading={candlesLoading}
               error={candlesError}
+              onLoadMore={loadMoreHistory}
+              isBackfilling={isLoadingMore}
             />
           ) : selectedAsset ? (
             <div className="h-full flex items-center justify-center">

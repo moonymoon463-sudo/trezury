@@ -84,16 +84,14 @@ const TradingViewChart = ({
     setTrendLineStart,
   } = useChartDrawingTools();
   
-  // Sync active indicators with persisted settings
+  // Enable default indicators on mount
   useEffect(() => {
-    if (settings.indicators.length > 0) {
-      settings.indicators.forEach(ind => {
-        if (!activeIndicators.has(ind)) {
-          toggleIndicator(ind);
-        }
-      });
+    if (activeIndicators.size === 0) {
+      // Enable MA20 and MA50 by default
+      toggleIndicator('MA20');
+      toggleIndicator('MA50');
     }
-  }, [settings.indicators]);
+  }, []);
   
   // Refs for managing chart elements
   const indicatorsRef = useRef<Map<string, any>>(new Map());
@@ -622,7 +620,7 @@ const TradingViewChart = ({
                 disabled={isLoading || loading}
               >
                 <TrendingUp className="h-3.5 w-3.5" />
-                Indicators
+                Indicators {activeIndicators.size > 0 && `(${activeIndicators.size})`}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent 
@@ -698,6 +696,25 @@ const TradingViewChart = ({
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* Active Indicators Legend */}
+          {activeIndicators.size > 0 && (
+            <div className="flex items-center gap-2 px-2 py-1 bg-[#2a251a]/50 rounded border border-aurum/10">
+              {Array.from(activeIndicators).map(ind => (
+                <div key={ind} className="flex items-center gap-1 text-xs">
+                  <span className={`w-2 h-0.5 ${
+                    ind === 'MA20' ? 'bg-blue-500' :
+                    ind === 'MA50' ? 'bg-purple-500' :
+                    ind === 'MA100' ? 'bg-red-500' :
+                    ind === 'VWAP' ? 'bg-amber-500' :
+                    ind === 'RSI' ? 'bg-violet-500' :
+                    ind === 'MACD' ? 'bg-emerald-500' : 'bg-gray-500'
+                  }`} />
+                  <span className="text-muted-foreground">{ind}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Timeframe Buttons */}
           <div className="flex items-center gap-2">
@@ -726,8 +743,14 @@ const TradingViewChart = ({
         {/* Symbol and Live Indicator */}
         <div className="flex items-center gap-2">
           <div className="text-sm font-semibold text-aurum">
-            {symbol}
+            {symbol} • {candles.length} candles
           </div>
+          {isBackfilling && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-500">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading history...
+            </div>
+          )}
           <div className="flex items-center gap-1.5 text-xs text-status-success">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-success opacity-75"></span>

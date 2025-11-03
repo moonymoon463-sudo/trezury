@@ -1,20 +1,97 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { HyperliquidCandle } from '@/types/hyperliquid';
+
+// Resolution mapping from dashboard format to Hyperliquid API format
+const resolutionMap: Record<string, string> = {
+  '1MIN': '1m',
+  '5MINS': '5m',
+  '15MINS': '15m',
+  '1HOUR': '1h',
+  '4HOURS': '4h',
+  '1DAY': '1d',
+  '1m': '1m',
+  '5m': '5m',
+  '15m': '15m',
+  '1h': '1h',
+  '4h': '4h',
+  '1d': '1d',
+};
+
+// Get historical depth in milliseconds for each interval (500 candles worth)
+const getHistoricalDepth = (interval: string): number => {
+  const map: Record<string, number> = {
+    '1m': 500 * 60 * 1000,        // ~8 hours
+    '5m': 500 * 5 * 60 * 1000,    // ~41 hours
+    '15m': 500 * 15 * 60 * 1000,  // ~5 days
+    '1h': 500 * 60 * 60 * 1000,   // ~20 days
+    '4h': 500 * 4 * 60 * 60 * 1000, // ~83 days
+    '1d': 500 * 24 * 60 * 60 * 1000, // ~16 months
+  };
+  return map[interval] || map['1h'];
+};
 
 export const useHyperliquidCandles = (
   market: string | null,
   interval: string = '1m',
-  limit: number = 200
+  limit: number = 500
 ) => {
   const [candles, setCandles] = useState<HyperliquidCandle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [earliestTimestamp, setEarliestTimestamp] = useState<number | null>(null);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Load more historical candles when scrolling back
+  const loadMoreHistory = useCallback(async () => {
+    if (!market || !earliestTimestamp || isLoadingMore || !hasMoreHistory) return;
+
+    setIsLoadingMore(true);
+    try {
+      const normalizedInterval = resolutionMap[interval] || interval;
+      const historicalDepth = getHistoricalDepth(normalizedInterval);
+      
+      const endTime = earliestTimestamp - 1000; // 1 second before earliest
+      const startTime = endTime - historicalDepth;
+
+      console.log('[useHyperliquidCandles] Loading more history:', { startTime, endTime, normalizedInterval });
+
+      const { data, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
+        body: {
+          operation: 'get_candles',
+          params: {
+            market,
+            interval: normalizedInterval,
+            startTime,
+            endTime
+          }
+        }
+      });
+
+      if (funcError) throw funcError;
+
+      if (data && data.length > 0) {
+        setCandles(prev => [...data, ...prev].sort((a, b) => a.t - b.t));
+        setEarliestTimestamp(data[0].t);
+        console.log('[useHyperliquidCandles] Loaded', data.length, 'more candles');
+      } else {
+        setHasMoreHistory(false);
+        console.log('[useHyperliquidCandles] No more historical data available');
+      }
+    } catch (err) {
+      console.error('[useHyperliquidCandles] Error loading more history:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [market, interval, earliestTimestamp, isLoadingMore, hasMoreHistory]);
 
   useEffect(() => {
     if (!market) {
       setCandles([]);
       setLoading(false);
+      setEarliestTimestamp(null);
+      setHasMoreHistory(true);
       return;
     }
 
@@ -25,15 +102,29 @@ export const useHyperliquidCandles = (
         setLoading(true);
         setError(null);
 
+        // Normalize interval format
+        const normalizedInterval = resolutionMap[interval] || interval;
+        
+        // Calculate proper time range for 500 candles
         const endTime = Date.now();
-        const startTime = endTime - (limit * getIntervalMilliseconds(interval));
+        const historicalDepth = getHistoricalDepth(normalizedInterval);
+        const startTime = endTime - historicalDepth;
+
+        console.log('[useHyperliquidCandles] Fetching candles:', { 
+          market, 
+          interval, 
+          normalizedInterval, 
+          startTime: new Date(startTime).toISOString(), 
+          endTime: new Date(endTime).toISOString(),
+          expectedCandles: limit
+        });
 
         const { data, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
           body: {
             operation: 'get_candles',
             params: {
               market,
-              interval,
+              interval: normalizedInterval,
               startTime,
               endTime
             }
@@ -42,11 +133,16 @@ export const useHyperliquidCandles = (
 
         if (funcError) throw funcError;
 
-        console.log('[useHyperliquidCandles] Received candles:', data?.length || 0, 'for', market, interval);
+        console.log('[useHyperliquidCandles] Received candles:', data?.length || 0, 'for', market, normalizedInterval);
         console.log('[useHyperliquidCandles] First candle:', data?.[0]);
+        console.log('[useHyperliquidCandles] Last candle:', data?.[data?.length - 1]);
 
-        if (mounted) {
-          setCandles(data || []);
+        if (mounted && data) {
+          setCandles(data);
+          if (data.length > 0) {
+            setEarliestTimestamp(data[0].t);
+            setHasMoreHistory(true);
+          }
         }
       } catch (err) {
         if (mounted) {
@@ -63,7 +159,7 @@ export const useHyperliquidCandles = (
     loadCandles();
 
     // Refresh candles periodically based on interval
-    const refreshInterval = getIntervalMilliseconds(interval);
+    const refreshInterval = getIntervalMilliseconds(resolutionMap[interval] || interval);
     const timer = setInterval(loadCandles, refreshInterval);
 
     return () => {
@@ -72,20 +168,24 @@ export const useHyperliquidCandles = (
     };
   }, [market, interval, limit]);
 
-  return { candles, loading, error };
+  return { 
+    candles, 
+    loading, 
+    error, 
+    loadMoreHistory, 
+    isLoadingMore, 
+    hasMoreHistory 
+  };
 };
 
 function getIntervalMilliseconds(interval: string): number {
-  const match = interval.match(/^(\d+)([mhd])$/);
-  if (!match) return 60000; // default 1 minute
-
-  const value = parseInt(match[1]);
-  const unit = match[2];
-
-  switch (unit) {
-    case 'm': return value * 60 * 1000;
-    case 'h': return value * 60 * 60 * 1000;
-    case 'd': return value * 24 * 60 * 60 * 1000;
-    default: return 60000;
-  }
+  const map: Record<string, number> = {
+    '1m': 60_000,
+    '5m': 300_000,
+    '15m': 900_000,
+    '1h': 3_600_000,
+    '4h': 14_400_000,
+    '1d': 86_400_000,
+  };
+  return map[interval] || 60_000;
 }
