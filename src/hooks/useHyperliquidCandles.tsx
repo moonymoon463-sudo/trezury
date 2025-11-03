@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { HyperliquidCandle } from '@/types/hyperliquid';
 
@@ -29,6 +29,21 @@ const getHistoricalDepth = (interval: string): number => {
     '1d': 500 * 24 * 60 * 60 * 1000, // ~16 months
   };
   return map[interval] || map['1h'];
+};
+
+// Target backfill depth to ensure robust history display
+const getTargetHistoryDepth = (interval: string): number => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const YEAR = 365 * DAY;
+  const map: Record<string, number> = {
+    '1m': 2 * DAY,      // avoid massive loads for 1m
+    '5m': 14 * DAY,     // ~2 weeks
+    '15m': 30 * DAY,    // ~1 month
+    '1h': YEAR,         // 1 year minimum
+    '4h': 2 * YEAR,     // 2 years
+    '1d': 5 * YEAR,     // 5 years (near full history)
+  };
+  return map[interval] || YEAR;
 };
 
 export const useHyperliquidCandles = (

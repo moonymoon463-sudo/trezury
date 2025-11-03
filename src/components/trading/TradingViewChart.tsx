@@ -59,6 +59,8 @@ const TradingViewChart = ({
   const [isLoading, setIsLoading] = useState(false);
   const [earliestLoadedTime, setEarliestLoadedTime] = useState<number | null>(null);
   const lastCandleCountRef = useRef(0);
+  const onLoadMoreRef = useRef<(() => void) | undefined>(onLoadMore);
+  useEffect(() => { onLoadMoreRef.current = onLoadMore; }, [onLoadMore]);
   
   // Chart persistence
   const {
@@ -548,10 +550,13 @@ const TradingViewChart = ({
       }
     });
     
-    // Save to persistence
-    updateIndicators(Array.from(activeIndicators));
-  }, [indicatorData, activeIndicators, updateIndicators]);
+    // (Persistence moved to a separate effect to avoid render loops)
+  }, [indicatorData, activeIndicators]);
 
+  // Persist active indicators separately to avoid unnecessary reruns
+  useEffect(() => {
+    updateIndicators(Array.from(activeIndicators));
+  }, [activeIndicators, updateIndicators]);
   // Clear drawings when symbol/resolution changes
   useEffect(() => {
     drawnLinesRef.current.forEach((line, id) => {

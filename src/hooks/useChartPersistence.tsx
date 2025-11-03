@@ -80,11 +80,25 @@ export const useChartPersistence = (market: string, resolution: string) => {
   const saveSettings = useCallback(async (newSettings: Partial<ChartSettings>) => {
     if (!user || !market || !resolution) return;
 
-    const updatedSettings = { ...settings, ...newSettings };
-    setSettings(updatedSettings);
-    
-    // Store pending update
-    pendingSettingsRef.current = updatedSettings;
+    // Update local state functionally to avoid stale closures and reduce re-renders
+    let nextSettings: ChartSettings | null = null;
+    setSettings((prev) => {
+      const merged: ChartSettings = { ...prev, ...newSettings };
+      // Avoid unnecessary updates if nothing changed
+      const prevStr = JSON.stringify(prev);
+      const nextStr = JSON.stringify(merged);
+      if (prevStr === nextStr) {
+        nextSettings = null;
+        return prev; // no-op
+      }
+      nextSettings = merged;
+      return merged;
+    });
+
+    // Store pending update only if something actually changed
+    if (nextSettings) {
+      pendingSettingsRef.current = nextSettings;
+    }
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {
@@ -131,7 +145,7 @@ export const useChartPersistence = (market: string, resolution: string) => {
         setSaving(false);
       }
     }, 2000); // 2 second throttle
-  }, [user, market, resolution, settings, toast]);
+  }, [user, market, resolution, toast]);
 
   // Cleanup on unmount
   useEffect(() => {
