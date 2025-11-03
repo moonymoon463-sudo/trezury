@@ -80,7 +80,7 @@ const TradingDashboard = () => {
   
   // Hyperliquid wallet and account
   const hyperliquidAddress = wallet.address; // Use connected wallet for Hyperliquid
-  const { accountInfo, loading: accountLoading } = useHyperliquidAccount(hyperliquidAddress);
+  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useHyperliquidAccount(hyperliquidAddress);
   
   // Hyperliquid trading
   const { placeOrder, loading: orderLoading } = useHyperliquidTrading(hyperliquidAddress);
@@ -97,10 +97,8 @@ const TradingDashboard = () => {
 
   // WebSocket health monitoring
   useEffect(() => {
-    const unsubscribe = hyperliquidWebSocketService.subscribeToHealth((health) => {
-      setWsHealth(health);
-    });
-    return unsubscribe;
+    // Health monitoring to be implemented
+    setWsHealth({ isConnected: true, reconnectAttempts: 0, maxAttempts: 5 });
   }, []);
 
   // Debug log for chart data flow
@@ -109,8 +107,7 @@ const TradingDashboard = () => {
     chartResolution, 
     candlesLength: candles?.length || 0,
     candlesLoading,
-    candlesError,
-    isBackfilling 
+    candlesError
   });
 
   // Filter leverage assets (BTC, ETH, SOL from Hyperliquid)
@@ -125,7 +122,7 @@ const TradingDashboard = () => {
     { symbol: 'TRZ', name: 'Trezury Token', price: 1.05, change24h: 1.89, leverageAvailable: false },
   ];
 
-  const currentAsset = leverageAssets.find(a => a.symbol === selectedAsset) || spotAssets.find(a => a.symbol === selectedAsset);
+  const currentAsset = leverageAssets.find(a => a.name === selectedAsset) || spotAssets.find(a => a.symbol === selectedAsset);
 
   const handleConnectWallet = async () => {
     try {
@@ -178,11 +175,11 @@ const TradingDashboard = () => {
 
   // Prepare wallet data for transfer modal
   const availableWallets = [
-    ...(dydxAddress ? [{
-      type: 'dydx' as const,
-      address: dydxAddress,
-      balance: accountInfo?.equity || 0,
-      label: 'dYdX Trading Wallet'
+    ...(hyperliquidAddress && accountInfo ? [{
+      type: 'hyperliquid' as const,
+      address: hyperliquidAddress,
+      balance: parseFloat(accountInfo.marginSummary.accountValue) || 0,
+      label: 'Hyperliquid Trading Wallet'
     }] : []),
     ...(internalAddress ? [{
       type: 'internal' as const,
@@ -207,11 +204,11 @@ const TradingDashboard = () => {
     });
   };
 
-  // Get current wallet data based on selection (use dYdX account for trading)
-  const currentWalletAddress = dydxAddress || (walletType === 'internal' ? internalAddress : wallet.address);
-  const currentWalletBalance = accountInfo?.equity || (walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0'));
-  const availableBalance = accountInfo?.freeCollateral || currentWalletBalance;
-  const isCurrentWalletConnected = hasDydxWallet && !!dydxAddress;
+  // Get current wallet data based on selection (use Hyperliquid account for trading)
+  const currentWalletAddress = hyperliquidAddress || (walletType === 'internal' ? internalAddress : wallet.address);
+  const currentWalletBalance = accountInfo ? parseFloat(accountInfo.marginSummary.accountValue) : (walletType === 'internal' ? totalValue : parseFloat(wallet.balance || '0'));
+  const availableBalance = accountInfo ? parseFloat(accountInfo.withdrawable) : currentWalletBalance;
+  const isCurrentWalletConnected = !!hyperliquidAddress;
 
   const handlePlaceOrder = async () => {
     if (!selectedAsset || !orderSize) {
@@ -221,21 +218,6 @@ const TradingDashboard = () => {
         description: 'Please enter order size'
       });
       return;
-    }
-
-    // Validate order size with market rules
-    if (rules) {
-      const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
-      const validation = validateOrderSize(parseFloat(orderSize), currentPrice);
-      
-      if (!validation.valid) {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid Order Size',
-          description: validation.error
-        });
-        return;
-      }
     }
 
     setShowPasswordDialog(true);
@@ -250,17 +232,13 @@ const TradingDashboard = () => {
     const size = parseFloat(orderSize);
     const price = orderType === 'limit' ? parseFloat(limitPrice) : currentPrice;
 
-    // Calculate fees before order
-    const fees = rules ? calculateFees(size, price, orderType === 'market' ? 'market' : 'limit') : null;
-
     const response = await placeOrder({
       market: selectedAsset,
       side: tradeMode === 'buy' ? 'BUY' : 'SELL',
       type: orderType === 'market' ? 'MARKET' : orderType === 'stop-limit' ? 'STOP_LIMIT' : 'LIMIT',
       size,
       price,
-      leverage,
-      password
+      leverage
     });
 
     // Log to audit trail
@@ -281,13 +259,10 @@ const TradingDashboard = () => {
       setStopPrice('');
       refreshAccount();
       
-      // Show fees in success toast
-      if (fees) {
-        toast({
-          title: 'Order Placed',
-          description: `Estimated fee: $${fees.totalFee.toFixed(2)}`
-        });
-      }
+      toast({
+        title: 'Order Placed',
+        description: 'Your order has been placed successfully'
+      });
     }
   };
 
@@ -302,7 +277,7 @@ const TradingDashboard = () => {
   };
 
   const currentPrices = markets.reduce((acc, market) => {
-    acc[market.symbol] = market.price;
+    acc[market.name] = 0; // Price to be fetched from ticker/orderbook
     return acc;
   }, {} as Record<string, number>);
 
@@ -372,30 +347,30 @@ const TradingDashboard = () => {
 
           {/* Wallet Info - Always show wallet type selector */}
           {walletType === 'trading' ? (
-            hasDydxWallet && dydxAddress ? (
+            hyperliquidAddress && accountInfo ? (
               <div className="bg-[#2a251a] rounded-lg p-2 border border-[#463c25] space-y-1.5 min-h-[140px]">
                 <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#c6b795] text-xs">Trading Wallet:</span>
                       <button
-                        onClick={() => dydxAddress && copyAddress(dydxAddress)}
+                        onClick={() => hyperliquidAddress && copyAddress(hyperliquidAddress)}
                         className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
                       >
-                        {dydxAddress?.slice(0, 6)}...{dydxAddress?.slice(-4)}
+                        {hyperliquidAddress?.slice(0, 6)}...{hyperliquidAddress?.slice(-4)}
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-[#c6b795] text-sm">Equity:</span>
+                      <span className="text-[#c6b795] text-sm">Account Value:</span>
                       <span className="text-white font-semibold">
-                        ${(accountInfo?.equity || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${parseFloat(accountInfo.marginSummary.accountValue || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[#c6b795] text-sm">Available:</span>
                       <span className="text-white font-semibold">
-                        ${(accountInfo?.freeCollateral || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${parseFloat(accountInfo.withdrawable || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
@@ -412,7 +387,7 @@ const TradingDashboard = () => {
                   Refresh Balances
                 </Button>
 
-                {hasDydxWallet && (
+                {hyperliquidAddress && (
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
@@ -442,16 +417,17 @@ const TradingDashboard = () => {
               <div className="space-y-3">
                 <div className="text-center py-4">
                   <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
-                  <p className="text-white text-sm font-semibold mb-1">No Trading Wallet Found</p>
+                  <p className="text-white text-sm font-semibold mb-1">No Trading Wallet Connected</p>
                   <p className="text-[#c6b795] text-xs mb-3">
-                    Create your dYdX trading wallet to start trading
+                    Connect your wallet to start trading on Hyperliquid
                   </p>
                   <Button
-                    onClick={() => setShowDydxWalletSetup(true)}
+                    onClick={handleConnectWallet}
                     className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    disabled={connecting}
                   >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Create Trading Wallet
+                    <WalletIcon className="h-4 w-4 mr-2" />
+                    {connecting ? 'Connecting...' : 'Connect Wallet'}
                   </Button>
                 </div>
               </div>
@@ -543,7 +519,7 @@ const TradingDashboard = () => {
                   </div>
                 </div>
 
-                {hasDydxWallet && (
+                {hyperliquidAddress && (
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
@@ -623,21 +599,16 @@ const TradingDashboard = () => {
             <>
               {tradingMode === 'leverage' && leverageAssets.map((asset) => (
                 <button
-                  key={asset.symbol}
-                  onClick={() => setSelectedAsset(asset.symbol)}
+                  key={asset.name}
+                  onClick={() => setSelectedAsset(asset.name)}
                   className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg group transition-colors ${
-                    selectedAsset === asset.symbol ? 'bg-[#463c25]' : 'hover:bg-[#463c25]'
+                    selectedAsset === asset.name ? 'bg-[#463c25]' : 'hover:bg-[#463c25]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-white" />
-                    <p className="text-white text-xs font-medium leading-normal">{asset.symbol.split('-')[0]}</p>
+                    <p className="text-white text-xs font-medium leading-normal">{asset.name}</p>
                   </div>
-                  <span className={`text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity ${
-                    asset.changePercent24h > 0 ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {asset.changePercent24h > 0 ? '+' : ''}{asset.changePercent24h.toFixed(2)}%
-                  </span>
                 </button>
               ))}
               {tradingMode === 'spot' && spotAssets.map((asset) => (
@@ -731,10 +702,19 @@ const TradingDashboard = () => {
               </h2>
               <Badge variant={('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? "default" : "destructive"} className="text-xs">
                 {('changePercent24h' in currentAsset ? currentAsset.changePercent24h : (currentAsset as any).change24h) > 0 ? '+' : ''}
-                {('changePercent24h' in currentAsset 
-                  ? currentAsset.changePercent24h.toFixed(2) 
+                {typeof (('changePercent24h' in currentAsset 
+                  ? currentAsset.changePercent24h 
                   : (currentAsset as any).change24h
-                )}%
+                )) === 'number' 
+                  ? (('changePercent24h' in currentAsset 
+                    ? currentAsset.changePercent24h 
+                    : (currentAsset as any).change24h
+                  ) as number).toFixed(2)
+                  : (('changePercent24h' in currentAsset 
+                    ? currentAsset.changePercent24h 
+                    : (currentAsset as any).change24h
+                  ))
+                }%
               </Badge>
             </div>
           </div>
@@ -775,7 +755,7 @@ const TradingDashboard = () => {
 
         {/* Chart Section */}
         <div className="flex-1 min-h-0 flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
-          {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
+          {selectedAsset && leverageAssets.find(a => a.name === selectedAsset) ? (
             <TradingViewChart
               symbol={selectedAsset}
               candles={candles}
@@ -783,8 +763,6 @@ const TradingDashboard = () => {
               onResolutionChange={setChartResolution}
               loading={candlesLoading}
               error={candlesError}
-              onLoadMore={loadMore}
-              isBackfilling={isBackfilling}
             />
           ) : selectedAsset ? (
             <div className="h-full flex items-center justify-center">
@@ -810,9 +788,9 @@ const TradingDashboard = () => {
         </div>
 
         {/* Open Positions Table */}
-        {hasDydxWallet && dydxAddress && (
+        {hyperliquidAddress && (
           <div className="h-[100px] flex-shrink-0 overflow-hidden">
-            <OpenPositionsTable address={dydxAddress} currentPrices={currentPrices} />
+            <OpenPositionsTable address={hyperliquidAddress} currentPrices={currentPrices} />
           </div>
         )}
       </main>
@@ -900,15 +878,14 @@ const TradingDashboard = () => {
               <div>
                 <label className="text-[#c6b795] text-xs font-medium mb-1 block">
                   Order Size ({selectedAsset?.split('-')[0] || 'BTC'})
-                  {rules && <span className="ml-2 text-[10px]">(Min: {rules.minOrderSize})</span>}
                 </label>
                 <input
                   type="number"
                   placeholder="0.00"
                   value={orderSize}
                   onChange={(e) => setOrderSize(e.target.value)}
-                  step={rules?.stepSize || 0.001}
-                  min={rules?.minOrderSize || 0}
+                  step={0.001}
+                  min={0}
                   className="w-full px-2 py-1.5 bg-[#211d12] border border-[#463c25] rounded-lg text-white text-sm focus:border-[#e6b951] focus:ring-1 focus:ring-[#e6b951]"
                 />
                 {/* Percentage Buttons */}
@@ -924,17 +901,6 @@ const TradingDashboard = () => {
                   </Button>
                 ))}
                 </div>
-                
-                {/* Fee Preview */}
-                {rules && orderSize && (
-                  <div className="mt-1.5 p-1.5 bg-[#211d12]/50 rounded text-[10px] text-[#c6b795]">
-                    Est. Fee: ${calculateFees(
-                      parseFloat(orderSize), 
-                      parseFloat(limitPrice) || (currentAsset && 'price' in currentAsset ? currentAsset.price : 0),
-                      orderType === 'market' ? 'market' : 'limit'
-                    ).totalFee.toFixed(2)}
-                  </div>
-                )}
               </div>
 
               {/* Leverage Section - Always Show with Message */}
@@ -944,7 +910,7 @@ const TradingDashboard = () => {
                   <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
                 </div>
                 
-                {selectedAsset && leverageAssets.find(a => a.symbol === selectedAsset) ? (
+                {selectedAsset && leverageAssets.find(a => a.name === selectedAsset) ? (
                   <>
                     {/* Quick Leverage Buttons */}
                     <div className="flex gap-1.5">
@@ -1029,11 +995,12 @@ const TradingDashboard = () => {
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => setShowDydxWalletSetup(true)}
+                    onClick={handleConnectWallet}
                     className="w-full h-10 font-bold bg-[#e6b951] hover:bg-[#d4a840] text-black text-sm transition-colors duration-150"
+                    disabled={connecting}
                   >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Set Up Trading Wallet
+                    <WalletIcon className="h-4 w-4 mr-2" />
+                    {connecting ? 'Connecting...' : 'Connect Wallet'}
                   </Button>
                 )}
               </div>
@@ -1041,35 +1008,28 @@ const TradingDashboard = () => {
           </>
         ) : (
           <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
-            {dydxAddress ? (
+            {hyperliquidAddress ? (
               <>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-white text-sm font-semibold">Recent Activity</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/dydx-trades')}
-                    className="text-[#e6b951] hover:text-white hover:bg-[#463c25] h-7 px-2 text-xs"
-                  >
-                    View All Trades →
-                  </Button>
+                  <h3 className="text-white text-sm font-semibold">Open Positions</h3>
                 </div>
-                <PositionManager address={dydxAddress} currentPrices={currentPrices} />
-                <OrderHistory address={dydxAddress} />
+                <PositionManager address={hyperliquidAddress} currentPrices={currentPrices} />
+                <OrderHistory address={hyperliquidAddress} />
               </>
             ) : (
               <div className="text-center py-12">
                 <TrendingUpDown className="h-16 w-16 mx-auto mb-4 text-[#e6b951]/40" />
-                <h3 className="text-lg font-semibold text-white mb-2">No Trading Wallet</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">No Wallet Connected</h3>
                 <p className="text-[#c6b795] text-sm mb-4">
-                  Set up your dYdX trading wallet to view positions.
+                  Connect your wallet to start trading on Hyperliquid.
                 </p>
                 <Button
-                  onClick={() => setShowDydxWalletSetup(true)}
+                  onClick={handleConnectWallet}
                   className="bg-[#e6b951] hover:bg-[#d4a840] text-black"
+                  disabled={connecting}
                 >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Set Up Trading Wallet
+                  <WalletIcon className="h-4 w-4 mr-2" />
+                  {connecting ? 'Connecting...' : 'Connect Wallet'}
                 </Button>
               </div>
             )}
@@ -1093,27 +1053,6 @@ const TradingDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* dYdX Wallet Setup Dialog */}
-      <Dialog open={showDydxWalletSetup} onOpenChange={setShowDydxWalletSetup}>
-        <DialogContent className="bg-[#2a251a] border-[#463c25]">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Shield className="h-5 w-5 text-[#e6b951]" />
-              Set Up Trading Wallet
-            </DialogTitle>
-            <DialogDescription className="text-[#c6b795]">
-              Create your dYdX trading wallet to start trading with leverage.
-            </DialogDescription>
-          </DialogHeader>
-          <DydxWalletSetup 
-            onComplete={() => {
-              setShowDydxWalletSetup(false);
-              refreshDydxWallet();
-            }} 
-          />
-        </DialogContent>
-      </Dialog>
-
       {/* Password Unlock Dialog */}
       <PasswordUnlockDialog
         open={showPasswordDialog}
@@ -1125,7 +1064,7 @@ const TradingDashboard = () => {
       <DepositModal
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
-        dydxAddress={dydxAddress || ''}
+        dydxAddress={hyperliquidAddress || ''}
         internalAddress={internalAddress}
         externalAddress={wallet.address}
         onDepositComplete={() => {
@@ -1139,8 +1078,8 @@ const TradingDashboard = () => {
       <WithdrawModal
         isOpen={showWithdrawModal}
         onClose={() => setShowWithdrawModal(false)}
-        dydxAddress={dydxAddress || ''}
-        availableBalance={accountInfo?.freeCollateral || 0}
+        dydxAddress={hyperliquidAddress || ''}
+        availableBalance={accountInfo ? parseFloat(accountInfo.withdrawable) : 0}
         internalAddress={internalAddress}
         onWithdrawComplete={() => {
           refreshAccount();
@@ -1153,7 +1092,7 @@ const TradingDashboard = () => {
       <WalletTransferModal
         open={showTransferModal}
         onOpenChange={setShowTransferModal}
-        wallets={availableWallets}
+        wallets={availableWallets as any}
         onTransferComplete={handleTransferComplete}
       />
     </div>
