@@ -24,13 +24,51 @@ export const useHyperliquidAccount = (address?: string, autoRefresh: boolean = t
         }
       });
 
-      if (funcError) throw funcError;
+      if (funcError) {
+        console.warn('[useHyperliquidAccount] API error:', funcError);
+        // Don't throw - set empty account state instead for new wallets
+        setAccountInfo({
+          marginSummary: {
+            accountValue: '0',
+            totalMarginUsed: '0',
+            totalNtlPos: '0',
+            totalRawUsd: '0',
+          },
+          crossMarginSummary: {
+            accountValue: '0',
+            totalMarginUsed: '0',
+            totalNtlPos: '0',
+            totalRawUsd: '0',
+          },
+          withdrawable: '0',
+          assetPositions: []
+        });
+        return;
+      }
       
       setAccountInfo(data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load account';
       setError(errorMsg);
       console.error('[useHyperliquidAccount] Error:', err);
+      
+      // Set empty account state instead of null for new wallets
+      setAccountInfo({
+        marginSummary: {
+          accountValue: '0',
+          totalMarginUsed: '0',
+          totalNtlPos: '0',
+          totalRawUsd: '0',
+        },
+        crossMarginSummary: {
+          accountValue: '0',
+          totalMarginUsed: '0',
+          totalNtlPos: '0',
+          totalRawUsd: '0',
+        },
+        withdrawable: '0',
+        assetPositions: []
+      });
     } finally {
       setLoading(false);
     }

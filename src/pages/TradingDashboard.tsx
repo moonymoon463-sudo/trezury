@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,7 +16,7 @@ import { useHyperliquidAccount } from '@/hooks/useHyperliquidAccount';
 import { useHyperliquidTrading } from '@/hooks/useHyperliquidTrading';
 import { useHyperliquidFunding } from '@/hooks/useHyperliquidFunding';
 import { useHyperliquidTicker } from '@/hooks/useHyperliquidTicker';
-import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
+import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 import { useNavigate } from 'react-router-dom';
@@ -259,7 +260,8 @@ const TradingDashboard = () => {
       type: orderType === 'market' ? 'MARKET' : orderType === 'stop-limit' ? 'STOP_LIMIT' : 'LIMIT',
       size,
       price,
-      leverage
+      leverage,
+      password
     });
 
     // Log to audit trail
@@ -369,7 +371,7 @@ const TradingDashboard = () => {
 
           {/* Wallet Info - Always show wallet type selector */}
           {walletType === 'trading' ? (
-            hyperliquidAddress && accountInfo ? (
+            hyperliquidAddress ? (
               <div className="bg-[#2a251a] rounded-lg p-2 border border-[#463c25] space-y-1.5 min-h-[140px]">
                 <div className="space-y-2">
                   <div className="space-y-1">
@@ -383,16 +385,22 @@ const TradingDashboard = () => {
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs bg-[#e6b951]/20 text-[#e6b951] border-[#e6b951]/30">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Trading Wallet Active
+                      </Badge>
+                    </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[#c6b795] text-sm">Account Value:</span>
                       <span className="text-white font-semibold">
-                        ${parseFloat(accountInfo.marginSummary.accountValue || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${accountInfo ? parseFloat(accountInfo.marginSummary.accountValue || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[#c6b795] text-sm">Available:</span>
                       <span className="text-white font-semibold">
-                        ${parseFloat(accountInfo.withdrawable || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${accountInfo ? parseFloat(accountInfo.withdrawable || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                       </span>
                     </div>
                   </div>
@@ -408,6 +416,15 @@ const TradingDashboard = () => {
                   <RefreshCw className={`h-4 w-4 mr-2 ${internalLoading ? 'animate-spin' : ''}`} />
                   Refresh Balances
                 </Button>
+
+                {accountInfo && parseFloat(accountInfo.marginSummary.accountValue) === 0 && (
+                  <Alert className="mt-2 bg-[#463c25]/30 border-[#e6b951]/30">
+                    <AlertCircle className="h-4 w-4 text-[#e6b951]" />
+                    <AlertDescription className="text-xs text-[#c6b795]">
+                      Your trading wallet is ready! Click "Deposit" to fund it and start trading.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {hyperliquidAddress ? (
                   <>

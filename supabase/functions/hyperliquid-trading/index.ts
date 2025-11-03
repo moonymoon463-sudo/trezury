@@ -124,72 +124,89 @@ serve(async (req) => {
       }
 
       case 'place_order': {
-        const { address, market, side, type: orderType, size, price, leverage, reduceOnly, postOnly, timeInForce, clientOrderId } = params;
+        const { address, market, side, type: orderType, size, price, leverage, action, signature, nonce, reduceOnly, postOnly, timeInForce, clientOrderId } = params;
 
-        const nonce = Date.now();
-        
-        // Build order action
-        const action = {
-          type: 'order',
-          orders: [{
-            a: market,
-            b: side === 'BUY',
-            p: price ? price.toString() : null,
-            s: size.toString(),
-            r: reduceOnly || false,
-            t: {
-              limit: orderType === 'LIMIT' ? { tif: timeInForce || 'Gtc' } : undefined,
-              market: orderType === 'MARKET' ? {} : undefined
-            }
-          }],
-          grouping: 'na'
-        };
-
-        // In production, this would use the user's wallet to sign
-        // For now, return mock response with database insert
-        const { data: orderData, error: insertError } = await supabaseClient
-          .from('hyperliquid_orders')
-          .insert({
-            user_id: user.id,
-            address,
-            client_order_id: clientOrderId || `${nonce}`,
-            market,
-            side,
-            order_type: orderType,
-            size,
-            price,
-            leverage,
-            reduce_only: reduceOnly || false,
-            post_only: postOnly || false,
-            time_in_force: timeInForce || 'GTC',
-            status: 'PENDING'
+        // Submit to Hyperliquid API with signature
+        const hyperliquidResponse = await fetch('https://api.hyperliquid-testnet.xyz/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            nonce,
+            signature
           })
-          .select()
-          .single();
+        });
 
-        if (insertError) {
-          throw insertError;
-        }
+        const result = await hyperliquidResponse.json();
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            order: {
-              id: orderData.id,
-              orderId: orderData.order_id,
-              clientOrderId: orderData.client_order_id,
+        if (result.status === 'ok') {
+          // Store successful order in database for tracking
+          const orderId = result.response?.data?.statuses?.[0]?.resting?.oid;
+          
+          const { data: orderData, error: insertError } = await supabaseClient
+            .from('hyperliquid_orders')
+            .insert({
+              user_id: user.id,
+              address,
+              order_id: orderId,
+              client_order_id: clientOrderId || `${nonce}`,
               market,
               side,
-              type: orderType,
+              order_type: orderType,
               size,
               price,
-              status: 'PENDING'
-            }
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              leverage,
+              reduce_only: reduceOnly || false,
+              post_only: postOnly || false,
+              time_in_force: timeInForce || 'GTC',
+              status: 'OPEN',
+              external_id: orderId
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Order insert error:', insertError);
           }
-        );
+
+          console.log('[place_order] Success:', { orderId, market, side, size });
+
+          return new Response(
+            JSON.stringify({
+              status: 'ok',
+              success: true,
+              order: {
+                id: orderData?.id,
+                orderId: orderId,
+                clientOrderId: clientOrderId || `${nonce}`,
+                market,
+                side,
+                type: orderType,
+                size,
+                price,
+                status: 'OPEN'
+              },
+              response: result.response
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        } else {
+          console.error('[place_order] Failed:', result);
+          
+          return new Response(
+            JSON.stringify({
+              status: 'error',
+              success: false,
+              error: result.response?.data?.statuses?.[0]?.error || 'Failed to place order',
+              response: result.response
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
       }
 
       case 'cancel_order': {

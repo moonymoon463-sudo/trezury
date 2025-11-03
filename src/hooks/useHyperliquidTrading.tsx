@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { hyperliquidTradingService } from '@/services/hyperliquidTradingService';
+import { hyperliquidSigningService } from '@/services/hyperliquidSigningService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type {
   HyperliquidOrderRequest,
@@ -30,7 +32,7 @@ export const useHyperliquidTrading = (address?: string) => {
   }, [address]);
 
   const placeOrder = useCallback(async (
-    orderRequest: HyperliquidOrderRequest
+    orderRequest: HyperliquidOrderRequest & { password: string }
   ): Promise<HyperliquidOrderResponse> => {
     if (!user || !address) {
       throw new Error('User must be authenticated and address provided');
@@ -50,20 +52,59 @@ export const useHyperliquidTrading = (address?: string) => {
         };
       }
 
-      const response = await hyperliquidTradingService.placeOrder(
+      // 1. Sign order on frontend (password never sent to server)
+      const nonce = Date.now();
+      const action = {
+        type: 'order',
+        orders: [{
+          a: 0, // asset index (TODO: map from market symbol)
+          b: orderRequest.side === 'BUY',
+          p: orderRequest.price?.toString() || '0',
+          s: orderRequest.size.toString(),
+          r: false,
+          t: orderRequest.type === 'MARKET' 
+            ? { market: {} }
+            : { limit: { tif: 'Gtc' } }
+        }],
+        grouping: 'na'
+      };
+
+      const signature = await hyperliquidSigningService.signOrderAction(
         user.id,
-        address,
-        orderRequest
+        orderRequest.password,
+        action,
+        nonce
       );
 
-      if (response.success) {
+      // 2. Submit signed order to edge function
+      const response = await supabase.functions.invoke('hyperliquid-trading', {
+        body: {
+          operation: 'place_order',
+          params: {
+            address,
+            market: orderRequest.market,
+            side: orderRequest.side,
+            type: orderRequest.type,
+            size: orderRequest.size,
+            price: orderRequest.price,
+            leverage: orderRequest.leverage,
+            action,
+            signature,
+            nonce
+          }
+        }
+      });
+
+      if (response.data?.status === 'ok' || response.data?.success) {
         toast.success(`${orderRequest.side} order placed successfully`);
         await loadAccountInfo();
+        return { success: true };
       } else {
-        toast.error(response.error || 'Failed to place order');
+        const errorMsg = response.data?.response?.data?.statuses?.[0]?.error || 
+                        response.data?.error || 'Failed to place order';
+        toast.error(errorMsg);
+        return { success: false, error: errorMsg };
       }
-
-      return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to place order';
       console.error('[useHyperliquidTrading] Place order error:', error);
