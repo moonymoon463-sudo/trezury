@@ -2,9 +2,10 @@ import type { HyperliquidCandle } from '@/types/hyperliquid';
 
 /**
  * Calculate Simple Moving Average (SMA)
+ * Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
  */
 export function calculateSMA(
-  candles: DydxCandle[], 
+  candles: HyperliquidCandle[], 
   period: number
 ): { time: number; value: number }[] {
   if (!candles || candles.length === 0) return [];
@@ -13,9 +14,9 @@ export function calculateSMA(
   
   for (let i = 0; i < candles.length; i++) {
     const timestamp = Math.floor(
-      candles[i].timestamp > 1e12 
-        ? candles[i].timestamp / 1000 
-        : candles[i].timestamp
+      candles[i].t > 1e12 
+        ? candles[i].t / 1000 
+        : candles[i].t
     );
     
     if (i < period - 1) {
@@ -25,7 +26,7 @@ export function calculateSMA(
     
     let sum = 0;
     for (let j = 0; j < period; j++) {
-      sum += candles[i - j].close;
+      sum += parseFloat(candles[i - j].c);
     }
     
     result.push({
@@ -39,9 +40,10 @@ export function calculateSMA(
 
 /**
  * Calculate Exponential Moving Average (EMA)
+ * Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
  */
 export function calculateEMA(
-  candles: DydxCandle[], 
+  candles: HyperliquidCandle[], 
   period: number
 ): { time: number; value: number }[] {
   if (!candles || candles.length === 0 || period <= 0) return [];
@@ -52,18 +54,18 @@ export function calculateEMA(
   // Start with SMA for the first period
   let ema = 0;
   for (let i = 0; i < Math.min(period, candles.length); i++) {
-    ema += candles[i].close;
+    ema += parseFloat(candles[i].c);
   }
   ema = ema / Math.min(period, candles.length);
   
   for (let i = period - 1; i < candles.length; i++) {
     const timestamp = Math.floor(
-      candles[i].timestamp > 1e12 
-        ? candles[i].timestamp / 1000 
-        : candles[i].timestamp
+      candles[i].t > 1e12 
+        ? candles[i].t / 1000 
+        : candles[i].t
     );
     
-    ema = (candles[i].close - ema) * multiplier + ema;
+    ema = (parseFloat(candles[i].c) - ema) * multiplier + ema;
     
     result.push({
       time: timestamp,

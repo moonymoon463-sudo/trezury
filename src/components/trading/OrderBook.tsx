@@ -54,7 +54,7 @@ const OrderBookRow = memo(({ price, size, total, type, depthPercent, isSelected,
 });
 
 export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
-  const { orderbook, loading } = useDydxOrderbook(symbol);
+  const { orderbook, loading } = useHyperliquidOrderbook(symbol);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const [selectedPrice, setSelectedPrice] = useState<number | null>(null);
 
@@ -63,9 +63,12 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   const { bids, asks, spread, spreadPercent } = useMemo(() => {
     if (!orderbook) return { bids: [], asks: [], spread: 0, spreadPercent: 0 };
 
-    // Defensive sorting before slicing (service should already sort, but be robust)
-    const bidsSorted = [...orderbook.bids].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-    const asksSorted = [...orderbook.asks].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    // Hyperliquid orderbook has levels: [bids, asks]
+    const [bidLevels, askLevels] = orderbook.levels;
+    
+    // Convert to our format
+    const bidsSorted = bidLevels.map(b => ({ price: b.px, size: b.sz })).sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+    const asksSorted = askLevels.map(a => ({ price: a.px, size: a.sz })).sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
     
     const topBids = bidsSorted.slice(0, depth);
     const topAsks = asksSorted.slice(0, depth);
@@ -110,11 +113,11 @@ export const OrderBook = ({ symbol, onPriceSelect }: OrderBookProps) => {
   useEffect(() => {
     if (orderbook) {
       console.log('[OrderBook] Data update:', {
-        market: orderbook.market,
-        bidsCount: orderbook.bids.length,
-        asksCount: orderbook.asks.length,
-        bestBid: orderbook.bids[0]?.price,
-        bestAsk: orderbook.asks[0]?.price,
+        market: orderbook.coin,
+        bidsCount: orderbook.levels[0].length,
+        asksCount: orderbook.levels[1].length,
+        bestBid: orderbook.levels[0][0]?.px,
+        bestAsk: orderbook.levels[1][0]?.px,
         viewMode,
         depth
       });

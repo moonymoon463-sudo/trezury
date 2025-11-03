@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useHyperliquidPositions } from '@/hooks/useHyperliquidPositions';
 import type { HyperliquidPositionDB } from '@/types/hyperliquid';
-import { hyperliquidTradingService } from '@/services/hyperliquidTradingService';
 import { TrendingUp, TrendingDown, AlertTriangle, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
@@ -32,30 +31,44 @@ type SortDirection = 'asc' | 'desc';
 
 export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTableProps) => {
   // Mock data for now
-  const mockPositions: DydxPosition[] = [
+  const mockPositions: HyperliquidPositionDB[] = [
     {
-      market: 'BTC-USD',
+      id: '1',
+      user_id: 'user1',
+      address: address || '',
+      market: 'BTC',
       side: 'LONG',
       size: 0.5,
-      entryPrice: 95000,
-      unrealizedPnl: 2500,
-      realizedPnl: 0
+      entry_price: 95000,
+      leverage: 10,
+      unrealized_pnl: 2500,
+      realized_pnl: 0,
+      liquidation_price: 86000,
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      status: 'OPEN',
+      metadata: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
     {
-      market: 'ETH-USD',
+      id: '2',
+      user_id: 'user1',
+      address: address || '',
+      market: 'ETH',
       side: 'SHORT',
       size: 2.5,
-      entryPrice: 3500,
-      unrealizedPnl: -450,
-      realizedPnl: 0
-    },
-    {
-      market: 'SOL-USD',
-      side: 'LONG',
-      size: 50,
-      entryPrice: 180,
-      unrealizedPnl: 1200,
-      realizedPnl: 0
+      entry_price: 3500,
+      leverage: 5,
+      unrealized_pnl: -450,
+      realized_pnl: 0,
+      liquidation_price: 3800,
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+      status: 'OPEN',
+      metadata: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
   ];
 
@@ -67,12 +80,12 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
   const { getPassword } = useTradingPasswordContext();
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<DydxPosition | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<HyperliquidPositionDB | null>(null);
   const [closeOrderType, setCloseOrderType] = useState<'MARKET' | 'LIMIT'>('MARKET');
   const [closeLimitPrice, setCloseLimitPrice] = useState('');
 
 
-  const openCloseDialog = (position: DydxPosition) => {
+  const openCloseDialog = (position: HyperliquidPositionDB) => {
     setSelectedPosition(position);
     setCloseOrderType('MARKET');
     setCloseLimitPrice('');
@@ -105,26 +118,12 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
     setCloseDialogOpen(false);
     
     try {
-      const response = await dydxTradingService.closePosition(
-        selectedPosition.market, 
-        password,
-        undefined,
-        closeOrderType,
-        closeOrderType === 'LIMIT' ? parseFloat(closeLimitPrice) : undefined
-      );
-      
-      if (response.success) {
-        toast({
-          title: 'Position Closed',
-          description: `Successfully closed ${selectedPosition.market} position with ${closeOrderType} order`,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Failed to Close',
-          description: response.error || 'Unknown error occurred',
-        });
-      }
+      // TODO: Implement Hyperliquid position closing
+      toast({
+        variant: 'destructive',
+        title: 'Not Implemented',
+        description: 'Hyperliquid position closing coming soon'
+      });
     } catch (err) {
       toast({
         variant: 'destructive',
@@ -168,19 +167,19 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
       <ScrollArea className="h-full">
         <div className="space-y-2 p-3">
           {positions.map((position, index) => {
-            const currentPrice = currentPrices[position.market] || position.entryPrice;
+            const currentPrice = currentPrices[position.market] || position.entry_price;
             const pnl = position.side === 'LONG'
-              ? (currentPrice - position.entryPrice) * position.size
-              : (position.entryPrice - currentPrice) * position.size;
-            const pnlPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * (position.side === 'LONG' ? 1 : -1);
+              ? (currentPrice - position.entry_price) * position.size
+              : (position.entry_price - currentPrice) * position.size;
+            const pnlPercent = ((currentPrice - position.entry_price) / position.entry_price) * 100 * (position.side === 'LONG' ? 1 : -1);
             const isProfit = pnl > 0;
             
-            const leverage = 10;
+            const leverage = position.leverage;
             const marginRequired = (currentPrice * position.size) / leverage;
-            const maintenanceMargin = 0.03;
-            const liquidationPrice = position.side === 'LONG'
-              ? position.entryPrice * (1 - (1 / leverage) + maintenanceMargin)
-              : position.entryPrice * (1 + (1 / leverage) - maintenanceMargin);
+            
+            const liquidationPrice = position.liquidation_price || (position.side === 'LONG'
+              ? position.entry_price * 0.9
+              : position.entry_price * 1.1);
             
             const distanceToLiquidation = Math.abs(((currentPrice - liquidationPrice) / currentPrice) * 100);
             const riskLevel = 
@@ -189,7 +188,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
               distanceToLiquidation < 30 ? 'medium' : 'low';
 
             return (
-              <Card key={`${position.market}-${index}`} className="bg-card/50 border-border/40 hover:bg-card/60 transition-colors">
+              <Card key={`${position.id}-${index}`} className="bg-card/50 border-border/40 hover:bg-card/60 transition-colors">
                 <div className="p-3">
                   {/* Header */}
                   <div className="flex items-center justify-between mb-2">
@@ -234,7 +233,7 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
                     <div>
                       <div className="text-[10px] text-muted-foreground mb-0.5">Entry</div>
                       <div className="text-xs font-medium text-foreground">
-                        ${position.entryPrice.toLocaleString(undefined, {
+                        ${position.entry_price.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}

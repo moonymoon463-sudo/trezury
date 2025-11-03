@@ -9,13 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Slider } from '@/components/ui/slider';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useWalletBalance } from '@/hooks/useWalletBalance';
-import { useDydxMarkets } from '@/hooks/useDydxMarkets';
-import { useDydxCandles } from '@/hooks/useDydxCandles';
-import { useDydxWallet } from '@/hooks/useDydxWallet';
-import { useDydxAccount } from '@/hooks/useDydxAccount';
-import { useDydxTrading } from '@/hooks/useDydxTrading';
-import { useFundingRate } from '@/hooks/useFundingRate';
-import { useMarketRules } from '@/hooks/useMarketRules';
+import { useHyperliquidMarkets } from '@/hooks/useHyperliquidMarkets';
+import { useHyperliquidCandles } from '@/hooks/useHyperliquidCandles';
+import { useHyperliquidAccount } from '@/hooks/useHyperliquidAccount';
+import { useHyperliquidTrading } from '@/hooks/useHyperliquidTrading';
+import { useHyperliquidFunding } from '@/hooks/useHyperliquidFunding';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
@@ -23,8 +21,6 @@ import { useNavigate } from 'react-router-dom';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
-import { DydxWalletSetup } from '@/components/trading/DydxWalletSetup';
-import { DepositUSDC } from '@/components/trading/DepositUSDC';
 import { DepositModal } from '@/components/trading/DepositModal';
 import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
@@ -35,8 +31,7 @@ import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
 import { FundingRateDisplay } from '@/components/trading/FundingRateDisplay';
 import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBanner';
-import { dydxWalletService } from '@/services/dydxWalletService';
-import { dydxWebSocketService } from '@/services/dydxWebSocketService';
+import { hyperliquidWebSocketService } from '@/services/hyperliquidWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -83,39 +78,26 @@ const TradingDashboard = () => {
   // Internal wallet (secure wallet) - automatically loads existing wallet from gold app
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
-  // dYdX wallet and account
-  const { hasDydxWallet, dydxAddress, loading: dydxWalletLoading, refresh: refreshDydxWallet } = useDydxWallet();
-  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useDydxAccount(dydxAddress || undefined, true);
+  // Hyperliquid wallet and account
+  const hyperliquidAddress = wallet.address; // Use connected wallet for Hyperliquid
+  const { accountInfo, loading: accountLoading } = useHyperliquidAccount(hyperliquidAddress);
   
-  // dYdX trading
-  const { placeOrder, orderLoading } = useDydxTrading(dydxAddress || undefined);
+  // Hyperliquid trading
+  const { placeOrder, loading: orderLoading } = useHyperliquidTrading(hyperliquidAddress);
   
   const { toast } = useToast();
   
 
-  // Show dYdX wallet setup if user doesn't have one
-  useEffect(() => {
-    if (user && !dydxWalletLoading && !hasDydxWallet) {
-      setShowDydxWalletSetup(true);
-    }
-  }, [user, hasDydxWallet, dydxWalletLoading]);
+  // Remove dYdX wallet setup - using direct Hyperliquid connection
 
-  // Show deposit modal if dYdX wallet exists but balance is 0
-  useEffect(() => {
-    if (hasDydxWallet && accountInfo && accountInfo.equity === 0) {
-      setShowDepositModal(true);
-    }
-  }, [hasDydxWallet, accountInfo]);
-
-  // Real dYdX market data
-  const { markets, loading: marketsLoading } = useDydxMarkets();
-  const { candles, loading: candlesLoading, error: candlesError, isBackfilling, loadMore } = useDydxCandles(selectedAsset, chartResolution, 200);
-  const { fundingRate, nextFundingTime, formatTimeUntil } = useFundingRate(selectedAsset);
-  const { rules, loading: rulesLoading, validateOrderSize, calculateFees } = useMarketRules(selectedAsset);
+  // Real Hyperliquid market data
+  const { markets, loading: marketsLoading } = useHyperliquidMarkets();
+  const { candles, loading: candlesLoading, error: candlesError } = useHyperliquidCandles(selectedAsset, chartResolution, 200);
+  const { fundingRate, nextFundingTime, formatTimeUntil } = useHyperliquidFunding(selectedAsset || '');
 
   // WebSocket health monitoring
   useEffect(() => {
-    const unsubscribe = dydxWebSocketService.subscribeToHealth((health) => {
+    const unsubscribe = hyperliquidWebSocketService.subscribeToHealth((health) => {
       setWsHealth(health);
     });
     return unsubscribe;
@@ -131,9 +113,9 @@ const TradingDashboard = () => {
     isBackfilling 
   });
 
-  // Filter leverage assets (BTC, ETH, SOL from dYdX)
+  // Filter leverage assets (BTC, ETH, SOL from Hyperliquid)
   const leverageAssets = markets.filter(m => 
-    ['BTC-USD', 'ETH-USD', 'SOL-USD'].includes(m.symbol)
+    ['BTC', 'ETH', 'SOL'].includes(m.name)
   );
 
   // Spot trading assets (mock for now)

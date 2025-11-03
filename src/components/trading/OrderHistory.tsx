@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { hyperliquidTradingService } from '@/services/hyperliquidTradingService';
 import type { HyperliquidOrderDB } from '@/types/hyperliquid';
 import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,7 +14,7 @@ interface OrderHistoryProps {
 }
 
 export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
-  const [orders, setOrders] = useState<DydxOrder[]>([]);
+  const [orders, setOrders] = useState<HyperliquidOrderDB[]>([]);
   const [loading, setLoading] = useState(false);
   const { getPassword } = useTradingPasswordContext();
   const { toast } = useToast();
@@ -26,7 +25,8 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
     const loadOrders = async () => {
       setLoading(true);
       try {
-        const data = await dydxTradingService.getOrderHistory(address, 50);
+        // TODO: Implement Hyperliquid order history fetching
+        const data: HyperliquidOrderDB[] = [];
         setOrders(data);
       } catch (error) {
         console.error('[OrderHistory] Failed to load:', error);
@@ -40,16 +40,15 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
 
   const openOrders = orders.filter(o => o.status === 'OPEN' || o.status === 'PARTIALLY_FILLED');
   const completedOrders = orders.filter(o => o.status === 'FILLED');
-  const cancelledOrders = orders.filter(o => o.status === 'CANCELLED' || o.status === 'EXPIRED');
+  const cancelledOrders = orders.filter(o => o.status === 'CANCELLED');
 
-  const getStatusBadge = (status: DydxOrder['status']) => {
-    const variants: Record<DydxOrder['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  const getStatusBadge = (status: HyperliquidOrderDB['status']) => {
+    const variants: Record<HyperliquidOrderDB['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
       PENDING: 'outline',
       OPEN: 'default',
       FILLED: 'secondary',
       PARTIALLY_FILLED: 'outline',
       CANCELLED: 'destructive',
-      EXPIRED: 'destructive',
       FAILED: 'destructive'
     };
 
@@ -59,7 +58,6 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
       FILLED: <CheckCircle className="h-3 w-3 mr-1" />,
       PARTIALLY_FILLED: <Loader2 className="h-3 w-3 mr-1" />,
       CANCELLED: <XCircle className="h-3 w-3 mr-1" />,
-      EXPIRED: <XCircle className="h-3 w-3 mr-1" />,
       FAILED: <XCircle className="h-3 w-3 mr-1" />
     };
 
@@ -71,7 +69,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
     );
   };
 
-  const OrderRow = ({ order }: { order: DydxOrder }) => (
+  const OrderRow = ({ order }: { order: HyperliquidOrderDB }) => (
     <div className="border border-border rounded-lg p-4 mb-2 hover:bg-accent/50 transition-colors">
       <div className="flex justify-between items-start mb-2">
         <div>
@@ -80,10 +78,10 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
             <Badge variant={order.side === 'BUY' ? 'default' : 'destructive'}>
               {order.side}
             </Badge>
-            <Badge variant="outline">{order.type}</Badge>
+            <Badge variant="outline">{order.order_type}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+            {formatDistanceToNow(new Date(order.created_at), { addSuffix: true })}
           </p>
         </div>
         {getStatusBadge(order.status)}
@@ -104,11 +102,11 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
           <span className="text-muted-foreground">Leverage:</span>
           <span className="ml-1 font-medium text-foreground">{order.leverage}x</span>
         </div>
-        {order.filledSize > 0 && (
+        {order.filled_size > 0 && (
           <div>
             <span className="text-muted-foreground">Filled:</span>
             <span className="ml-1 font-medium text-foreground">
-              {((order.filledSize / order.size) * 100).toFixed(1)}%
+              {((order.filled_size / order.size) * 100).toFixed(1)}%
             </span>
           </div>
         )}
@@ -129,7 +127,12 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
                 });
                 return;
               }
-              await dydxTradingService.cancelOrder(order.id, password);
+              // TODO: Implement Hyperliquid order cancellation
+              toast({
+                variant: 'destructive',
+                title: 'Not Implemented',
+                description: 'Hyperliquid order cancellation coming soon'
+              });
             }}
           >
             Cancel Order

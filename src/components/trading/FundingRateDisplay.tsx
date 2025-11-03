@@ -8,7 +8,7 @@ interface FundingRateDisplayProps {
 }
 
 export const FundingRateDisplay = ({ market }: FundingRateDisplayProps) => {
-  const { fundingRate, nextFundingTime, annualizedRate, formatTimeUntil, loading, error } = useFundingRate(market);
+  const { fundingRate, nextFundingTime, annualizedRate, formatTimeUntil, loading, error } = useHyperliquidFunding(market);
 
   if (loading) {
     return (

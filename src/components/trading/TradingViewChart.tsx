@@ -22,7 +22,7 @@ import {
 
 interface TradingViewChartProps {
   symbol: string;
-  candles: DydxCandle[];
+  candles: HyperliquidCandle[];
   resolution: string;
   onResolutionChange: (resolution: string) => void;
   loading?: boolean;
@@ -207,33 +207,34 @@ const TradingViewChart = ({
       });
 
       // Transform data to chart format with timestamp validation and null filtering
+      // Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
       const validCandles = candles.filter(
-        c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+        c => c.t != null && c.o != null && c.h != null && c.l != null && c.c != null
       );
 
       // Sort ascending by timestamp (required by lightweight-charts)
-      const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+      const sortedCandles = validCandles.sort((a, b) => a.t - b.t);
 
       console.log("[Chart Debug] First candle:", sortedCandles[0], "Invalid candles:", candles.length - validCandles.length);
 
       const chartData = sortedCandles.map((candle) => ({
         time: Math.floor(
-          candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+          candle.t > 1e12 ? candle.t / 1000 : candle.t
         ) as any,
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
+        open: parseFloat(candle.o),
+        high: parseFloat(candle.h),
+        low: parseFloat(candle.l),
+        close: parseFloat(candle.c),
       }));
 
       const volumeData = sortedCandles
-        .filter(c => c.volume != null)
+        .filter(c => c.v != null)
         .map((candle) => ({
           time: Math.floor(
-            candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+            candle.t > 1e12 ? candle.t / 1000 : candle.t
           ) as any,
-          value: candle.volume,
-          color: candle.close > candle.open 
+          value: parseFloat(candle.v),
+          color: parseFloat(candle.c) > parseFloat(candle.o) 
             ? 'rgba(16, 185, 129, 0.5)' // green with transparency
             : 'rgba(239, 68, 68, 0.5)', // red with transparency
         }));
@@ -372,31 +373,32 @@ const TradingViewChart = ({
     if (candles.length === 0) return;
 
     // Process updates immediately for real-time feel
+    // Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
     const validCandles = candles.filter(
-      c => c.timestamp != null && c.open != null && c.high != null && c.low != null && c.close != null
+      c => c.t != null && c.o != null && c.h != null && c.l != null && c.c != null
     );
 
     // Sort ascending by timestamp (required by lightweight-charts)
-    const sortedCandles = validCandles.sort((a, b) => a.timestamp - b.timestamp);
+    const sortedCandles = validCandles.sort((a, b) => a.t - b.t);
 
     const chartData = sortedCandles.map((candle) => ({
       time: Math.floor(
-        candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+        candle.t > 1e12 ? candle.t / 1000 : candle.t
       ) as any,
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
+      open: parseFloat(candle.o),
+      high: parseFloat(candle.h),
+      low: parseFloat(candle.l),
+      close: parseFloat(candle.c),
     }));
 
     const volumeData = sortedCandles
-      .filter(c => c.volume != null)
+      .filter(c => c.v != null)
       .map((candle) => ({
         time: Math.floor(
-          candle.timestamp > 1e12 ? candle.timestamp / 1000 : candle.timestamp
+          candle.t > 1e12 ? candle.t / 1000 : candle.t
         ) as any,
-        value: candle.volume,
-        color: candle.close > candle.open 
+        value: parseFloat(candle.v),
+        color: parseFloat(candle.c) > parseFloat(candle.o) 
           ? 'rgba(16, 185, 129, 0.5)'
           : 'rgba(239, 68, 68, 0.5)',
       }));

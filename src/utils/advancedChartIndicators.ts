@@ -7,18 +7,23 @@ export interface IndicatorPoint {
 
 /**
  * Calculate Volume-Weighted Average Price (VWAP)
+ * Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
  */
-export function calculateVWAP(candles: DydxCandle[]): IndicatorPoint[] {
+export function calculateVWAP(candles: HyperliquidCandle[]): IndicatorPoint[] {
   let cumulativeTPV = 0; // Typical Price * Volume
   let cumulativeVolume = 0;
 
   return candles.map(candle => {
-    const typicalPrice = (candle.high + candle.low + candle.close) / 3;
-    cumulativeTPV += typicalPrice * candle.volume;
-    cumulativeVolume += candle.volume;
+    const high = parseFloat(candle.h);
+    const low = parseFloat(candle.l);
+    const close = parseFloat(candle.c);
+    const volume = parseFloat(candle.v);
+    const typicalPrice = (high + low + close) / 3;
+    cumulativeTPV += typicalPrice * volume;
+    cumulativeVolume += volume;
 
     return {
-      time: candle.timestamp,
+      time: candle.t,
       value: cumulativeVolume > 0 ? cumulativeTPV / cumulativeVolume : typicalPrice,
     };
   });
@@ -26,8 +31,9 @@ export function calculateVWAP(candles: DydxCandle[]): IndicatorPoint[] {
 
 /**
  * Calculate Relative Strength Index (RSI)
+ * Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
  */
-export function calculateRSI(candles: DydxCandle[], period: number = 14): IndicatorPoint[] {
+export function calculateRSI(candles: HyperliquidCandle[], period: number = 14): IndicatorPoint[] {
   if (candles.length < period + 1) {
     return [];
   }
@@ -38,7 +44,7 @@ export function calculateRSI(candles: DydxCandle[], period: number = 14): Indica
 
   // Calculate initial gains and losses
   for (let i = 1; i < candles.length; i++) {
-    const change = candles[i].close - candles[i - 1].close;
+    const change = parseFloat(candles[i].c) - parseFloat(candles[i - 1].c);
     gains.push(change > 0 ? change : 0);
     losses.push(change < 0 ? Math.abs(change) : 0);
   }
@@ -51,7 +57,7 @@ export function calculateRSI(candles: DydxCandle[], period: number = 14): Indica
   const rsi = 100 - (100 / (1 + rs));
   
   results.push({
-    time: candles[period].timestamp,
+    time: candles[period].t,
     value: rsi,
   });
 
@@ -64,7 +70,7 @@ export function calculateRSI(candles: DydxCandle[], period: number = 14): Indica
     const rsi = 100 - (100 / (1 + rs));
     
     results.push({
-      time: candles[i + 1].timestamp,
+      time: candles[i + 1].t,
       value: rsi,
     });
   }
@@ -74,9 +80,10 @@ export function calculateRSI(candles: DydxCandle[], period: number = 14): Indica
 
 /**
  * Calculate Moving Average Convergence Divergence (MACD)
+ * Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
  */
 export function calculateMACD(
-  candles: DydxCandle[],
+  candles: HyperliquidCandle[],
   fastPeriod: number = 12,
   slowPeriod: number = 26,
   signalPeriod: number = 9
@@ -95,7 +102,7 @@ export function calculateMACD(
 
   for (let i = startIndex; i < candles.length; i++) {
     macdLine.push({
-      time: candles[i].timestamp,
+      time: candles[i].t,
       value: fastEMA[i - (fastPeriod - 1)].value - slowEMA[i - startIndex].value,
     });
   }
@@ -128,8 +135,9 @@ export function calculateMACD(
 
 /**
  * Calculate Exponential Moving Average (EMA)
+ * Hyperliquid candles use: t (timestamp), o (open), h (high), l (low), c (close), v (volume)
  */
-function calculateEMA(candles: DydxCandle[], period: number): IndicatorPoint[] {
+function calculateEMA(candles: HyperliquidCandle[], period: number): IndicatorPoint[] {
   if (candles.length < period) {
     return [];
   }
@@ -138,13 +146,13 @@ function calculateEMA(candles: DydxCandle[], period: number): IndicatorPoint[] {
   const multiplier = 2 / (period + 1);
 
   // Calculate initial SMA
-  let ema = candles.slice(0, period).reduce((sum, c) => sum + c.close, 0) / period;
-  results.push({ time: candles[period - 1].timestamp, value: ema });
+  let ema = candles.slice(0, period).reduce((sum, c) => sum + parseFloat(c.c), 0) / period;
+  results.push({ time: candles[period - 1].t, value: ema });
 
   // Calculate EMA for remaining candles
   for (let i = period; i < candles.length; i++) {
-    ema = (candles[i].close - ema) * multiplier + ema;
-    results.push({ time: candles[i].timestamp, value: ema });
+    ema = (parseFloat(candles[i].c) - ema) * multiplier + ema;
+    results.push({ time: candles[i].t, value: ema });
   }
 
   return results;

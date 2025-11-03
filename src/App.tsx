@@ -155,7 +155,6 @@ const AppRoutes = () => {
       <Route path="/auto-invest" element={<ProtectedRoute><AutoInvest /></ProtectedRoute>} />
       <Route path="/trading-dashboard" element={<ProtectedRoute><TradingDashboard /></ProtectedRoute>} />
       <Route path="/trading/01" element={<ProtectedRoute><O1TradingDashboard /></ProtectedRoute>} />
-      <Route path="/dydx-trades" element={<ProtectedRoute><DydxTradesHistory /></ProtectedRoute>} />
       <Route path="/moonpay/callback" element={<ProtectedRoute><MoonPayCallback /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
