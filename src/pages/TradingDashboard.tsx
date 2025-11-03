@@ -142,7 +142,8 @@ const TradingDashboard = () => {
     { symbol: 'TRZ', name: 'Trezury Token', price: 1.05, change24h: 1.89, leverageAvailable: false },
   ];
 
-  const currentAsset = leverageAssets.find(a => a.name === selectedAsset) || spotAssets.find(a => a.symbol === selectedAsset);
+  const selectedSymbol = selectedAsset?.split('-')[0] || selectedAsset || '';
+  const currentAsset = leverageAssets.find(a => a.name === selectedSymbol) || spotAssets.find(a => a.symbol === selectedAsset);
 
   const handleConnectWallet = async () => {
     try {
@@ -780,7 +781,7 @@ const TradingDashboard = () => {
 
         {/* Chart Section */}
         <div className="flex-1 min-h-0 flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
-          {selectedAsset && leverageAssets.find(a => a.name === selectedAsset) ? (
+          {selectedAsset && leverageAssets.find(a => a.name === selectedSymbol) ? (
             <TradingViewChart
               symbol={selectedAsset}
               candles={candles}
@@ -935,7 +936,7 @@ const TradingDashboard = () => {
                   <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
                 </div>
                 
-                {selectedAsset && leverageAssets.find(a => a.name === selectedAsset) ? (
+                {selectedAsset && leverageAssets.find(a => a.name === selectedSymbol) ? (
                   <>
                     {/* Quick Leverage Buttons */}
                     <div className="flex gap-1.5">
