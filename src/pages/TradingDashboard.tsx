@@ -14,6 +14,7 @@ import { useHyperliquidCandles } from '@/hooks/useHyperliquidCandles';
 import { useHyperliquidAccount } from '@/hooks/useHyperliquidAccount';
 import { useHyperliquidTrading } from '@/hooks/useHyperliquidTrading';
 import { useHyperliquidFunding } from '@/hooks/useHyperliquidFunding';
+import { useHyperliquidTicker } from '@/hooks/useHyperliquidTicker';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
@@ -112,6 +113,7 @@ const TradingDashboard = () => {
   const { markets, loading: marketsLoading } = useHyperliquidMarkets();
   const { candles, loading: candlesLoading, error: candlesError } = useHyperliquidCandles(selectedAsset, chartResolution, 200);
   const { fundingRate, nextFundingTime, formatTimeUntil } = useHyperliquidFunding(selectedAsset || '');
+  const { prices: currentPrices } = useHyperliquidTicker();
 
   // WebSocket health monitoring
   useEffect(() => {
@@ -294,10 +296,7 @@ const TradingDashboard = () => {
     }
   };
 
-  const currentPrices = markets.reduce((acc, market) => {
-    acc[market.name] = 0; // Price to be fetched from ticker/orderbook
-    return acc;
-  }, {} as Record<string, number>);
+  // currentPrices now comes from useHyperliquidTicker hook
 
   const chartResolutionMap: Record<string, string> = {
     '1m': '1MIN',
@@ -940,7 +939,7 @@ const TradingDashboard = () => {
                   <>
                     {/* Quick Leverage Buttons */}
                     <div className="flex gap-1.5">
-                      {['1x', '5x', '10x', '20x'].map((lvg) => (
+                      {['1x', '5x', '10x', '25x', '50x'].map((lvg) => (
                         <Button
                           key={lvg}
                           size="sm"
@@ -962,13 +961,13 @@ const TradingDashboard = () => {
                         value={[leverage]}
                         onValueChange={(value) => setLeverage(value[0])}
                         min={1}
-                        max={20}
+                        max={50}
                         step={1}
                         className="cursor-pointer"
                       />
                       <div className="flex justify-between mt-1.5 text-[10px] text-[#c6b795]/60">
                         <span>1x</span>
-                        <span>20x</span>
+                        <span>50x</span>
                       </div>
                     </div>
                   </>

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useHyperliquidPositions } from '@/hooks/useHyperliquidPositions';
+import { useHyperliquidTrading } from '@/hooks/useHyperliquidTrading';
 import type { HyperliquidPositionDB } from '@/types/hyperliquid';
 import { TrendingUp, TrendingDown, AlertTriangle, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -30,52 +31,9 @@ type SortField = 'market' | 'size' | 'pnl' | 'leverage' | 'liquidation';
 type SortDirection = 'asc' | 'desc';
 
 export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTableProps) => {
-  // Mock data for now
-  const mockPositions: HyperliquidPositionDB[] = [
-    {
-      id: '1',
-      user_id: 'user1',
-      address: address || '',
-      market: 'BTC',
-      side: 'LONG',
-      size: 0.5,
-      entry_price: 95000,
-      leverage: 10,
-      unrealized_pnl: 2500,
-      realized_pnl: 0,
-      liquidation_price: 86000,
-      opened_at: new Date().toISOString(),
-      closed_at: null,
-      status: 'OPEN',
-      metadata: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: '2',
-      user_id: 'user1',
-      address: address || '',
-      market: 'ETH',
-      side: 'SHORT',
-      size: 2.5,
-      entry_price: 3500,
-      leverage: 5,
-      unrealized_pnl: -450,
-      realized_pnl: 0,
-      liquidation_price: 3800,
-      opened_at: new Date().toISOString(),
-      closed_at: null,
-      status: 'OPEN',
-      metadata: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ];
-
-  const positions = mockPositions;
-  const loading = false;
-  const error = null;
-
+  // Use real positions from Hyperliquid
+  const { positions, loading, error, refreshPositions } = useHyperliquidPositions(address);
+  const { closePosition, loading: tradingLoading } = useHyperliquidTrading(address);
   const { toast } = useToast();
   const { getPassword } = useTradingPasswordContext();
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
@@ -118,12 +76,21 @@ export const OpenPositionsTable = ({ address, currentPrices }: OpenPositionsTabl
     setCloseDialogOpen(false);
     
     try {
-      // TODO: Implement Hyperliquid position closing
-      toast({
-        variant: 'destructive',
-        title: 'Not Implemented',
-        description: 'Hyperliquid position closing coming soon'
-      });
+      const success = await closePosition(selectedPosition.market, selectedPosition.size);
+      
+      if (success) {
+        toast({
+          title: 'Position Closed',
+          description: `Successfully closed ${selectedPosition.market} position`,
+        });
+        refreshPositions();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to Close',
+          description: 'Could not close position. Please try again.',
+        });
+      }
     } catch (err) {
       toast({
         variant: 'destructive',

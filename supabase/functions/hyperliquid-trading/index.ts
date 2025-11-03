@@ -54,6 +54,75 @@ serve(async (req) => {
         });
       }
 
+      case 'get_positions': {
+        const { address } = params;
+        
+        // Fetch from Hyperliquid API
+        const response = await fetch(`${HYPERLIQUID_API}/info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'clearinghouseState',
+            user: address
+          })
+        });
+
+        const accountState = await response.json();
+        const positions = accountState.assetPositions || [];
+        
+        // Sync to database
+        for (const pos of positions) {
+          if (parseFloat(pos.position.szi) !== 0) {
+            const { error: upsertError } = await supabaseClient
+              .from('hyperliquid_positions')
+              .upsert({
+                user_id: user.id,
+                address,
+                market: pos.position.coin,
+                side: parseFloat(pos.position.szi) > 0 ? 'LONG' : 'SHORT',
+                size: Math.abs(parseFloat(pos.position.szi)),
+                entry_price: parseFloat(pos.position.entryPx || '0'),
+                leverage: parseFloat(pos.position.leverage?.value || '1'),
+                unrealized_pnl: parseFloat(pos.position.unrealizedPnl || '0'),
+                liquidation_price: parseFloat(pos.position.liquidationPx || '0'),
+                status: 'OPEN',
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,address,market',
+                ignoreDuplicates: false
+              });
+
+            if (upsertError) {
+              console.error('Position upsert error:', upsertError);
+            }
+          }
+        }
+        
+        return new Response(JSON.stringify(positions), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'get_orders': {
+        const { address } = params;
+        
+        // Fetch from Hyperliquid API
+        const response = await fetch(`${HYPERLIQUID_API}/info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'openOrders',
+            user: address
+          })
+        });
+
+        const orders = await response.json();
+        
+        return new Response(JSON.stringify(orders), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       case 'place_order': {
         const { address, market, side, type: orderType, size, price, leverage, reduceOnly, postOnly, timeInForce, clientOrderId } = params;
 

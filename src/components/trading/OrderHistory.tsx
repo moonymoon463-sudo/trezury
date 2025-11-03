@@ -8,35 +8,16 @@ import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';
 import { useToast } from '@/hooks/use-toast';
+import { useHyperliquidOrders } from '@/hooks/useHyperliquidOrders';
 
 interface OrderHistoryProps {
   address?: string;
 }
 
 export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
-  const [orders, setOrders] = useState<HyperliquidOrderDB[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { orders, loading, cancelOrder } = useHyperliquidOrders(address);
   const { getPassword } = useTradingPasswordContext();
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (!address) return;
-
-    const loadOrders = async () => {
-      setLoading(true);
-      try {
-        // TODO: Implement Hyperliquid order history fetching
-        const data: HyperliquidOrderDB[] = [];
-        setOrders(data);
-      } catch (error) {
-        console.error('[OrderHistory] Failed to load:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadOrders();
-  }, [address]);
 
   const openOrders = orders.filter(o => o.status === 'OPEN' || o.status === 'PARTIALLY_FILLED');
   const completedOrders = orders.filter(o => o.status === 'FILLED');
@@ -127,12 +108,20 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ address }) => {
                 });
                 return;
               }
-              // TODO: Implement Hyperliquid order cancellation
-              toast({
-                variant: 'destructive',
-                title: 'Not Implemented',
-                description: 'Hyperliquid order cancellation coming soon'
-              });
+              
+              const success = await cancelOrder(order.order_id || 0, order.market);
+              if (success) {
+                toast({
+                  title: 'Order Cancelled',
+                  description: `Successfully cancelled ${order.market} order`,
+                });
+              } else {
+                toast({
+                  variant: 'destructive',
+                  title: 'Failed to Cancel',
+                  description: 'Could not cancel order. Please try again.',
+                });
+              }
             }}
           >
             Cancel Order

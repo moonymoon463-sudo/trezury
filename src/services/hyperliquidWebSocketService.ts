@@ -4,6 +4,7 @@ import type { HyperliquidOrderbook, HyperliquidTrade } from '@/types/hyperliquid
 type OrderbookCallback = (orderbook: HyperliquidOrderbook) => void;
 type TradesCallback = (trades: HyperliquidTrade[]) => void;
 type UserCallback = (data: any) => void;
+type AllMidsCallback = (mids: Record<string, string>) => void;
 
 class HyperliquidWebSocketService {
   private ws: WebSocket | null = null;
@@ -134,6 +135,12 @@ class HyperliquidWebSocketService {
       if (callbacks) {
         callbacks.forEach(cb => cb(messageData));
       }
+    } else if (channel === 'allMids' && messageData) {
+      const key = 'allMids';
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.forEach(cb => cb(messageData));
+      }
     }
   }
 
@@ -201,6 +208,29 @@ class HyperliquidWebSocketService {
         if (callbacks.size === 0) {
           this.subscriptions.delete(key);
           this.sendUnsubscribe('user', { user: address });
+        }
+      }
+    };
+  }
+
+  subscribeToAllMids(callback: AllMidsCallback): () => void {
+    this.connect();
+
+    const key = 'allMids';
+    if (!this.subscriptions.has(key)) {
+      this.subscriptions.set(key, new Set());
+      this.sendSubscribe('allMids', {});
+    }
+
+    this.subscriptions.get(key)!.add(callback);
+
+    return () => {
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.subscriptions.delete(key);
+          this.sendUnsubscribe('allMids', {});
         }
       }
     };
