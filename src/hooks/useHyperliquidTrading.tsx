@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { hyperliquidTradingService } from '@/services/hyperliquidTradingService';
-import { hyperliquidSigningService } from '@/services/hyperliquidSigningService';
+import { unifiedHyperliquidSigner } from '@/services/unifiedHyperliquidSigner';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type {
@@ -32,7 +32,7 @@ export const useHyperliquidTrading = (address?: string) => {
   }, [address]);
 
   const placeOrder = useCallback(async (
-    orderRequest: HyperliquidOrderRequest & { password: string }
+    orderRequest: HyperliquidOrderRequest & { password?: string; walletSource?: 'generated' | 'external' }
   ): Promise<HyperliquidOrderResponse> => {
     if (!user || !address) {
       throw new Error('User must be authenticated and address provided');
@@ -52,7 +52,10 @@ export const useHyperliquidTrading = (address?: string) => {
         };
       }
 
-      // 1. Sign order on frontend (password never sent to server)
+      // Determine wallet source
+      const walletSource = orderRequest.walletSource || 'generated';
+
+      // 1. Sign order on frontend (password for generated, MetaMask prompt for external)
       const nonce = Date.now();
       const action = {
         type: 'order',
@@ -69,9 +72,10 @@ export const useHyperliquidTrading = (address?: string) => {
         grouping: 'na'
       };
 
-      const signature = await hyperliquidSigningService.signOrderAction(
+      const signature = await unifiedHyperliquidSigner.signOrderAction(
+        walletSource,
         user.id,
-        orderRequest.password,
+        orderRequest.password || null,
         action,
         nonce
       );

@@ -15,6 +15,7 @@ import { useHyperliquidCandles } from '@/hooks/useHyperliquidCandles';
 import { useHyperliquidAccount } from '@/hooks/useHyperliquidAccount';
 import { useHyperliquidTrading } from '@/hooks/useHyperliquidTrading';
 import { useHyperliquidFunding } from '@/hooks/useHyperliquidFunding';
+import { useHyperliquidWalletDetection } from '@/hooks/useHyperliquidWalletDetection';
 import { useHyperliquidTicker } from '@/hooks/useHyperliquidTicker';
 import { Wallet as WalletIcon, TrendingUp, TrendingDown, BarChart3, Settings, DollarSign, Zap, TrendingUpDown, RefreshCw, Copy, Check, Shield, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -84,7 +85,12 @@ const TradingDashboard = () => {
   
   // Hyperliquid wallet and account
   const [hyperliquidAddress, setHyperliquidAddress] = useState<string | null>(null);
-  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useHyperliquidAccount(hyperliquidAddress || undefined);
+  
+  // Smart wallet detection (checks both generated and external wallets)
+  const { tradingWallet, loading: walletDetectionLoading, refresh: refreshWalletDetection } = useHyperliquidWalletDetection();
+  
+  // Use detected trading wallet address for account info
+  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useHyperliquidAccount(tradingWallet.address || undefined);
   
   // Load Hyperliquid wallet
   useEffect(() => {
@@ -102,8 +108,8 @@ const TradingDashboard = () => {
     loadHyperliquidWallet();
   }, [user?.id]);
   
-  // Hyperliquid trading
-  const { placeOrder, loading: orderLoading } = useHyperliquidTrading(hyperliquidAddress || undefined);
+  // Hyperliquid trading - use detected wallet address
+  const { placeOrder, loading: tradingLoading, orderLoading } = useHyperliquidTrading(tradingWallet.address || undefined);
   
   const { toast } = useToast();
   
@@ -242,12 +248,16 @@ const TradingDashboard = () => {
       return;
     }
 
-    setShowPasswordDialog(true);
+    // If using external wallet (MetaMask), no password needed
+    if (tradingWallet.type === 'external') {
+      await executePlaceOrder(null);
+    } else {
+      // Generated wallet requires password
+      setShowPasswordDialog(true);
+    }
   };
 
-  const handlePasswordUnlock = async (password: string) => {
-    setShowPasswordDialog(false);
-
+  const executePlaceOrder = async (password: string | null) => {
     if (!selectedAsset) return;
 
     const currentPrice = currentAsset && 'price' in currentAsset ? currentAsset.price : 0;
@@ -261,7 +271,8 @@ const TradingDashboard = () => {
       size,
       price,
       leverage,
-      password
+      password: password || undefined,
+      walletSource: tradingWallet.type || 'generated'
     });
 
     // Log to audit trail
@@ -281,12 +292,18 @@ const TradingDashboard = () => {
       setLimitPrice('');
       setStopPrice('');
       refreshAccount();
+      refreshWalletDetection();
       
       toast({
         title: 'Order Placed',
         description: 'Your order has been placed successfully'
       });
     }
+  };
+
+  const handlePasswordUnlock = async (password: string) => {
+    setShowPasswordDialog(false);
+    await executePlaceOrder(password);
   };
 
   const handleTradingModeChange = (mode: 'spot' | 'leverage') => {
@@ -371,38 +388,41 @@ const TradingDashboard = () => {
 
           {/* Wallet Info - Always show wallet type selector */}
           {walletType === 'trading' ? (
-            hyperliquidAddress ? (
+            tradingWallet.isReady && tradingWallet.address ? (
               <div className="bg-[#2a251a] rounded-lg p-2 border border-[#463c25] space-y-1.5 min-h-[140px]">
                 <div className="space-y-2">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#c6b795] text-xs">Trading Wallet:</span>
                       <button
-                        onClick={() => hyperliquidAddress && copyAddress(hyperliquidAddress)}
+                        onClick={() => tradingWallet.address && copyAddress(tradingWallet.address)}
                         className="flex items-center gap-1 text-white text-xs hover:text-[#e6b951] transition-colors"
                       >
-                        {hyperliquidAddress?.slice(0, 6)}...{hyperliquidAddress?.slice(-4)}
+                        {tradingWallet.address?.slice(0, 6)}...{tradingWallet.address?.slice(-4)}
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs bg-[#e6b951]/20 text-[#e6b951] border-[#e6b951]/30">
+                      <Badge variant={tradingWallet.type === 'external' ? 'default' : 'outline'} 
+                             className="text-xs bg-[#e6b951]/20 text-[#e6b951] border-[#e6b951]/30">
                         <Shield className="h-3 w-3 mr-1" />
-                        Trading Wallet Active
+                        {tradingWallet.type === 'external' ? '🔗 External' : '🔒 Generated'} Wallet Active
                       </Badge>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[#c6b795] text-sm">Account Value:</span>
                       <span className="text-white font-semibold">
-                        ${accountInfo ? parseFloat(accountInfo.marginSummary.accountValue || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                        ${tradingWallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[#c6b795] text-sm">Available:</span>
-                      <span className="text-white font-semibold">
-                        ${accountInfo ? parseFloat(accountInfo.withdrawable || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                      </span>
-                    </div>
+                    {accountInfo && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#c6b795] text-sm">Available:</span>
+                        <span className="text-white font-semibold">
+                          ${parseFloat(accountInfo.withdrawable || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -417,7 +437,16 @@ const TradingDashboard = () => {
                   Refresh Balances
                 </Button>
 
-                {accountInfo && parseFloat(accountInfo.marginSummary.accountValue) === 0 && (
+                {tradingWallet.type === 'external' && (
+                  <Alert className="mt-2 bg-[#463c25]/30 border-[#e6b951]/30">
+                    <Shield className="h-3 w-3 text-[#e6b951]" />
+                    <AlertDescription className="text-xs text-[#c6b795]">
+                      Trading with MetaMask - you'll sign each order in your wallet
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {tradingWallet.balance === 0 && (
                   <Alert className="mt-2 bg-[#463c25]/30 border-[#e6b951]/30">
                     <AlertCircle className="h-4 w-4 text-[#e6b951]" />
                     <AlertDescription className="text-xs text-[#c6b795]">
@@ -426,7 +455,7 @@ const TradingDashboard = () => {
                   </Alert>
                 )}
 
-                {hyperliquidAddress ? (
+                {tradingWallet.address ? (
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
