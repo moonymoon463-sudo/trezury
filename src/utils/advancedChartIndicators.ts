@@ -1,4 +1,4 @@
-import type { DydxCandle } from '@/types/dydx';
+import type { HyperliquidCandle } from '@/types/hyperliquid';
 
 export interface IndicatorPoint {
   time: number;

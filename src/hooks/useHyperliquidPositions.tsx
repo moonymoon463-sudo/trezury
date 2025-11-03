@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { dydxMarketService } from '@/services/dydxMarketService';
-import type { DydxPosition } from '@/types/dydx';
+import { supabase } from '@/integrations/supabase/client';
+import type { HyperliquidPositionDB } from '@/types/hyperliquid';
 
-export const useDydxPositions = (address?: string) => {
-  const [positions, setPositions] = useState<DydxPosition[]>([]);
+export const useHyperliquidPositions = (address?: string) => {
+  const [positions, setPositions] = useState<HyperliquidPositionDB[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,15 +19,24 @@ export const useDydxPositions = (address?: string) => {
     const loadPositions = async () => {
       try {
         setLoading(true);
-        const data = await dydxMarketService.getUserPositions(address);
+        
+        const { data, error: dbError } = await supabase
+          .from('hyperliquid_positions')
+          .select('*')
+          .eq('address', address)
+          .eq('status', 'OPEN')
+          .order('opened_at', { ascending: false });
+
+        if (dbError) throw dbError;
+        
         if (mounted) {
-          setPositions(data);
+          setPositions((data || []) as HyperliquidPositionDB[]);
           setError(null);
         }
       } catch (err) {
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Failed to load positions');
-          console.error('[useDydxPositions] Error:', err);
+          console.error('[useHyperliquidPositions] Error:', err);
         }
       } finally {
         if (mounted) {
@@ -52,8 +61,17 @@ export const useDydxPositions = (address?: string) => {
 
     try {
       setLoading(true);
-      const data = await dydxMarketService.getUserPositions(address);
-      setPositions(data);
+      
+      const { data, error: dbError } = await supabase
+        .from('hyperliquid_positions')
+        .select('*')
+        .eq('address', address)
+        .eq('status', 'OPEN')
+        .order('opened_at', { ascending: false });
+
+      if (dbError) throw dbError;
+      
+      setPositions((data || []) as HyperliquidPositionDB[]);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh positions');

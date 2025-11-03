@@ -1,0 +1,218 @@
+import { HYPERLIQUID_API } from '@/config/hyperliquid';
+import type { HyperliquidOrderbook, HyperliquidTrade } from '@/types/hyperliquid';
+
+type OrderbookCallback = (orderbook: HyperliquidOrderbook) => void;
+type TradesCallback = (trades: HyperliquidTrade[]) => void;
+type UserCallback = (data: any) => void;
+
+class HyperliquidWebSocketService {
+  private ws: WebSocket | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000;
+  private subscriptions = new Map<string, Set<any>>();
+  private isConnecting = false;
+
+  connect(): Promise<void> {
+    if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
+      return Promise.resolve();
+    }
+
+    this.isConnecting = true;
+
+    return new Promise((resolve, reject) => {
+      try {
+        this.ws = new WebSocket(HYPERLIQUID_API.wsEndpoint);
+
+        this.ws.onopen = () => {
+          console.log('[HyperliquidWS] Connected');
+          this.reconnectAttempts = 0;
+          this.isConnecting = false;
+          this.resubscribeAll();
+          resolve();
+        };
+
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            this.handleMessage(data);
+          } catch (error) {
+            console.error('[HyperliquidWS] Failed to parse message:', error);
+          }
+        };
+
+        this.ws.onerror = (error) => {
+          console.error('[HyperliquidWS] Error:', error);
+          this.isConnecting = false;
+        };
+
+        this.ws.onclose = () => {
+          console.log('[HyperliquidWS] Disconnected');
+          this.isConnecting = false;
+          this.handleReconnect();
+        };
+      } catch (error) {
+        this.isConnecting = false;
+        reject(error);
+      }
+    });
+  }
+
+  private handleReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('[HyperliquidWS] Max reconnect attempts reached');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    
+    console.log(`[HyperliquidWS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    
+    setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  private resubscribeAll(): void {
+    this.subscriptions.forEach((callbacks, key) => {
+      if (key.startsWith('orderbook:')) {
+        const market = key.split(':')[1];
+        this.sendSubscribe('l2Book', { coin: market });
+      } else if (key.startsWith('trades:')) {
+        const market = key.split(':')[1];
+        this.sendSubscribe('trades', { coin: market });
+      } else if (key.startsWith('user:')) {
+        const address = key.split(':')[1];
+        this.sendSubscribe('user', { user: address });
+      }
+    });
+  }
+
+  private sendSubscribe(channel: string, params: any): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        method: 'subscribe',
+        subscription: {
+          type: channel,
+          ...params
+        }
+      }));
+    }
+  }
+
+  private sendUnsubscribe(channel: string, params: any): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        method: 'unsubscribe',
+        subscription: {
+          type: channel,
+          ...params
+        }
+      }));
+    }
+  }
+
+  private handleMessage(data: any): void {
+    const { channel, data: messageData } = data;
+
+    if (channel === 'l2Book' && messageData) {
+      const key = `orderbook:${messageData.coin}`;
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.forEach(cb => cb(messageData));
+      }
+    } else if (channel === 'trades' && messageData) {
+      const key = `trades:${messageData.coin}`;
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.forEach(cb => cb(messageData));
+      }
+    } else if (channel === 'user' && messageData) {
+      const key = `user:${messageData.user}`;
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.forEach(cb => cb(messageData));
+      }
+    }
+  }
+
+  subscribeToOrderbook(market: string, callback: OrderbookCallback): () => void {
+    this.connect();
+
+    const key = `orderbook:${market}`;
+    if (!this.subscriptions.has(key)) {
+      this.subscriptions.set(key, new Set());
+      this.sendSubscribe('l2Book', { coin: market });
+    }
+
+    this.subscriptions.get(key)!.add(callback);
+
+    return () => {
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.subscriptions.delete(key);
+          this.sendUnsubscribe('l2Book', { coin: market });
+        }
+      }
+    };
+  }
+
+  subscribeToTrades(market: string, callback: TradesCallback): () => void {
+    this.connect();
+
+    const key = `trades:${market}`;
+    if (!this.subscriptions.has(key)) {
+      this.subscriptions.set(key, new Set());
+      this.sendSubscribe('trades', { coin: market });
+    }
+
+    this.subscriptions.get(key)!.add(callback);
+
+    return () => {
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.subscriptions.delete(key);
+          this.sendUnsubscribe('trades', { coin: market });
+        }
+      }
+    };
+  }
+
+  subscribeToUser(address: string, callback: UserCallback): () => void {
+    this.connect();
+
+    const key = `user:${address}`;
+    if (!this.subscriptions.has(key)) {
+      this.subscriptions.set(key, new Set());
+      this.sendSubscribe('user', { user: address });
+    }
+
+    this.subscriptions.get(key)!.add(callback);
+
+    return () => {
+      const callbacks = this.subscriptions.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.subscriptions.delete(key);
+          this.sendUnsubscribe('user', { user: address });
+        }
+      }
+    };
+  }
+
+  disconnect(): void {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.subscriptions.clear();
+  }
+}
+
+export const hyperliquidWebSocketService = new HyperliquidWebSocketService();

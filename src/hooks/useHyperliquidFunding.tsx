@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { dydxMarketService } from '@/services/dydxMarketService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FundingRateData {
   fundingRate: number;
-  nextFundingTime: number | null;
   annualizedRate: number;
+  nextFundingTime: number | null;
 }
 
-export const useFundingRate = (market: string | null) => {
+export const useHyperliquidFunding = (market: string | null) => {
   const [data, setData] = useState<FundingRateData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,13 +23,24 @@ export const useFundingRate = (market: string | null) => {
       setError(null);
       
       try {
-        const result = await dydxMarketService.getFundingRate(market);
+        const { data: result, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
+          body: {
+            operation: 'get_funding',
+            params: { market }
+          }
+        });
+
+        if (funcError) throw funcError;
+
+        const fundingRate = parseFloat(result.fundingRate || '0');
+        
         setData({
-          ...result,
-          annualizedRate: result.fundingRate * 365 * 3, // 8-hour funding * 3 per day
+          fundingRate,
+          annualizedRate: fundingRate * 365 * 3, // 8-hour funding * 3 per day
+          nextFundingTime: Date.now() + (8 * 60 * 60 * 1000) // Next funding in 8 hours
         });
       } catch (err) {
-        console.error('[useFundingRate] Error fetching funding rate:', err);
+        console.error('[useHyperliquidFunding] Error:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch funding rate');
       } finally {
         setLoading(false);

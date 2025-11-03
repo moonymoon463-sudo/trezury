@@ -671,192 +671,6 @@ export type Database = {
         }
         Relationships: []
       }
-      dydx_account_snapshots: {
-        Row: {
-          address: string
-          equity: number
-          free_collateral: number
-          id: string
-          margin_usage: number
-          timestamp: string
-          user_id: string
-        }
-        Insert: {
-          address: string
-          equity: number
-          free_collateral: number
-          id?: string
-          margin_usage: number
-          timestamp?: string
-          user_id: string
-        }
-        Update: {
-          address?: string
-          equity?: number
-          free_collateral?: number
-          id?: string
-          margin_usage?: number
-          timestamp?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      dydx_orders: {
-        Row: {
-          address: string
-          average_fill_price: number | null
-          client_order_id: string
-          created_at: string
-          filled_at: string | null
-          filled_size: number | null
-          id: string
-          leverage: number
-          market: string
-          metadata: Json | null
-          order_id: string | null
-          order_type: string
-          post_only: boolean | null
-          price: number | null
-          reduce_only: boolean | null
-          side: string
-          size: number
-          status: string
-          time_in_force: string | null
-          tx_hash: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          address: string
-          average_fill_price?: number | null
-          client_order_id: string
-          created_at?: string
-          filled_at?: string | null
-          filled_size?: number | null
-          id?: string
-          leverage: number
-          market: string
-          metadata?: Json | null
-          order_id?: string | null
-          order_type: string
-          post_only?: boolean | null
-          price?: number | null
-          reduce_only?: boolean | null
-          side: string
-          size: number
-          status?: string
-          time_in_force?: string | null
-          tx_hash?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          address?: string
-          average_fill_price?: number | null
-          client_order_id?: string
-          created_at?: string
-          filled_at?: string | null
-          filled_size?: number | null
-          id?: string
-          leverage?: number
-          market?: string
-          metadata?: Json | null
-          order_id?: string | null
-          order_type?: string
-          post_only?: boolean | null
-          price?: number | null
-          reduce_only?: boolean | null
-          side?: string
-          size?: number
-          status?: string
-          time_in_force?: string | null
-          tx_hash?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      dydx_positions: {
-        Row: {
-          address: string
-          closed_at: string | null
-          entry_price: number
-          id: string
-          leverage: number
-          liquidation_price: number
-          market: string
-          opened_at: string
-          realized_pnl: number | null
-          side: string
-          size: number
-          status: string
-          unrealized_pnl: number | null
-          user_id: string
-        }
-        Insert: {
-          address: string
-          closed_at?: string | null
-          entry_price: number
-          id?: string
-          leverage: number
-          liquidation_price: number
-          market: string
-          opened_at?: string
-          realized_pnl?: number | null
-          side: string
-          size: number
-          status?: string
-          unrealized_pnl?: number | null
-          user_id: string
-        }
-        Update: {
-          address?: string
-          closed_at?: string | null
-          entry_price?: number
-          id?: string
-          leverage?: number
-          liquidation_price?: number
-          market?: string
-          opened_at?: string
-          realized_pnl?: number | null
-          side?: string
-          size?: number
-          status?: string
-          unrealized_pnl?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      dydx_wallets: {
-        Row: {
-          created_at: string
-          dydx_address: string
-          encrypted_mnemonic: string
-          encryption_iv: string
-          encryption_salt: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          dydx_address: string
-          encrypted_mnemonic: string
-          encryption_iv: string
-          encryption_salt: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          dydx_address?: string
-          encrypted_mnemonic?: string
-          encryption_iv?: string
-          encryption_salt?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       educational_content: {
         Row: {
           category: string
@@ -1321,6 +1135,237 @@ export type Database = {
           timestamp?: string
           usd_per_gram?: number
           usd_per_oz?: number
+        }
+        Relationships: []
+      }
+      hyperliquid_account_snapshots: {
+        Row: {
+          account_value: number
+          address: string
+          equity: number
+          free_collateral: number
+          id: string
+          margin_usage: number
+          timestamp: string
+          total_position_value: number
+          unrealized_pnl: number | null
+          user_id: string
+          withdrawable: number
+        }
+        Insert: {
+          account_value: number
+          address: string
+          equity: number
+          free_collateral: number
+          id?: string
+          margin_usage: number
+          timestamp?: string
+          total_position_value: number
+          unrealized_pnl?: number | null
+          user_id: string
+          withdrawable: number
+        }
+        Update: {
+          account_value?: number
+          address?: string
+          equity?: number
+          free_collateral?: number
+          id?: string
+          margin_usage?: number
+          timestamp?: string
+          total_position_value?: number
+          unrealized_pnl?: number | null
+          user_id?: string
+          withdrawable?: number
+        }
+        Relationships: []
+      }
+      hyperliquid_orders: {
+        Row: {
+          address: string
+          average_fill_price: number | null
+          client_order_id: string
+          created_at: string
+          error_message: string | null
+          filled_at: string | null
+          filled_size: number | null
+          id: string
+          leverage: number
+          market: string
+          metadata: Json | null
+          order_id: number | null
+          order_type: string
+          post_only: boolean | null
+          price: number | null
+          reduce_only: boolean | null
+          side: string
+          size: number
+          status: string
+          time_in_force: string | null
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          average_fill_price?: number | null
+          client_order_id: string
+          created_at?: string
+          error_message?: string | null
+          filled_at?: string | null
+          filled_size?: number | null
+          id?: string
+          leverage: number
+          market: string
+          metadata?: Json | null
+          order_id?: number | null
+          order_type: string
+          post_only?: boolean | null
+          price?: number | null
+          reduce_only?: boolean | null
+          side: string
+          size: number
+          status?: string
+          time_in_force?: string | null
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          average_fill_price?: number | null
+          client_order_id?: string
+          created_at?: string
+          error_message?: string | null
+          filled_at?: string | null
+          filled_size?: number | null
+          id?: string
+          leverage?: number
+          market?: string
+          metadata?: Json | null
+          order_id?: number | null
+          order_type?: string
+          post_only?: boolean | null
+          price?: number | null
+          reduce_only?: boolean | null
+          side?: string
+          size?: number
+          status?: string
+          time_in_force?: string | null
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hyperliquid_positions: {
+        Row: {
+          address: string
+          closed_at: string | null
+          created_at: string
+          entry_price: number
+          id: string
+          leverage: number
+          liquidation_price: number | null
+          market: string
+          metadata: Json | null
+          opened_at: string
+          realized_pnl: number | null
+          side: string
+          size: number
+          status: string
+          unrealized_pnl: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          closed_at?: string | null
+          created_at?: string
+          entry_price: number
+          id?: string
+          leverage: number
+          liquidation_price?: number | null
+          market: string
+          metadata?: Json | null
+          opened_at?: string
+          realized_pnl?: number | null
+          side: string
+          size: number
+          status?: string
+          unrealized_pnl?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          closed_at?: string | null
+          created_at?: string
+          entry_price?: number
+          id?: string
+          leverage?: number
+          liquidation_price?: number | null
+          market?: string
+          metadata?: Json | null
+          opened_at?: string
+          realized_pnl?: number | null
+          side?: string
+          size?: number
+          status?: string
+          unrealized_pnl?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hyperliquid_trades: {
+        Row: {
+          address: string
+          created_at: string
+          fee: number
+          fee_asset: string | null
+          id: string
+          is_maker: boolean | null
+          market: string
+          order_id: number | null
+          price: number
+          side: string
+          size: number
+          timestamp: string
+          trade_id: number | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          fee: number
+          fee_asset?: string | null
+          id?: string
+          is_maker?: boolean | null
+          market: string
+          order_id?: number | null
+          price: number
+          side: string
+          size: number
+          timestamp: string
+          trade_id?: number | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          fee?: number
+          fee_asset?: string | null
+          id?: string
+          is_maker?: boolean | null
+          market?: string
+          order_id?: number | null
+          price?: number
+          side?: string
+          size?: number
+          timestamp?: string
+          trade_id?: number | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -70,7 +70,7 @@ import CapacityPlanningDashboard from "./components/admin/CapacityPlanningDashbo
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import TradingDashboard from "./pages/TradingDashboard";
 import O1TradingDashboard from "./pages/O1TradingDashboard";
-import DydxTradesHistory from "./pages/DydxTradesHistory";
+// DydxTradesHistory removed - migrated to Hyperliquid
 
 const queryClient = new QueryClient();
 

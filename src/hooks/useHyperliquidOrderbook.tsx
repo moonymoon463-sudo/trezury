@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { dydxWebSocketService } from '@/services/dydxWebSocketService';
-import type { DydxOrderbook } from '@/types/dydx';
+import { hyperliquidWebSocketService } from '@/services/hyperliquidWebSocketService';
+import type { HyperliquidOrderbook } from '@/types/hyperliquid';
 
 // Throttle function to limit update frequency
 const throttle = <T extends (...args: any[]) => void>(func: T, delay: number): T => {
@@ -14,22 +14,22 @@ const throttle = <T extends (...args: any[]) => void>(func: T, delay: number): T
   }) as T;
 };
 
-export const useDydxOrderbook = (symbol: string | null) => {
-  const [orderbook, setOrderbook] = useState<DydxOrderbook | null>(null);
+export const useHyperliquidOrderbook = (market: string | null) => {
+  const [orderbook, setOrderbook] = useState<HyperliquidOrderbook | null>(null);
   const [loading, setLoading] = useState(true);
-  const lastNonEmpty = useRef<DydxOrderbook | null>(null);
+  const lastNonEmpty = useRef<HyperliquidOrderbook | null>(null);
   
   const throttledSetOrderbook = useRef(
-    throttle((book: DydxOrderbook) => {
+    throttle((book: HyperliquidOrderbook) => {
       // Prevent empty flash by ignoring updates with no orders if we have a good state
-      if ((book.bids.length === 0 && book.asks.length === 0) && lastNonEmpty.current) {
+      if ((book.levels[0].length === 0 && book.levels[1].length === 0) && lastNonEmpty.current) {
         return;
       }
       
       setOrderbook(book);
       
       // Save last good state
-      if (book.bids.length > 0 || book.asks.length > 0) {
+      if (book.levels[0].length > 0 || book.levels[1].length > 0) {
         lastNonEmpty.current = book;
       }
       
@@ -38,7 +38,7 @@ export const useDydxOrderbook = (symbol: string | null) => {
   ).current;
 
   useEffect(() => {
-    if (!symbol) {
+    if (!market) {
       setOrderbook(null);
       setLoading(false);
       return;
@@ -47,8 +47,8 @@ export const useDydxOrderbook = (symbol: string | null) => {
     let mounted = true;
     setLoading(true);
 
-    const unsubscribe = dydxWebSocketService.subscribeToOrderbook(
-      symbol,
+    const unsubscribe = hyperliquidWebSocketService.subscribeToOrderbook(
+      market,
       (updatedOrderbook) => {
         if (mounted) {
           throttledSetOrderbook(updatedOrderbook);
@@ -60,7 +60,7 @@ export const useDydxOrderbook = (symbol: string | null) => {
       mounted = false;
       unsubscribe();
     };
-  }, [symbol]);
+  }, [market, throttledSetOrderbook]);
 
   return { orderbook, loading };
 };

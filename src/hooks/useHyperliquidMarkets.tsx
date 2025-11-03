@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { dydxMarketService } from '@/services/dydxMarketService';
-import type { DydxMarket } from '@/types/dydx';
+import { supabase } from '@/integrations/supabase/client';
+import type { HyperliquidMarket } from '@/types/hyperliquid';
 
-export const useDydxMarkets = () => {
-  const [markets, setMarkets] = useState<DydxMarket[]>([]);
+export const useHyperliquidMarkets = () => {
+  const [markets, setMarkets] = useState<HyperliquidMarket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,7 +13,15 @@ export const useDydxMarkets = () => {
     const loadMarkets = async () => {
       try {
         setLoading(true);
-        const data = await dydxMarketService.getMarkets();
+        
+        const { data, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
+          body: {
+            operation: 'get_markets'
+          }
+        });
+
+        if (funcError) throw funcError;
+        
         if (mounted) {
           setMarkets(data);
           setError(null);
@@ -21,7 +29,7 @@ export const useDydxMarkets = () => {
       } catch (err) {
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Failed to load markets');
-          console.error('[useDydxMarkets] Error:', err);
+          console.error('[useHyperliquidMarkets] Error:', err);
         }
       } finally {
         if (mounted) {
@@ -32,24 +40,27 @@ export const useDydxMarkets = () => {
 
     loadMarkets();
 
-    // Subscribe to real-time updates
-    dydxMarketService.startRealTimeUpdates(20000); // Refresh every 20 seconds
-    const unsubscribe = dydxMarketService.subscribe((updatedMarkets) => {
-      if (mounted) {
-        setMarkets(updatedMarkets);
-      }
-    });
+    // Refresh every 30 seconds
+    const interval = setInterval(loadMarkets, 30000);
 
     return () => {
       mounted = false;
-      unsubscribe();
+      clearInterval(interval);
     };
   }, []);
 
   const refreshMarkets = async () => {
     try {
       setLoading(true);
-      const data = await dydxMarketService.getMarkets();
+      
+      const { data, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
+        body: {
+          operation: 'get_markets'
+        }
+      });
+
+      if (funcError) throw funcError;
+      
       setMarkets(data);
       setError(null);
     } catch (err) {

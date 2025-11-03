@@ -1,0 +1,228 @@
+export type HyperliquidOrderSide = 'BUY' | 'SELL';
+export type HyperliquidOrderType = 'MARKET' | 'LIMIT' | 'STOP_MARKET' | 'STOP_LIMIT';
+export type HyperliquidOrderStatus = 'PENDING' | 'OPEN' | 'FILLED' | 'PARTIALLY_FILLED' | 'CANCELLED' | 'FAILED';
+export type HyperliquidTimeInForce = 'GTC' | 'IOC' | 'ALO';
+export type HyperliquidPositionSide = 'LONG' | 'SHORT';
+export type HyperliquidPositionStatus = 'OPEN' | 'CLOSED' | 'LIQUIDATED';
+
+export interface HyperliquidMarket {
+  name: string;
+  szDecimals: number;
+  maxLeverage: number;
+  onlyIsolated: boolean;
+}
+
+export interface HyperliquidPosition {
+  coin: string;
+  szi: string; // Signed size (negative = short)
+  entryPx: string;
+  positionValue: string;
+  unrealizedPnl: string;
+  returnOnEquity: string;
+  liquidationPx: string | null;
+  marginUsed: string;
+  maxTradeSzs: [string, string];
+}
+
+export interface HyperliquidAssetPosition {
+  position: HyperliquidPosition;
+  type: 'oneWay';
+}
+
+export interface HyperliquidCrossMarginSummary {
+  accountValue: string;
+  totalMarginUsed: string;
+  totalNtlPos: string;
+  totalRawUsd: string;
+}
+
+export interface HyperliquidAccountState {
+  assetPositions: HyperliquidAssetPosition[];
+  crossMarginSummary: HyperliquidCrossMarginSummary;
+  marginSummary: {
+    accountValue: string;
+    totalMarginUsed: string;
+    totalNtlPos: string;
+    totalRawUsd: string;
+  };
+  withdrawable: string;
+}
+
+export interface HyperliquidOrder {
+  coin: string;
+  side: 'B' | 'A'; // Buy/Ask
+  limitPx: string;
+  sz: string;
+  oid: number;
+  timestamp: number;
+  origSz: string;
+  cloid?: string;
+}
+
+export interface HyperliquidFill {
+  coin: string;
+  px: string;
+  sz: string;
+  side: 'B' | 'A';
+  time: number;
+  startPosition: string;
+  dir: string;
+  closedPnl: string;
+  hash: string;
+  oid: number;
+  crossed: boolean;
+  fee: string;
+  tid: number;
+  feeToken: string;
+}
+
+export interface HyperliquidOrderRequest {
+  market: string;
+  side: HyperliquidOrderSide;
+  type: HyperliquidOrderType;
+  size: number;
+  price?: number;
+  leverage: number;
+  reduceOnly?: boolean;
+  postOnly?: boolean;
+  timeInForce?: HyperliquidTimeInForce;
+  clientOrderId?: string;
+}
+
+export interface HyperliquidOrderResponse {
+  success: boolean;
+  order?: {
+    id: string;
+    orderId: number;
+    clientOrderId: string;
+    market: string;
+    side: HyperliquidOrderSide;
+    type: HyperliquidOrderType;
+    size: number;
+    price?: number;
+    status: HyperliquidOrderStatus;
+  };
+  txHash?: string;
+  error?: string;
+  errorCode?: string;
+}
+
+export interface HyperliquidLevel {
+  px: string;
+  sz: string;
+  n: number;
+}
+
+export interface HyperliquidOrderbook {
+  coin: string;
+  levels: [HyperliquidLevel[], HyperliquidLevel[]]; // [bids, asks]
+  time: number;
+}
+
+export interface HyperliquidTrade {
+  coin: string;
+  side: string;
+  px: string;
+  sz: string;
+  hash: string;
+  time: number;
+  tid: number;
+}
+
+export interface HyperliquidCandle {
+  t: number; // timestamp
+  T: number; // close timestamp
+  s: string; // symbol
+  i: string; // interval
+  o: string; // open
+  c: string; // close
+  h: string; // high
+  l: string; // low
+  v: string; // volume
+  n: number; // number of trades
+}
+
+export interface HyperliquidFundingRate {
+  coin: string;
+  fundingRate: string;
+  premium: string;
+  time: number;
+}
+
+// Database types (matching Supabase schema)
+export interface HyperliquidPositionDB {
+  id: string;
+  user_id: string;
+  address: string;
+  market: string;
+  side: HyperliquidPositionSide;
+  size: number;
+  entry_price: number;
+  leverage: number;
+  unrealized_pnl: number;
+  realized_pnl: number;
+  liquidation_price: number | null;
+  opened_at: string;
+  closed_at: string | null;
+  status: HyperliquidPositionStatus;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HyperliquidOrderDB {
+  id: string;
+  user_id: string;
+  address: string;
+  order_id: number | null;
+  client_order_id: string;
+  market: string;
+  side: HyperliquidOrderSide;
+  order_type: HyperliquidOrderType;
+  size: number;
+  price: number | null;
+  leverage: number;
+  status: HyperliquidOrderStatus;
+  filled_size: number;
+  average_fill_price: number | null;
+  reduce_only: boolean;
+  post_only: boolean;
+  time_in_force: string;
+  tx_hash: string | null;
+  error_message: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  filled_at: string | null;
+}
+
+export interface HyperliquidTradeDB {
+  id: string;
+  user_id: string;
+  address: string;
+  order_id: number | null;
+  trade_id: number | null;
+  market: string;
+  side: HyperliquidOrderSide;
+  size: number;
+  price: number;
+  fee: number;
+  fee_asset: string;
+  is_maker: boolean;
+  timestamp: string;
+  created_at: string;
+}
+
+export interface HyperliquidAccountSnapshot {
+  id: string;
+  user_id: string;
+  address: string;
+  account_value: number;
+  equity: number;
+  free_collateral: number;
+  margin_usage: number;
+  total_position_value: number;
+  withdrawable: number;
+  unrealized_pnl: number;
+  timestamp: string;
+}

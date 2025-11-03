@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart } from 'lightweight-charts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import type { DydxCandle } from '@/types/dydx';
+import type { HyperliquidCandle } from '@/types/hyperliquid';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { SpiralOverlay } from '@/components/SpiralOverlay';
 import { ChartDrawingTools } from './ChartDrawingTools';

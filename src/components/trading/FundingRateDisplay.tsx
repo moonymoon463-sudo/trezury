@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFundingRate } from '@/hooks/useFundingRate';
+import { useHyperliquidFunding } from '@/hooks/useHyperliquidFunding';
 import { TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
 interface FundingRateDisplayProps {

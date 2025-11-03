@@ -15,9 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useDydxPositions } from '@/hooks/useDydxPositions';
-import type { DydxPosition } from '@/types/dydx';
-import { dydxTradingService } from '@/services/dydxTradingService';
+import { useHyperliquidPositions } from '@/hooks/useHyperliquidPositions';
+import type { HyperliquidPositionDB } from '@/types/hyperliquid';
+import { hyperliquidTradingService } from '@/services/hyperliquidTradingService';
 import { TrendingUp, TrendingDown, AlertTriangle, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTradingPasswordContext } from '@/contexts/TradingPasswordContext';

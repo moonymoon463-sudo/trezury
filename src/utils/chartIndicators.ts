@@ -1,4 +1,4 @@
-import type { DydxCandle } from '@/types/dydx';
+import type { HyperliquidCandle } from '@/types/hyperliquid';
 
 /**
  * Calculate Simple Moving Average (SMA)

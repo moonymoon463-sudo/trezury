@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { dydxTradingService } from '@/services/dydxTradingService';
-import type { DydxAccountInfo } from '@/types/dydx-trading';
+import { supabase } from '@/integrations/supabase/client';
+import type { HyperliquidAccountState } from '@/types/hyperliquid';
 
-export const useDydxAccount = (address?: string, autoRefresh: boolean = true) => {
-  const [accountInfo, setAccountInfo] = useState<DydxAccountInfo | null>(null);
+export const useHyperliquidAccount = (address?: string, autoRefresh: boolean = true) => {
+  const [accountInfo, setAccountInfo] = useState<HyperliquidAccountState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,12 +16,21 @@ export const useDydxAccount = (address?: string, autoRefresh: boolean = true) =>
     try {
       setLoading(true);
       setError(null);
-      const info = await dydxTradingService.getAccountInfo(address);
-      setAccountInfo(info);
+      
+      const { data, error: funcError } = await supabase.functions.invoke('hyperliquid-trading', {
+        body: {
+          operation: 'get_account',
+          params: { address }
+        }
+      });
+
+      if (funcError) throw funcError;
+      
+      setAccountInfo(data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to load account';
       setError(errorMsg);
-      console.error('[useDydxAccount] Error:', err);
+      console.error('[useHyperliquidAccount] Error:', err);
     } finally {
       setLoading(false);
     }
