@@ -21,7 +21,8 @@ import { useNavigate } from 'react-router-dom';
 import TradingViewChart from '@/components/trading/TradingViewChart';
 import AurumLogo from '@/components/AurumLogo';
 import SecureWalletSetup from '@/components/SecureWalletSetup';
-import { DepositModal } from '@/components/trading/DepositModal';
+import { DepositHyperliquidBridge } from '@/components/trading/DepositHyperliquidBridge';
+import { HyperliquidWalletGenerator } from '@/components/trading/HyperliquidWalletGenerator';
 import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
 import { OrderHistory } from '@/components/trading/OrderHistory';
@@ -34,12 +35,13 @@ import { ConnectionHealthBanner } from '@/components/trading/ConnectionHealthBan
 import { hyperliquidWebSocketService } from '@/services/hyperliquidWebSocketService';
 import { tradeAuditService } from '@/services/tradeAuditService';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const TradingDashboard = () => {
   const navigate = useNavigate();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showInternalWalletSetup, setShowInternalWalletSetup] = useState(false);
-  const [showDydxWalletSetup, setShowDydxWalletSetup] = useState(false);
+  const [showWalletGenerator, setShowWalletGenerator] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -79,11 +81,27 @@ const TradingDashboard = () => {
   const { balances, totalValue, loading: internalLoading, isConnected: internalConnected, walletAddress: internalAddress, refreshBalances } = useWalletBalance();
   
   // Hyperliquid wallet and account
-  const hyperliquidAddress = wallet.address; // Use connected wallet for Hyperliquid
-  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useHyperliquidAccount(hyperliquidAddress);
+  const [hyperliquidAddress, setHyperliquidAddress] = useState<string | null>(null);
+  const { accountInfo, loading: accountLoading, refresh: refreshAccount } = useHyperliquidAccount(hyperliquidAddress || undefined);
+  
+  // Load Hyperliquid wallet
+  useEffect(() => {
+    const loadHyperliquidWallet = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from('hyperliquid_wallets')
+        .select('address')
+        .eq('user_id', user.id)
+        .single();
+      if (data?.address) {
+        setHyperliquidAddress(data.address);
+      }
+    };
+    loadHyperliquidWallet();
+  }, [user?.id]);
   
   // Hyperliquid trading
-  const { placeOrder, loading: orderLoading } = useHyperliquidTrading(hyperliquidAddress);
+  const { placeOrder, loading: orderLoading } = useHyperliquidTrading(hyperliquidAddress || undefined);
   
   const { toast } = useToast();
   
@@ -387,7 +405,7 @@ const TradingDashboard = () => {
                   Refresh Balances
                 </Button>
 
-                {hyperliquidAddress && (
+                {hyperliquidAddress ? (
                   <>
                     <Button 
                       onClick={() => setShowDepositModal(true)}
@@ -411,6 +429,14 @@ const TradingDashboard = () => {
                       Transfer
                     </Button>
                   </>
+                ) : (
+                  <Button
+                    onClick={() => setShowWalletGenerator(true)}
+                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                  >
+                    <WalletIcon className="h-4 w-4 mr-2" />
+                    Generate Trading Wallet
+                  </Button>
                 )}
               </div>
             ) : (
@@ -1060,19 +1086,36 @@ const TradingDashboard = () => {
         onCancel={() => setShowPasswordDialog(false)}
       />
 
+      {/* Wallet Generator Modal */}
+      <Dialog open={showWalletGenerator} onOpenChange={setShowWalletGenerator}>
+        <DialogContent className="bg-card border-border max-w-2xl">
+          <HyperliquidWalletGenerator
+            userId={user?.id || ''}
+            onWalletCreated={(address) => {
+              setHyperliquidAddress(address);
+              setShowWalletGenerator(false);
+              refreshAccount();
+              toast({
+                title: "Wallet Created",
+                description: "Your Hyperliquid trading wallet is ready",
+              });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* Deposit Modal */}
-      <DepositModal
-        isOpen={showDepositModal}
-        onClose={() => setShowDepositModal(false)}
-        dydxAddress={hyperliquidAddress || ''}
-        internalAddress={internalAddress}
-        externalAddress={wallet.address}
-        onDepositComplete={() => {
-          refreshAccount();
-          refreshBalances();
-          setShowDepositModal(false);
-        }}
-      />
+      <Dialog open={showDepositModal} onOpenChange={setShowDepositModal}>
+        <DialogContent className="bg-card border-border max-w-lg">
+          <DepositHyperliquidBridge
+            hyperliquidAddress={hyperliquidAddress || ''}
+            onSuccess={() => {
+              setShowDepositModal(false);
+              refreshAccount();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Withdraw Modal */}
       <WithdrawModal

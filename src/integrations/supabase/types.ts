@@ -412,6 +412,57 @@ export type Database = {
           },
         ]
       }
+      bridge_transactions: {
+        Row: {
+          amount: number
+          bridge_provider: string
+          created_at: string
+          destination_chain: string
+          destination_tx_hash: string | null
+          estimated_completion: string | null
+          id: string
+          metadata: Json | null
+          source_chain: string
+          source_tx_hash: string | null
+          status: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bridge_provider: string
+          created_at?: string
+          destination_chain: string
+          destination_tx_hash?: string | null
+          estimated_completion?: string | null
+          id?: string
+          metadata?: Json | null
+          source_chain: string
+          source_tx_hash?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bridge_provider?: string
+          created_at?: string
+          destination_chain?: string
+          destination_tx_hash?: string | null
+          estimated_completion?: string | null
+          id?: string
+          metadata?: Json | null
+          source_chain?: string
+          source_tx_hash?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
           context_type: string | null
@@ -1365,6 +1416,36 @@ export type Database = {
           size?: number
           timestamp?: string
           trade_id?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hyperliquid_wallets: {
+        Row: {
+          address: string
+          created_at: string
+          encrypted_private_key: string
+          encryption_method: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          encrypted_private_key: string
+          encryption_method?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          encrypted_private_key?: string
+          encryption_method?: string
+          id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
