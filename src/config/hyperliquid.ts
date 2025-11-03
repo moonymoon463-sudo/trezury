@@ -17,32 +17,42 @@ export const HYPERLIQUID_NETWORK = import.meta.env.VITE_HYPERLIQUID_NETWORK || '
 
 export const HYPERLIQUID_API = HYPERLIQUID_CONFIG[HYPERLIQUID_NETWORK as keyof typeof HYPERLIQUID_CONFIG];
 
-export const BRIDGE_OPTIONS = [
+export const SUPPORTED_BRIDGE_CHAINS = [
+  { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: '⟠', chainId: 1 },
+  { id: 'arbitrum', name: 'Arbitrum', symbol: 'ETH', icon: '🔵', chainId: 42161 },
+  { id: 'bsc', name: 'BNB Chain', symbol: 'BNB', icon: '🔶', chainId: 56 },
+  { id: 'polygon', name: 'Polygon', symbol: 'MATIC', icon: '🟣', chainId: 137 },
+  { id: 'optimism', name: 'Optimism', symbol: 'ETH', icon: '🔴', chainId: 10 },
+  { id: 'avalanche', name: 'Avalanche', symbol: 'AVAX', icon: '🔺', chainId: 43114 },
+  { id: 'base', name: 'Base', symbol: 'ETH', icon: '🔷', chainId: 8453 },
+];
+
+export const BRIDGE_PROVIDERS = [
   {
+    id: 'across',
     name: 'Across Protocol',
-    url: 'https://across.to/bridge?from=1&to=42161&token=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     description: 'Fast cross-chain bridge',
-    chains: ['Ethereum', 'Arbitrum', 'Optimism', 'Base', 'Polygon', 'BSC', 'Linea', 'Scroll'],
-    speed: '30 seconds - 2 minutes',
-    fees: 'Variable (0.1% - 0.5%)',
+    speed: '30s - 2min',
+    fees: '0.1% - 0.5%',
+    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
     recommended: true
   },
   {
-    name: 'Arbitrum Bridge',
-    url: 'https://bridge.arbitrum.io/',
-    description: 'Official Arbitrum bridge',
-    chains: ['Ethereum', 'Arbitrum'],
-    speed: '5-10 minutes',
-    fees: 'Gas only',
+    id: 'stargate',
+    name: 'Stargate',
+    description: 'LayerZero powered bridge',
+    speed: '1 - 5min',
+    fees: '0.1% - 0.3%',
+    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche'],
     recommended: false
   },
   {
-    name: 'Stargate',
-    url: 'https://stargate.finance/bridge',
-    description: 'LayerZero powered bridge',
-    chains: ['Ethereum', 'Arbitrum', 'Optimism', 'Polygon', 'BSC', 'Avalanche'],
-    speed: '1-5 minutes',
-    fees: 'Variable (0.1% - 0.3%)',
+    id: 'native',
+    name: 'Arbitrum Bridge',
+    description: 'Official Arbitrum bridge',
+    speed: '5 - 10min',
+    fees: 'Gas only',
+    supportedChains: ['ethereum', 'arbitrum'],
     recommended: false
   }
 ];

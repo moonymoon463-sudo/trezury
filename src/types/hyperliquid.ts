@@ -226,3 +226,31 @@ export interface HyperliquidAccountSnapshot {
   unrealized_pnl: number;
   timestamp: string;
 }
+
+// Bridge types
+export interface BridgeTransaction {
+  id: string;
+  user_id: string;
+  source_chain: string;
+  destination_chain: string;
+  source_tx_hash: string | null;
+  destination_tx_hash: string | null;
+  bridge_provider: string;
+  amount: number;
+  token: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  estimated_completion: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HyperliquidWallet {
+  id: string;
+  user_id: string;
+  address: string;
+  encrypted_private_key: string;
+  encryption_method: string;
+  created_at: string;
+  updated_at: string;
+}
