@@ -9,6 +9,11 @@ const HYPERLIQUID_API = 'https://api.hyperliquid.xyz';
 const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 5000; // 5 seconds
 
+// Helper to normalize market names (remove -USD suffix)
+const normalizeMarket = (market: string): string => {
+  return market?.replace(/-USD$/, '') || market;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -33,16 +38,16 @@ serve(async (req) => {
         requestBody = { type: 'meta' };
         break;
       case 'get_orderbook':
-        requestBody = { type: 'l2Book', coin: params.market };
+        requestBody = { type: 'l2Book', coin: normalizeMarket(params.market) };
         break;
       case 'get_trades':
-        requestBody = { type: 'recentTrades', coin: params.market };
+        requestBody = { type: 'recentTrades', coin: normalizeMarket(params.market) };
         break;
       case 'get_candles':
         requestBody = {
           type: 'candleSnapshot',
           req: {
-            coin: params.market,
+            coin: normalizeMarket(params.market),
             interval: params.interval || '1m',
             startTime: params.startTime,
             endTime: params.endTime
@@ -90,9 +95,10 @@ serve(async (req) => {
     } else if (operation === 'get_user_fills') {
       result = (data || []).slice(0, params.limit || 100);
     } else if (operation === 'get_funding') {
-      const marketData = data.universe?.find((m: any) => m.name === params.market);
+      const normalizedMarket = normalizeMarket(params.market);
+      const marketData = data.universe?.find((m: any) => m.name === normalizedMarket);
       result = {
-        coin: params.market,
+        coin: params.market, // Return original market name
         fundingRate: marketData?.funding || '0',
         premium: marketData?.premium || '0',
         time: Date.now()
