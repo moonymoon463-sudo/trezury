@@ -14,6 +14,31 @@ const normalizeMarket = (market: string): string => {
   return market?.replace(/-USD$/, '') || market;
 };
 
+// Helper to normalize interval values to Hyperliquid format
+const normalizeInterval = (interval?: string): string => {
+  if (!interval) return '1m';
+  const v = String(interval).toLowerCase();
+  const map: Record<string, string> = {
+    '1': '1m', '1m': '1m', '1min': '1m', '60s': '1m', '60sec': '1m',
+    '5': '5m', '5m': '5m', '5min': '5m',
+    '15': '15m', '15m': '15m', '15min': '15m',
+    '1h': '1h', '1hour': '1h', '60min': '1h', '1hour(s)': '1h', '1hr': '1h', '1hours': '1h', '1hourly': '1h', '1hourly': '1h', '1hourly': '1h', '1hourly': '1h',
+    '4h': '4h', '4hour': '4h', '240min': '4h', '4hr': '4h', '4hours': '4h',
+    '1d': '1d', '1day': '1d', '24h': '1d'
+  };
+  return map[v] ?? (v.replace('hour', 'h').replace('hours', 'h') === '1h' ? '1h' : '1m');
+};
+
+// Helper to normalize timestamps to milliseconds
+const normalizeTime = (t: any): number | undefined => {
+  if (t === undefined || t === null) return undefined;
+  const n = Number(t);
+  if (!Number.isFinite(n)) return undefined;
+  // If seconds, convert to ms
+  if (n < 1e12) return Math.floor(n * 1000);
+  return Math.floor(n);
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -44,13 +69,16 @@ serve(async (req) => {
         requestBody = { type: 'recentTrades', coin: normalizeMarket(params.market) };
         break;
       case 'get_candles':
+        const interval = normalizeInterval(params.interval);
+        const start = normalizeTime(params.startTime);
+        const end = normalizeTime(params.endTime);
         requestBody = {
           type: 'candleSnapshot',
           req: {
             coin: normalizeMarket(params.market),
-            interval: params.interval || '1m',
-            startTime: params.startTime,
-            endTime: params.endTime
+            interval,
+            startTime: start,
+            endTime: end
           }
         };
         break;
