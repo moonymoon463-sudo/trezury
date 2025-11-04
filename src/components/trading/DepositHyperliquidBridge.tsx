@@ -156,89 +156,85 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
 
   if (step === 'review' && quote) {
     return (
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base text-foreground">Review Bridge</CardTitle>
+      <Card className="bg-card border-border max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <CardHeader className="pb-2 px-4 pt-4">
+          <CardTitle className="text-sm text-foreground">Review Bridge</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Confirm the details before proceeding
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-border">
-            <div className="flex items-center gap-2">
+        <CardContent className="space-y-2.5 px-4 pb-4">
+          <div className="flex items-center justify-between p-2 bg-background rounded-lg border border-border">
+            <div className="flex items-center gap-1.5">
               {selectedChain?.iconUrl ? (
-                <img src={selectedChain.iconUrl} alt={selectedChain.name} className="h-5 w-5 rounded-full" />
+                <img src={selectedChain.iconUrl} alt={selectedChain.name} className="h-4 w-4 rounded-full" />
               ) : (
-                <div className="text-lg">{selectedChain?.icon}</div>
+                <div className="text-base">{selectedChain?.icon}</div>
               )}
               <div>
-                <p className="text-xs font-medium text-foreground">{selectedChain?.name}</p>
+                <p className="text-[10px] font-medium text-foreground">{selectedChain?.name}</p>
                 <p className="text-xs text-muted-foreground">{amount} USDC</p>
               </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            <div className="flex items-center gap-2">
-              <div className="text-lg">🔵</div>
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            <div className="flex items-center gap-1.5">
+              <div className="text-base">🔵</div>
               <div>
-                <p className="text-xs font-medium text-foreground">Trading Wallet</p>
+                <p className="text-[10px] font-medium text-foreground">Trading Wallet</p>
                 <p className="text-xs text-muted-foreground">{quote.estimatedOutput.toFixed(2)} USDC</p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-1.5 p-3 bg-background rounded-lg border border-border">
+          <div className="space-y-1 p-2 bg-background rounded-lg border border-border">
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Source Wallet</span>
+              <span className="text-muted-foreground">Source</span>
               <span className="text-foreground font-medium capitalize">{sourceWallet}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Bridge Provider</span>
+              <span className="text-muted-foreground">Provider</span>
               <span className="text-foreground font-medium">{selectedProvider?.name}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Time
-              </span>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-muted-foreground">Time</span>
               <span className="text-foreground">{quote.estimatedTime}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <DollarSign className="h-3 w-3" /> Fee
-              </span>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-muted-foreground">Fee</span>
               <span className="text-foreground">${quote.fee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-xs border-t border-border pt-1.5 mt-1.5">
+            <div className="flex justify-between text-xs border-t border-border pt-1 mt-1">
               <span className="text-foreground font-medium">You'll Receive</span>
               <span className="text-foreground font-bold">{quote.estimatedOutput.toFixed(2)} USDC</span>
             </div>
           </div>
 
-          <Alert className="bg-primary/10 border-primary/20">
+          <Alert className="bg-primary/10 border-primary/20 py-1.5">
             <AlertCircle className="h-3 w-3 text-primary" />
-            <AlertDescription className="text-xs text-foreground">
-              <strong>Trading Wallet</strong> - <span className="font-mono">{hyperliquidAddress.slice(0,6)}...{hyperliquidAddress.slice(-4)}</span>
+            <AlertDescription className="text-[10px] text-foreground leading-relaxed">
+              <strong>Trading Wallet:</strong> <span className="font-mono">{hyperliquidAddress.slice(0,6)}...{hyperliquidAddress.slice(-4)}</span>
             </AlertDescription>
           </Alert>
 
           {sourceWallet === 'internal' && (
             <div className="space-y-1">
-              <Label className="text-xs text-foreground">Wallet Password</Label>
+              <Label className="text-xs text-foreground">Password</Label>
               <Input
                 type="password"
-                placeholder="Enter wallet password"
+                placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-background border-border h-9 text-sm"
+                className="bg-background border-border h-8 text-xs"
               />
             </div>
           )}
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep('input')} className="flex-1">
+            <Button variant="outline" onClick={() => setStep('input')} className="flex-1 h-8 text-xs">
               Back
             </Button>
-            <Button onClick={handleBridge} className="flex-1" disabled={sourceWallet === 'internal' && !password}>
-              Confirm Bridge
+            <Button onClick={handleBridge} className="flex-1 h-8 text-xs" disabled={sourceWallet === 'internal' && !password}>
+              Confirm
             </Button>
           </div>
         </CardContent>
@@ -249,41 +245,41 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
   const sourceBalance = getSourceBalance();
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base text-foreground">Bridge to Trading Wallet</CardTitle>
+    <Card className="bg-card border-border max-h-[calc(100vh-8rem)] overflow-y-auto">
+      <CardHeader className="pb-2 px-4 pt-4">
+        <CardTitle className="text-sm text-foreground">Bridge to Trading Wallet</CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           Deposit USDC from any supported blockchain
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <Alert className="bg-primary/10 border-primary/20">
+      <CardContent className="space-y-2.5 px-4 pb-4">
+        <Alert className="bg-primary/10 border-primary/20 py-2">
           <AlertCircle className="h-3 w-3 text-primary" />
-          <AlertDescription className="text-xs text-foreground">
+          <AlertDescription className="text-xs text-foreground leading-relaxed">
             <strong>Trading Wallet:</strong> <span className="font-mono">{hyperliquidAddress.slice(0,6)}...{hyperliquidAddress.slice(-4)}</span>
           </AlertDescription>
         </Alert>
 
         {/* Source Wallet Selection */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs text-foreground">Source Wallet</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => setSourceWallet('internal')}
-              className={`p-3 rounded-lg border-2 transition-all ${
+              className={`p-2 rounded-lg border-2 transition-all ${
                 sourceWallet === 'internal'
                   ? 'border-primary bg-primary/10'
                   : 'border-border bg-card hover:border-primary/50'
               }`}
             >
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="flex items-center gap-1 mb-1">
                 <Wallet className="h-3 w-3 text-foreground" />
                 <span className="font-medium text-xs text-foreground">Internal</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 {internalWalletAddress ? (
                   <>
-                    <div className="truncate">{internalWalletAddress.slice(0,6)}...{internalWalletAddress.slice(-4)}</div>
+                    <div className="truncate text-[10px]">{internalWalletAddress.slice(0,6)}...{internalWalletAddress.slice(-4)}</div>
                     <div className="font-medium text-foreground mt-0.5">
                       {sourceBalance.toFixed(2)} USDC
                     </div>
@@ -296,20 +292,20 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
 
             <button
               onClick={() => setSourceWallet('external')}
-              className={`p-3 rounded-lg border-2 transition-all ${
+              className={`p-2 rounded-lg border-2 transition-all ${
                 sourceWallet === 'external'
                   ? 'border-primary bg-primary/10'
                   : 'border-border bg-card hover:border-primary/50'
               }`}
             >
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="flex items-center gap-1 mb-1">
                 <Wallet className="h-3 w-3 text-foreground" />
                 <span className="font-medium text-xs text-foreground">External</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 {wallet.isConnected ? (
                   <>
-                    <div className="truncate">{wallet.address?.slice(0,6)}...{wallet.address?.slice(-4)}</div>
+                    <div className="truncate text-[10px]">{wallet.address?.slice(0,6)}...{wallet.address?.slice(-4)}</div>
                     <div className="font-medium text-foreground mt-0.5">
                       {sourceBalance.toFixed(2)} USDC
                     </div>
@@ -322,10 +318,10 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs text-foreground">Source Chain</Label>
           <Select value={sourceChain} onValueChange={setSourceChain}>
-            <SelectTrigger className="bg-background border-border text-foreground h-9 text-sm">
+            <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -348,10 +344,10 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <Label className="text-xs text-foreground">Bridge Provider</Label>
           <Select value={bridgeProvider} onValueChange={setBridgeProvider}>
-            <SelectTrigger className="bg-background border-border text-foreground h-9 text-sm">
+            <SelectTrigger className="bg-background border-border text-foreground h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -372,26 +368,23 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           )}
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex items-center justify-between">
             <Label className="text-xs text-foreground">Amount (USDC)</Label>
-            <span className="text-xs text-muted-foreground">
-              Available: {sourceBalance.toFixed(2)} USDC
-            </span>
+            <button
+              onClick={() => setAmount(sourceBalance.toString())}
+              className="text-[10px] text-primary hover:underline"
+            >
+              Max: {sourceBalance.toFixed(2)}
+            </button>
           </div>
           <Input
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="bg-background border-border text-foreground h-9 text-sm"
+            className="bg-background border-border text-foreground h-8 text-xs"
           />
-          <button
-            onClick={() => setAmount(sourceBalance.toString())}
-            className="text-xs text-primary hover:underline"
-          >
-            Use Max
-          </button>
         </div>
 
         {quoteLoading && (
@@ -402,13 +395,13 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
         )}
 
         {quote && !quoteLoading && (
-          <div className="p-2.5 bg-background rounded-lg border border-border space-y-1">
+          <div className="p-2 bg-background rounded-lg border border-border space-y-0.5">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">You'll Receive</span>
               <span className="text-foreground font-medium">{quote.estimatedOutput.toFixed(2)} USDC</span>
             </div>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Time: {quote.estimatedTime}</span>
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{quote.estimatedTime}</span>
               <span>Fee: ${quote.fee.toFixed(2)}</span>
             </div>
           </div>
@@ -417,15 +410,15 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
         <Button 
           onClick={() => setStep('review')} 
           disabled={!quote || quoteLoading || !amount || parseFloat(amount) <= 0}
-          className="w-full h-9 text-sm"
+          className="w-full h-8 text-xs"
         >
           Review Bridge
         </Button>
 
-        <Alert className="bg-muted/50 border-border">
+        <Alert className="bg-muted/50 border-border py-1.5">
           <AlertCircle className="h-3 w-3 text-muted-foreground" />
-          <AlertDescription className="text-muted-foreground text-xs">
-            Make sure you have {selectedChain?.symbol} for gas fees on {selectedChain?.name}
+          <AlertDescription className="text-muted-foreground text-[10px] leading-relaxed">
+            Ensure you have {selectedChain?.symbol} for gas fees on {selectedChain?.name}
           </AlertDescription>
         </Alert>
       </CardContent>
