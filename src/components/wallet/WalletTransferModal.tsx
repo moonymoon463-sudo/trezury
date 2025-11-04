@@ -69,7 +69,7 @@ export const WalletTransferModal = ({
       setLoading(true);
 
       // Call edge function to handle cross-wallet transfer
-      const { data, error } = await supabase.functions.invoke('transfer-to-dydx', {
+      const { data, error } = await supabase.functions.invoke('transfer-between-wallets', {
         body: {
           fromAddress: fromWallet,
           toAddress: toWallet,

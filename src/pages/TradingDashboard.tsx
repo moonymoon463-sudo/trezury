@@ -1194,7 +1194,7 @@ const TradingDashboard = () => {
       <WithdrawModal
         isOpen={showWithdrawModal}
         onClose={() => setShowWithdrawModal(false)}
-        dydxAddress={hyperliquidAddress || ''}
+        tradingWalletAddress={hyperliquidAddress || ''}
         availableBalance={accountInfo ? parseFloat(accountInfo.withdrawable) : 0}
         internalAddress={internalAddress}
         onWithdrawComplete={() => {
