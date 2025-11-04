@@ -31,7 +31,9 @@ export const useHyperliquidBridge = () => {
 
   const executeBridge = useCallback(async (
     quoteData: BridgeQuote,
-    sourceWalletAddress?: string
+    sourceWalletAddress?: string,
+    sourceWalletType: 'internal' | 'external' = 'external',
+    password?: string
   ) => {
     if (!user?.id) throw new Error('User not authenticated');
     if (!sourceWalletAddress) throw new Error('Source wallet address required');
@@ -42,7 +44,9 @@ export const useHyperliquidBridge = () => {
       const result = await hyperliquidBridgeService.executeBridge(
         user.id,
         quoteData,
-        sourceWalletAddress
+        sourceWalletAddress,
+        sourceWalletType,
+        password
       );
 
       if (!result.success) {

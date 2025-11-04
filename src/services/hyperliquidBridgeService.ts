@@ -7,6 +7,7 @@ export interface BridgeQuoteRequest {
   amount: number;
   provider: string;
   destinationAddress: string;
+  sourceWalletAddress?: string;
 }
 
 export interface BridgeQuote {
@@ -54,7 +55,9 @@ class HyperliquidBridgeService {
   async executeBridge(
     userId: string,
     quote: BridgeQuote,
-    sourceWalletAddress: string
+    sourceWalletAddress: string,
+    sourceWalletType: 'internal' | 'external' = 'external',
+    password?: string
   ): Promise<BridgeExecutionResult> {
     try {
       const { data, error } = await supabase.functions.invoke('hyperliquid-bridge', {
@@ -62,7 +65,9 @@ class HyperliquidBridgeService {
           operation: 'execute_bridge',
           userId,
           quote,
-          sourceWalletAddress
+          sourceWalletAddress,
+          sourceWalletType,
+          password
         }
       });
 

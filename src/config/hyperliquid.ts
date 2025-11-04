@@ -34,14 +34,70 @@ export const HYPERLIQUID_L1_INFO = {
 };
 
 export const SUPPORTED_BRIDGE_CHAINS = [
-  { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: '⟠', chainId: 1 },
-  { id: 'arbitrum', name: 'Arbitrum', symbol: 'ETH', icon: '🔵', chainId: 42161 },
-  { id: 'solana', name: 'Solana', symbol: 'SOL', icon: '🟣', chainId: null },
-  { id: 'bsc', name: 'BNB Chain', symbol: 'BNB', icon: '🔶', chainId: 56 },
-  { id: 'polygon', name: 'Polygon', symbol: 'MATIC', icon: '🟣', chainId: 137 },
-  { id: 'optimism', name: 'Optimism', symbol: 'ETH', icon: '🔴', chainId: 10 },
-  { id: 'avalanche', name: 'Avalanche', symbol: 'AVAX', icon: '🔺', chainId: 43114 },
-  { id: 'base', name: 'Base', symbol: 'ETH', icon: '🔷', chainId: 8453 },
+  { 
+    id: 'ethereum', 
+    name: 'Ethereum', 
+    symbol: 'ETH', 
+    icon: '⟠', 
+    chainId: 1,
+    iconUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png'
+  },
+  { 
+    id: 'arbitrum', 
+    name: 'Arbitrum', 
+    symbol: 'ETH', 
+    icon: '🔵', 
+    chainId: 42161,
+    iconUrl: 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg'
+  },
+  { 
+    id: 'solana', 
+    name: 'Solana', 
+    symbol: 'SOL', 
+    icon: '◎', 
+    chainId: null,
+    iconUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png'
+  },
+  { 
+    id: 'bsc', 
+    name: 'BNB Chain', 
+    symbol: 'BNB', 
+    icon: '🟡', 
+    chainId: 56,
+    iconUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png'
+  },
+  { 
+    id: 'polygon', 
+    name: 'Polygon', 
+    symbol: 'MATIC', 
+    icon: '🟣', 
+    chainId: 137,
+    iconUrl: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png'
+  },
+  { 
+    id: 'optimism', 
+    name: 'Optimism', 
+    symbol: 'ETH', 
+    icon: '🔴', 
+    chainId: 10,
+    iconUrl: 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png'
+  },
+  { 
+    id: 'avalanche', 
+    name: 'Avalanche', 
+    symbol: 'AVAX', 
+    icon: '🔺', 
+    chainId: 43114,
+    iconUrl: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png'
+  },
+  { 
+    id: 'base', 
+    name: 'Base', 
+    symbol: 'ETH', 
+    icon: '🔷', 
+    chainId: 8453,
+    iconUrl: 'https://assets.coingecko.com/asset_platforms/images/131/small/base.png'
+  }
 ];
 
 export const BRIDGE_PROVIDERS = [

@@ -6,11 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowRight, Clock, DollarSign, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowRight, Clock, DollarSign, CheckCircle2, AlertCircle, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SUPPORTED_BRIDGE_CHAINS, BRIDGE_PROVIDERS } from '@/config/hyperliquid';
 import { useHyperliquidBridge } from '@/hooks/useHyperliquidBridge';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { useWalletBalance } from '@/hooks/useWalletBalance';
 
 interface DepositHyperliquidBridgeProps {
   hyperliquidAddress: string;
@@ -18,12 +19,15 @@ interface DepositHyperliquidBridgeProps {
 }
 
 export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: DepositHyperliquidBridgeProps) => {
+  const [sourceWallet, setSourceWallet] = useState<'internal' | 'external'>('external');
   const [sourceChain, setSourceChain] = useState('ethereum');
   const [bridgeProvider, setBridgeProvider] = useState('across');
   const [amount, setAmount] = useState('');
+  const [password, setPassword] = useState('');
   const [step, setStep] = useState<'input' | 'review' | 'processing' | 'complete'>('input');
   const { toast } = useToast();
   const { wallet } = useWalletConnection();
+  const { balances, walletAddress: internalWalletAddress } = useWalletBalance();
   
   const { 
     quote, 
@@ -36,33 +40,54 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
   const selectedChain = SUPPORTED_BRIDGE_CHAINS.find(c => c.id === sourceChain);
   const selectedProvider = BRIDGE_PROVIDERS.find(p => p.id === bridgeProvider);
 
+  // Get source wallet balance for selected chain
+  const getSourceBalance = () => {
+    const balance = balances.find(b => 
+      b.asset === 'USDC' && 
+      b.chain === sourceChain
+    );
+    return balance?.amount || 0;
+  };
+
   useEffect(() => {
     if (amount && parseFloat(amount) > 0 && sourceChain && bridgeProvider) {
       const timer = setTimeout(() => {
+        const sourceAddress = sourceWallet === 'external' ? wallet.address : internalWalletAddress;
         getQuote({
           fromChain: sourceChain,
           toChain: 'hyperliquid',
           token: 'USDC',
           amount: parseFloat(amount),
           provider: bridgeProvider,
-          destinationAddress: hyperliquidAddress
+          destinationAddress: hyperliquidAddress,
+          sourceWalletAddress: sourceAddress
         });
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [amount, sourceChain, bridgeProvider, hyperliquidAddress, getQuote]);
+  }, [amount, sourceChain, bridgeProvider, hyperliquidAddress, sourceWallet, wallet.address, internalWalletAddress, getQuote]);
 
   const handleBridge = async () => {
     if (!quote) return;
 
+    // Validate password for internal wallet
+    if (sourceWallet === 'internal' && !password) {
+      toast({
+        variant: "destructive",
+        title: "Password Required",
+        description: "Please enter your wallet password"
+      });
+      return;
+    }
+
     setStep('processing');
     try {
-      const sourceAddress = wallet.address;
-      await executeBridge(quote, sourceAddress);
+      const sourceAddress = sourceWallet === 'external' ? wallet.address : internalWalletAddress;
+      await executeBridge(quote, sourceAddress, sourceWallet, password || undefined);
       setStep('complete');
       toast({
         title: "Bridge Initiated",
-        description: `Bridging ${amount} USDC to Hyperliquid L1`,
+        description: `Bridging ${amount} USDC from ${sourceChain} to Hyperliquid L1`,
       });
       onSuccess?.();
     } catch (error) {
@@ -118,7 +143,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
         <CardHeader>
           <CardTitle className="text-foreground">Processing Bridge</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Please confirm the transaction in your wallet
+            {sourceWallet === 'internal' ? 'Signing transaction...' : 'Please confirm the transaction in your wallet'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8 space-y-4">
@@ -159,6 +184,10 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
 
           <div className="space-y-2 p-4 bg-background rounded-lg border border-border">
             <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Source Wallet</span>
+              <span className="text-foreground font-medium capitalize">{sourceWallet}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Bridge Provider</span>
               <span className="text-foreground font-medium">{selectedProvider?.name}</span>
             </div>
@@ -187,11 +216,24 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
             </AlertDescription>
           </Alert>
 
+          {sourceWallet === 'internal' && (
+            <div className="space-y-2">
+              <Label className="text-foreground">Wallet Password</Label>
+              <Input
+                type="password"
+                placeholder="Enter wallet password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStep('input')} className="flex-1">
               Back
             </Button>
-            <Button onClick={handleBridge} className="flex-1">
+            <Button onClick={handleBridge} className="flex-1" disabled={sourceWallet === 'internal' && !password}>
               Confirm Bridge
             </Button>
           </div>
@@ -199,6 +241,8 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
       </Card>
     );
   }
+
+  const sourceBalance = getSourceBalance();
 
   return (
     <Card className="bg-card border-border">
@@ -209,6 +253,71 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <Alert className="bg-primary/10 border-primary/20">
+          <AlertCircle className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-foreground text-sm">
+            <strong>Hyperliquid L1</strong> - Trading wallet: {hyperliquidAddress.slice(0,6)}...{hyperliquidAddress.slice(-4)}
+          </AlertDescription>
+        </Alert>
+
+        {/* Source Wallet Selection */}
+        <div className="space-y-2">
+          <Label className="text-foreground">Source Wallet</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setSourceWallet('internal')}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                sourceWallet === 'internal'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border bg-card hover:border-primary/50'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-foreground" />
+                <span className="font-medium text-foreground">Internal</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {internalWalletAddress ? (
+                  <>
+                    <div className="truncate">{internalWalletAddress.slice(0,6)}...{internalWalletAddress.slice(-4)}</div>
+                    <div className="font-medium text-foreground mt-1">
+                      {sourceBalance.toFixed(2)} USDC
+                    </div>
+                  </>
+                ) : (
+                  'No wallet'
+                )}
+              </div>
+            </button>
+
+            <button
+              onClick={() => setSourceWallet('external')}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                sourceWallet === 'external'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border bg-card hover:border-primary/50'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-foreground" />
+                <span className="font-medium text-foreground">External</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {wallet.isConnected ? (
+                  <>
+                    <div className="truncate">{wallet.address?.slice(0,6)}...{wallet.address?.slice(-4)}</div>
+                    <div className="font-medium text-foreground mt-1">
+                      {sourceBalance.toFixed(2)} USDC
+                    </div>
+                  </>
+                ) : (
+                  'Not connected'
+                )}
+              </div>
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label className="text-foreground">Source Chain</Label>
           <Select value={sourceChain} onValueChange={setSourceChain}>
@@ -219,8 +328,15 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
               {SUPPORTED_BRIDGE_CHAINS.map(chain => (
                 <SelectItem key={chain.id} value={chain.id}>
                   <div className="flex items-center gap-2">
-                    <span>{chain.icon}</span>
+                    {chain.iconUrl ? (
+                      <img src={chain.iconUrl} alt={chain.name} className="h-4 w-4 rounded-full" />
+                    ) : (
+                      <span>{chain.icon}</span>
+                    )}
                     <span>{chain.name}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {balances.find(b => b.asset === 'USDC' && b.chain === chain.id)?.amount.toFixed(2) || '0.00'} USDC
+                    </span>
                   </div>
                 </SelectItem>
               ))}
@@ -253,7 +369,12 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
         </div>
 
         <div className="space-y-2">
-          <Label className="text-foreground">Amount (USDC)</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-foreground">Amount (USDC)</Label>
+            <span className="text-xs text-muted-foreground">
+              Available: {sourceBalance.toFixed(2)} USDC
+            </span>
+          </div>
           <Input
             type="number"
             value={amount}
@@ -261,6 +382,12 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
             placeholder="0.00"
             className="bg-background border-border text-foreground"
           />
+          <button
+            onClick={() => setAmount(sourceBalance.toString())}
+            className="text-xs text-primary hover:underline"
+          >
+            Use Max
+          </button>
         </div>
 
         {quoteLoading && (

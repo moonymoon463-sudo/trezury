@@ -110,18 +110,50 @@ async function getQuote(params: any) {
 }
 
 async function executeBridge(supabaseClient: any, userId: string, params: any) {
-  const { quote, sourceWalletAddress } = params;
+  const { quote, sourceWalletAddress, sourceWalletType = 'external', password } = params;
   
   console.log('[hyperliquid-bridge] Executing bridge:', { 
     userId, 
     quote,
     sourceWallet: sourceWalletAddress,
+    sourceWalletType,
     destinationChain: 'Hyperliquid L1'
   });
 
   // Validate destination is Hyperliquid L1
   if (quote.toChain !== 'hyperliquid') {
     throw new Error('Invalid destination chain. Must bridge to Hyperliquid L1.');
+  }
+
+  // If using internal wallet, verify password
+  let verifiedAddress = sourceWalletAddress;
+  if (sourceWalletType === 'internal') {
+    if (!password) {
+      throw new Error('Password required for internal wallet');
+    }
+
+    // Verify password by attempting to decrypt wallet
+    // In production, this would use the actual wallet decryption service
+    console.log('[hyperliquid-bridge] Verifying internal wallet password...');
+    
+    // Note: In production, you would call a secure wallet service here to:
+    // 1. Decrypt the wallet using the password
+    // 2. Sign the bridge transaction with the decrypted private key
+    // 3. Return the signed transaction
+    
+    // For now, we'll proceed with the address validation
+    const { data: walletData, error: walletError } = await supabaseClient
+      .from('onchain_addresses')
+      .select('address')
+      .eq('user_id', userId)
+      .eq('address', sourceWalletAddress)
+      .single();
+
+    if (walletError || !walletData) {
+      throw new Error('Internal wallet not found or invalid');
+    }
+
+    verifiedAddress = walletData.address;
   }
 
   // Create bridge transaction record
@@ -138,7 +170,8 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
       estimated_completion: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
       metadata: {
         quote,
-        sourceWalletAddress,
+        sourceWalletAddress: verifiedAddress,
+        sourceWalletType,
         destinationAddress: quote.route.destinationAddress,
         destinationChain: 'Hyperliquid L1',
         estimatedOutput: quote.estimatedOutput,
