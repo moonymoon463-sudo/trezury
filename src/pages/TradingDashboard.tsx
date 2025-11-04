@@ -109,7 +109,7 @@ const TradingDashboard = () => {
   }, [user?.id]);
   
   // Hyperliquid trading - use detected wallet address
-  const { placeOrder, loading: tradingLoading, orderLoading } = useHyperliquidTrading(tradingWallet.address || undefined);
+  const { placeOrder, loading: tradingLoading, orderLoading, assetMapperReady } = useHyperliquidTrading(tradingWallet.address || undefined);
   
   const { toast } = useToast();
   
@@ -1081,17 +1081,27 @@ const TradingDashboard = () => {
               {/* Confirm Button */}
               <div>
                 {isCurrentWalletConnected ? (
-                  <Button
-                    onClick={handlePlaceOrder}
-                    className={`w-full h-10 font-bold text-sm transition-colors duration-150 ${
-                      tradeMode === 'buy' 
-                        ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
-                        : 'bg-red-600 hover:bg-red-700 text-white'
-                    }`}
-                    disabled={!selectedAsset || !orderSize || orderLoading}
-                  >
-                    {orderLoading ? 'Placing Order...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
-                  </Button>
+                  <>
+                    {!assetMapperReady && (
+                      <div className="mb-2 p-2 bg-[#463c25]/30 rounded border border-[#e6b951]/30">
+                        <p className="text-[#e6b951] text-xs text-center flex items-center justify-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Loading market data...
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handlePlaceOrder}
+                      className={`w-full h-10 font-bold text-sm transition-colors duration-150 ${
+                        tradeMode === 'buy' 
+                          ? 'bg-[#e6b951] hover:bg-[#d4a840] text-black' 
+                          : 'bg-red-600 hover:bg-red-700 text-white'
+                      }`}
+                      disabled={!selectedAsset || !orderSize || orderLoading || !assetMapperReady}
+                    >
+                      {orderLoading ? 'Placing Order...' : !assetMapperReady ? 'Loading...' : `Confirm ${tradeMode === 'buy' ? 'Buy' : 'Sell'}`}
+                    </Button>
+                  </>
                 ) : (
                   <Button
                     onClick={handleConnectWallet}

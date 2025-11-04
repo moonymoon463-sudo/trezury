@@ -46,6 +46,8 @@ export const useHyperliquidTrading = (address?: string) => {
     }
   }, [address]);
 
+  // Return assetMapperReady so components can gate order placement
+
   const placeOrder = useCallback(async (
     orderRequest: HyperliquidOrderRequest & { password?: string; walletSource?: 'generated' | 'external' }
   ): Promise<HyperliquidOrderResponse> => {

@@ -13,9 +13,20 @@ class HyperliquidWebSocketService {
   private reconnectDelay = 1000;
   private subscriptions = new Map<string, Set<any>>();
   private isConnecting = false;
+  private connectionTime: number = 0;
+  private minConnectionTime = 5000; // Keep connection alive for at least 5 seconds
+  private subscriptionDebounceTimer: NodeJS.Timeout | null = null;
+  private activeSubscriptionCount = 0;
 
   connect(): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
+      return Promise.resolve();
+    }
+
+    // Don't reconnect if we still have the minimum connection time requirement
+    const timeSinceConnection = Date.now() - this.connectionTime;
+    if (this.ws && timeSinceConnection < this.minConnectionTime) {
+      console.log('[HyperliquidWS] Connection too recent, reusing existing connection');
       return Promise.resolve();
     }
 
@@ -29,6 +40,7 @@ class HyperliquidWebSocketService {
           console.log('[HyperliquidWS] Connected');
           this.reconnectAttempts = 0;
           this.isConnecting = false;
+          this.connectionTime = Date.now();
           this.resubscribeAll();
           resolve();
         };
@@ -50,7 +62,13 @@ class HyperliquidWebSocketService {
         this.ws.onclose = () => {
           console.log('[HyperliquidWS] Disconnected');
           this.isConnecting = false;
-          this.handleReconnect();
+          
+          // Only reconnect if we have active subscriptions
+          if (this.activeSubscriptionCount > 0) {
+            this.handleReconnect();
+          } else {
+            console.log('[HyperliquidWS] No active subscriptions, not reconnecting');
+          }
         };
       } catch (error) {
         this.isConnecting = false;
@@ -150,7 +168,16 @@ class HyperliquidWebSocketService {
     const key = `orderbook:${market}`;
     if (!this.subscriptions.has(key)) {
       this.subscriptions.set(key, new Set());
-      this.sendSubscribe('l2Book', { coin: market });
+      this.activeSubscriptionCount++;
+      
+      // Debounce subscription to prevent rapid subscribe/unsubscribe
+      if (this.subscriptionDebounceTimer) {
+        clearTimeout(this.subscriptionDebounceTimer);
+      }
+      
+      this.subscriptionDebounceTimer = setTimeout(() => {
+        this.sendSubscribe('l2Book', { coin: market });
+      }, 100);
     }
 
     this.subscriptions.get(key)!.add(callback);
@@ -161,7 +188,16 @@ class HyperliquidWebSocketService {
         callbacks.delete(callback);
         if (callbacks.size === 0) {
           this.subscriptions.delete(key);
-          this.sendUnsubscribe('l2Book', { coin: market });
+          this.activeSubscriptionCount--;
+          
+          // Debounce unsubscription
+          if (this.subscriptionDebounceTimer) {
+            clearTimeout(this.subscriptionDebounceTimer);
+          }
+          
+          this.subscriptionDebounceTimer = setTimeout(() => {
+            this.sendUnsubscribe('l2Book', { coin: market });
+          }, 100);
         }
       }
     };
@@ -173,7 +209,15 @@ class HyperliquidWebSocketService {
     const key = `trades:${market}`;
     if (!this.subscriptions.has(key)) {
       this.subscriptions.set(key, new Set());
-      this.sendSubscribe('trades', { coin: market });
+      this.activeSubscriptionCount++;
+      
+      if (this.subscriptionDebounceTimer) {
+        clearTimeout(this.subscriptionDebounceTimer);
+      }
+      
+      this.subscriptionDebounceTimer = setTimeout(() => {
+        this.sendSubscribe('trades', { coin: market });
+      }, 100);
     }
 
     this.subscriptions.get(key)!.add(callback);
@@ -184,7 +228,15 @@ class HyperliquidWebSocketService {
         callbacks.delete(callback);
         if (callbacks.size === 0) {
           this.subscriptions.delete(key);
-          this.sendUnsubscribe('trades', { coin: market });
+          this.activeSubscriptionCount--;
+          
+          if (this.subscriptionDebounceTimer) {
+            clearTimeout(this.subscriptionDebounceTimer);
+          }
+          
+          this.subscriptionDebounceTimer = setTimeout(() => {
+            this.sendUnsubscribe('trades', { coin: market });
+          }, 100);
         }
       }
     };
@@ -196,7 +248,15 @@ class HyperliquidWebSocketService {
     const key = `user:${address}`;
     if (!this.subscriptions.has(key)) {
       this.subscriptions.set(key, new Set());
-      this.sendSubscribe('user', { user: address });
+      this.activeSubscriptionCount++;
+      
+      if (this.subscriptionDebounceTimer) {
+        clearTimeout(this.subscriptionDebounceTimer);
+      }
+      
+      this.subscriptionDebounceTimer = setTimeout(() => {
+        this.sendSubscribe('user', { user: address });
+      }, 100);
     }
 
     this.subscriptions.get(key)!.add(callback);
@@ -207,7 +267,15 @@ class HyperliquidWebSocketService {
         callbacks.delete(callback);
         if (callbacks.size === 0) {
           this.subscriptions.delete(key);
-          this.sendUnsubscribe('user', { user: address });
+          this.activeSubscriptionCount--;
+          
+          if (this.subscriptionDebounceTimer) {
+            clearTimeout(this.subscriptionDebounceTimer);
+          }
+          
+          this.subscriptionDebounceTimer = setTimeout(() => {
+            this.sendUnsubscribe('user', { user: address });
+          }, 100);
         }
       }
     };
@@ -219,7 +287,15 @@ class HyperliquidWebSocketService {
     const key = 'allMids';
     if (!this.subscriptions.has(key)) {
       this.subscriptions.set(key, new Set());
-      this.sendSubscribe('allMids', {});
+      this.activeSubscriptionCount++;
+      
+      if (this.subscriptionDebounceTimer) {
+        clearTimeout(this.subscriptionDebounceTimer);
+      }
+      
+      this.subscriptionDebounceTimer = setTimeout(() => {
+        this.sendSubscribe('allMids', {});
+      }, 100);
     }
 
     this.subscriptions.get(key)!.add(callback);
@@ -230,18 +306,33 @@ class HyperliquidWebSocketService {
         callbacks.delete(callback);
         if (callbacks.size === 0) {
           this.subscriptions.delete(key);
-          this.sendUnsubscribe('allMids', {});
+          this.activeSubscriptionCount--;
+          
+          if (this.subscriptionDebounceTimer) {
+            clearTimeout(this.subscriptionDebounceTimer);
+          }
+          
+          this.subscriptionDebounceTimer = setTimeout(() => {
+            this.sendUnsubscribe('allMids', {});
+          }, 100);
         }
       }
     };
   }
 
   disconnect(): void {
+    // Clear debounce timer
+    if (this.subscriptionDebounceTimer) {
+      clearTimeout(this.subscriptionDebounceTimer);
+      this.subscriptionDebounceTimer = null;
+    }
+    
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
     this.subscriptions.clear();
+    this.activeSubscriptionCount = 0;
   }
 }
 

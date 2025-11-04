@@ -127,7 +127,7 @@ serve(async (req) => {
         const { address, market, side, type: orderType, size, price, leverage, action, signature, nonce, reduceOnly, postOnly, timeInForce, clientOrderId } = params;
 
         // Submit to Hyperliquid API with signature
-        const hyperliquidResponse = await fetch('https://api.hyperliquid-testnet.xyz/exchange', {
+        const hyperliquidResponse = await fetch(`${HYPERLIQUID_API}/exchange`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
