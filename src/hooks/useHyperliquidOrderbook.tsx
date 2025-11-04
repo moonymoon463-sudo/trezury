@@ -44,12 +44,18 @@ export const useHyperliquidOrderbook = (market: string | null) => {
       return;
     }
 
+    console.log('[useHyperliquidOrderbook] Subscribing to market:', market);
     let mounted = true;
     setLoading(true);
 
+    // Convert market format from "BTC-USD" to "BTC" for Hyperliquid
+    const hyperliquidMarket = market.includes('-') ? market.split('-')[0] : market;
+    console.log('[useHyperliquidOrderbook] Converted market:', hyperliquidMarket);
+
     const unsubscribe = hyperliquidWebSocketService.subscribeToOrderbook(
-      market,
+      hyperliquidMarket,
       (updatedOrderbook) => {
+        console.log('[useHyperliquidOrderbook] Received orderbook:', updatedOrderbook);
         if (mounted) {
           throttledSetOrderbook(updatedOrderbook);
         }
