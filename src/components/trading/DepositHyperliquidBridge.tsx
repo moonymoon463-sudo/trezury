@@ -404,33 +404,44 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
 
         {quote && !quoteLoading && (
           <>
-            {/* Sanity Check Warning */}
-            {quote.estimatedOutput < quote.inputAmount * 0.99 && (
-              <Alert className="bg-destructive/10 border-destructive/20 py-2">
-                <AlertCircle className="h-3 w-3 text-destructive" />
-                <AlertDescription className="text-xs text-destructive">
-                  <strong>ERROR:</strong> Fee calculation issue detected. Expected output: ${(quote.inputAmount * 0.997).toFixed(2)}, got: ${quote.estimatedOutput.toFixed(2)}. DO NOT PROCEED. Contact support.
-                </AlertDescription>
-              </Alert>
+            {/* Check if quote matches current input */}
+            {parseFloat(amount || '0') !== quote.inputAmount ? (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">Updating quote...</span>
+              </div>
+            ) : (
+              <>
+                {/* Sanity Check Warning */}
+                {quote.estimatedOutput < quote.inputAmount * 0.99 && (
+                  <Alert className="bg-destructive/10 border-destructive/20 py-2">
+                    <AlertCircle className="h-3 w-3 text-destructive" />
+                    <AlertDescription className="text-xs text-destructive">
+                      <strong>ERROR:</strong> Fee calculation issue detected. Expected output: ${(quote.inputAmount * 0.997).toFixed(2)}, got: ${quote.estimatedOutput.toFixed(2)}. DO NOT PROCEED. Contact support.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="p-2 bg-background rounded-lg border border-border space-y-0.5">
+                  <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                    <span>Quote for: {quote.inputAmount.toFixed(2)} USDC</span>
+                    <span>Est. Time: {quote.estimatedTime}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Input Amount</span>
+                    <span className="text-foreground font-medium">${quote.inputAmount.toFixed(2)} USDC</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Bridge Fee ({(quote.fee / quote.inputAmount * 100).toFixed(2)}%)</span>
+                    <span className="text-destructive">-${quote.fee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t border-border pt-0.5 mt-0.5">
+                    <span className="text-foreground font-medium">You'll Receive</span>
+                    <span className="text-foreground font-bold">${quote.estimatedOutput.toFixed(2)} USDC</span>
+                  </div>
+                </div>
+              </>
             )}
-            
-            <div className="p-2 bg-background rounded-lg border border-border space-y-0.5">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Input Amount</span>
-                <span className="text-foreground font-medium">${quote.inputAmount.toFixed(2)} USDC</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Bridge Fee ({(quote.fee / quote.inputAmount * 100).toFixed(2)}%)</span>
-                <span className="text-destructive">-${quote.fee.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-xs border-t border-border pt-0.5 mt-0.5">
-                <span className="text-foreground font-medium">You'll Receive</span>
-                <span className="text-foreground font-bold">${quote.estimatedOutput.toFixed(2)} USDC</span>
-              </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Estimated Time: {quote.estimatedTime}</span>
-              </div>
-            </div>
           </>
         )}
 

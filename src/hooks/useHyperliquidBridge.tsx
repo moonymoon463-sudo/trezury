@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { hyperliquidBridgeService, BridgeQuoteRequest, BridgeQuote } from '@/services/hyperliquidBridgeService';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -13,19 +13,39 @@ export const useHyperliquidBridge = () => {
     status?: string;
     amount?: number;
   } | null>(null);
+  
+  // Request sequencing to prevent stale quotes from overwriting newer ones
+  const currentRequestIdRef = useRef(0);
 
   const getQuote = useCallback(async (request: BridgeQuoteRequest) => {
     setLoading(true);
     setError(null);
+    
+    // Increment request ID for this quote request
+    const requestId = ++currentRequestIdRef.current;
+    console.log(`[Bridge] Quote request #${requestId} for amount:`, request.amount);
+    
     try {
       const quoteData = await hyperliquidBridgeService.getQuote(request);
-      setQuote(quoteData);
+      
+      // Only update state if this is still the latest request
+      if (requestId === currentRequestIdRef.current) {
+        console.log(`[Bridge] Quote set for amount: ${quoteData.inputAmount} → ${quoteData.estimatedOutput}`);
+        setQuote(quoteData);
+      } else {
+        console.log(`[Bridge] Discarding stale quote #${requestId} (current: #${currentRequestIdRef.current})`);
+      }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to get quote';
-      setError(errorMsg);
-      console.error('[useHyperliquidBridge] Quote error:', err);
+      // Only update error if this is still the latest request
+      if (requestId === currentRequestIdRef.current) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to get quote';
+        setError(errorMsg);
+        console.error('[useHyperliquidBridge] Quote error:', err);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === currentRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
