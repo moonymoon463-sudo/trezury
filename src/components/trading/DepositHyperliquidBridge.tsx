@@ -10,6 +10,7 @@ import { Loader2, ArrowRight, Clock, DollarSign, CheckCircle2, AlertCircle } fro
 import { useToast } from '@/hooks/use-toast';
 import { SUPPORTED_BRIDGE_CHAINS, BRIDGE_PROVIDERS } from '@/config/hyperliquid';
 import { useHyperliquidBridge } from '@/hooks/useHyperliquidBridge';
+import { useWalletConnection } from '@/hooks/useWalletConnection';
 
 interface DepositHyperliquidBridgeProps {
   hyperliquidAddress: string;
@@ -22,6 +23,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState<'input' | 'review' | 'processing' | 'complete'>('input');
   const { toast } = useToast();
+  const { wallet } = useWalletConnection();
   
   const { 
     quote, 
@@ -39,7 +41,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
       const timer = setTimeout(() => {
         getQuote({
           fromChain: sourceChain,
-          toChain: 'arbitrum',
+          toChain: 'hyperliquid',
           token: 'USDC',
           amount: parseFloat(amount),
           provider: bridgeProvider,
@@ -55,11 +57,12 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
 
     setStep('processing');
     try {
-      await executeBridge(quote);
+      const sourceAddress = wallet.address;
+      await executeBridge(quote, sourceAddress);
       setStep('complete');
       toast({
         title: "Bridge Initiated",
-        description: "Your deposit is being processed",
+        description: `Bridging ${amount} USDC to Hyperliquid L1`,
       });
       onSuccess?.();
     } catch (error) {
@@ -180,7 +183,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           <Alert className="bg-primary/10 border-primary/20">
             <AlertCircle className="h-4 w-4 text-primary" />
             <AlertDescription className="text-foreground">
-              Funds will be deposited directly to your Hyperliquid trading wallet
+              <strong>Bridging to Hyperliquid L1</strong> - Funds will arrive at: <span className="font-mono text-xs">{hyperliquidAddress.slice(0,6)}...{hyperliquidAddress.slice(-4)}</span>
             </AlertDescription>
           </Alert>
 
@@ -200,9 +203,9 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
   return (
     <Card className="bg-card border-border">
       <CardHeader>
-        <CardTitle className="text-foreground">Bridge to Hyperliquid</CardTitle>
+        <CardTitle className="text-foreground">Bridge to Hyperliquid L1</CardTitle>
         <CardDescription className="text-muted-foreground">
-          Deposit USDC from any supported blockchain
+          Deposit USDC from any supported blockchain to Hyperliquid's native L1
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -5,6 +5,8 @@ export const HYPERLIQUID_CONFIG = {
     chainId: 421614, // HyperEVM Mainnet chain ID (0x66eee in hex)
     signatureChainId: '0x66eee', // Used for EIP-712 signatures
     explorerUrl: 'https://app.hyperliquid.xyz',
+    l1Network: 'hyperliquid',
+    depositContract: '0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7'
   },
   testnet: {
     restEndpoint: 'https://api.hyperliquid-testnet.xyz',
@@ -12,6 +14,8 @@ export const HYPERLIQUID_CONFIG = {
     chainId: 998, // Testnet chain ID
     signatureChainId: '0x3e6', // Used for EIP-712 signatures (998 in hex)
     explorerUrl: 'https://testnet.hyperliquid.xyz',
+    l1Network: 'hyperliquid-testnet',
+    depositContract: '0x0000000000000000000000000000000000000000' // Testnet deposit contract
   }
 };
 
@@ -19,9 +23,20 @@ export const HYPERLIQUID_NETWORK = (import.meta.env.VITE_HYPERLIQUID_NETWORK || 
 
 export const HYPERLIQUID_API = HYPERLIQUID_CONFIG[HYPERLIQUID_NETWORK as keyof typeof HYPERLIQUID_CONFIG];
 
+export const HYPERLIQUID_L1_INFO = {
+  id: 'hyperliquid',
+  name: 'Hyperliquid L1',
+  symbol: 'USDC',
+  icon: '🔵',
+  chainId: 421614,
+  isL1: true,
+  description: 'Hyperliquid native blockchain'
+};
+
 export const SUPPORTED_BRIDGE_CHAINS = [
   { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: '⟠', chainId: 1 },
   { id: 'arbitrum', name: 'Arbitrum', symbol: 'ETH', icon: '🔵', chainId: 42161 },
+  { id: 'solana', name: 'Solana', symbol: 'SOL', icon: '🟣', chainId: null },
   { id: 'bsc', name: 'BNB Chain', symbol: 'BNB', icon: '🔶', chainId: 56 },
   { id: 'polygon', name: 'Polygon', symbol: 'MATIC', icon: '🟣', chainId: 137 },
   { id: 'optimism', name: 'Optimism', symbol: 'ETH', icon: '🔴', chainId: 10 },
@@ -36,7 +51,7 @@ export const BRIDGE_PROVIDERS = [
     description: 'Fast cross-chain bridge',
     speed: '30s - 2min',
     fees: '0.1% - 0.5%',
-    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
+    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc', 'solana'],
     recommended: true
   },
   {
@@ -45,7 +60,7 @@ export const BRIDGE_PROVIDERS = [
     description: 'LayerZero powered bridge',
     speed: '1 - 5min',
     fees: '0.1% - 0.3%',
-    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche'],
+    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche', 'solana'],
     recommended: false
   },
   {

@@ -112,7 +112,17 @@ async function getQuote(params: any) {
 async function executeBridge(supabaseClient: any, userId: string, params: any) {
   const { quote, sourceWalletAddress } = params;
   
-  console.log('[hyperliquid-bridge] Executing bridge:', { userId, quote });
+  console.log('[hyperliquid-bridge] Executing bridge:', { 
+    userId, 
+    quote,
+    sourceWallet: sourceWalletAddress,
+    destinationChain: 'Hyperliquid L1'
+  });
+
+  // Validate destination is Hyperliquid L1
+  if (quote.toChain !== 'hyperliquid') {
+    throw new Error('Invalid destination chain. Must bridge to Hyperliquid L1.');
+  }
 
   // Create bridge transaction record
   const { data: bridgeTransaction, error: insertError } = await supabaseClient
@@ -120,7 +130,7 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
     .insert({
       user_id: userId,
       source_chain: quote.fromChain,
-      destination_chain: quote.toChain,
+      destination_chain: 'hyperliquid',
       bridge_provider: quote.provider,
       amount: quote.inputAmount,
       token: 'USDC',
@@ -130,6 +140,7 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
         quote,
         sourceWalletAddress,
         destinationAddress: quote.route.destinationAddress,
+        destinationChain: 'Hyperliquid L1',
         estimatedOutput: quote.estimatedOutput,
         fee: quote.fee
       }
