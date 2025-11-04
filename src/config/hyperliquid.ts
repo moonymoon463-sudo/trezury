@@ -35,12 +35,12 @@ export const HYPERLIQUID_L1_INFO = {
 
 export const SUPPORTED_BRIDGE_CHAINS = [
   { 
-    id: 'ethereum', 
-    name: 'Ethereum', 
+    id: 'base', 
+    name: 'Base', 
     symbol: 'ETH', 
-    icon: '⟠', 
-    chainId: 1,
-    iconUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png'
+    icon: '🔷', 
+    chainId: 8453,
+    iconUrl: 'https://assets.coingecko.com/asset_platforms/images/131/small/base.png'
   },
   { 
     id: 'arbitrum', 
@@ -51,20 +51,12 @@ export const SUPPORTED_BRIDGE_CHAINS = [
     iconUrl: 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg'
   },
   { 
-    id: 'solana', 
-    name: 'Solana', 
-    symbol: 'SOL', 
-    icon: '◎', 
-    chainId: null,
-    iconUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png'
-  },
-  { 
-    id: 'bsc', 
-    name: 'BNB Chain', 
-    symbol: 'BNB', 
-    icon: '🟡', 
-    chainId: 56,
-    iconUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png'
+    id: 'optimism', 
+    name: 'Optimism', 
+    symbol: 'ETH', 
+    icon: '🔴', 
+    chainId: 10,
+    iconUrl: 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png'
   },
   { 
     id: 'polygon', 
@@ -75,12 +67,12 @@ export const SUPPORTED_BRIDGE_CHAINS = [
     iconUrl: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png'
   },
   { 
-    id: 'optimism', 
-    name: 'Optimism', 
-    symbol: 'ETH', 
-    icon: '🔴', 
-    chainId: 10,
-    iconUrl: 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png'
+    id: 'bsc', 
+    name: 'BNB Chain', 
+    symbol: 'BNB', 
+    icon: '🟡', 
+    chainId: 56,
+    iconUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png'
   },
   { 
     id: 'avalanche', 
@@ -91,12 +83,20 @@ export const SUPPORTED_BRIDGE_CHAINS = [
     iconUrl: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png'
   },
   { 
-    id: 'base', 
-    name: 'Base', 
+    id: 'solana', 
+    name: 'Solana', 
+    symbol: 'SOL', 
+    icon: '◎', 
+    chainId: null,
+    iconUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png'
+  },
+  { 
+    id: 'ethereum', 
+    name: 'Ethereum', 
     symbol: 'ETH', 
-    icon: '🔷', 
-    chainId: 8453,
-    iconUrl: 'https://assets.coingecko.com/asset_platforms/images/131/small/base.png'
+    icon: '⟠', 
+    chainId: 1,
+    iconUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png'
   }
 ];
 
@@ -106,7 +106,7 @@ export const BRIDGE_PROVIDERS = [
     name: 'Across Protocol',
     description: 'Fast cross-chain bridge',
     speed: '30s - 2min',
-    fees: '0.1% - 0.5%',
+    fees: '0.3% + gas',
     supportedChains: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc', 'solana'],
     recommended: true
   },
@@ -115,7 +115,7 @@ export const BRIDGE_PROVIDERS = [
     name: 'Stargate',
     description: 'LayerZero powered bridge',
     speed: '1 - 5min',
-    fees: '0.1% - 0.3%',
+    fees: '0.2% + gas',
     supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche', 'solana'],
     recommended: false
   },
@@ -124,7 +124,7 @@ export const BRIDGE_PROVIDERS = [
     name: 'Arbitrum Bridge',
     description: 'Official Arbitrum bridge',
     speed: '5 - 10min',
-    fees: 'Gas only',
+    fees: '0.1% + gas',
     supportedChains: ['ethereum', 'arbitrum'],
     recommended: false
   }

@@ -208,11 +208,25 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
               <span className="text-foreground">{quote.estimatedTime}</span>
             </div>
             <div className="flex justify-between text-[10px]">
-              <span className="text-muted-foreground">Fee</span>
+              <span className="text-muted-foreground">Bridge Fee</span>
               <span className="text-foreground">${quote.fee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-xs border-t border-border pt-1 mt-1">
-              <span className="text-foreground font-medium">You'll Receive</span>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-muted-foreground">Source Gas Fee</span>
+              <span className="text-muted-foreground">
+                {sourceChain === 'ethereum' ? '~$5-30' : 
+                 sourceChain === 'arbitrum' ? '~$0.10-0.50' :
+                 sourceChain === 'base' ? '~$0.05-0.30' :
+                 sourceChain === 'optimism' ? '~$0.10-0.50' :
+                 sourceChain === 'polygon' ? '~$0.50-2' :
+                 sourceChain === 'bsc' ? '~$0.30-1' :
+                 sourceChain === 'avalanche' ? '~$1-3' :
+                 sourceChain === 'solana' ? '~$0.01-0.05' :
+                 '~$0.50-5'}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs border-t border-border pt-1 mt-1 font-medium">
+              <span className="text-foreground">You'll Receive</span>
               <span className="text-foreground font-bold">{quote.estimatedOutput.toFixed(2)} USDC</span>
             </div>
           </div>
@@ -265,6 +279,25 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           <AlertCircle className="h-3 w-3 text-primary" />
           <AlertDescription className="text-xs text-foreground leading-relaxed">
             <strong>Trading Wallet:</strong> <span className="font-mono">{hyperliquidAddress.slice(0,6)}...{hyperliquidAddress.slice(-4)}</span>
+          </AlertDescription>
+        </Alert>
+
+        {sourceChain === 'ethereum' && (
+          <Alert className="bg-yellow-500/10 border-yellow-500/30 py-2">
+            <AlertCircle className="h-3 w-3 text-yellow-500" />
+            <AlertDescription className="text-xs text-foreground leading-relaxed">
+              <strong>⚠️ Ethereum Gas Fees:</strong> In addition to the {selectedProvider?.fees} bridge fee, 
+              you'll pay $5-$30 in Ethereum gas fees depending on network congestion. 
+              <br/><strong>Tip:</strong> Use Base or Arbitrum for 50x cheaper gas (~$0.10).
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Alert className="bg-blue-500/10 border-blue-500/30 py-2">
+          <AlertCircle className="h-3 w-3 text-blue-500" />
+          <AlertDescription className="text-xs text-foreground leading-relaxed">
+            <strong>ℹ️ Note:</strong> Cross-chain bridging requires gas fees on the source chain. 
+            Gasless transactions are not available for bridges. Use Base or Arbitrum for lowest gas costs.
           </AlertDescription>
         </Alert>
 
@@ -342,6 +375,12 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
                       <span className="text-sm">{chain.icon}</span>
                     )}
                     <span className="text-xs">{chain.name}</span>
+                    {(chain.id === 'base' || chain.id === 'arbitrum') && (
+                      <Badge variant="default" className="text-[10px] px-1 py-0">Low Gas</Badge>
+                    )}
+                    {chain.id === 'ethereum' && (
+                      <Badge variant="destructive" className="text-[10px] px-1 py-0">High Gas</Badge>
+                    )}
                     <span className="text-xs text-muted-foreground ml-auto">
                       {balances.find(b => b.asset === 'USDC' && b.chain === chain.id)?.amount.toFixed(2) || '0.00'} USDC
                     </span>
@@ -434,6 +473,24 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Bridge Fee ({(quote.fee / quote.inputAmount * 100).toFixed(2)}%)</span>
                     <span className="text-destructive">-${quote.fee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">{selectedChain?.name} Gas</span>
+                    <span className="text-muted-foreground">
+                      {sourceChain === 'ethereum' ? '$5 - $30 (est)' : 
+                       sourceChain === 'arbitrum' ? '$0.10 - $0.50 (est)' :
+                       sourceChain === 'base' ? '$0.05 - $0.30 (est)' :
+                       sourceChain === 'optimism' ? '$0.10 - $0.50 (est)' :
+                       sourceChain === 'polygon' ? '$0.50 - $2 (est)' :
+                       sourceChain === 'bsc' ? '$0.30 - $1 (est)' :
+                       sourceChain === 'avalanche' ? '$1 - $3 (est)' :
+                       sourceChain === 'solana' ? '$0.01 - $0.05 (est)' :
+                       '$0.50 - $5 (est)'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs border-t border-border pt-0.5 mt-0.5">
+                    <span className="text-muted-foreground">Total Cost</span>
+                    <span className="text-foreground font-medium">${quote.fee.toFixed(2)} + gas</span>
                   </div>
                   <div className="flex justify-between text-xs border-t border-border pt-0.5 mt-0.5">
                     <span className="text-foreground font-medium">You'll Receive</span>
