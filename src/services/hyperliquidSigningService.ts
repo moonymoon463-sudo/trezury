@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 import CryptoJS from 'crypto-js';
 import { supabase } from '@/integrations/supabase/client';
+import { signL1Action } from '@nktkas/hyperliquid/signing';
+import { HYPERLIQUID_NETWORK } from '@/config/hyperliquid';
 
 class HyperliquidSigningService {
   /**
@@ -32,7 +34,8 @@ class HyperliquidSigningService {
   }
 
   /**
-   * Sign Hyperliquid order action (EIP-712)
+   * Sign Hyperliquid L1 action (orders, cancels, etc.)
+   * Uses official Hyperliquid SDK signing method
    * This happens on the FRONTEND for security - password never leaves browser
    */
   async signOrderAction(
@@ -42,31 +45,18 @@ class HyperliquidSigningService {
     nonce: number
   ): Promise<{ r: string; s: string; v: number }> {
     const privateKey = await this.getPrivateKey(userId, password);
+    
+    // Convert private key to ethers wallet for SDK compatibility
     const wallet = new ethers.Wallet(privateKey);
 
-    const domain = {
-      name: 'Exchange',
-      version: '1',
-      chainId: 421614, // Arbitrum Sepolia (HyperEVM testnet)
-      verifyingContract: '0x0000000000000000000000000000000000000000'
-    };
+    // Use official Hyperliquid L1 action signing
+    const signature = await signL1Action({
+      wallet: wallet,
+      action,
+      nonce,
+    });
 
-    const types = {
-      Agent: [
-        { name: 'source', type: 'string' },
-        { name: 'connectionId', type: 'bytes32' }
-      ]
-    };
-
-    const message = {
-      source: 'a',
-      connectionId: ethers.ZeroHash
-    };
-
-    const signature = await wallet.signTypedData(domain, types, message);
-    const sig = ethers.Signature.from(signature);
-
-    return { r: sig.r, s: sig.s, v: sig.v };
+    return signature;
   }
 
   /**

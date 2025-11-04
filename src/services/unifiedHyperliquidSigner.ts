@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { hyperliquidSigningService } from './hyperliquidSigningService';
+import { signL1Action } from '@nktkas/hyperliquid/signing';
 
 class UnifiedHyperliquidSigner {
   /**
@@ -24,7 +25,8 @@ class UnifiedHyperliquidSigner {
   }
   
   /**
-   * Sign using MetaMask (EIP-712)
+   * Sign using MetaMask with Hyperliquid L1 action signing
+   * NOTE: This requires MetaMask to support personal_sign for the properly formatted action
    */
   private async signWithMetaMask(action: any, nonce: number): Promise<{ r: string; s: string; v: number }> {
     const provider = window.ethereum;
@@ -38,33 +40,23 @@ class UnifiedHyperliquidSigner {
     }
     const address = accounts[0];
     
-    const domain = {
-      name: 'Exchange',
-      version: '1',
-      chainId: 421614,
-      verifyingContract: '0x0000000000000000000000000000000000000000'
-    };
+    // Get the private key isn't possible from MetaMask directly
+    // We need to use the SDK's signing method which will handle the proper formatting
+    // For external wallets, we'll need to request the signature via MetaMask
     
-    const types = {
-      Agent: [
-        { name: 'source', type: 'string' },
-        { name: 'connectionId', type: 'bytes32' }
-      ]
-    };
-    
-    const message = {
-      source: 'a',
-      connectionId: ethers.ZeroHash
-    };
-    
-    // Request MetaMask signature
-    const signature = await provider.request({
-      method: 'eth_signTypedData_v4',
-      params: [address, JSON.stringify({ domain, types, message })]
-    });
-    
-    const sig = ethers.Signature.from(signature);
-    return { r: sig.r, s: sig.s, v: sig.v };
+    try {
+      // Use the official Hyperliquid SDK signing with MetaMask provider
+      const signature = await signL1Action({
+        wallet: provider as any, // MetaMask provider
+        action,
+        nonce,
+      });
+      
+      return signature;
+    } catch (error) {
+      console.error('[UnifiedHyperliquidSigner] MetaMask signing failed:', error);
+      throw new Error('Failed to sign with MetaMask. The action may not be supported.');
+    }
   }
   
   /**

@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { PWAProvider } from "@/hooks/usePWA";
 import { TradingPasswordProvider } from "@/contexts/TradingPasswordContext";
+import { hyperliquidAssetMapper } from "@/services/hyperliquidAssetMapper";
+import { useEffect } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -77,6 +79,11 @@ const queryClient = new QueryClient();
 // App Routes Component that uses auth context
 const AppRoutes = () => {
   const { user, loading } = useAuth();
+
+  // Initialize Hyperliquid asset mapper on app load
+  useEffect(() => {
+    hyperliquidAssetMapper.initialize().catch(console.error);
+  }, []);
 
   if (loading) {
     return (

@@ -2,18 +2,20 @@ export const HYPERLIQUID_CONFIG = {
   mainnet: {
     restEndpoint: 'https://api.hyperliquid.xyz',
     wsEndpoint: 'wss://api.hyperliquid.xyz/ws',
-    chainId: 421614, // HyperEVM chain ID
+    chainId: 421614, // HyperEVM Mainnet chain ID (0x66eee in hex)
+    signatureChainId: '0x66eee', // Used for EIP-712 signatures
     explorerUrl: 'https://app.hyperliquid.xyz',
   },
   testnet: {
     restEndpoint: 'https://api.hyperliquid-testnet.xyz',
     wsEndpoint: 'wss://api.hyperliquid-testnet.xyz/ws',
-    chainId: 998,
+    chainId: 998, // Testnet chain ID
+    signatureChainId: '0x3e6', // Used for EIP-712 signatures (998 in hex)
     explorerUrl: 'https://testnet.hyperliquid.xyz',
   }
 };
 
-export const HYPERLIQUID_NETWORK = import.meta.env.VITE_HYPERLIQUID_NETWORK || 'mainnet';
+export const HYPERLIQUID_NETWORK = (import.meta.env.VITE_HYPERLIQUID_NETWORK || 'mainnet') as 'mainnet' | 'testnet';
 
 export const HYPERLIQUID_API = HYPERLIQUID_CONFIG[HYPERLIQUID_NETWORK as keyof typeof HYPERLIQUID_CONFIG];
 

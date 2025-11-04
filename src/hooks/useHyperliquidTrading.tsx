@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { hyperliquidTradingService } from '@/services/hyperliquidTradingService';
 import { unifiedHyperliquidSigner } from '@/services/unifiedHyperliquidSigner';
+import { hyperliquidAssetMapper } from '@/services/hyperliquidAssetMapper';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type {
@@ -15,6 +16,20 @@ export const useHyperliquidTrading = (address?: string) => {
   const [loading, setLoading] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
   const [accountInfo, setAccountInfo] = useState<HyperliquidAccountState | null>(null);
+  const [assetMapperReady, setAssetMapperReady] = useState(false);
+
+  // Initialize asset mapper on mount
+  useEffect(() => {
+    hyperliquidAssetMapper.initialize()
+      .then(() => {
+        setAssetMapperReady(true);
+        console.log('[useHyperliquidTrading] Asset mapper initialized');
+      })
+      .catch((error) => {
+        console.error('[useHyperliquidTrading] Failed to initialize asset mapper:', error);
+        toast.error('Failed to load market data');
+      });
+  }, []);
 
   const loadAccountInfo = useCallback(async () => {
     if (!address) return;
@@ -38,6 +53,15 @@ export const useHyperliquidTrading = (address?: string) => {
       throw new Error('User must be authenticated and address provided');
     }
 
+    if (!assetMapperReady) {
+      toast.error('Market data not ready. Please wait...');
+      return {
+        success: false,
+        error: 'Market data not initialized',
+        errorCode: 'NOT_READY'
+      };
+    }
+
     try {
       setOrderLoading(true);
 
@@ -52,26 +76,51 @@ export const useHyperliquidTrading = (address?: string) => {
         };
       }
 
+      // Get asset index from mapper
+      let assetIndex: number;
+      try {
+        assetIndex = hyperliquidAssetMapper.getAssetIndex(orderRequest.market);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown market';
+        toast.error(errorMsg);
+        return {
+          success: false,
+          error: errorMsg,
+          errorCode: 'INVALID_MARKET'
+        };
+      }
+
+      // Format size with correct decimals
+      const formattedSize = hyperliquidAssetMapper.formatSize(orderRequest.market, orderRequest.size);
+      const formattedPrice = orderRequest.price 
+        ? hyperliquidAssetMapper.formatPrice(orderRequest.price)
+        : '0';
+
+      // Generate unique client order ID
+      const cloid = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
       // Determine wallet source
       const walletSource = orderRequest.walletSource || 'generated';
 
-      // 1. Sign order on frontend (password for generated, MetaMask prompt for external)
+      // 1. Build order action with correct asset index and formatting
       const nonce = Date.now();
       const action = {
         type: 'order',
         orders: [{
-          a: 0, // asset index (TODO: map from market symbol)
+          a: assetIndex,
           b: orderRequest.side === 'BUY',
-          p: orderRequest.price?.toString() || '0',
-          s: orderRequest.size.toString(),
+          p: formattedPrice,
+          s: formattedSize,
           r: false,
           t: orderRequest.type === 'MARKET' 
             ? { market: {} }
-            : { limit: { tif: 'Gtc' } }
+            : { limit: { tif: 'Gtc' } },
+          c: cloid
         }],
         grouping: 'na'
       };
 
+      // 2. Sign order on frontend
       const signature = await unifiedHyperliquidSigner.signOrderAction(
         walletSource,
         user.id,
@@ -80,7 +129,7 @@ export const useHyperliquidTrading = (address?: string) => {
         nonce
       );
 
-      // 2. Submit signed order to edge function
+      // 3. Submit signed order to edge function
       const response = await supabase.functions.invoke('hyperliquid-trading', {
         body: {
           operation: 'place_order',
@@ -94,7 +143,8 @@ export const useHyperliquidTrading = (address?: string) => {
             leverage: orderRequest.leverage,
             action,
             signature,
-            nonce
+            nonce,
+            cloid
           }
         }
       });
@@ -269,6 +319,7 @@ export const useHyperliquidTrading = (address?: string) => {
     accountInfo,
     loading,
     orderLoading,
+    assetMapperReady,
     placeOrder,
     cancelOrder,
     cancelAllOrders,
