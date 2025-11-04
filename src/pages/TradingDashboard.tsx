@@ -493,18 +493,39 @@ const TradingDashboard = () => {
               <div className="space-y-3">
                 <div className="text-center py-4">
                   <Shield className="h-12 w-12 mx-auto mb-3 text-[#e6b951]/40" />
-                  <p className="text-white text-sm font-semibold mb-1">No Trading Wallet Connected</p>
-                  <p className="text-[#c6b795] text-xs mb-3">
-                    Connect your wallet to start trading on Hyperliquid
+                  <p className="text-white text-sm font-semibold mb-1">No Trading Wallet</p>
+                  <p className="text-[#c6b795] text-xs mb-4">
+                    Choose how you want to trade on Hyperliquid
                   </p>
-                  <Button
-                    onClick={handleConnectWallet}
-                    className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
-                    disabled={connecting}
-                  >
-                    <WalletIcon className="h-4 w-4 mr-2" />
-                    {connecting ? 'Connecting...' : 'Connect Wallet'}
-                  </Button>
+                  
+                  <div className="space-y-2">
+                    {/* Option 1: Generate Trading Wallet */}
+                    <Button
+                      onClick={() => setShowWalletGenerator(true)}
+                      className="w-full bg-[#e6b951] hover:bg-[#d4a840] text-black font-bold"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Generate Trading Wallet
+                    </Button>
+                    
+                    {/* Option 2: Use External Wallet */}
+                    <Button
+                      onClick={handleConnectWallet}
+                      variant="outline"
+                      className="w-full border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold"
+                      disabled={connecting}
+                    >
+                      <WalletIcon className="h-4 w-4 mr-2" />
+                      {connecting ? 'Connecting...' : 'Use External Wallet (MetaMask)'}
+                    </Button>
+                  </div>
+                  
+                  <div className="mt-3 pt-3 border-t border-[#463c25]">
+                    <p className="text-[#c6b795] text-xs">
+                      💡 <strong>Generated Wallet:</strong> Password-protected, stored securely<br/>
+                      💡 <strong>External Wallet:</strong> Use your MetaMask wallet
+                    </p>
+                  </div>
                 </div>
               </div>
             )
