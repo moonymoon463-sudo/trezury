@@ -57,7 +57,11 @@ const TradingDashboard = () => {
   const [orderSize, setOrderSize] = useState('');
   const [limitPrice, setLimitPrice] = useState('');
   const [stopPrice, setStopPrice] = useState('');
-  const [chartResolution, setChartResolution] = useState<string>('1HOUR');
+  const [chartResolution, setChartResolution] = useState<string>(() => {
+    // Load persisted chart resolution from localStorage
+    const saved = localStorage.getItem(`chart_resolution_${selectedAsset}`);
+    return saved || '1HOUR';
+  });
   const [walletType, setWalletType] = useState<'trading' | 'internal' | 'external'>('trading');
   const [copied, setCopied] = useState(false);
   const [wsHealth, setWsHealth] = useState({ isConnected: true, reconnectAttempts: 0, maxAttempts: 5 });
@@ -201,6 +205,15 @@ const TradingDashboard = () => {
     });
   };
 
+  const handleWalletGenerated = async (address: string) => {
+    setShowWalletGenerator(false);
+    await refreshWalletDetection();
+    toast({
+      title: "Trading Wallet Created",
+      description: "Your Hyperliquid trading wallet is ready!",
+    });
+  };
+
   // Prepare wallet data for transfer modal
   const availableWallets = [
     ...(hyperliquidAddress && accountInfo ? [{
@@ -315,6 +328,53 @@ const TradingDashboard = () => {
       setSelectedAsset('BTC-USD');
     }
   };
+
+  // Persist chart resolution to localStorage when it changes
+  useEffect(() => {
+    if (selectedAsset && chartResolution) {
+      localStorage.setItem(`chart_resolution_${selectedAsset}`, chartResolution);
+    }
+  }, [chartResolution, selectedAsset]);
+
+  // Load persisted resolution when switching assets
+  useEffect(() => {
+    if (selectedAsset) {
+      const saved = localStorage.getItem(`chart_resolution_${selectedAsset}`);
+      if (saved) {
+        setChartResolution(saved);
+      }
+    }
+  }, [selectedAsset]);
+
+  // Get max leverage for current market
+  const getMaxLeverage = (market: string): number => {
+    const symbol = market?.split('-')[0] || market;
+    // BTC and ETH can go up to 50x, most alts 20x, stablecoins 10x
+    if (['BTC', 'ETH'].includes(symbol)) return 50;
+    if (['SOL', 'AVAX', 'MATIC'].includes(symbol)) return 20;
+    return 10;
+  };
+
+  // Validate and enforce leverage limits
+  useEffect(() => {
+    if (selectedAsset) {
+      const maxLev = getMaxLeverage(selectedAsset);
+      if (leverage > maxLev) {
+        setLeverage(maxLev);
+        toast({
+          title: "Leverage Adjusted",
+          description: `Maximum leverage for ${selectedAsset} is ${maxLev}x`,
+        });
+      }
+    }
+  }, [selectedAsset]);
+
+  // Auto-populate limit price when switching to limit order
+  useEffect(() => {
+    if (orderType === 'limit' && !limitPrice && currentAsset && 'price' in currentAsset) {
+      setLimitPrice(currentAsset.price.toString());
+    }
+  }, [orderType]);
 
   // currentPrices now comes from useHyperliquidTicker hook
 
@@ -1006,14 +1066,21 @@ const TradingDashboard = () => {
               <div className="space-y-2.5 mt-2">
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[#c6b795] text-xs font-medium">Leverage</label>
-                  <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#e6b951] text-sm font-bold">{leverage}x</span>
+                    {selectedAsset && (
+                      <span className="text-[#c6b795] text-[10px]">Max: {getMaxLeverage(selectedAsset)}x</span>
+                    )}
+                  </div>
                 </div>
                 
                 {selectedAsset && leverageAssets.find(a => a.name === selectedSymbol) ? (
                   <>
                     {/* Quick Leverage Buttons */}
                     <div className="flex gap-1.5">
-                      {['1x', '5x', '10x', '25x', '50x'].map((lvg) => (
+                      {['1x', '5x', '10x', '25x', '50x']
+                        .filter(lvg => parseInt(lvg) <= getMaxLeverage(selectedAsset))
+                        .map((lvg) => (
                         <Button
                           key={lvg}
                           size="sm"
@@ -1033,17 +1100,61 @@ const TradingDashboard = () => {
                     <div className="px-1 pt-1">
                       <Slider
                         value={[leverage]}
-                        onValueChange={(value) => setLeverage(value[0])}
+                        onValueChange={(value) => setLeverage(Math.min(value[0], getMaxLeverage(selectedAsset)))}
                         min={1}
-                        max={50}
+                        max={getMaxLeverage(selectedAsset)}
                         step={1}
                         className="cursor-pointer"
                       />
                       <div className="flex justify-between mt-1.5 text-[10px] text-[#c6b795]/60">
                         <span>1x</span>
-                        <span>50x</span>
+                        <span>{getMaxLeverage(selectedAsset)}x</span>
                       </div>
                     </div>
+
+                    {/* Liquidation Price Estimate */}
+                    {orderSize && currentAsset && 'price' in currentAsset && leverage > 1 && (
+                      <div className="p-2 bg-[#211d12] rounded border border-[#463c25] space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#c6b795]">Est. Liquidation Price:</span>
+                          <span className="text-white font-mono">
+                            ${(() => {
+                              const entryPrice = orderType === 'limit' ? parseFloat(limitPrice) : currentAsset.price;
+                              const maintenanceMargin = 0.025;
+                              const liqPrice = tradeMode === 'buy'
+                                ? entryPrice * (1 - (1 / leverage) + maintenanceMargin)
+                                : entryPrice * (1 + (1 / leverage) - maintenanceMargin);
+                              return liqPrice.toFixed(2);
+                            })()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#c6b795]">Distance:</span>
+                          <span className={`font-semibold ${
+                            leverage > 10 ? 'text-red-400' : leverage > 5 ? 'text-yellow-400' : 'text-green-400'
+                          }`}>
+                            {(() => {
+                              const entryPrice = orderType === 'limit' ? parseFloat(limitPrice) : currentAsset.price;
+                              const maintenanceMargin = 0.025;
+                              const liqPrice = tradeMode === 'buy'
+                                ? entryPrice * (1 - (1 / leverage) + maintenanceMargin)
+                                : entryPrice * (1 + (1 / leverage) - maintenanceMargin);
+                              const distance = Math.abs((entryPrice - liqPrice) / entryPrice * 100);
+                              return `${distance.toFixed(1)}%`;
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {leverage > 10 && (
+                      <div className="p-2 bg-yellow-500/10 rounded border border-yellow-500/30">
+                        <p className="text-yellow-400 text-[10px] flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          High leverage increases liquidation risk
+                        </p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="p-3 bg-[#211d12] rounded-lg border border-[#463c25]/50">
@@ -1122,7 +1233,7 @@ const TradingDashboard = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-white text-sm font-semibold">Open Positions</h3>
                 </div>
-                <PositionManager address={hyperliquidAddress} currentPrices={currentPrices} />
+                <PositionManager address={hyperliquidAddress} currentPrices={currentPrices} userId={user?.id} />
                 <OrderHistory address={hyperliquidAddress} />
               </>
             ) : (
@@ -1174,15 +1285,7 @@ const TradingDashboard = () => {
         <DialogContent className="bg-card border-border max-w-2xl">
           <HyperliquidWalletGenerator
             userId={user?.id || ''}
-            onWalletCreated={(address) => {
-              setHyperliquidAddress(address);
-              setShowWalletGenerator(false);
-              refreshAccount();
-              toast({
-                title: "Wallet Created",
-                description: "Your Hyperliquid trading wallet is ready",
-              });
-            }}
+            onWalletCreated={handleWalletGenerated}
           />
         </DialogContent>
       </Dialog>

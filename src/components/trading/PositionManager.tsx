@@ -12,15 +12,16 @@ import { useHyperliquidPositions } from '@/hooks/useHyperliquidPositions';
 interface PositionManagerProps {
   address?: string;
   currentPrices: Record<string, number>;
+  userId?: string;
 }
 
-export const PositionManager: React.FC<PositionManagerProps> = ({ address, currentPrices }) => {
+export const PositionManager: React.FC<PositionManagerProps> = ({ address, currentPrices, userId }) => {
   const { positions, loading, refreshPositions } = useHyperliquidPositions(address);
   const [closingPosition, setClosingPosition] = useState<string | null>(null);
   const { toast } = useToast();
   const { getPassword } = useTradingPasswordContext();
 
-  const handleClosePosition = async (market: string) => {
+  const handleClosePosition = async (market: string, position: HyperliquidPositionDB) => {
     const password = getPassword();
     if (!password) {
       toast({
@@ -31,18 +32,43 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
       return;
     }
 
+    if (!address || !userId) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Required',
+        description: 'User ID and wallet address required'
+      });
+      return;
+    }
+
     setClosingPosition(market);
     try {
-      // TODO: Implement Hyperliquid position closing
-      toast({
-        variant: 'destructive',
-        title: 'Not Implemented',
-        description: 'Hyperliquid position closing coming soon'
-      });
+      const { hyperliquidTradingService } = await import('@/services/hyperliquidTradingService');
+
+      // Close position via trading service
+      const response = await hyperliquidTradingService.closePosition(
+        userId,
+        address,
+        market,
+        position.size
+      );
+
+      if (response.success) {
+        toast({
+          title: 'Position Closed',
+          description: `Successfully closed ${market} position`
+        });
+        
+        // Refresh positions after 1 second to allow backend to sync
+        setTimeout(() => refreshPositions(), 1000);
+      } else {
+        throw new Error(response.error || 'Failed to close position');
+      }
     } catch (error) {
+      console.error('[PositionManager] Close position error:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
+        title: 'Close Failed',
         description: error instanceof Error ? error.message : 'Unknown error'
       });
     } finally {
@@ -140,7 +166,7 @@ export const PositionManager: React.FC<PositionManagerProps> = ({ address, curre
           <Button
             size="sm"
             variant="destructive"
-            onClick={() => handleClosePosition(position.market)}
+            onClick={() => handleClosePosition(position.market, position)}
             disabled={closingPosition === position.market}
             className="flex-1"
           >
