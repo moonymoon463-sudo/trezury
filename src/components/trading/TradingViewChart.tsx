@@ -630,7 +630,7 @@ const TradingViewChart = ({
   }
 
   return (
-    <div className="flex flex-col h-full gap-3 p-4">
+    <div className="flex flex-col w-full h-full gap-2 p-3">
       {/* Indicator Dropdown and Timeframe Selector */}
       <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -786,7 +786,7 @@ const TradingViewChart = ({
       </div>
 
       {/* Chart Container */}
-      <div className="relative flex-1">
+      <div className="relative flex-1 min-h-0">
         <SpiralOverlay phase={phase} />
         
         {/* Drawing Tools - Overlaid on chart */}

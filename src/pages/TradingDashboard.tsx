@@ -910,8 +910,8 @@ const TradingDashboard = () => {
           maxAttempts={wsHealth.maxAttempts}
         />
 
-        {/* Chart Section - Fixed larger height */}
-        <div className="h-[calc(100vh-280px)] flex-shrink-0 rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
+        {/* Chart Section - Fixed responsive height */}
+        <div className="flex-1 min-h-[550px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
           {selectedAsset && leverageAssets.find(a => a.name === selectedSymbol) ? (
             <TradingViewChart
               key={`${selectedAsset}-${chartResolution}`}
@@ -947,9 +947,9 @@ const TradingDashboard = () => {
           )}
         </div>
 
-        {/* Open Positions Table - Smaller */}
+        {/* Open Positions Table - Compact */}
         {hyperliquidAddress && (
-          <div className="h-[80px] flex-shrink-0 overflow-hidden">
+          <div className="h-[100px] flex-shrink-0 overflow-hidden">
             <OpenPositionsTable address={hyperliquidAddress} currentPrices={currentPrices} />
           </div>
         )}
