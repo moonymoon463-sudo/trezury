@@ -61,7 +61,14 @@ serve(async (req) => {
 async function getQuote(params: any) {
   const { fromChain, toChain, token, amount, provider, destinationAddress } = params;
   
-  console.log('[hyperliquid-bridge] Getting quote:', { fromChain, toChain, amount, provider });
+  console.log('[hyperliquid-bridge] Getting quote - RAW INPUT:', { fromChain, toChain, amount, provider, amountType: typeof amount });
+
+  // Parse and validate amount
+  const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    throw new Error(`Invalid amount: ${amount}`);
+  }
 
   // Calculate fees based on provider
   const feeRates: Record<string, number> = {
@@ -71,8 +78,37 @@ async function getQuote(params: any) {
   };
 
   const feeRate = feeRates[provider] || 0.005;
-  const fee = amount * feeRate;
-  const estimatedOutput = amount - fee;
+  const fee = parsedAmount * feeRate;
+  const estimatedOutput = parsedAmount - fee;
+
+  console.log('[hyperliquid-bridge] Fee calculation:', {
+    parsedAmount,
+    feeRate,
+    feePercentage: `${(feeRate * 100).toFixed(2)}%`,
+    calculatedFee: fee,
+    estimatedOutput,
+    formula: `${parsedAmount} - (${parsedAmount} × ${feeRate}) = ${estimatedOutput}`
+  });
+
+  // CRITICAL SANITY CHECK: Fee should never exceed 1% of input
+  if (fee > parsedAmount * 0.01) {
+    console.error('[hyperliquid-bridge] CRITICAL: Fee exceeds 1% of input!', {
+      fee,
+      maxAllowedFee: parsedAmount * 0.01,
+      parsedAmount
+    });
+    throw new Error('Fee calculation error: Fee exceeds maximum allowed (1%). Please contact support.');
+  }
+
+  // CRITICAL SANITY CHECK: Output should be at least 99% of input
+  if (estimatedOutput < parsedAmount * 0.99) {
+    console.error('[hyperliquid-bridge] CRITICAL: Output is less than 99% of input!', {
+      parsedAmount,
+      estimatedOutput,
+      percentReceived: ((estimatedOutput / parsedAmount) * 100).toFixed(2) + '%'
+    });
+    throw new Error('Bridge calculation error: Output too low. Please contact support.');
+  }
 
   // Estimate time
   const timeEstimates: Record<string, Record<string, string>> = {
@@ -93,13 +129,13 @@ async function getQuote(params: any) {
 
   const estimatedTime = timeEstimates[provider]?.[fromChain] || timeEstimates[provider]?.default || '5 - 10min';
 
-  return {
+  const result = {
     provider,
     fromChain,
     toChain,
-    inputAmount: amount,
-    estimatedOutput,
-    fee,
+    inputAmount: parsedAmount,
+    estimatedOutput: Math.round(estimatedOutput * 100) / 100, // Round to 2 decimals
+    fee: Math.round(fee * 100) / 100, // Round to 2 decimals
     estimatedTime,
     route: {
       destinationAddress,
@@ -107,6 +143,9 @@ async function getQuote(params: any) {
       confirmations: provider === 'native' ? 12 : 1
     }
   };
+
+  console.log('[hyperliquid-bridge] Quote result:', result);
+  return result;
 }
 
 async function executeBridge(supabaseClient: any, userId: string, params: any) {
