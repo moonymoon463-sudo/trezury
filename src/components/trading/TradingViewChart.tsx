@@ -131,23 +131,33 @@ const TradingViewChart = ({
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
-      if (!chartContainerRef.current || candles.length === 0) return;
+      if (!chartContainerRef.current) return;
+      
+      // Wait for container to have dimensions
+      if (chartContainerRef.current.clientHeight === 0) {
+        console.log('[TradingViewChart] Container not ready, waiting...');
+        return;
+      }
 
-      console.log('[TradingViewChart] Chart initialization check:', {
+      if (candles.length === 0) {
+        console.log('[TradingViewChart] No candles yet, waiting...');
+        return;
+      }
+
+      console.log('[TradingViewChart] Chart initialization:', {
         symbol,
         resolution,
         candlesCount: candles.length,
-        firstCandle: candles[0],
-        lastCandle: candles[candles.length - 1],
-        containerRef: !!chartContainerRef.current,
         containerHeight: chartContainerRef.current?.clientHeight,
         containerWidth: chartContainerRef.current?.clientWidth,
       });
 
       if (disposed) return;
 
-      // Create chart instance with responsive sizing (using bundled library)
-      const containerHeight = chartContainerRef.current.clientHeight || 400;
+      // Create chart instance with stable sizing
+      const containerHeight = Math.max(chartContainerRef.current.clientHeight, 400);
+      const containerWidth = Math.max(chartContainerRef.current.clientWidth, 600);
+      
       const chart = createChart(chartContainerRef.current, {
         layout: {
           background: { color: 'transparent' },
@@ -157,7 +167,7 @@ const TradingViewChart = ({
           vertLines: { color: 'rgba(212, 175, 55, 0.1)' },
           horzLines: { color: 'rgba(212, 175, 55, 0.1)' },
         },
-        width: chartContainerRef.current.clientWidth,
+        width: containerWidth,
         height: containerHeight,
         timeScale: {
           timeVisible: true,
@@ -332,13 +342,22 @@ const TradingViewChart = ({
         }
       });
 
-      // Handle resize
+      // Handle resize with debouncing
+      let resizeTimeout: NodeJS.Timeout;
       const handleResize = () => {
-        if (chartContainerRef.current && chartRef.current) {
-          chartRef.current.applyOptions({
-            width: chartContainerRef.current.clientWidth,
-          });
-        }
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          if (chartContainerRef.current && chartRef.current) {
+            const newWidth = chartContainerRef.current.clientWidth;
+            const newHeight = chartContainerRef.current.clientHeight;
+            if (newWidth > 0 && newHeight > 0) {
+              chartRef.current.applyOptions({
+                width: newWidth,
+                height: newHeight,
+              });
+            }
+          }
+        }, 100);
       };
 
       window.addEventListener('resize', handleResize);
