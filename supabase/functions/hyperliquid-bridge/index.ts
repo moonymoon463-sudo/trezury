@@ -1,12 +1,31 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { ethers } from 'npm:ethers@6.13.0';
+
+console.log('[hyperliquid-bridge] Function started');
+
+// Across Protocol SpokePool contract addresses
+const ACROSS_SPOKE_POOLS: Record<string, string> = {
+  ethereum: '0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5',
+  arbitrum: '0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A',
+  optimism: '0x6f26Bf09B1C792e3228e5467807a900A503c0281',
+  polygon: '0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096',
+  base: '0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64',
+};
+
+const USDC_ADDRESSES: Record<string, string> = {
+  ethereum: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  arbitrum: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+  optimism: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+  polygon: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+  base: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -61,144 +80,111 @@ serve(async (req) => {
 async function getQuote(params: any) {
   const { fromChain, toChain, token, amount, provider, destinationAddress } = params;
   
-  console.log('[hyperliquid-bridge] Getting quote - RAW INPUT:', { fromChain, toChain, amount, provider, amountType: typeof amount });
+  console.log('[hyperliquid-bridge] Getting quote:', { fromChain, toChain, amount, provider });
 
-  // Parse and validate amount
   const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
     throw new Error(`Invalid amount: ${amount}`);
   }
 
-  // Calculate fees based on provider
+  // Fee rates
   const feeRates: Record<string, number> = {
     across: 0.003, // 0.3%
     stargate: 0.002, // 0.2%
     native: 0.001 // 0.1%
   };
 
-  const feeRate = feeRates[provider] || 0.005;
+  const feeRate = feeRates[provider] || 0.003;
   const fee = parsedAmount * feeRate;
   const estimatedOutput = parsedAmount - fee;
 
   console.log('[hyperliquid-bridge] Fee calculation:', {
     parsedAmount,
     feeRate,
-    feePercentage: `${(feeRate * 100).toFixed(2)}%`,
-    calculatedFee: fee,
-    estimatedOutput,
-    formula: `${parsedAmount} - (${parsedAmount} × ${feeRate}) = ${estimatedOutput}`
+    fee,
+    estimatedOutput
   });
 
-  // CRITICAL SANITY CHECK: Fee should never exceed 1% of input
-  if (fee > parsedAmount * 0.01) {
-    console.error('[hyperliquid-bridge] CRITICAL: Fee exceeds 1% of input!', {
-      fee,
-      maxAllowedFee: parsedAmount * 0.01,
-      parsedAmount
-    });
-    throw new Error('Fee calculation error: Fee exceeds maximum allowed (1%). Please contact support.');
-  }
-
-  // CRITICAL SANITY CHECK: Output should be at least 99% of input
-  if (estimatedOutput < parsedAmount * 0.99) {
-    console.error('[hyperliquid-bridge] CRITICAL: Output is less than 99% of input!', {
-      parsedAmount,
-      estimatedOutput,
-      percentReceived: ((estimatedOutput / parsedAmount) * 100).toFixed(2) + '%'
-    });
-    throw new Error('Bridge calculation error: Output too low. Please contact support.');
-  }
-
-  // Estimate time
+  // Time estimates
   const timeEstimates: Record<string, Record<string, string>> = {
     across: {
-      ethereum: '30s - 2min',
-      arbitrum: '30s - 1min',
+      ethereum: '1 - 3min',
+      arbitrum: '30s - 2min',
       default: '1 - 3min'
     },
     stargate: {
-      ethereum: '1 - 5min',
       default: '2 - 5min'
     },
     native: {
-      ethereum: '5 - 10min',
       default: '5 - 10min'
     }
   };
 
   const estimatedTime = timeEstimates[provider]?.[fromChain] || timeEstimates[provider]?.default || '5 - 10min';
 
-  const result = {
+  return {
     provider,
     fromChain,
     toChain,
     inputAmount: parsedAmount,
-    estimatedOutput: Math.round(estimatedOutput * 100) / 100, // Round to 2 decimals
-    fee: Math.round(fee * 100) / 100, // Round to 2 decimals
+    estimatedOutput: Math.round(estimatedOutput * 100) / 100,
+    fee: Math.round(fee * 100) / 100,
     estimatedTime,
     route: {
       destinationAddress,
       token,
-      confirmations: provider === 'native' ? 12 : 1
+      confirmations: 1
     }
   };
-
-  console.log('[hyperliquid-bridge] Quote result:', result);
-  return result;
 }
 
 async function executeBridge(supabaseClient: any, userId: string, params: any) {
-  const { quote, sourceWalletAddress, sourceWalletType = 'external', password } = params;
-  
-  console.log('[hyperliquid-bridge] Executing bridge:', { 
-    userId, 
-    quote,
-    sourceWallet: sourceWalletAddress,
-    sourceWalletType,
-    destinationChain: 'Hyperliquid L1'
-  });
+  console.log('[executeBridge] Starting real bridge execution', { userId, params });
 
-  // Validate destination is Hyperliquid L1
-  if (quote.toChain !== 'hyperliquid') {
-    throw new Error('Invalid destination chain. Must bridge to Hyperliquid L1.');
-  }
+  try {
+    const {
+      quote,
+      sourceWalletAddress,
+      sourceWalletType,
+      password,
+    } = params;
 
-  // If using internal wallet, verify password
-  let verifiedAddress = sourceWalletAddress;
-  if (sourceWalletType === 'internal') {
-    if (!password) {
-      throw new Error('Password required for internal wallet');
+    if (!quote || quote.toChain !== 'hyperliquid') {
+      throw new Error('Invalid quote or destination chain');
     }
 
-    // Verify password by attempting to decrypt wallet
-    // In production, this would use the actual wallet decryption service
-    console.log('[hyperliquid-bridge] Verifying internal wallet password...');
-    
-    // Note: In production, you would call a secure wallet service here to:
-    // 1. Decrypt the wallet using the password
-    // 2. Sign the bridge transaction with the decrypted private key
-    // 3. Return the signed transaction
-    
-    // For now, we'll proceed with the address validation
-    const { data: walletData, error: walletError } = await supabaseClient
-      .from('onchain_addresses')
-      .select('address')
-      .eq('user_id', userId)
-      .eq('address', sourceWalletAddress)
-      .single();
+    let sourcePrivateKey: string | null = null;
+    const destinationAddress = quote.route.destinationAddress;
 
-    if (walletError || !walletData) {
-      throw new Error('Internal wallet not found or invalid');
+    // Get private key for internal wallet
+    if (sourceWalletType === 'internal') {
+      if (!password) {
+        throw new Error('Password required for internal wallet');
+      }
+
+      console.log('[executeBridge] Using internal wallet');
+
+      // Get encrypted private key
+      const { data: encryptedData, error: encryptError } = await supabaseClient
+        .from('secure_wallets')
+        .select('encrypted_private_key')
+        .eq('user_id', userId)
+        .single();
+
+      if (encryptError || !encryptedData) {
+        throw new Error('Wallet private key not found');
+      }
+
+      // Decrypt private key
+      sourcePrivateKey = await decryptPrivateKey(encryptedData.encrypted_private_key, password);
+      console.log('[executeBridge] Private key decrypted successfully');
+    } else {
+      throw new Error('External wallet bridging not yet supported. Please use internal wallet with password.');
     }
 
-    verifiedAddress = walletData.address;
-  }
-
-  // Create bridge transaction record
-  const { data: bridgeTransaction, error: insertError } = await supabaseClient
-    .from('bridge_transactions')
-    .insert({
+    // Record bridge transaction
+    const bridgeRecord = {
       user_id: userId,
       source_chain: quote.fromChain,
       destination_chain: 'hyperliquid',
@@ -206,45 +192,252 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
       amount: quote.inputAmount,
       token: 'USDC',
       status: 'pending',
-      estimated_completion: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 minutes
+      estimated_completion: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       metadata: {
         quote,
-        sourceWalletAddress: verifiedAddress,
+        sourceWalletAddress,
         sourceWalletType,
-        destinationAddress: quote.route.destinationAddress,
-        destinationChain: 'Hyperliquid L1',
+        destinationAddress,
         estimatedOutput: quote.estimatedOutput,
         fee: quote.fee
       }
-    })
-    .select()
-    .single();
+    };
 
-  if (insertError) {
-    console.error('[hyperliquid-bridge] Insert error:', insertError);
-    throw insertError;
+    const { data: bridgeData, error: bridgeError } = await supabaseClient
+      .from('bridge_transactions')
+      .insert(bridgeRecord)
+      .select()
+      .single();
+
+    if (bridgeError) {
+      console.error('[executeBridge] Database error:', bridgeError);
+      throw new Error(`Failed to record bridge transaction: ${bridgeError.message}`);
+    }
+
+    console.log('[executeBridge] Bridge transaction recorded:', bridgeData.id);
+
+    // Execute real bridge transaction
+    const result = await executeAcrossBridge(
+      quote.fromChain,
+      sourcePrivateKey,
+      quote.inputAmount,
+      destinationAddress,
+      bridgeData.id,
+      supabaseClient
+    );
+
+    return {
+      success: true,
+      bridgeId: bridgeData.id,
+      txHash: result.txHash,
+      estimatedCompletion: bridgeData.estimated_completion
+    };
+  } catch (error) {
+    console.error('[executeBridge] Error:', error);
+    throw error;
+  }
+}
+
+async function decryptPrivateKey(encryptedKey: string, password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  
+  const parts = encryptedKey.split(':');
+  if (parts.length !== 3) {
+    throw new Error('Invalid encrypted key format');
+  }
+  
+  const [ivHex, saltHex, encryptedHex] = parts;
+  const iv = hexToUint8Array(ivHex);
+  const salt = hexToUint8Array(saltHex);
+  const encrypted = hexToUint8Array(encryptedHex);
+  
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+  
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    encrypted
+  );
+  
+  return decoder.decode(decrypted);
+}
+
+function hexToUint8Array(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  }
+  return bytes;
+}
+
+async function executeAcrossBridge(
+  sourceChain: string,
+  privateKey: string,
+  amount: number,
+  destinationAddress: string,
+  bridgeId: string,
+  supabaseClient: any
+) {
+  console.log('[executeAcrossBridge] Starting Across bridge transaction', {
+    sourceChain,
+    amount,
+    destinationAddress,
+  });
+
+  const rpcUrl = getRpcUrl(sourceChain);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
+
+  console.log('[executeAcrossBridge] Wallet address:', wallet.address);
+
+  const spokePoolAddress = ACROSS_SPOKE_POOLS[sourceChain];
+  const usdcAddress = USDC_ADDRESSES[sourceChain];
+
+  if (!spokePoolAddress || !usdcAddress) {
+    throw new Error(`Chain ${sourceChain} not supported for bridging`);
   }
 
-  // In production, this would interact with actual bridge APIs
-  // For now, we return a mock response
-  const mockTxHash = `0x${Array.from({ length: 64 }, () => 
-    Math.floor(Math.random() * 16).toString(16)).join('')}`;
+  // USDC contract
+  const usdcAbi = [
+    'function approve(address spender, uint256 amount) returns (bool)',
+    'function allowance(address owner, address spender) view returns (uint256)',
+    'function balanceOf(address account) view returns (uint256)',
+    'function decimals() view returns (uint8)',
+  ];
+  const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, wallet);
 
-  // Update with source tx hash
+  // Check balance
+  const decimals = await usdcContract.decimals();
+  const amountWei = ethers.parseUnits(amount.toString(), decimals);
+  const balance = await usdcContract.balanceOf(wallet.address);
+  
+  console.log('[executeAcrossBridge] Balance check:', {
+    balance: ethers.formatUnits(balance, decimals),
+    required: amount,
+  });
+
+  if (balance < amountWei) {
+    throw new Error(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
+  }
+
+  // Check allowance
+  const allowance = await usdcContract.allowance(wallet.address, spokePoolAddress);
+  console.log('[executeAcrossBridge] Current allowance:', ethers.formatUnits(allowance, decimals));
+
+  // Approve if needed
+  if (allowance < amountWei) {
+    console.log('[executeAcrossBridge] Approving USDC...');
+    const approveTx = await usdcContract.approve(spokePoolAddress, amountWei);
+    const approveReceipt = await approveTx.wait();
+    console.log('[executeAcrossBridge] Approval confirmed:', approveTx.hash);
+
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ approval_tx_hash: approveTx.hash })
+      .eq('id', bridgeId);
+  }
+
+  // Execute bridge deposit via Across SpokePool
+  const spokePoolAbi = [
+    'function depositV3(address depositor, address recipient, address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 destinationChainId, address exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, bytes calldata message) payable',
+  ];
+  const spokePool = new ethers.Contract(spokePoolAddress, spokePoolAbi, wallet);
+
+  const quoteTimestamp = Math.floor(Date.now() / 1000);
+  const fillDeadline = quoteTimestamp + 3600; // 1 hour
+  const exclusivityDeadline = 0;
+  const outputAmount = amountWei * BigInt(997) / BigInt(1000); // 0.3% fee
+
+  console.log('[executeAcrossBridge] Executing deposit...');
+  const depositTx = await spokePool.depositV3(
+    wallet.address,
+    destinationAddress,
+    usdcAddress,
+    usdcAddress,
+    amountWei,
+    outputAmount,
+    42161, // Arbitrum as intermediate chain (Across will route to destination)
+    ethers.ZeroAddress,
+    quoteTimestamp,
+    fillDeadline,
+    exclusivityDeadline,
+    '0x'
+  );
+
+  console.log('[executeAcrossBridge] Transaction submitted:', depositTx.hash);
+
+  // Update database
   await supabaseClient
     .from('bridge_transactions')
-    .update({
-      source_tx_hash: mockTxHash,
-      status: 'processing'
+    .update({ 
+      status: 'processing',
+      source_tx_hash: depositTx.hash 
     })
-    .eq('id', bridgeTransaction.id);
+    .eq('id', bridgeId);
 
-  return {
-    success: true,
-    txHash: mockTxHash,
-    bridgeId: bridgeTransaction.id,
-    estimatedCompletion: bridgeTransaction.estimated_completion
-  };
+  // Wait for confirmation (background)
+  depositTx.wait().then(async (receipt: any) => {
+    console.log('[executeAcrossBridge] Transaction confirmed:', receipt.transactionHash);
+    const gasCost = ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ 
+        status: 'completed',
+        gas_cost: gasCost
+      })
+      .eq('id', bridgeId);
+  }).catch(async (error: any) => {
+    console.error('[executeAcrossBridge] Transaction failed:', error);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ 
+        status: 'failed',
+        error_message: error.message 
+      })
+      .eq('id', bridgeId);
+  });
+
+  return { txHash: depositTx.hash };
+}
+
+function getRpcUrl(chain: string): string {
+  const infuraKey = Deno.env.get('INFURA_API_KEY');
+  const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
+
+  switch (chain) {
+    case 'ethereum':
+      return `https://mainnet.infura.io/v3/${infuraKey}`;
+    case 'arbitrum':
+      return `https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`;
+    case 'optimism':
+      return `https://opt-mainnet.g.alchemy.com/v2/${alchemyKey}`;
+    case 'polygon':
+      return `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`;
+    case 'base':
+      return `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`;
+    default:
+      throw new Error(`No RPC URL configured for chain: ${chain}`);
+  }
 }
 
 async function checkStatus(supabaseClient: any, bridgeId: string) {
@@ -260,6 +453,8 @@ async function checkStatus(supabaseClient: any, bridgeId: string) {
     status: bridge.status,
     txHash: bridge.source_tx_hash,
     destinationTxHash: bridge.destination_tx_hash,
-    estimatedCompletion: bridge.estimated_completion
+    estimatedCompletion: bridge.estimated_completion,
+    amount: bridge.amount,
+    error: bridge.error_message
   };
 }

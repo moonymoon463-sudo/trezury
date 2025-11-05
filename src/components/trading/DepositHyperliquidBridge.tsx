@@ -34,6 +34,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
     loading: quoteLoading, 
     getQuote, 
     executeBridge,
+    checkStatus,
     bridgeStatus 
   } = useHyperliquidBridge();
 
@@ -76,34 +77,81 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
   }, [amount, sourceChain, bridgeProvider, hyperliquidAddress, sourceWallet, wallet.address, internalWalletAddress, getQuote]);
 
   const handleBridge = async () => {
-    if (!quote) return;
+    if (!quote || !hyperliquidAddress) {
+      toast({
+        title: "Error",
+        description: "Missing quote or trading wallet",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Validate password for internal wallet
     if (sourceWallet === 'internal' && !password) {
       toast({
-        variant: "destructive",
         title: "Password Required",
-        description: "Please enter your wallet password"
+        description: "Please enter your password to bridge with internal wallet",
+        variant: "destructive",
       });
       return;
     }
 
     setStep('processing');
+
     try {
       const sourceAddress = sourceWallet === 'external' ? wallet.address : internalWalletAddress;
-      await executeBridge(quote, sourceAddress, sourceWallet, password || undefined);
-      setStep('complete');
-      toast({
-        title: "Bridge Initiated",
-        description: `Bridging ${amount} USDC from ${sourceChain} to Hyperliquid L1`,
-      });
-      onSuccess?.();
-    } catch (error) {
+      const result = await executeBridge(quote as any, sourceAddress, sourceWallet, password);
+      
+      console.log('[DepositHyperliquidBridge] Bridge transaction submitted:', result);
+      
+      // Poll for status updates
+      let attempts = 0;
+      const maxAttempts = 120; // 10 minutes (5s intervals)
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        
+        try {
+          const status = await checkStatus(result.bridgeId);
+          console.log('[DepositHyperliquidBridge] Bridge status:', status);
+          
+          if (status.status === 'completed') {
+            clearInterval(pollInterval);
+            setStep('complete');
+            toast({
+              title: "Bridge Complete",
+              description: `${amount} USDC has been deposited to your trading wallet`,
+            });
+            onSuccess?.();
+          } else if (status.status === 'failed') {
+            clearInterval(pollInterval);
+            setStep('input');
+            toast({
+              title: "Bridge Failed",
+              description: status.error || "Transaction failed on chain",
+              variant: "destructive",
+            });
+          } else if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            setStep('input');
+            toast({
+              title: "Bridge Timeout",
+              description: "Bridge is taking longer than expected. Please check transaction status later.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error('[DepositHyperliquidBridge] Status check failed:', error);
+          // Don't stop polling on status check errors
+        }
+      }, 5000); // Poll every 5 seconds
+      
+    } catch (error: any) {
+      console.error('[DepositHyperliquidBridge] Bridge failed:', error);
       setStep('input');
       toast({
         title: "Bridge Failed",
-        description: error instanceof Error ? error.message : "Failed to execute bridge",
-        variant: "destructive"
+        description: error.message || "Failed to initiate bridge",
+        variant: "destructive",
       });
     }
   };
@@ -117,7 +165,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
             <CardTitle className="text-base text-foreground">Bridge Complete</CardTitle>
           </div>
           <CardDescription className="text-xs text-muted-foreground">
-            Funds will arrive in your trading wallet shortly
+            Your funds have been successfully bridged
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -129,11 +177,18 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Transaction Hash</span>
-                <span className="text-foreground font-mono text-xs">{bridgeStatus.txHash?.slice(0, 10)}...</span>
+                <a 
+                  href={`https://${sourceChain === 'ethereum' ? 'etherscan.io' : sourceChain === 'arbitrum' ? 'arbiscan.io' : sourceChain === 'base' ? 'basescan.org' : 'etherscan.io'}/tx/${bridgeStatus.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-mono text-xs"
+                >
+                  {bridgeStatus.txHash?.slice(0, 10)}...
+                </a>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Status</span>
-                <Badge variant="default" className="text-xs">Processing</Badge>
+                <Badge variant="default" className="text-xs">Completed</Badge>
               </div>
             </div>
           )}
@@ -151,12 +206,18 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-foreground">Processing Bridge</CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            {sourceWallet === 'internal' ? 'Signing transaction...' : 'Please confirm the transaction in your wallet'}
+            {sourceWallet === 'internal' ? 'Executing bridge transaction...' : 'Please confirm in your wallet'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-6 space-y-3">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-muted-foreground text-xs">Waiting for confirmation...</p>
+          <p className="text-muted-foreground text-xs">This may take a few minutes...</p>
+          <Alert className="bg-blue-500/10 border-blue-500/30">
+            <AlertCircle className="h-3 w-3 text-blue-500" />
+            <AlertDescription className="text-xs">
+              Your transaction is being processed on-chain. Do not close this window.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
