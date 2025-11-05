@@ -111,30 +111,12 @@ export const BRIDGE_PROVIDERS = [
     recommended: true
   },
   {
-    id: 'stargate',
-    name: 'Stargate',
-    description: 'LayerZero powered bridge',
-    speed: '1 - 5min',
-    fees: '0.2% + gas',
-    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche'],
-    recommended: false
-  },
-  {
     id: 'wormhole',
     name: 'Wormhole',
-    description: 'Cross-chain bridge for Solana',
+    description: 'Cross-chain bridge for Solana & Avalanche',
     speed: '2 - 10min',
     fees: '0.1% + gas',
     supportedChains: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche'],
-    recommended: false
-  },
-  {
-    id: 'native',
-    name: 'Arbitrum Bridge',
-    description: 'Official Arbitrum bridge',
-    speed: '5 - 10min',
-    fees: '0.1% + gas',
-    supportedChains: ['ethereum', 'arbitrum'],
     recommended: false
   }
 ];

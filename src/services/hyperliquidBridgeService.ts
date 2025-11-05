@@ -110,8 +110,7 @@ class HyperliquidBridgeService {
   getSupportedChains(provider: string): string[] {
     const chainSupport: Record<string, string[]> = {
       across: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
-      stargate: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche'],
-      native: ['arbitrum', 'ethereum']
+      wormhole: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche']
     };
 
     return chainSupport[provider] || [];
@@ -130,17 +129,12 @@ class HyperliquidBridgeService {
         polygon: '1 - 3min',
         bsc: '1 - 3min'
       },
-      stargate: {
-        ethereum: '1 - 5min',
-        arbitrum: '1 - 3min',
-        optimism: '1 - 5min',
-        polygon: '2 - 5min',
-        bsc: '2 - 5min',
-        avalanche: '2 - 5min'
-      },
-      native: {
-        arbitrum: '5 - 10min',
-        ethereum: '5 - 10min'
+      wormhole: {
+        solana: '2 - 10min',
+        ethereum: '5 - 15min',
+        bsc: '5 - 15min',
+        polygon: '5 - 15min',
+        avalanche: '5 - 15min'
       }
     };
 
@@ -153,8 +147,7 @@ class HyperliquidBridgeService {
   estimateFee(provider: string, amount: number): number {
     const feeRates: Record<string, number> = {
       across: 0.003, // 0.3%
-      stargate: 0.002, // 0.2%
-      native: 0.001 // 0.1%
+      wormhole: 0.001 // 0.1%
     };
 
     const rate = feeRates[provider] || 0.005;
