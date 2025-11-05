@@ -116,7 +116,7 @@ export const BRIDGE_PROVIDERS = [
     description: 'Cross-chain bridge for Solana & Avalanche',
     speed: '2 - 10min',
     fees: '0.1% + gas',
-    supportedChains: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche'],
+    supportedChains: ['avalanche', 'ethereum', 'bsc', 'polygon'],
     recommended: false
   }
 ];

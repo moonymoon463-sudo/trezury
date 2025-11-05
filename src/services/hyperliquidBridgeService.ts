@@ -110,7 +110,7 @@ class HyperliquidBridgeService {
   getSupportedChains(provider: string): string[] {
     const chainSupport: Record<string, string[]> = {
       across: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
-      wormhole: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche']
+      wormhole: ['avalanche', 'ethereum', 'bsc', 'polygon']
     };
 
     return chainSupport[provider] || [];
@@ -130,11 +130,10 @@ class HyperliquidBridgeService {
         bsc: '1 - 3min'
       },
       wormhole: {
-        solana: '2 - 10min',
-        ethereum: '5 - 15min',
+        avalanche: '5 - 15min',
+        ethereum: '10 - 20min',
         bsc: '5 - 15min',
-        polygon: '5 - 15min',
-        avalanche: '5 - 15min'
+        polygon: '5 - 15min'
       }
     };
 

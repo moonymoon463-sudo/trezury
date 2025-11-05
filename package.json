@@ -16,6 +16,7 @@
     "@capacitor/cli": "^7.4.3",
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
+    "@certusone/wormhole-sdk": "^0.10.18",
     "@cosmjs/crypto": "^0.36.2",
     "@cosmjs/proto-signing": "^0.36.2",
     "@dydxprotocol/v4-client-js": "^3.0.7",

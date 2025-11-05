@@ -1,5 +1,16 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { ethers } from 'npm:ethers@6.13.0';
+import {
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_AVAX,
+  CHAIN_ID_BSC,
+  CHAIN_ID_ETH,
+  CHAIN_ID_POLYGON,
+  CHAIN_ID_SOLANA,
+  getEmitterAddressEth,
+  parseSequenceFromLogEth,
+  tryNativeToHexString,
+} from 'npm:@certusone/wormhole-sdk@0.10.24';
 
 console.log('[hyperliquid-bridge] Function started');
 
@@ -21,6 +32,25 @@ const USDC_ADDRESSES: Record<string, string> = {
   base: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   bsc: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
   avalanche: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
+};
+
+// Wormhole Token Bridge contract addresses
+const WORMHOLE_TOKEN_BRIDGES: Record<string, string> = {
+  ethereum: '0x3ee18B2214AFF97000D974cf647E7C347E8fa585',
+  bsc: '0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7',
+  polygon: '0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE',
+  avalanche: '0x0e082F06FF657D94310cB8cE8B0D9a04541d8052',
+  arbitrum: '0x0b2402144Bb366A632D14B83F244D2e0e21bD39c',
+};
+
+// Wormhole chain IDs
+const WORMHOLE_CHAIN_IDS: Record<string, number> = {
+  ethereum: CHAIN_ID_ETH,
+  bsc: CHAIN_ID_BSC,
+  polygon: CHAIN_ID_POLYGON,
+  avalanche: CHAIN_ID_AVAX,
+  arbitrum: CHAIN_ID_ARBITRUM,
+  solana: CHAIN_ID_SOLANA,
 };
 
 const corsHeaders = {
@@ -116,6 +146,10 @@ async function getQuote(params: any) {
       default: '1 - 3min'
     },
     wormhole: {
+      avalanche: '5 - 15min',
+      ethereum: '10 - 20min',
+      bsc: '5 - 15min',
+      polygon: '5 - 15min',
       default: '5 - 15min'
     }
   };
@@ -124,14 +158,13 @@ async function getQuote(params: any) {
 
   // Gas cost estimates (in USD)
   const gasEstimates: Record<string, Record<string, string>> = {
-    ethereum: { across: '$5-30', wormhole: '$8-35' },
+    ethereum: { across: '$5-30', wormhole: '$8-40' },
     arbitrum: { across: '$0.10-0.50', wormhole: '$0.15-0.60' },
     optimism: { across: '$0.10-0.50', wormhole: '$0.15-0.60' },
     polygon: { across: '$0.50-2', wormhole: '$1-3' },
     base: { across: '$0.05-0.30' },
     bsc: { across: '$0.30-1', wormhole: '$0.50-1.50' },
-    avalanche: { wormhole: '$1-3' },
-    solana: { wormhole: '$0.01-0.10' },
+    avalanche: { wormhole: '$1-4' },
   };
 
   const gasEstimate = gasEstimates[fromChain]?.[provider] || '$1-5';
@@ -473,7 +506,7 @@ async function executeBridgeTransaction(
   // Validate chain support
   const supportedChains: Record<string, string[]> = {
     across: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
-    wormhole: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche']
+    wormhole: ['avalanche', 'ethereum', 'bsc', 'polygon']
   };
 
   if (!supportedChains[provider]?.includes(sourceChain)) {
@@ -486,9 +519,6 @@ async function executeBridgeTransaction(
       return await executeAcrossBridge(sourceChain, privateKey, amount, destinationAddress, bridgeId, supabaseClient);
     
     case 'wormhole':
-      if (sourceChain === 'solana') {
-        throw new Error('Solana bridging via Wormhole is not yet implemented. Please use an EVM chain or contact support.');
-      }
       return await executeWormholeBridge(sourceChain, privateKey, amount, destinationAddress, bridgeId, supabaseClient);
     
     default:
@@ -504,8 +534,190 @@ async function executeWormholeBridge(
   bridgeId: string,
   supabaseClient: any
 ) {
-  console.log('[executeWormholeBridge] Wormhole bridge not yet implemented');
-  throw new Error('Wormhole bridge is not yet implemented. Please use Across Protocol for supported chains.');
+  console.log('[executeWormholeBridge] Starting Wormhole bridge from', sourceChain);
+
+  // Handle Solana separately (non-EVM)
+  if (sourceChain === 'solana') {
+    return await executeWormholeBridgeSolana(privateKey, amount, destinationAddress, bridgeId, supabaseClient);
+  }
+
+  // Handle EVM chains
+  return await executeWormholeBridgeEVM(sourceChain, privateKey, amount, destinationAddress, bridgeId, supabaseClient);
+}
+
+async function executeWormholeBridgeEVM(
+  sourceChain: string,
+  privateKey: string,
+  amount: number,
+  destinationAddress: string,
+  bridgeId: string,
+  supabaseClient: any
+) {
+  console.log('[executeWormholeBridgeEVM] Bridging from EVM chain:', sourceChain);
+
+  const rpcUrl = getRpcUrl(sourceChain);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
+
+  const tokenBridgeAddress = WORMHOLE_TOKEN_BRIDGES[sourceChain];
+  const usdcAddress = USDC_ADDRESSES[sourceChain];
+
+  if (!tokenBridgeAddress || !usdcAddress) {
+    throw new Error(`Wormhole not configured for ${sourceChain}`);
+  }
+
+  console.log('[executeWormholeBridgeEVM] Using wallet:', wallet.address);
+
+  // USDC contract
+  const usdcAbi = [
+    'function approve(address spender, uint256 amount) returns (bool)',
+    'function allowance(address owner, address spender) view returns (uint256)',
+    'function balanceOf(address account) view returns (uint256)',
+    'function decimals() view returns (uint8)',
+  ];
+  const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, wallet);
+
+  // Check balance
+  const decimals = await usdcContract.decimals();
+  const amountWei = ethers.parseUnits(amount.toString(), decimals);
+  const balance = await usdcContract.balanceOf(wallet.address);
+
+  console.log('[executeWormholeBridgeEVM] Balance check:', {
+    balance: ethers.formatUnits(balance, decimals),
+    required: amount,
+  });
+
+  if (balance < amountWei) {
+    throw new Error(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
+  }
+
+  // Check and approve
+  const allowance = await usdcContract.allowance(wallet.address, tokenBridgeAddress);
+  console.log('[executeWormholeBridgeEVM] Current allowance:', ethers.formatUnits(allowance, decimals));
+
+  if (allowance < amountWei) {
+    console.log('[executeWormholeBridgeEVM] Approving USDC...');
+    const approveTx = await usdcContract.approve(tokenBridgeAddress, amountWei);
+    await approveTx.wait();
+    console.log('[executeWormholeBridgeEVM] Approval confirmed:', approveTx.hash);
+
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ approval_tx_hash: approveTx.hash })
+      .eq('id', bridgeId);
+  }
+
+  // Wormhole Token Bridge ABI
+  const tokenBridgeAbi = [
+    'function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) payable returns (uint64 sequence)',
+    'function wormhole() view returns (address)',
+  ];
+  const tokenBridge = new ethers.Contract(tokenBridgeAddress, tokenBridgeAbi, wallet);
+
+  // Target Arbitrum as intermediate (Wormhole chain ID)
+  const targetChainId = WORMHOLE_CHAIN_IDS.arbitrum;
+  
+  // Convert destination address to bytes32
+  const recipientBytes32 = '0x' + tryNativeToHexString(destinationAddress, targetChainId);
+
+  // Calculate Wormhole fee (typically small, ~0.001 ETH equivalent)
+  const wormholeFee = ethers.parseEther('0.001');
+
+  // Check native balance for fee
+  const nativeBalance = await provider.getBalance(wallet.address);
+  console.log('[executeWormholeBridgeEVM] Native balance:', ethers.formatEther(nativeBalance));
+
+  if (nativeBalance < wormholeFee) {
+    throw new Error(`Insufficient native token for Wormhole fee. Need: ${ethers.formatEther(wormholeFee)}, Have: ${ethers.formatEther(nativeBalance)}`);
+  }
+
+  console.log('[executeWormholeBridgeEVM] Executing Wormhole transfer...', {
+    token: usdcAddress,
+    amount: ethers.formatUnits(amountWei, decimals),
+    targetChain: targetChainId,
+    recipient: recipientBytes32,
+  });
+
+  // Execute transfer
+  const transferTx = await tokenBridge.transferTokens(
+    usdcAddress,
+    amountWei,
+    targetChainId,
+    recipientBytes32,
+    0, // arbiterFee
+    Math.floor(Date.now() / 1000), // nonce
+    { value: wormholeFee }
+  );
+
+  console.log('[executeWormholeBridgeEVM] Transaction submitted:', transferTx.hash);
+
+  // Update database
+  await supabaseClient
+    .from('bridge_transactions')
+    .update({
+      status: 'processing',
+      source_tx_hash: transferTx.hash,
+    })
+    .eq('id', bridgeId);
+
+  // Wait for confirmation (background)
+  transferTx.wait().then(async (receipt: any) => {
+    console.log('[executeWormholeBridgeEVM] Transaction confirmed:', receipt.transactionHash);
+    
+    // Parse sequence number from logs
+    let sequence;
+    try {
+      sequence = parseSequenceFromLogEth(receipt, await tokenBridge.wormhole());
+      console.log('[executeWormholeBridgeEVM] Wormhole sequence:', sequence);
+    } catch (e) {
+      console.error('[executeWormholeBridgeEVM] Failed to parse sequence:', e);
+    }
+
+    const gasCost = ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({
+        status: 'completed',
+        gas_cost: gasCost,
+        metadata: {
+          wormhole_sequence: sequence,
+          emitter_address: await getEmitterAddressEth(tokenBridgeAddress),
+        },
+      })
+      .eq('id', bridgeId);
+  }).catch(async (error: any) => {
+    console.error('[executeWormholeBridgeEVM] Transaction failed:', error);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({
+        status: 'failed',
+        error_message: error.message,
+      })
+      .eq('id', bridgeId);
+  });
+
+  return { txHash: transferTx.hash };
+}
+
+async function executeWormholeBridgeSolana(
+  privateKey: string,
+  amount: number,
+  destinationAddress: string,
+  bridgeId: string,
+  supabaseClient: any
+) {
+  console.log('[executeWormholeBridgeSolana] Solana bridging not yet fully implemented');
+  
+  // Update status to pending with explanation
+  await supabaseClient
+    .from('bridge_transactions')
+    .update({
+      status: 'failed',
+      error_message: 'Solana bridging requires additional Solana SDK integration. Please use Avalanche, Polygon, BSC, or Ethereum for now.',
+    })
+    .eq('id', bridgeId);
+
+  throw new Error('Solana bridging via Wormhole requires additional Solana SDK integration. Please bridge from Avalanche, Polygon, BSC, or Ethereum instead.');
 }
 
 async function checkStatus(supabaseClient: any, bridgeId: string) {
