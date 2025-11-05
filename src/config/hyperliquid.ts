@@ -107,7 +107,7 @@ export const BRIDGE_PROVIDERS = [
     description: 'Fast cross-chain bridge',
     speed: '30s - 2min',
     fees: '0.3% + gas',
-    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc', 'solana'],
+    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
     recommended: true
   },
   {
@@ -116,7 +116,16 @@ export const BRIDGE_PROVIDERS = [
     description: 'LayerZero powered bridge',
     speed: '1 - 5min',
     fees: '0.2% + gas',
-    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche', 'solana'],
+    supportedChains: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche'],
+    recommended: false
+  },
+  {
+    id: 'wormhole',
+    name: 'Wormhole',
+    description: 'Cross-chain bridge for Solana',
+    speed: '2 - 10min',
+    fees: '0.1% + gas',
+    supportedChains: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche'],
     recommended: false
   },
   {

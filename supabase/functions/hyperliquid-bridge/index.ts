@@ -10,6 +10,17 @@ const ACROSS_SPOKE_POOLS: Record<string, string> = {
   optimism: '0x6f26Bf09B1C792e3228e5467807a900A503c0281',
   polygon: '0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096',
   base: '0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64',
+  bsc: '0x4e8E101924eDE233C13e2D8622DC8aED2872d505',
+};
+
+// Stargate Router contract addresses
+const STARGATE_ROUTERS: Record<string, string> = {
+  ethereum: '0x8731d54E9D02c286767d56ac03e8037C07e01e98',
+  arbitrum: '0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614',
+  optimism: '0xB0D502E938ed5f4df2E681fE6E419ff29631d62b',
+  polygon: '0x45A01E4e04F14f7A4a6702c74187c5F6222033cd',
+  bsc: '0x4a364f8c717cAAD9A442737Eb7b8A55cc6cf18D8',
+  avalanche: '0x45A01E4e04F14f7A4a6702c74187c5F6222033cd',
 };
 
 const USDC_ADDRESSES: Record<string, string> = {
@@ -18,6 +29,8 @@ const USDC_ADDRESSES: Record<string, string> = {
   optimism: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
   polygon: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
   base: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  bsc: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+  avalanche: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
 };
 
 const corsHeaders = {
@@ -92,6 +105,7 @@ async function getQuote(params: any) {
   const feeRates: Record<string, number> = {
     across: 0.003, // 0.3%
     stargate: 0.002, // 0.2%
+    wormhole: 0.001, // 0.1%
     native: 0.001 // 0.1%
   };
 
@@ -216,8 +230,9 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
 
     console.log('[executeBridge] Bridge transaction recorded:', bridgeData.id);
 
-    // Execute real bridge transaction
-    const result = await executeAcrossBridge(
+    // Execute bridge based on provider and chain
+    const result = await executeBridgeTransaction(
+      quote.provider,
       quote.fromChain,
       sourcePrivateKey,
       quote.inputAmount,
@@ -435,9 +450,150 @@ function getRpcUrl(chain: string): string {
       return `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`;
     case 'base':
       return `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`;
+    case 'bsc':
+      return 'https://bsc-dataseed.bnbchain.org';
+    case 'avalanche':
+      return 'https://api.avax.network/ext/bc/C/rpc';
     default:
       throw new Error(`No RPC URL configured for chain: ${chain}`);
   }
+}
+
+async function executeBridgeTransaction(
+  provider: string,
+  sourceChain: string,
+  privateKey: string,
+  amount: number,
+  destinationAddress: string,
+  bridgeId: string,
+  supabaseClient: any
+) {
+  console.log('[executeBridgeTransaction] Routing to provider:', provider, 'chain:', sourceChain);
+
+  // Validate chain support
+  const supportedChains: Record<string, string[]> = {
+    across: ['ethereum', 'arbitrum', 'optimism', 'base', 'polygon', 'bsc'],
+    stargate: ['ethereum', 'arbitrum', 'optimism', 'polygon', 'bsc', 'avalanche'],
+    wormhole: ['solana', 'ethereum', 'bsc', 'polygon', 'avalanche'],
+    native: ['ethereum', 'arbitrum']
+  };
+
+  if (!supportedChains[provider]?.includes(sourceChain)) {
+    throw new Error(`${provider} does not support ${sourceChain}. Supported chains: ${supportedChains[provider]?.join(', ')}`);
+  }
+
+  // Route to appropriate bridge provider
+  switch (provider) {
+    case 'across':
+      return await executeAcrossBridge(sourceChain, privateKey, amount, destinationAddress, bridgeId, supabaseClient);
+    
+    case 'stargate':
+      return await executeStargateBridge(sourceChain, privateKey, amount, destinationAddress, bridgeId, supabaseClient);
+    
+    case 'wormhole':
+      if (sourceChain === 'solana') {
+        throw new Error('Solana bridging via Wormhole is not yet implemented. Please use an EVM chain or contact support.');
+      }
+      return await executeWormholeBridge(sourceChain, privateKey, amount, destinationAddress, bridgeId, supabaseClient);
+    
+    case 'native':
+      if (sourceChain === 'ethereum') {
+        throw new Error('Native Arbitrum bridge is not yet implemented. Please use Across Protocol instead.');
+      }
+      throw new Error('Native bridge only supports Ethereum → Arbitrum');
+    
+    default:
+      throw new Error(`Unknown bridge provider: ${provider}`);
+  }
+}
+
+async function executeStargateBridge(
+  sourceChain: string,
+  privateKey: string,
+  amount: number,
+  destinationAddress: string,
+  bridgeId: string,
+  supabaseClient: any
+) {
+  console.log('[executeStargateBridge] Starting Stargate bridge from', sourceChain);
+
+  const rpcUrl = getRpcUrl(sourceChain);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const wallet = new ethers.Wallet(privateKey, provider);
+
+  const routerAddress = STARGATE_ROUTERS[sourceChain];
+  const usdcAddress = USDC_ADDRESSES[sourceChain];
+
+  if (!routerAddress || !usdcAddress) {
+    throw new Error(`Stargate not configured for ${sourceChain}`);
+  }
+
+  // USDC contract
+  const usdcAbi = [
+    'function approve(address spender, uint256 amount) returns (bool)',
+    'function allowance(address owner, address spender) view returns (uint256)',
+    'function balanceOf(address account) view returns (uint256)',
+    'function decimals() view returns (uint8)',
+  ];
+  const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, wallet);
+
+  // Check balance
+  const decimals = await usdcContract.decimals();
+  const amountWei = ethers.parseUnits(amount.toString(), decimals);
+  const balance = await usdcContract.balanceOf(wallet.address);
+
+  if (balance < amountWei) {
+    throw new Error(`Insufficient USDC balance`);
+  }
+
+  // Check and approve
+  const allowance = await usdcContract.allowance(wallet.address, routerAddress);
+  if (allowance < amountWei) {
+    console.log('[executeStargateBridge] Approving USDC...');
+    const approveTx = await usdcContract.approve(routerAddress, amountWei);
+    await approveTx.wait();
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ approval_tx_hash: approveTx.hash })
+      .eq('id', bridgeId);
+  }
+
+  // Stargate Router ABI (simplified)
+  const routerAbi = [
+    'function swap(uint16 _dstChainId, uint256 _srcPoolId, uint256 _dstPoolId, address payable _refundAddress, uint256 _amountLD, uint256 _minAmountLD, tuple(uint256 dstGasForCall, uint256 dstNativeAmount, bytes dstNativeAddr) _lzTxParams, bytes _to, bytes _payload) payable',
+  ];
+  const router = new ethers.Contract(routerAddress, routerAbi, wallet);
+
+  // Stargate chain IDs (LayerZero)
+  const stargateChainIds: Record<string, number> = {
+    ethereum: 101,
+    bsc: 102,
+    avalanche: 106,
+    polygon: 109,
+    arbitrum: 110,
+    optimism: 111,
+  };
+
+  const dstChainId = stargateChainIds.arbitrum || 110; // Bridge to Arbitrum as intermediate
+  const srcPoolId = 1; // USDC pool
+  const dstPoolId = 1; // USDC pool
+
+  console.log('[executeStargateBridge] Executing swap...');
+  
+  // Note: This is a simplified implementation. Production would need proper LayerZero params
+  throw new Error('Stargate bridge implementation requires LayerZero integration. Please use Across Protocol for now.');
+}
+
+async function executeWormholeBridge(
+  sourceChain: string,
+  privateKey: string,
+  amount: number,
+  destinationAddress: string,
+  bridgeId: string,
+  supabaseClient: any
+) {
+  console.log('[executeWormholeBridge] Wormhole bridge not yet implemented');
+  throw new Error('Wormhole bridge is not yet implemented. Please use Across Protocol or Stargate for supported chains.');
 }
 
 async function checkStatus(supabaseClient: any, bridgeId: string) {

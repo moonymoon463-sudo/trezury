@@ -18,6 +18,20 @@ interface DepositHyperliquidBridgeProps {
   onSuccess?: () => void;
 }
 
+const getExplorerUrl = (chain: string, txHash: string) => {
+  const explorers: Record<string, string> = {
+    ethereum: 'https://etherscan.io/tx/',
+    arbitrum: 'https://arbiscan.io/tx/',
+    optimism: 'https://optimistic.etherscan.io/tx/',
+    polygon: 'https://polygonscan.com/tx/',
+    base: 'https://basescan.org/tx/',
+    bsc: 'https://bscscan.com/tx/',
+    avalanche: 'https://snowtrace.io/tx/',
+    solana: 'https://solscan.io/tx/',
+  };
+  return `${explorers[chain] || 'https://etherscan.io/tx/'}${txHash}`;
+};
+
 export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: DepositHyperliquidBridgeProps) => {
   const [sourceWallet, setSourceWallet] = useState<'internal' | 'external'>('external');
   const [sourceChain, setSourceChain] = useState('ethereum');
@@ -40,6 +54,23 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
 
   const selectedChain = SUPPORTED_BRIDGE_CHAINS.find(c => c.id === sourceChain);
   const selectedProvider = BRIDGE_PROVIDERS.find(p => p.id === bridgeProvider);
+
+  // Filter providers based on selected chain
+  const availableProviders = BRIDGE_PROVIDERS.filter(provider => 
+    provider.supportedChains.includes(sourceChain)
+  );
+
+  // Auto-select recommended provider for the chain when chain changes
+  useEffect(() => {
+    if (sourceChain && availableProviders.length > 0) {
+      const recommended = availableProviders.find(p => p.recommended);
+      if (recommended) {
+        setBridgeProvider(recommended.id);
+      } else {
+        setBridgeProvider(availableProviders[0].id);
+      }
+    }
+  }, [sourceChain]);
 
   // Get source wallet balance for selected chain
   const getSourceBalance = () => {
@@ -178,7 +209,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Transaction Hash</span>
                 <a 
-                  href={`https://${sourceChain === 'ethereum' ? 'etherscan.io' : sourceChain === 'arbitrum' ? 'arbiscan.io' : sourceChain === 'base' ? 'basescan.org' : 'etherscan.io'}/tx/${bridgeStatus.txHash}`}
+                  href={getExplorerUrl(sourceChain, bridgeStatus.txHash || '')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline font-mono text-xs"
@@ -354,6 +385,26 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           </Alert>
         )}
 
+        {sourceChain === 'solana' && (
+          <Alert className="bg-purple-500/10 border-purple-500/30 py-2">
+            <AlertCircle className="h-3 w-3 text-purple-500" />
+            <AlertDescription className="text-xs text-foreground leading-relaxed">
+              <strong>◎ Solana Bridge:</strong> Bridging from Solana requires SOL for transaction fees (~$0.01-0.05). 
+              Uses {selectedProvider?.name || 'Wormhole'} protocol. Estimated time: {selectedProvider?.speed || '2-10min'}.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {sourceChain === 'avalanche' && (
+          <Alert className="bg-red-500/10 border-red-500/30 py-2">
+            <AlertCircle className="h-3 w-3 text-red-500" />
+            <AlertDescription className="text-xs text-foreground leading-relaxed">
+              <strong>🔺 Avalanche Bridge:</strong> Gas fees: $0.50-$2 in AVAX. 
+              Bridge time: {selectedProvider?.speed || '1-5min'}. Uses {selectedProvider?.name || 'Stargate'}.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Alert className="bg-blue-500/10 border-blue-500/30 py-2">
           <AlertCircle className="h-3 w-3 text-blue-500" />
           <AlertDescription className="text-xs text-foreground leading-relaxed">
@@ -459,11 +510,18 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {BRIDGE_PROVIDERS.filter(p => p.supportedChains.includes(sourceChain)).map(provider => (
+              {availableProviders.map((provider) => (
                 <SelectItem key={provider.id} value={provider.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs">{provider.name}</span>
-                    {provider.recommended && <Badge variant="default" className="ml-2 text-xs">Recommended</Badge>}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-xs">{provider.name}</span>
+                      {provider.recommended && (
+                        <Badge variant="default" className="text-[10px] px-1.5 py-0">Fastest</Badge>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {provider.speed} • {provider.fees}
+                    </span>
                   </div>
                 </SelectItem>
               ))}
@@ -471,7 +529,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           </Select>
           {selectedProvider && (
             <p className="text-xs text-muted-foreground">
-              {selectedProvider.speed} • {selectedProvider.fees} fee
+              {selectedProvider.description}
             </p>
           )}
         </div>
