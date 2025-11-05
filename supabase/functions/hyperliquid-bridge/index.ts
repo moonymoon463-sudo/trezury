@@ -10,7 +10,7 @@ import {
   getEmitterAddressEth,
   parseSequenceFromLogEth,
   tryNativeToHexString,
-} from 'npm:@certusone/wormhole-sdk@0.10.24';
+} from 'npm:@certusone/wormhole-sdk@latest';
 
 console.log('[hyperliquid-bridge] Function started');
 
