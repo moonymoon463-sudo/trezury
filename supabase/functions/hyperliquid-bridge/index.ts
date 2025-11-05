@@ -128,7 +128,14 @@ async function getQuote(params: any) {
       default: '1 - 3min'
     },
     stargate: {
+      ethereum: '2 - 5min',
+      avalanche: '3 - 8min',
+      polygon: '2 - 5min',
+      bsc: '2 - 5min',
       default: '2 - 5min'
+    },
+    wormhole: {
+      default: '5 - 15min'
     },
     native: {
       default: '5 - 10min'
@@ -136,6 +143,19 @@ async function getQuote(params: any) {
   };
 
   const estimatedTime = timeEstimates[provider]?.[fromChain] || timeEstimates[provider]?.default || '5 - 10min';
+
+  // Gas cost estimates (in USD)
+  const gasEstimates: Record<string, Record<string, string>> = {
+    ethereum: { across: '$5-30', stargate: '$8-35' },
+    arbitrum: { across: '$0.10-0.50', stargate: '$0.15-0.60' },
+    optimism: { across: '$0.10-0.50', stargate: '$0.15-0.60' },
+    polygon: { across: '$0.50-2', stargate: '$1-3' },
+    base: { across: '$0.05-0.30', stargate: '$0.10-0.40' },
+    bsc: { across: '$0.30-1', stargate: '$0.50-1.50' },
+    avalanche: { stargate: '$1-3' },
+  };
+
+  const gasEstimate = gasEstimates[fromChain]?.[provider] || '$1-5';
 
   return {
     provider,
@@ -145,6 +165,7 @@ async function getQuote(params: any) {
     estimatedOutput: Math.round(estimatedOutput * 100) / 100,
     fee: Math.round(fee * 100) / 100,
     estimatedTime,
+    gasEstimate,
     route: {
       destinationAddress,
       token,
@@ -528,6 +549,8 @@ async function executeStargateBridge(
     throw new Error(`Stargate not configured for ${sourceChain}`);
   }
 
+  console.log('[executeStargateBridge] Using wallet:', wallet.address);
+
   // USDC contract
   const usdcAbi = [
     'function approve(address spender, uint256 amount) returns (bool)',
@@ -542,30 +565,40 @@ async function executeStargateBridge(
   const amountWei = ethers.parseUnits(amount.toString(), decimals);
   const balance = await usdcContract.balanceOf(wallet.address);
 
+  console.log('[executeStargateBridge] Balance check:', {
+    balance: ethers.formatUnits(balance, decimals),
+    required: amount,
+  });
+
   if (balance < amountWei) {
-    throw new Error(`Insufficient USDC balance`);
+    throw new Error(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
   }
 
   // Check and approve
   const allowance = await usdcContract.allowance(wallet.address, routerAddress);
+  console.log('[executeStargateBridge] Current allowance:', ethers.formatUnits(allowance, decimals));
+
   if (allowance < amountWei) {
     console.log('[executeStargateBridge] Approving USDC...');
     const approveTx = await usdcContract.approve(routerAddress, amountWei);
-    await approveTx.wait();
+    const approveReceipt = await approveTx.wait();
+    console.log('[executeStargateBridge] Approval confirmed:', approveTx.hash);
+    
     await supabaseClient
       .from('bridge_transactions')
       .update({ approval_tx_hash: approveTx.hash })
       .eq('id', bridgeId);
   }
 
-  // Stargate Router ABI (simplified)
+  // Stargate Router ABI
   const routerAbi = [
     'function swap(uint16 _dstChainId, uint256 _srcPoolId, uint256 _dstPoolId, address payable _refundAddress, uint256 _amountLD, uint256 _minAmountLD, tuple(uint256 dstGasForCall, uint256 dstNativeAmount, bytes dstNativeAddr) _lzTxParams, bytes _to, bytes _payload) payable',
+    'function quoteLayerZeroFee(uint16 _dstChainId, uint8 _functionType, bytes calldata _toAddress, bytes calldata _transferAndCallPayload, tuple(uint256 dstGasForCall, uint256 dstNativeAmount, bytes dstNativeAddr) calldata _lzTxParams) view returns (uint256, uint256)',
   ];
   const router = new ethers.Contract(routerAddress, routerAbi, wallet);
 
-  // Stargate chain IDs (LayerZero)
-  const stargateChainIds: Record<string, number> = {
+  // LayerZero chain IDs for Stargate
+  const layerZeroChainIds: Record<string, number> = {
     ethereum: 101,
     bsc: 102,
     avalanche: 106,
@@ -574,14 +607,116 @@ async function executeStargateBridge(
     optimism: 111,
   };
 
-  const dstChainId = stargateChainIds.arbitrum || 110; // Bridge to Arbitrum as intermediate
-  const srcPoolId = 1; // USDC pool
-  const dstPoolId = 1; // USDC pool
+  // For Hyperliquid, we bridge to Arbitrum as intermediate destination
+  const dstChainId = layerZeroChainIds.arbitrum || 110;
+  const srcPoolId = 1; // USDC pool ID
+  const dstPoolId = 1; // USDC pool ID on destination
 
-  console.log('[executeStargateBridge] Executing swap...');
-  
-  // Note: This is a simplified implementation. Production would need proper LayerZero params
-  throw new Error('Stargate bridge implementation requires LayerZero integration. Please use Across Protocol for now.');
+  // Calculate minimum amount out (0.2% slippage)
+  const minAmountOut = (amountWei * BigInt(998)) / BigInt(1000);
+
+  // Encode destination address for LayerZero
+  const destinationAddressBytes = ethers.solidityPacked(['address'], [destinationAddress]);
+
+  // LayerZero transaction parameters
+  const lzTxParams = {
+    dstGasForCall: 0, // No contract call on destination
+    dstNativeAmount: 0, // No native token airdrop
+    dstNativeAddr: '0x' // No airdrop address
+  };
+
+  // Quote LayerZero fees
+  console.log('[executeStargateBridge] Quoting LayerZero fees...');
+  let layerZeroFee;
+  try {
+    const [nativeFee, zroFee] = await router.quoteLayerZeroFee(
+      dstChainId,
+      1, // TYPE_SWAP_REMOTE
+      destinationAddressBytes,
+      '0x',
+      lzTxParams
+    );
+    layerZeroFee = nativeFee;
+    console.log('[executeStargateBridge] LayerZero fee:', ethers.formatEther(nativeFee));
+  } catch (error) {
+    console.log('[executeStargateBridge] Failed to quote fee, using estimate');
+    // Fallback fee estimate based on chain
+    const feeEstimates: Record<string, string> = {
+      ethereum: '0.005',
+      arbitrum: '0.001',
+      optimism: '0.001',
+      polygon: '0.01',
+      bsc: '0.005',
+      avalanche: '0.05',
+    };
+    layerZeroFee = ethers.parseEther(feeEstimates[sourceChain] || '0.01');
+  }
+
+  // Check native balance for LayerZero fee
+  const nativeBalance = await provider.getBalance(wallet.address);
+  console.log('[executeStargateBridge] Native balance:', ethers.formatEther(nativeBalance));
+
+  if (nativeBalance < layerZeroFee) {
+    throw new Error(`Insufficient native token for LayerZero fee. Need: ${ethers.formatEther(layerZeroFee)}, Have: ${ethers.formatEther(nativeBalance)}`);
+  }
+
+  console.log('[executeStargateBridge] Executing Stargate swap...', {
+    dstChainId,
+    srcPoolId,
+    dstPoolId,
+    amount: ethers.formatUnits(amountWei, decimals),
+    minAmountOut: ethers.formatUnits(minAmountOut, decimals),
+    layerZeroFee: ethers.formatEther(layerZeroFee),
+  });
+
+  // Execute swap
+  const swapTx = await router.swap(
+    dstChainId,
+    srcPoolId,
+    dstPoolId,
+    wallet.address, // refund address
+    amountWei,
+    minAmountOut,
+    lzTxParams,
+    destinationAddressBytes,
+    '0x', // no payload
+    { value: layerZeroFee }
+  );
+
+  console.log('[executeStargateBridge] Transaction submitted:', swapTx.hash);
+
+  // Update database
+  await supabaseClient
+    .from('bridge_transactions')
+    .update({ 
+      status: 'processing',
+      source_tx_hash: swapTx.hash 
+    })
+    .eq('id', bridgeId);
+
+  // Wait for confirmation (background)
+  swapTx.wait().then(async (receipt: any) => {
+    console.log('[executeStargateBridge] Transaction confirmed:', receipt.transactionHash);
+    const gasCost = ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ 
+        status: 'completed',
+        gas_cost: gasCost
+      })
+      .eq('id', bridgeId);
+  }).catch(async (error: any) => {
+    console.error('[executeStargateBridge] Transaction failed:', error);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({ 
+        status: 'failed',
+        error_message: error.message 
+      })
+      .eq('id', bridgeId);
+  });
+
+  return { txHash: swapTx.hash };
 }
 
 async function executeWormholeBridge(

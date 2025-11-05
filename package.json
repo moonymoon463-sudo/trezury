@@ -21,6 +21,7 @@
     "@dydxprotocol/v4-client-js": "^3.0.7",
     "@gelatonetwork/relay-sdk": "^5.6.0",
     "@hookform/resolvers": "^3.10.0",
+    "@layerzerolabs/lz-sdk": "^0.0.87",
     "@moonpay/moonpay-js": "^0.7.5",
     "@nktkas/hyperliquid": "^0.25.8",
     "@radix-ui/react-accordion": "^1.2.11",
