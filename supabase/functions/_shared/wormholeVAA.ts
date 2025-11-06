@@ -2,7 +2,7 @@
  * Wormhole VAA (Verifiable Action Approval) fetching and redemption
  */
 
-import { ethers } from 'npm:ethers@6.13.0';
+import { ethers } from 'https://esm.sh/ethers@6.13.2';
 
 const WORMHOLE_GUARDIAN_RPC = 'https://wormhole-v2-mainnet-api.certus.one';
 const WORMHOLE_GUARDIAN_BACKUP = 'https://api.wormholescan.io';
