@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { rateLimiter, retryWithBackoff } from '../_shared/hyperliquidRateLimit.ts';
+import { hyperliquidCache } from '../_shared/hyperliquidCache.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,8 +9,6 @@ const corsHeaders = {
 };
 
 const HYPERLIQUID_API = 'https://api.hyperliquid.xyz';
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 5000; // 5 seconds
 
 // Helper to normalize market names (remove -USD suffix)
 const normalizeMarket = (market: string): string => {
@@ -67,11 +67,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Generate cache key for deduplication and caching
     const cacheKey = `${operation}:${JSON.stringify(params || {})}`;
-    const cached = cache.get(cacheKey);
     
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return new Response(JSON.stringify(cached.data), {
+    // Check memory cache first
+    const cachedData = hyperliquidCache.get(cacheKey);
+    if (cachedData) {
+      console.log('[Cache] Hit:', cacheKey);
+      return new Response(JSON.stringify(cachedData), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -122,23 +125,38 @@ serve(async (req) => {
         throw new Error(`Unknown operation: ${operation}`);
     }
 
-    const response = await fetch(`${HYPERLIQUID_API}/info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+    // Deduplicate concurrent requests and apply rate limiting with retry
+    const result = await rateLimiter.deduplicateRequest(cacheKey, async () => {
+      // Wait for rate limit availability
+      await rateLimiter.waitForAvailability();
+      
+      // Make request with retry logic
+      return await retryWithBackoff(async () => {
+        rateLimiter.recordRequest();
+        
+        const response = await fetch(`${HYPERLIQUID_API}/info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const error: any = new Error(`Hyperliquid API error: ${response.status} ${response.statusText}`);
+          error.status = response.status;
+          throw error;
+        }
+
+        return await response.json();
+      }, 3, 1000);
     });
 
-    if (!response.ok) {
-      throw new Error(`Hyperliquid API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = result;
 
     // Transform data based on operation
-    let result = data;
+    let transformedResult = data;
     
     if (operation === 'get_markets') {
-      result = data.universe || [];
+      transformedResult = data.universe || [];
     } else if (operation === 'get_candles') {
       // Hyperliquid candleSnapshot returns array format: [[timestamp, open, high, low, close, volume], ...]
       // Transform to object format: { t, T, s, i, o, c, h, l, v, n }
@@ -148,7 +166,7 @@ serve(async (req) => {
       const intervalMs = getIntervalMs(interval);
       const candles = Array.isArray(data) ? data : [];
       
-      result = candles.map((candle: any) => {
+      transformedResult = candles.map((candle: any) => {
         // Handle both array format and object format
         const isArray = Array.isArray(candle);
         const timestamp = isArray ? candle[0] : (candle.t || candle.timestamp);
@@ -167,11 +185,11 @@ serve(async (req) => {
         };
       });
       
-      console.log('[Hyperliquid] Transformed candles:', result.length, 'candles');
+      console.log('[Hyperliquid] Transformed candles:', transformedResult.length, 'candles');
       
       // Store candles in database for persistence
-      if (result.length > 0) {
-        const candlesToStore = result.map((c: any) => ({
+      if (transformedResult.length > 0) {
+        const candlesToStore = transformedResult.map((c: any) => ({
           market: params.market,
           interval: interval,
           timestamp: c.t,
@@ -200,13 +218,13 @@ serve(async (req) => {
         }
       }
     } else if (operation === 'get_trades') {
-      result = (data || []).slice(0, params.limit || 50);
+      transformedResult = (data || []).slice(0, params.limit || 50);
     } else if (operation === 'get_user_fills') {
-      result = (data || []).slice(0, params.limit || 100);
+      transformedResult = (data || []).slice(0, params.limit || 100);
     } else if (operation === 'get_funding') {
       const normalizedMarket = normalizeMarket(params.market);
       const marketData = data.universe?.find((m: any) => m.name === normalizedMarket);
-      result = {
+      transformedResult = {
         coin: params.market, // Return original market name
         fundingRate: marketData?.funding || '0',
         premium: marketData?.premium || '0',
@@ -214,17 +232,52 @@ serve(async (req) => {
       };
     }
 
-    cache.set(cacheKey, { data: result, timestamp: Date.now() });
+    // Cache the result with appropriate TTL
+    hyperliquidCache.set(cacheKey, transformedResult, operation, params.interval);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(transformedResult), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Hyperliquid market data error:', error);
+    
+    // Try to return cached data from database on error
+    if (operation === 'get_candles' && params) {
+      const normalizedInterval = normalizeInterval(params.interval);
+      const start = normalizeTime(params.startTime);
+      const end = normalizeTime(params.endTime);
+      
+      if (start && end) {
+        console.log('[Error Recovery] Attempting to fetch from database...');
+        const dbCandles = await hyperliquidCache.getCandlesFromDB(
+          supabaseClient,
+          params.market,
+          normalizedInterval,
+          start,
+          end
+        );
+        
+        if (dbCandles && dbCandles.length > 0) {
+          console.log('[Error Recovery] Returning', dbCandles.length, 'candles from database');
+          return new Response(JSON.stringify(dbCandles), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+    
+    // Log rate limit metrics on error
+    const metrics = rateLimiter.getMetrics();
+    console.error('[Rate Limit Metrics]', metrics);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        status: error.status,
+        metrics
+      }),
       {
-        status: 400,
+        status: error.status || 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
