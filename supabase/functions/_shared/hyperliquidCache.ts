@@ -30,12 +30,12 @@ class HyperliquidCache {
   /**
    * Get cached data if available and not expired
    */
-  get(key: string, skipExpiry: boolean = false): any | null {
+  get(key: string): any | null {
     const entry = this.memoryCache.get(key);
     if (!entry) return null;
     
     const age = Date.now() - entry.timestamp;
-    if (!skipExpiry && age > entry.ttl) {
+    if (age > entry.ttl) {
       this.memoryCache.delete(key);
       return null;
     }
