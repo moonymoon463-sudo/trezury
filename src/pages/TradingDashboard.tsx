@@ -29,7 +29,7 @@ import { HyperliquidWalletGenerator } from '@/components/trading/HyperliquidWall
 import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
 import { OrderHistory } from '@/components/trading/OrderHistory';
-import { WalletTransferModal } from '@/components/wallet/WalletTransferModal';
+
 import { PositionManager } from '@/components/trading/PositionManager';
 import { OpenPositionsTable } from '@/components/trading/OpenPositionsTable';
 import { OrderBook } from '@/components/trading/OrderBook';
@@ -48,7 +48,7 @@ const TradingDashboard = () => {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
+  
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
   const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
@@ -235,15 +235,6 @@ const TradingDashboard = () => {
       label: 'External Wallet (MetaMask)'
     }] : [])
   ];
-
-  const handleTransferComplete = async () => {
-    await refreshBalances();
-    await refreshAccount();
-    toast({
-      title: "Transfer Complete",
-      description: "Funds have been transferred successfully",
-    });
-  };
 
   // Get current wallet data based on selection (use Hyperliquid account for trading)
   const currentWalletAddress = hyperliquidAddress || (walletType === 'internal' ? internalAddress : wallet.address);
@@ -529,14 +520,6 @@ const TradingDashboard = () => {
                       className="w-full h-7 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold transition-colors duration-150 text-xs"
                     >
                       Withdraw
-                    </Button>
-                    <Button 
-                      onClick={() => setShowTransferModal(true)}
-                      variant="outline"
-                      className="w-full h-7 border-[#e6b951]/50 text-[#e6b951] hover:bg-[#e6b951]/10 font-bold transition-colors duration-150 text-xs"
-                      disabled={availableWallets.length < 2}
-                    >
-                      Transfer
                     </Button>
                   </>
                 ) : (
@@ -1316,14 +1299,6 @@ const TradingDashboard = () => {
           refreshBalances();
           setShowWithdrawModal(false);
         }}
-      />
-
-      {/* Transfer Modal */}
-      <WalletTransferModal
-        open={showTransferModal}
-        onOpenChange={setShowTransferModal}
-        wallets={availableWallets as any}
-        onTransferComplete={handleTransferComplete}
       />
     </div>
   );

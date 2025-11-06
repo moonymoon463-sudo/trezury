@@ -19,7 +19,6 @@
     "@certusone/wormhole-sdk": "^0.10.18",
     "@cosmjs/crypto": "^0.36.2",
     "@cosmjs/proto-signing": "^0.36.2",
-    "@dydxprotocol/v4-client-js": "^3.0.7",
     "@gelatonetwork/relay-sdk": "^5.6.0",
     "@hookform/resolvers": "^3.10.0",
     "@layerzerolabs/lz-sdk": "^0.0.87",
