@@ -1,7 +1,10 @@
 /**
  * Production Monitoring Utilities
  * Provides structured logging and metrics for swap operations
+ * @deprecated Use logger from @/utils/logger instead
  */
+
+import { logger } from './logger';
 
 export type SwapEventType =
   | 'swap_initiated'
@@ -43,6 +46,8 @@ export function logSwapEvent(
   eventType: SwapEventType,
   metadata: Record<string, any> = {}
 ): void {
+  logger.setContext({ userId, orderId, component: 'swap' });
+  
   const event: SwapMetrics = {
     orderId,
     userId,
@@ -51,8 +56,15 @@ export function logSwapEvent(
     metadata
   };
 
-  // Log to console with structured JSON for production monitoring
-  console.log('[SWAP_EVENT]', JSON.stringify(event));
+  if (eventType === 'swap_failed') {
+    logger.error(`Swap event: ${eventType}`, event);
+  } else if (eventType.includes('rejected') || eventType.includes('exceeded')) {
+    logger.warn(`Swap event: ${eventType}`, event);
+  } else {
+    logger.info(`Swap event: ${eventType}`, event);
+  }
+  
+  logger.clearContext();
 }
 
 /**
@@ -62,11 +74,7 @@ export function logCriticalIssue(
   issue: string,
   metadata: Record<string, any> = {}
 ): void {
-  console.error('[CRITICAL_ISSUE]', JSON.stringify({
-    issue,
-    timestamp: new Date().toISOString(),
-    metadata
-  }));
+  logger.critical(issue, metadata);
 }
 
 /**
@@ -76,9 +84,5 @@ export function logProductionWarning(
   warning: string,
   metadata: Record<string, any> = {}
 ): void {
-  console.warn('[PRODUCTION_WARNING]', JSON.stringify({
-    warning,
-    timestamp: new Date().toISOString(),
-    metadata
-  }));
+  logger.warn(warning, metadata);
 }
