@@ -398,7 +398,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution, onLoadMore, candles.length]);
+  }, [symbol, resolution, onLoadMore]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
