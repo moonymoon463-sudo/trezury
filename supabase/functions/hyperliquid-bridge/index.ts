@@ -1,5 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { ethers } from 'npm:ethers@6.13.0';
+import { ethers } from 'https://esm.sh/ethers@6.13.2';
 import {
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_AVAX,
@@ -15,15 +15,6 @@ import { decryptPrivateKey } from '../_shared/encryption.ts';
 import { getRpcUrl } from '../_shared/rpcConfig.ts';
 
 console.log('[hyperliquid-bridge] Function started');
-
-// Validate required environment variables on startup
-const REQUIRED_SECRETS = ['INFURA_API_KEY', 'ALCHEMY_API_KEY', 'WALLET_ENCRYPTION_KEY'];
-const missingSecrets = REQUIRED_SECRETS.filter(key => !Deno.env.get(key));
-if (missingSecrets.length > 0) {
-  console.error('[hyperliquid-bridge] Missing required secrets:', missingSecrets);
-  console.error('[hyperliquid-bridge] INFURA_API_KEY is required for Ethereum');
-  console.error('[hyperliquid-bridge] ALCHEMY_API_KEY is required for Arbitrum, Optimism, Polygon, Base');
-}
 
 // Transaction limits per chain (in USDC)
 const BRIDGE_LIMITS: Record<string, { min: number; max: number }> = {
