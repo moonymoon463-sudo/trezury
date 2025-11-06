@@ -131,6 +131,12 @@ const TradingViewChart = ({
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
+      // Prevent double-initialization
+      if (chartRef.current) {
+        console.log('[TradingViewChart] Chart already exists, skipping init');
+        return;
+      }
+      
       if (!chartContainerRef.current) return;
       
       // Wait for container to have dimensions
@@ -251,6 +257,14 @@ const TradingViewChart = ({
 
       candleSeries.setData(chartData);
       volumeSeries.setData(volumeData);
+      
+      console.log('[TradingViewChart] Chart initialized successfully:', {
+        symbol,
+        resolution,
+        candlesCount: chartData.length,
+        firstTime: chartData[0]?.time,
+        lastTime: chartData[chartData.length - 1]?.time
+      });
 
       // Set up lazy loading on scroll
       if (onLoadMore) {
@@ -384,7 +398,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution, onLoadMore]);
+  }, [symbol, resolution, onLoadMore, candles.length]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {

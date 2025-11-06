@@ -50,7 +50,7 @@ const TradingDashboard = () => {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
-  const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
+  const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
   const [leverage, setLeverage] = useState(1);
@@ -156,10 +156,29 @@ const TradingDashboard = () => {
     candlesError
   });
 
-  // Filter leverage assets (BTC, ETH, SOL from Hyperliquid)
-  const leverageAssets = markets.filter(m => 
-    ['BTC', 'ETH', 'SOL'].includes(m.name)
-  );
+  // Filter leverage assets - prioritize BTC, ETH, SOL, then high liquidity markets
+  const leverageAssets = Array.isArray(markets) && markets.length > 0 
+    ? (() => {
+        const priority = ['BTC', 'ETH', 'SOL'];
+        const priorityMarkets = priority
+          .map(name => markets.find(m => m.name === name))
+          .filter(Boolean);
+        
+        console.log('[TradingDashboard] Leverage assets loaded:', {
+          totalMarkets: markets.length,
+          priorityCount: priorityMarkets.length,
+          marketNames: priorityMarkets.map(m => m?.name)
+        });
+        
+        return priorityMarkets;
+      })()
+    : [];
+  
+  console.log('[TradingDashboard] Markets state:', {
+    marketsLoading,
+    marketsCount: markets?.length || 0,
+    leverageAssetsCount: leverageAssets.length
+  });
 
   // Spot trading assets (mock for now)
   const spotAssets = [
@@ -331,7 +350,7 @@ const TradingDashboard = () => {
     if (mode === 'spot') {
       setSelectedAsset('XAUT');
     } else {
-      setSelectedAsset('BTC-USD');
+      setSelectedAsset('BTC');
     }
   };
 
@@ -910,28 +929,30 @@ const TradingDashboard = () => {
 
         {/* Chart Section - Fixed responsive height */}
         <div className="flex-1 min-h-[550px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
-          {selectedAsset && leverageAssets.find(a => a.name === selectedSymbol) ? (
-            <TradingViewChart
-              key={`${selectedAsset}-${chartResolution}`}
-              symbol={selectedAsset}
-              candles={candles}
-              resolution={chartResolution}
-              onResolutionChange={setChartResolution}
-              loading={candlesLoading}
-              error={candlesError}
-              onLoadMore={loadMoreHistory}
-              isBackfilling={isLoadingMore}
-            />
-          ) : selectedAsset ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <BarChart3 className="h-24 w-24 mx-auto mb-4 text-[#e6b951]/40" />
-                <h3 className="text-xl font-semibold text-[#e6b951] mb-2">Spot Trading Chart</h3>
-                <p className="text-[#c6b795] max-w-md">
-                  Chart for {selectedAsset} will be integrated with spot market data.
-                </p>
+          {selectedAsset ? (
+            tradingMode === 'leverage' ? (
+              <TradingViewChart
+                key={`${selectedAsset}-${chartResolution}`}
+                symbol={selectedAsset}
+                candles={candles}
+                resolution={chartResolution}
+                onResolutionChange={setChartResolution}
+                loading={candlesLoading}
+                error={candlesError}
+                onLoadMore={loadMoreHistory}
+                isBackfilling={isLoadingMore}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <BarChart3 className="h-24 w-24 mx-auto mb-4 text-[#e6b951]/40" />
+                  <h3 className="text-xl font-semibold text-[#e6b951] mb-2">Spot Trading Chart</h3>
+                  <p className="text-[#c6b795] max-w-md">
+                    Chart for {selectedAsset} will be integrated with spot market data.
+                  </p>
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
