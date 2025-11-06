@@ -14,6 +14,13 @@ import {
 
 console.log('[hyperliquid-bridge] Function started');
 
+// Validate required environment variables on startup
+const REQUIRED_SECRETS = ['INFURA_API_KEY', 'WALLET_ENCRYPTION_KEY'];
+const missingSecrets = REQUIRED_SECRETS.filter(key => !Deno.env.get(key));
+if (missingSecrets.length > 0) {
+  console.error('[hyperliquid-bridge] Missing required secrets:', missingSecrets);
+}
+
 // Across Protocol SpokePool contract addresses
 const ACROSS_SPOKE_POOLS: Record<string, string> = {
   ethereum: '0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5',
@@ -64,6 +71,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate API keys are configured
+    const infuraKey = Deno.env.get('INFURA_API_KEY');
+    const encryptionKey = Deno.env.get('WALLET_ENCRYPTION_KEY');
+    
+    if (!infuraKey || !encryptionKey) {
+      throw new Error('Bridge service is not properly configured. Missing required API keys.');
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -187,7 +202,7 @@ async function getQuote(params: any) {
 }
 
 async function executeBridge(supabaseClient: any, userId: string, params: any) {
-  console.log('[executeBridge] Starting real bridge execution', { userId, params });
+  console.log('[executeBridge] Starting bridge execution', { userId, params });
 
   try {
     const {
@@ -201,34 +216,34 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
       throw new Error('Invalid quote or destination chain');
     }
 
-    let sourcePrivateKey: string | null = null;
-    const destinationAddress = quote.route.destinationAddress;
-
-    // Get private key for internal wallet
-    if (sourceWalletType === 'internal') {
-      if (!password) {
-        throw new Error('Password required for internal wallet');
-      }
-
-      console.log('[executeBridge] Using internal wallet');
-
-      // Get encrypted private key
-      const { data: encryptedData, error: encryptError } = await supabaseClient
-        .from('secure_wallets')
-        .select('encrypted_private_key')
-        .eq('user_id', userId)
-        .single();
-
-      if (encryptError || !encryptedData) {
-        throw new Error('Wallet private key not found');
-      }
-
-      // Decrypt private key
-      sourcePrivateKey = await decryptPrivateKey(encryptedData.encrypted_private_key, password);
-      console.log('[executeBridge] Private key decrypted successfully');
-    } else {
-      throw new Error('External wallet bridging not yet supported. Please use internal wallet with password.');
+    // Handle external wallets - return unsigned transaction data
+    if (sourceWalletType === 'external') {
+      return await prepareExternalWalletBridge(supabaseClient, userId, quote, sourceWalletAddress);
     }
+
+    // Internal wallet flow
+    if (!password) {
+      throw new Error('Password required for internal wallet');
+    }
+
+    console.log('[executeBridge] Using internal wallet');
+
+    // Get encrypted private key
+    const { data: encryptedData, error: encryptError } = await supabaseClient
+      .from('secure_wallets')
+      .select('encrypted_private_key')
+      .eq('user_id', userId)
+      .single();
+
+    if (encryptError || !encryptedData) {
+      throw new Error('Wallet private key not found');
+    }
+
+    // Decrypt private key
+    const sourcePrivateKey = await decryptPrivateKey(encryptedData.encrypted_private_key, password);
+    console.log('[executeBridge] Private key decrypted successfully');
+
+    const destinationAddress = quote.route.destinationAddress;
 
     // Record bridge transaction
     const bridgeRecord = {
@@ -246,7 +261,8 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
         sourceWalletType,
         destinationAddress,
         estimatedOutput: quote.estimatedOutput,
-        fee: quote.fee
+        fee: quote.fee,
+        note: 'Funds will arrive on Arbitrum. Use Hyperliquid official bridge to complete transfer.'
       }
     };
 
@@ -278,12 +294,144 @@ async function executeBridge(supabaseClient: any, userId: string, params: any) {
       success: true,
       bridgeId: bridgeData.id,
       txHash: result.txHash,
-      estimatedCompletion: bridgeData.estimated_completion
+      estimatedCompletion: bridgeData.estimated_completion,
+      note: 'Funds will arrive on Arbitrum. You must then use Hyperliquid official bridge to complete transfer.'
     };
   } catch (error) {
     console.error('[executeBridge] Error:', error);
     throw error;
   }
+}
+
+// Prepare unsigned transaction for external wallet
+async function prepareExternalWalletBridge(
+  supabaseClient: any,
+  userId: string,
+  quote: any,
+  sourceWalletAddress: string
+) {
+  console.log('[prepareExternalWalletBridge] Preparing transaction for external wallet');
+  
+  // Create bridge record
+  const { data: bridgeRecord, error: insertError } = await supabaseClient
+    .from('bridge_transactions')
+    .insert({
+      user_id: userId,
+      bridge_provider: quote.provider,
+      source_chain: quote.fromChain,
+      destination_chain: quote.toChain,
+      amount: quote.inputAmount,
+      status: 'awaiting_signature',
+      metadata: {
+        estimatedFee: quote.fee,
+        estimatedOutput: quote.estimatedOutput,
+        sourceWalletAddress,
+        externalWallet: true,
+        note: 'Funds will arrive on Arbitrum. Use Hyperliquid official bridge to complete transfer.'
+      },
+    })
+    .select()
+    .single();
+
+  if (insertError) throw insertError;
+
+  // Prepare transaction data based on provider
+  let unsignedTx;
+  if (quote.provider === 'across') {
+    unsignedTx = await prepareAcrossTransaction(quote, sourceWalletAddress);
+  } else if (quote.provider === 'wormhole') {
+    unsignedTx = await prepareWormholeTransaction(quote, sourceWalletAddress);
+  } else {
+    throw new Error(`Unsupported bridge provider: ${quote.provider}`);
+  }
+
+  return {
+    success: true,
+    bridgeId: bridgeRecord.id,
+    requiresSignature: true,
+    unsignedTransaction: unsignedTx,
+    message: 'Please sign the transaction in your wallet',
+    note: 'Funds will arrive on Arbitrum. You must then use Hyperliquid official bridge to complete transfer.'
+  };
+}
+
+// Prepare Across transaction for external signing
+async function prepareAcrossTransaction(quote: any, fromAddress: string) {
+  const spokePoolAddress = ACROSS_SPOKE_POOLS[quote.fromChain];
+  const usdcAddress = USDC_ADDRESSES[quote.fromChain];
+  
+  if (!spokePoolAddress || !usdcAddress) {
+    throw new Error(`Across not supported on ${quote.fromChain}`);
+  }
+
+  const amount = ethers.parseUnits(quote.inputAmount.toString(), 6);
+  
+  // Return approval and deposit transactions
+  return {
+    approval: {
+      to: usdcAddress,
+      from: fromAddress,
+      data: new ethers.Interface(['function approve(address spender, uint256 amount)']).encodeFunctionData('approve', [spokePoolAddress, amount]),
+      value: '0x0',
+    },
+    deposit: {
+      to: spokePoolAddress,
+      from: fromAddress,
+      data: new ethers.Interface([
+        'function depositV3(address depositor, address recipient, address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 destinationChainId, address exclusiveRelayer, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, bytes message) payable'
+      ]).encodeFunctionData('depositV3', [
+        fromAddress,
+        fromAddress,
+        usdcAddress,
+        usdcAddress,
+        amount,
+        amount,
+        42161, // Arbitrum as intermediate chain
+        ethers.ZeroAddress,
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000) + 3600,
+        0,
+        '0x',
+      ]),
+      value: '0x0',
+    },
+  };
+}
+
+// Prepare Wormhole transaction for external signing
+async function prepareWormholeTransaction(quote: any, fromAddress: string) {
+  const tokenBridgeAddress = WORMHOLE_TOKEN_BRIDGES[quote.fromChain];
+  const usdcAddress = USDC_ADDRESSES[quote.fromChain];
+  
+  if (!tokenBridgeAddress || !usdcAddress) {
+    throw new Error(`Wormhole not supported on ${quote.fromChain}`);
+  }
+
+  const amount = ethers.parseUnits(quote.inputAmount.toString(), 6);
+  
+  return {
+    approval: {
+      to: usdcAddress,
+      from: fromAddress,
+      data: new ethers.Interface(['function approve(address spender, uint256 amount)']).encodeFunctionData('approve', [tokenBridgeAddress, amount]),
+      value: '0x0',
+    },
+    transfer: {
+      to: tokenBridgeAddress,
+      from: fromAddress,
+      data: new ethers.Interface([
+        'function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) payable returns (uint64 sequence)'
+      ]).encodeFunctionData('transferTokens', [
+        usdcAddress,
+        amount,
+        CHAIN_ID_ARBITRUM, // Arbitrum as intermediate
+        ethers.zeroPadValue(fromAddress, 32),
+        0,
+        Math.floor(Math.random() * 4294967295),
+      ]),
+      value: ethers.parseEther('0.001').toString(), // Wormhole fee
+    },
+  };
 }
 
 async function decryptPrivateKey(encryptedKey: string, password: string): Promise<string> {
@@ -396,13 +544,15 @@ async function executeAcrossBridge(
   if (allowance < amountWei) {
     console.log('[executeAcrossBridge] Approving USDC...');
     const approveTx = await usdcContract.approve(spokePoolAddress, amountWei);
-    const approveReceipt = await approveTx.wait();
-    console.log('[executeAcrossBridge] Approval confirmed:', approveTx.hash);
+    console.log('[executeAcrossBridge] Approval tx:', approveTx.hash);
 
     await supabaseClient
       .from('bridge_transactions')
       .update({ approval_tx_hash: approveTx.hash })
       .eq('id', bridgeId);
+
+    await approveTx.wait();
+    console.log('[executeAcrossBridge] Approval confirmed');
   }
 
   // Execute bridge deposit via Across SpokePool
@@ -424,7 +574,7 @@ async function executeAcrossBridge(
     usdcAddress,
     amountWei,
     outputAmount,
-    42161, // Arbitrum as intermediate chain (Across will route to destination)
+    42161, // Arbitrum as intermediate chain - users must then use Hyperliquid bridge
     ethers.ZeroAddress,
     quoteTimestamp,
     fillDeadline,
@@ -446,7 +596,9 @@ async function executeAcrossBridge(
   // Wait for confirmation (background)
   depositTx.wait().then(async (receipt: any) => {
     console.log('[executeAcrossBridge] Transaction confirmed:', receipt.transactionHash);
-    const gasCost = ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0);
+    const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice;
+    const gasCost = ethers.formatEther(gasPrice * receipt.gasUsed);
+    
     await supabaseClient
       .from('bridge_transactions')
       .update({ 
@@ -598,13 +750,15 @@ async function executeWormholeBridgeEVM(
   if (allowance < amountWei) {
     console.log('[executeWormholeBridgeEVM] Approving USDC...');
     const approveTx = await usdcContract.approve(tokenBridgeAddress, amountWei);
-    await approveTx.wait();
-    console.log('[executeWormholeBridgeEVM] Approval confirmed:', approveTx.hash);
+    console.log('[executeWormholeBridgeEVM] Approval tx:', approveTx.hash);
 
     await supabaseClient
       .from('bridge_transactions')
       .update({ approval_tx_hash: approveTx.hash })
       .eq('id', bridgeId);
+
+    await approveTx.wait();
+    console.log('[executeWormholeBridgeEVM] Approval confirmed');
   }
 
   // Wormhole Token Bridge ABI
@@ -673,7 +827,9 @@ async function executeWormholeBridgeEVM(
       console.error('[executeWormholeBridgeEVM] Failed to parse sequence:', e);
     }
 
-    const gasCost = ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0);
+    const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice;
+    const gasCost = ethers.formatEther(gasPrice * receipt.gasUsed);
+    
     await supabaseClient
       .from('bridge_transactions')
       .update({
@@ -708,7 +864,7 @@ async function executeWormholeBridgeSolana(
 ) {
   console.log('[executeWormholeBridgeSolana] Solana bridging not yet fully implemented');
   
-  // Update status to pending with explanation
+  // Update status to failed with explanation
   await supabaseClient
     .from('bridge_transactions')
     .update({
@@ -735,6 +891,7 @@ async function checkStatus(supabaseClient: any, bridgeId: string) {
     destinationTxHash: bridge.destination_tx_hash,
     estimatedCompletion: bridge.estimated_completion,
     amount: bridge.amount,
-    error: bridge.error_message
+    error: bridge.error_message,
+    gasCost: bridge.gas_cost
   };
 }

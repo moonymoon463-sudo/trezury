@@ -415,11 +415,14 @@ export type Database = {
       bridge_transactions: {
         Row: {
           amount: number
+          approval_tx_hash: string | null
           bridge_provider: string
           created_at: string
           destination_chain: string
           destination_tx_hash: string | null
+          error_message: string | null
           estimated_completion: string | null
+          gas_cost: number | null
           id: string
           metadata: Json | null
           source_chain: string
@@ -431,11 +434,14 @@ export type Database = {
         }
         Insert: {
           amount: number
+          approval_tx_hash?: string | null
           bridge_provider: string
           created_at?: string
           destination_chain: string
           destination_tx_hash?: string | null
+          error_message?: string | null
           estimated_completion?: string | null
+          gas_cost?: number | null
           id?: string
           metadata?: Json | null
           source_chain: string
@@ -447,11 +453,14 @@ export type Database = {
         }
         Update: {
           amount?: number
+          approval_tx_hash?: string | null
           bridge_provider?: string
           created_at?: string
           destination_chain?: string
           destination_tx_hash?: string | null
+          error_message?: string | null
           estimated_completion?: string | null
+          gas_cost?: number | null
           id?: string
           metadata?: Json | null
           source_chain?: string

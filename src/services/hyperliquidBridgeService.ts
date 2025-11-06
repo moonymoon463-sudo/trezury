@@ -23,9 +23,12 @@ export interface BridgeQuote {
 
 export interface BridgeExecutionResult {
   success: boolean;
-  txHash?: string;
   bridgeId?: string;
+  txHash?: string;
   error?: string;
+  requiresSignature?: boolean;
+  unsignedTransaction?: any;
+  note?: string;
 }
 
 class HyperliquidBridgeService {
@@ -60,6 +63,14 @@ class HyperliquidBridgeService {
     password?: string
   ): Promise<BridgeExecutionResult> {
     try {
+      console.log('[BridgeService] Executing bridge:', {
+        provider: quote.provider,
+        fromChain: quote.fromChain,
+        toChain: quote.toChain,
+        amount: quote.inputAmount,
+        sourceWalletType,
+      });
+
       const { data, error } = await supabase.functions.invoke('hyperliquid-bridge', {
         body: {
           operation: 'execute_bridge',
@@ -67,15 +78,31 @@ class HyperliquidBridgeService {
           quote,
           sourceWalletAddress,
           sourceWalletType,
-          password
-        }
+          password,
+        },
       });
 
       if (error) throw error;
+      if (!data) throw new Error('No response from bridge service');
+
+      // If external wallet, data will contain unsigned transaction
+      if (data.requiresSignature) {
+        return {
+          success: true,
+          requiresSignature: true,
+          unsignedTransaction: data.unsignedTransaction,
+          bridgeId: data.bridgeId,
+          note: data.note,
+        };
+      }
+
       return data;
     } catch (error) {
-      console.error('[HyperliquidBridge] Execution error:', error);
-      throw error;
+      console.error('[BridgeService] Execute error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to execute bridge',
+      };
     }
   }
 
