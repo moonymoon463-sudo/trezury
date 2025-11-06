@@ -96,7 +96,33 @@ Deno.serve(async (req) => {
           throw new Error('User not found');
         }
 
-        // Call bridge function to retry
+        // Check if this is an external wallet transaction
+        const isExternalWallet = metadata.sourceWalletType === 'external' || metadata.externalWallet;
+        
+        if (isExternalWallet) {
+          console.log(`[bridge-retry-service] Transaction ${transaction.id} requires external wallet - cannot auto-retry`);
+          
+          await supabaseClient
+            .from('bridge_transactions')
+            .update({
+              status: 'failed',
+              error_message: 'External wallet transactions cannot be automatically retried. Please initiate a new bridge transaction.',
+              metadata: {
+                ...metadata,
+                requiresManualRetry: true,
+              }
+            })
+            .eq('id', transaction.id);
+
+          results.push({
+            id: transaction.id,
+            status: 'requires_manual_retry',
+          });
+          continue;
+        }
+
+        // Call bridge function to retry (internal wallets only)
+        // Note: Password is not stored for security - retry will fail if password was required
         const { data: retryResult, error: retryError } = await supabaseClient.functions.invoke('hyperliquid-bridge', {
           body: {
             operation: 'execute_bridge',
@@ -116,8 +142,8 @@ Deno.serve(async (req) => {
               }
             },
             sourceWalletAddress: metadata.sourceWalletAddress,
-            sourceWalletType: metadata.sourceWalletType || 'internal',
-            password: metadata.password, // Only available for internal wallets
+            sourceWalletType: 'internal',
+            // Password intentionally not included for security - user must retry manually if password is required
           },
         });
 

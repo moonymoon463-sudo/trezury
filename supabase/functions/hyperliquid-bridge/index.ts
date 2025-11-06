@@ -8,19 +8,21 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   getEmitterAddressEth,
-  parseSequenceFromLogEth,
-  tryNativeToHexString,
-} from 'npm:@certusone/wormhole-sdk@latest';
+} from 'npm:@certusone/wormhole-sdk@0.10.18';
 import { retryWithBackoff, wrapError, NonRetryableError } from '../_shared/bridgeRetry.ts';
 import { fetchVAA, parseSequenceFromReceipt } from '../_shared/wormholeVAA.ts';
+import { decryptPrivateKey } from '../_shared/encryption.ts';
+import { getRpcUrl } from '../_shared/rpcConfig.ts';
 
 console.log('[hyperliquid-bridge] Function started');
 
 // Validate required environment variables on startup
-const REQUIRED_SECRETS = ['INFURA_API_KEY', 'WALLET_ENCRYPTION_KEY'];
+const REQUIRED_SECRETS = ['INFURA_API_KEY', 'ALCHEMY_API_KEY', 'WALLET_ENCRYPTION_KEY'];
 const missingSecrets = REQUIRED_SECRETS.filter(key => !Deno.env.get(key));
 if (missingSecrets.length > 0) {
   console.error('[hyperliquid-bridge] Missing required secrets:', missingSecrets);
+  console.error('[hyperliquid-bridge] INFURA_API_KEY is required for Ethereum');
+  console.error('[hyperliquid-bridge] ALCHEMY_API_KEY is required for Arbitrum, Optimism, Polygon, Base');
 }
 
 // Transaction limits per chain (in USDC)
@@ -87,12 +89,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate API keys are configured
-    const infuraKey = Deno.env.get('INFURA_API_KEY');
+    // Validate encryption key is configured
     const encryptionKey = Deno.env.get('WALLET_ENCRYPTION_KEY');
     
-    if (!infuraKey || !encryptionKey) {
-      throw new Error('Bridge service is not properly configured. Missing required API keys.');
+    if (!encryptionKey) {
+      throw new Error('Bridge service is not properly configured. Missing WALLET_ENCRYPTION_KEY.');
     }
 
     const supabaseClient = createClient(
@@ -470,57 +471,7 @@ async function prepareWormholeTransaction(quote: any, fromAddress: string) {
   };
 }
 
-async function decryptPrivateKey(encryptedKey: string, password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  
-  const parts = encryptedKey.split(':');
-  if (parts.length !== 3) {
-    throw new Error('Invalid encrypted key format');
-  }
-  
-  const [ivHex, saltHex, encryptedHex] = parts;
-  const iv = hexToUint8Array(ivHex);
-  const salt = hexToUint8Array(saltHex);
-  const encrypted = hexToUint8Array(encryptedHex);
-  
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  );
-  
-  const key = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: salt,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt']
-  );
-  
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv },
-    key,
-    encrypted
-  );
-  
-  return decoder.decode(decrypted);
-}
-
-function hexToUint8Array(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
-  }
-  return bytes;
-}
+// Encryption utilities moved to _shared/encryption.ts
 
 async function executeAcrossBridge(
   sourceChain: string,
@@ -691,29 +642,7 @@ async function executeAcrossBridge(
   return { txHash: depositTx.hash };
 }
 
-function getRpcUrl(chain: string): string {
-  const infuraKey = Deno.env.get('INFURA_API_KEY');
-  const alchemyKey = Deno.env.get('ALCHEMY_API_KEY');
-
-  switch (chain) {
-    case 'ethereum':
-      return `https://mainnet.infura.io/v3/${infuraKey}`;
-    case 'arbitrum':
-      return `https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`;
-    case 'optimism':
-      return `https://opt-mainnet.g.alchemy.com/v2/${alchemyKey}`;
-    case 'polygon':
-      return `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`;
-    case 'base':
-      return `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`;
-    case 'bsc':
-      return 'https://bsc-dataseed.bnbchain.org';
-    case 'avalanche':
-      return 'https://api.avax.network/ext/bc/C/rpc';
-    default:
-      throw new Error(`No RPC URL configured for chain: ${chain}`);
-  }
-}
+// RPC configuration moved to _shared/rpcConfig.ts
 
 async function executeBridgeTransaction(
   provider: string,
