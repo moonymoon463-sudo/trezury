@@ -107,7 +107,7 @@ export const useHyperliquidCandles = (
 
       // STEP 2: If database doesn't have enough, fetch from API
       if (newCandles.length === 0) {
-        const { data: apiCandles, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
+        const { data: apiData, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
           body: {
             operation: 'get_candles',
             params: {
@@ -121,8 +121,8 @@ export const useHyperliquidCandles = (
 
         if (funcError) throw funcError;
 
-        if (apiCandles && apiCandles.length > 0) {
-          newCandles = apiCandles;
+        if (Array.isArray(apiData) && apiData.length > 0) {
+          newCandles = apiData;
           console.log('[useHyperliquidCandles] Loaded', newCandles.length, 'candles from API');
         }
       }
@@ -174,46 +174,15 @@ export const useHyperliquidCandles = (
         const historicalDepth = getHistoricalDepth(normalizedInterval);
         const startTime = endTime - historicalDepth;
 
-        console.log('[useHyperliquidCandles] Loading candles (hybrid strategy):', { 
+        console.log('[useHyperliquidCandles] Loading candles:', { 
           market, 
           interval: normalizedInterval, 
           startTime: new Date(startTime).toISOString(), 
           endTime: new Date(endTime).toISOString()
         });
 
-        // STEP 1: Try to load from database first (cached historical data)
-        const { data: dbCandles, error: dbError } = await supabase
-          .from('hyperliquid_historical_candles')
-          .select('*')
-          .eq('market', market)
-          .eq('interval', normalizedInterval)
-          .gte('timestamp', startTime)
-          .lte('timestamp', endTime)
-          .order('timestamp', { ascending: true });
-
-        let allCandles: HyperliquidCandle[] = [];
-
-        if (!dbError && dbCandles && dbCandles.length > 0) {
-          console.log('[useHyperliquidCandles] Loaded', dbCandles.length, 'candles from database');
-          
-          // Transform database format to candle format
-          const intervalMs = getIntervalMilliseconds(normalizedInterval);
-          allCandles = dbCandles.map(dc => ({
-            t: dc.timestamp,
-            T: dc.timestamp + intervalMs,
-            s: dc.market,
-            i: dc.interval,
-            o: dc.open,
-            c: dc.close,
-            h: dc.high,
-            l: dc.low,
-            v: dc.volume,
-            n: 0
-          }));
-        }
-
-        // STEP 2: Fetch recent data from API to fill gaps and get latest candles
-        const { data: apiCandles, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
+        // Fetch directly from API with database fallback
+        const { data: apiData, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
           body: {
             operation: 'get_candles',
             params: {
@@ -226,22 +195,12 @@ export const useHyperliquidCandles = (
         });
 
         if (funcError) {
-          console.warn('[useHyperliquidCandles] API error, using cached data:', funcError);
-        } else if (apiCandles && apiCandles.length > 0) {
-          console.log('[useHyperliquidCandles] Received', apiCandles.length, 'candles from API');
-          
-          // STEP 3: Merge database and API candles, preferring API data for overlaps
-          const candleMap = new Map<number, HyperliquidCandle>();
-          
-          // Add database candles first
-          allCandles.forEach(c => candleMap.set(c.t, c));
-          
-          // Override with API candles (more recent/accurate)
-          apiCandles.forEach((c: HyperliquidCandle) => candleMap.set(c.t, c));
-          
-          // Convert back to sorted array
-          allCandles = Array.from(candleMap.values()).sort((a, b) => a.t - b.t);
+          console.error('[useHyperliquidCandles] API error:', funcError);
+          throw funcError;
         }
+
+        // The edge function returns candles directly as an array
+        const allCandles = Array.isArray(apiData) ? apiData : [];
 
         if (mounted && allCandles.length > 0) {
           setCandles(allCandles);
@@ -249,7 +208,7 @@ export const useHyperliquidCandles = (
           setLoadedRange({ start: allCandles[0].t, end: allCandles[allCandles.length - 1].t });
           setHasMoreHistory(true);
           
-          console.log('[useHyperliquidCandles] Final dataset:', {
+          console.log('[useHyperliquidCandles] Loaded candles:', {
             totalCandles: allCandles.length,
             earliest: new Date(allCandles[0].t).toISOString(),
             latest: new Date(allCandles[allCandles.length - 1].t).toISOString()
