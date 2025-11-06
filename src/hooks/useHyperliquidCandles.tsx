@@ -160,8 +160,11 @@ export const useHyperliquidCandles = (
     }
 
     let mounted = true;
+    let currentRequestId = 0;
 
     const loadCandles = async () => {
+      const requestId = ++currentRequestId;
+      
       try {
         setLoading(true);
         setError(null);
@@ -191,6 +194,9 @@ export const useHyperliquidCandles = (
           .lte('timestamp', endTime)
           .order('timestamp', { ascending: true });
 
+        // Check if this request is still current
+        if (!mounted || requestId !== currentRequestId) return;
+
         let allCandles: HyperliquidCandle[] = [];
 
         if (!dbError && dbCandles && dbCandles.length > 0) {
@@ -210,9 +216,25 @@ export const useHyperliquidCandles = (
             v: dc.volume,
             n: 0
           }));
+          
+          // If we have good cache coverage, set state immediately
+          if (allCandles.length > 50) {
+            setCandles(allCandles);
+            setEarliestTimestamp(allCandles[0].t);
+            setLoadedRange({ start: allCandles[0].t, end: allCandles[allCandles.length - 1].t });
+            setHasMoreHistory(true);
+            setLoading(false);
+            
+            // For short intervals, background refresh latest data only
+            if (normalizedInterval === '1m' || normalizedInterval === '5m') {
+              const recentStartTime = endTime - getIntervalMilliseconds(normalizedInterval) * 10;
+              fetchRecentCandles(market, normalizedInterval, recentStartTime, endTime, requestId);
+            }
+            return;
+          }
         }
 
-        // STEP 2: Fetch recent data from API to fill gaps and get latest candles
+        // STEP 2: Fetch from API (either no cache or insufficient data)
         const { data: apiCandles, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
           body: {
             operation: 'get_candles',
@@ -225,8 +247,19 @@ export const useHyperliquidCandles = (
           }
         });
 
+        // Check if this request is still current
+        if (!mounted || requestId !== currentRequestId) return;
+
         if (funcError) {
-          console.warn('[useHyperliquidCandles] API error, using cached data:', funcError);
+          console.warn('[useHyperliquidCandles] API error:', funcError);
+          // Use cached data if we have any
+          if (allCandles.length > 0) {
+            setCandles(allCandles);
+            setEarliestTimestamp(allCandles[0].t);
+            setLoadedRange({ start: allCandles[0].t, end: allCandles[allCandles.length - 1].t });
+          } else {
+            throw funcError;
+          }
         } else if (apiCandles && apiCandles.length > 0) {
           console.log('[useHyperliquidCandles] Received', apiCandles.length, 'candles from API');
           
@@ -241,9 +274,7 @@ export const useHyperliquidCandles = (
           
           // Convert back to sorted array
           allCandles = Array.from(candleMap.values()).sort((a, b) => a.t - b.t);
-        }
-
-        if (mounted && allCandles.length > 0) {
+          
           setCandles(allCandles);
           setEarliestTimestamp(allCandles[0].t);
           setLoadedRange({ start: allCandles[0].t, end: allCandles[allCandles.length - 1].t });
@@ -254,27 +285,63 @@ export const useHyperliquidCandles = (
             earliest: new Date(allCandles[0].t).toISOString(),
             latest: new Date(allCandles[allCandles.length - 1].t).toISOString()
           });
-        } else if (mounted) {
+        } else if (allCandles.length === 0) {
           setCandles([]);
           setLoadedRange(null);
         }
       } catch (err) {
-        if (mounted) {
+        if (mounted && requestId === currentRequestId) {
           setError(err instanceof Error ? err.message : 'Failed to load candles');
           console.error('[useHyperliquidCandles] Error:', err);
         }
       } finally {
-        if (mounted) {
+        if (mounted && requestId === currentRequestId) {
           setLoading(false);
         }
       }
     };
 
+    // Background fetch for recent candles only
+    const fetchRecentCandles = async (
+      market: string,
+      interval: string,
+      startTime: number,
+      endTime: number,
+      requestId: number
+    ) => {
+      try {
+        const { data, error } = await supabase.functions.invoke('hyperliquid-market-data', {
+          body: {
+            operation: 'get_candles',
+            params: { market, interval, startTime, endTime }
+          }
+        });
+
+        if (!mounted || requestId !== currentRequestId || error || !data) return;
+
+        setCandles(prev => {
+          const candleMap = new Map<number, HyperliquidCandle>();
+          prev.forEach(c => candleMap.set(c.t, c));
+          data.forEach((c: HyperliquidCandle) => candleMap.set(c.t, c));
+          return Array.from(candleMap.values()).sort((a, b) => a.t - b.t);
+        });
+      } catch (err) {
+        console.warn('[useHyperliquidCandles] Background refresh failed:', err);
+      }
+    };
+
     loadCandles();
 
-    // Refresh candles periodically based on interval
-    const refreshInterval = getIntervalMilliseconds(resolutionMap[interval] || interval);
-    const timer = setInterval(loadCandles, refreshInterval);
+    // Adaptive refresh interval based on timeframe
+    const getRefreshMs = () => {
+      const normalized = resolutionMap[interval] || interval;
+      if (normalized === '1m') return 60_000; // 1 minute
+      if (normalized === '5m') return 300_000; // 5 minutes
+      if (normalized === '15m') return 900_000; // 15 minutes
+      return getIntervalMilliseconds(normalized); // Match candle interval
+    };
+
+    const timer = setInterval(loadCandles, getRefreshMs());
 
     return () => {
       mounted = false;
