@@ -17,8 +17,6 @@
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
     "@certusone/wormhole-sdk": "^0.10.18",
-    "@cosmjs/crypto": "^0.36.2",
-    "@cosmjs/proto-signing": "^0.36.2",
     "@gelatonetwork/relay-sdk": "^5.6.0",
     "@hookform/resolvers": "^3.10.0",
     "@layerzerolabs/lz-sdk": "^0.0.87",
