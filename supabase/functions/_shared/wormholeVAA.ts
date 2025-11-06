@@ -2,6 +2,8 @@
  * Wormhole VAA (Verifiable Action Approval) fetching and redemption
  */
 
+import { ethers } from 'npm:ethers@6.13.0';
+
 const WORMHOLE_GUARDIAN_RPC = 'https://wormhole-v2-mainnet-api.certus.one';
 const WORMHOLE_GUARDIAN_BACKUP = 'https://api.wormholescan.io';
 
@@ -130,7 +132,6 @@ export async function isVAARedeemed(
       'function isTransferCompleted(bytes32 hash) view returns (bool)',
     ];
     
-    const ethers = await import('npm:ethers@6.13.0');
     const tokenBridge = new ethers.Contract(tokenBridgeAddress, tokenBridgeAbi, provider);
     
     return await tokenBridge.isTransferCompleted(vaaHash);
