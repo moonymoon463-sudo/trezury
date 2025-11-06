@@ -59,7 +59,16 @@ serve(async (req) => {
   }
 
   try {
-    const { operation, params } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const operation = body?.operation;
+    const params = body?.params ?? {};
+
+    if (!operation) {
+      return new Response(JSON.stringify({ error: 'Missing operation' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     // Initialize Supabase client for database operations
     const supabaseClient = createClient(
@@ -89,9 +98,15 @@ serve(async (req) => {
         requestBody = { type: 'recentTrades', coin: normalizeMarket(params.market) };
         break;
       case 'get_candles':
-        const interval = normalizeInterval(params.interval);
-        const start = normalizeTime(params.startTime);
-        const end = normalizeTime(params.endTime);
+        if (!params?.market) {
+          return new Response(JSON.stringify({ error: 'Missing required param: market' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        const interval = normalizeInterval(params?.interval);
+        const start = normalizeTime(params?.startTime);
+        const end = normalizeTime(params?.endTime);
         requestBody = {
           type: 'candleSnapshot',
           req: {

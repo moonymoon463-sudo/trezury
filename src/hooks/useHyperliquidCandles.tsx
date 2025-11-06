@@ -181,7 +181,7 @@ export const useHyperliquidCandles = (
           endTime: new Date(endTime).toISOString()
         });
 
-        // Fetch directly from API with database fallback
+        // Try API first
         const { data: apiData, error: funcError } = await supabase.functions.invoke('hyperliquid-market-data', {
           body: {
             operation: 'get_candles',
@@ -194,13 +194,39 @@ export const useHyperliquidCandles = (
           }
         });
 
-        if (funcError) {
-          console.error('[useHyperliquidCandles] API error:', funcError);
-          throw funcError;
-        }
+        let allCandles: HyperliquidCandle[] = Array.isArray(apiData) ? apiData : [];
 
-        // The edge function returns candles directly as an array
-        const allCandles = Array.isArray(apiData) ? apiData : [];
+        if (funcError || allCandles.length === 0) {
+          console.warn('[useHyperliquidCandles] API unavailable or empty, falling back to cached DB candles', funcError);
+          // Fallback to database cached candles
+          const { data: dbCandles, error: dbError } = await supabase
+            .from('hyperliquid_historical_candles')
+            .select('*')
+            .eq('market', market)
+            .eq('interval', normalizedInterval)
+            .gte('timestamp', startTime)
+            .lte('timestamp', endTime)
+            .order('timestamp', { ascending: true });
+
+          if (!dbError && dbCandles && dbCandles.length > 0) {
+            const intervalMs = getIntervalMilliseconds(normalizedInterval);
+            allCandles = dbCandles.map(dc => ({
+              t: dc.timestamp,
+              T: dc.timestamp + intervalMs,
+              s: dc.market,
+              i: dc.interval,
+              o: dc.open,
+              c: dc.close,
+              h: dc.high,
+              l: dc.low,
+              v: dc.volume,
+              n: 0
+            }));
+            console.log('[useHyperliquidCandles] Loaded', allCandles.length, 'candles from DB fallback');
+          } else if (dbError) {
+            console.error('[useHyperliquidCandles] DB fallback error:', dbError);
+          }
+        }
 
         if (mounted && allCandles.length > 0) {
           setCandles(allCandles);
