@@ -334,6 +334,18 @@ class HyperliquidWebSocketService {
     this.subscriptions.clear();
     this.activeSubscriptionCount = 0;
   }
+
+  isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  getReconnectAttempts(): number {
+    return this.reconnectAttempts;
+  }
+
+  getMaxReconnectAttempts(): number {
+    return this.maxReconnectAttempts;
+  }
 }
 
 export const hyperliquidWebSocketService = new HyperliquidWebSocketService();

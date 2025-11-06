@@ -128,8 +128,23 @@ const TradingDashboard = () => {
 
   // WebSocket health monitoring
   useEffect(() => {
-    // Health monitoring to be implemented
-    setWsHealth({ isConnected: true, reconnectAttempts: 0, maxAttempts: 5 });
+    const wsService = hyperliquidWebSocketService;
+    
+    const checkHealth = () => {
+      setWsHealth({
+        isConnected: wsService.isConnected(),
+        reconnectAttempts: wsService.getReconnectAttempts(),
+        maxAttempts: 5
+      });
+    };
+    
+    // Initial check
+    checkHealth();
+    
+    // Check every 5 seconds
+    const interval = setInterval(checkHealth, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Debug log for chart data flow

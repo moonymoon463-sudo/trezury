@@ -100,28 +100,32 @@ verify_jwt = false
 [functions.send-support-email]
 verify_jwt = true
 
-[functions.transfer-to-dydx]
-verify_jwt = true
-
 [functions.monitor-squid-deposits]
 verify_jwt = false
 
 [functions.record-skip-withdrawal]
 verify_jwt = true
 
-[functions.dydx-trading]
-verify_jwt = true
-
-[functions.dydx-market-data]
-verify_jwt = false
-
-[functions.check-dydx-balance]
-verify_jwt = false
-
-[functions.sync-dydx-positions]
-verify_jwt = true
-
+# Hyperliquid Trading Platform Functions
 [functions.hyperliquid-bridge]
+verify_jwt = true
+
+[functions.hyperliquid-trading]
+verify_jwt = true
+
+[functions.hyperliquid-market-data]
+verify_jwt = false
+
+[functions.hyperliquid-withdraw]
+verify_jwt = true
+
+[functions.check-hyperliquid-balance]
+verify_jwt = false
+
+[functions.sync-hyperliquid-positions]
+verify_jwt = true
+
+[functions.start-order-monitor]
 verify_jwt = true
 
 [functions.bridge-retry-service]
