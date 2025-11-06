@@ -11,6 +11,8 @@ import {
   parseSequenceFromLogEth,
   tryNativeToHexString,
 } from 'npm:@certusone/wormhole-sdk@latest';
+import { retryWithBackoff, wrapError, NonRetryableError } from '../_shared/bridgeRetry.ts';
+import { fetchVAA, parseSequenceFromReceipt } from '../_shared/wormholeVAA.ts';
 
 console.log('[hyperliquid-bridge] Function started');
 
@@ -20,6 +22,20 @@ const missingSecrets = REQUIRED_SECRETS.filter(key => !Deno.env.get(key));
 if (missingSecrets.length > 0) {
   console.error('[hyperliquid-bridge] Missing required secrets:', missingSecrets);
 }
+
+// Transaction limits per chain (in USDC)
+const BRIDGE_LIMITS: Record<string, { min: number; max: number }> = {
+  ethereum: { min: 10, max: 100000 },
+  arbitrum: { min: 10, max: 100000 },
+  optimism: { min: 10, max: 100000 },
+  polygon: { min: 10, max: 50000 },
+  base: { min: 10, max: 50000 },
+  bsc: { min: 10, max: 50000 },
+  avalanche: { min: 10, max: 50000 },
+};
+
+// Transaction timeout (30 minutes)
+const TRANSACTION_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Across Protocol SpokePool contract addresses
 const ACROSS_SPOKE_POOLS: Record<string, string> = {
@@ -132,8 +148,28 @@ async function getQuote(params: any) {
 
   const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
+  // Validate amount
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
-    throw new Error(`Invalid amount: ${amount}`);
+    throw new NonRetryableError(`Invalid amount: ${amount}`);
+  }
+
+  // Validate address format
+  if (!destinationAddress || !/^0x[a-fA-F0-9]{40}$/.test(destinationAddress)) {
+    throw new NonRetryableError('Invalid destination address format');
+  }
+
+  // Check transaction limits
+  const limits = BRIDGE_LIMITS[fromChain];
+  if (!limits) {
+    throw new NonRetryableError(`Unsupported chain: ${fromChain}`);
+  }
+
+  if (parsedAmount < limits.min) {
+    throw new NonRetryableError(`Minimum bridge amount for ${fromChain} is ${limits.min} USDC`);
+  }
+
+  if (parsedAmount > limits.max) {
+    throw new NonRetryableError(`Maximum bridge amount for ${fromChain} is ${limits.max} USDC`);
   }
 
   // Fee rates
@@ -522,10 +558,10 @@ async function executeAcrossBridge(
   ];
   const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, wallet);
 
-  // Check balance
-  const decimals = await usdcContract.decimals();
+  // Check balance with retry
+  const decimals = await retryWithBackoff(() => usdcContract.decimals(), { maxRetries: 2 });
   const amountWei = ethers.parseUnits(amount.toString(), decimals);
-  const balance = await usdcContract.balanceOf(wallet.address);
+  const balance = await retryWithBackoff(() => usdcContract.balanceOf(wallet.address), { maxRetries: 2 });
   
   console.log('[executeAcrossBridge] Balance check:', {
     balance: ethers.formatUnits(balance, decimals),
@@ -533,17 +569,22 @@ async function executeAcrossBridge(
   });
 
   if (balance < amountWei) {
-    throw new Error(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
+    throw new NonRetryableError(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
   }
 
   // Check allowance
   const allowance = await usdcContract.allowance(wallet.address, spokePoolAddress);
   console.log('[executeAcrossBridge] Current allowance:', ethers.formatUnits(allowance, decimals));
 
-  // Approve if needed
+  // Approve if needed with retry and timeout
   if (allowance < amountWei) {
     console.log('[executeAcrossBridge] Approving USDC...');
-    const approveTx = await usdcContract.approve(spokePoolAddress, amountWei);
+    
+    const approveTx = await retryWithBackoff(
+      () => usdcContract.approve(spokePoolAddress, amountWei),
+      { maxRetries: 3 }
+    );
+    
     console.log('[executeAcrossBridge] Approval tx:', approveTx.hash);
 
     await supabaseClient
@@ -551,7 +592,14 @@ async function executeAcrossBridge(
       .update({ approval_tx_hash: approveTx.hash })
       .eq('id', bridgeId);
 
-    await approveTx.wait();
+    // Wait with timeout
+    await Promise.race([
+      approveTx.wait(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Approval timeout')), TRANSACTION_TIMEOUT_MS)
+      )
+    ]);
+    
     console.log('[executeAcrossBridge] Approval confirmed');
   }
 
@@ -567,19 +615,26 @@ async function executeAcrossBridge(
   const outputAmount = amountWei * BigInt(997) / BigInt(1000); // 0.3% fee
 
   console.log('[executeAcrossBridge] Executing deposit...');
-  const depositTx = await spokePool.depositV3(
-    wallet.address,
-    destinationAddress,
-    usdcAddress,
-    usdcAddress,
-    amountWei,
-    outputAmount,
-    42161, // Arbitrum as intermediate chain - users must then use Hyperliquid bridge
-    ethers.ZeroAddress,
-    quoteTimestamp,
-    fillDeadline,
-    exclusivityDeadline,
-    '0x'
+  
+  const depositTx = await retryWithBackoff(
+    () => spokePool.depositV3(
+      wallet.address,
+      destinationAddress,
+      usdcAddress,
+      usdcAddress,
+      amountWei,
+      outputAmount,
+      42161, // Arbitrum as intermediate chain - users must then use Hyperliquid bridge
+      ethers.ZeroAddress,
+      quoteTimestamp,
+      fillDeadline,
+      exclusivityDeadline,
+      '0x'
+    ),
+    { maxRetries: 3 },
+    (attempt, error) => {
+      console.log(`[executeAcrossBridge] Deposit attempt ${attempt} failed:`, error.message);
+    }
   );
 
   console.log('[executeAcrossBridge] Transaction submitted:', depositTx.hash);
@@ -593,8 +648,13 @@ async function executeAcrossBridge(
     })
     .eq('id', bridgeId);
 
-  // Wait for confirmation (background)
-  depositTx.wait().then(async (receipt: any) => {
+  // Wait for confirmation with timeout (background)
+  Promise.race([
+    depositTx.wait(),
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Transaction confirmation timeout')), TRANSACTION_TIMEOUT_MS)
+    )
+  ]).then(async (receipt: any) => {
     console.log('[executeAcrossBridge] Transaction confirmed:', receipt.transactionHash);
     const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice;
     const gasCost = ethers.formatEther(gasPrice * receipt.gasUsed);
@@ -603,16 +663,27 @@ async function executeAcrossBridge(
       .from('bridge_transactions')
       .update({ 
         status: 'completed',
-        gas_cost: gasCost
+        gas_cost: gasCost,
+        metadata: {
+          completedAt: new Date().toISOString(),
+        }
       })
       .eq('id', bridgeId);
   }).catch(async (error: any) => {
     console.error('[executeAcrossBridge] Transaction failed:', error);
+    
+    // Determine if should retry
+    const shouldRetry = !/insufficient|invalid|unauthorized/i.test(error.message);
+    
     await supabaseClient
       .from('bridge_transactions')
       .update({ 
-        status: 'failed',
-        error_message: error.message 
+        status: shouldRetry ? 'pending_retry' : 'failed',
+        error_message: error.message,
+        metadata: {
+          failedAt: new Date().toISOString(),
+          retryable: shouldRetry,
+        }
       })
       .eq('id', bridgeId);
   });
@@ -729,10 +800,10 @@ async function executeWormholeBridgeEVM(
   ];
   const usdcContract = new ethers.Contract(usdcAddress, usdcAbi, wallet);
 
-  // Check balance
-  const decimals = await usdcContract.decimals();
+  // Check balance with retry
+  const decimals = await retryWithBackoff(() => usdcContract.decimals(), { maxRetries: 2 });
   const amountWei = ethers.parseUnits(amount.toString(), decimals);
-  const balance = await usdcContract.balanceOf(wallet.address);
+  const balance = await retryWithBackoff(() => usdcContract.balanceOf(wallet.address), { maxRetries: 2 });
 
   console.log('[executeWormholeBridgeEVM] Balance check:', {
     balance: ethers.formatUnits(balance, decimals),
@@ -740,7 +811,7 @@ async function executeWormholeBridgeEVM(
   });
 
   if (balance < amountWei) {
-    throw new Error(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
+    throw new NonRetryableError(`Insufficient USDC balance. Have: ${ethers.formatUnits(balance, decimals)}, Need: ${amount}`);
   }
 
   // Check and approve
@@ -749,7 +820,12 @@ async function executeWormholeBridgeEVM(
 
   if (allowance < amountWei) {
     console.log('[executeWormholeBridgeEVM] Approving USDC...');
-    const approveTx = await usdcContract.approve(tokenBridgeAddress, amountWei);
+    
+    const approveTx = await retryWithBackoff(
+      () => usdcContract.approve(tokenBridgeAddress, amountWei),
+      { maxRetries: 3 }
+    );
+    
     console.log('[executeWormholeBridgeEVM] Approval tx:', approveTx.hash);
 
     await supabaseClient
@@ -757,7 +833,13 @@ async function executeWormholeBridgeEVM(
       .update({ approval_tx_hash: approveTx.hash })
       .eq('id', bridgeId);
 
-    await approveTx.wait();
+    await Promise.race([
+      approveTx.wait(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Approval timeout')), TRANSACTION_TIMEOUT_MS)
+      )
+    ]);
+    
     console.log('[executeWormholeBridgeEVM] Approval confirmed');
   }
 
@@ -792,15 +874,21 @@ async function executeWormholeBridgeEVM(
     recipient: recipientBytes32,
   });
 
-  // Execute transfer
-  const transferTx = await tokenBridge.transferTokens(
-    usdcAddress,
-    amountWei,
-    targetChainId,
-    recipientBytes32,
-    0, // arbiterFee
-    Math.floor(Date.now() / 1000), // nonce
-    { value: wormholeFee }
+  // Execute transfer with retry
+  const transferTx = await retryWithBackoff(
+    () => tokenBridge.transferTokens(
+      usdcAddress,
+      amountWei,
+      targetChainId,
+      recipientBytes32,
+      0, // arbiterFee
+      Math.floor(Date.now() / 1000), // nonce
+      { value: wormholeFee }
+    ),
+    { maxRetries: 3 },
+    (attempt, error) => {
+      console.log(`[executeWormholeBridgeEVM] Transfer attempt ${attempt} failed:`, error.message);
+    }
   );
 
   console.log('[executeWormholeBridgeEVM] Transaction submitted:', transferTx.hash);
@@ -814,17 +902,45 @@ async function executeWormholeBridgeEVM(
     })
     .eq('id', bridgeId);
 
-  // Wait for confirmation (background)
-  transferTx.wait().then(async (receipt: any) => {
+  // Wait for confirmation with timeout and VAA fetching (background)
+  Promise.race([
+    transferTx.wait(),
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Transaction confirmation timeout')), TRANSACTION_TIMEOUT_MS)
+    )
+  ]).then(async (receipt: any) => {
     console.log('[executeWormholeBridgeEVM] Transaction confirmed:', receipt.transactionHash);
     
     // Parse sequence number from logs
     let sequence;
+    let vaaData;
     try {
-      sequence = parseSequenceFromLogEth(receipt, await tokenBridge.wormhole());
+      const wormholeAddress = await tokenBridge.wormhole();
+      sequence = parseSequenceFromLogEth(receipt, wormholeAddress);
       console.log('[executeWormholeBridgeEVM] Wormhole sequence:', sequence);
+      
+      // Fetch VAA in background
+      const emitterAddress = await getEmitterAddressEth(tokenBridgeAddress);
+      console.log('[executeWormholeBridgeEVM] Fetching VAA for sequence:', sequence);
+      
+      try {
+        const vaa = await fetchVAA(targetChainId, emitterAddress, sequence.toString());
+        vaaData = {
+          vaaBytes: vaa.vaaBytes,
+          fetched: true,
+          fetchedAt: new Date().toISOString(),
+        };
+        console.log('[executeWormholeBridgeEVM] VAA fetched successfully');
+      } catch (vaaError) {
+        console.error('[executeWormholeBridgeEVM] VAA fetch failed:', vaaError);
+        vaaData = {
+          fetched: false,
+          error: vaaError.message,
+          note: 'VAA will be fetched automatically in background',
+        };
+      }
     } catch (e) {
-      console.error('[executeWormholeBridgeEVM] Failed to parse sequence:', e);
+      console.error('[executeWormholeBridgeEVM] Failed to parse sequence or fetch VAA:', e);
     }
 
     const gasPrice = receipt.gasPrice || receipt.effectiveGasPrice;
@@ -833,21 +949,30 @@ async function executeWormholeBridgeEVM(
     await supabaseClient
       .from('bridge_transactions')
       .update({
-        status: 'completed',
+        status: vaaData?.fetched ? 'completed' : 'vaa_pending',
         gas_cost: gasCost,
         metadata: {
           wormhole_sequence: sequence,
           emitter_address: await getEmitterAddressEth(tokenBridgeAddress),
+          vaa: vaaData,
+          completedAt: new Date().toISOString(),
         },
       })
       .eq('id', bridgeId);
   }).catch(async (error: any) => {
     console.error('[executeWormholeBridgeEVM] Transaction failed:', error);
+    
+    const shouldRetry = !/insufficient|invalid|unauthorized/i.test(error.message);
+    
     await supabaseClient
       .from('bridge_transactions')
       .update({
-        status: 'failed',
+        status: shouldRetry ? 'pending_retry' : 'failed',
         error_message: error.message,
+        metadata: {
+          failedAt: new Date().toISOString(),
+          retryable: shouldRetry,
+        }
       })
       .eq('id', bridgeId);
   });

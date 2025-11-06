@@ -1,4 +1,10 @@
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  bridgeQuoteRequestSchema, 
+  bridgeExecutionSchema, 
+  validateBridgeAmount,
+  type BridgeQuoteRequest as ValidatedBridgeQuoteRequest 
+} from '@/lib/validation/bridgeSchemas';
 
 export interface BridgeQuoteRequest {
   fromChain: string;
@@ -33,14 +39,23 @@ export interface BridgeExecutionResult {
 
 class HyperliquidBridgeService {
   /**
-   * Get a quote for bridging tokens
+   * Get a quote for bridging tokens with validation
    */
   async getQuote(request: BridgeQuoteRequest): Promise<BridgeQuote> {
     try {
+      // Validate request
+      const validatedRequest = bridgeQuoteRequestSchema.parse(request);
+      
+      // Validate amount against chain limits
+      const amountValidation = validateBridgeAmount(validatedRequest.fromChain, validatedRequest.amount);
+      if (!amountValidation.valid) {
+        throw new Error(amountValidation.error);
+      }
+
       const { data, error } = await supabase.functions.invoke('hyperliquid-bridge', {
         body: {
           operation: 'get_quote',
-          ...request
+          ...validatedRequest
         }
       });
 
@@ -53,7 +68,7 @@ class HyperliquidBridgeService {
   }
 
   /**
-   * Execute a bridge transaction
+   * Execute a bridge transaction with validation
    */
   async executeBridge(
     userId: string,
@@ -63,6 +78,14 @@ class HyperliquidBridgeService {
     password?: string
   ): Promise<BridgeExecutionResult> {
     try {
+      // Validate execution parameters
+      const validatedParams = bridgeExecutionSchema.parse({
+        quote,
+        sourceWalletAddress,
+        sourceWalletType,
+        password,
+      });
+
       console.log('[BridgeService] Executing bridge:', {
         provider: quote.provider,
         fromChain: quote.fromChain,
@@ -75,10 +98,7 @@ class HyperliquidBridgeService {
         body: {
           operation: 'execute_bridge',
           userId,
-          quote,
-          sourceWalletAddress,
-          sourceWalletType,
-          password,
+          ...validatedParams,
         },
       });
 

@@ -121,6 +121,12 @@ verify_jwt = false
 [functions.sync-dydx-positions]
 verify_jwt = true
 
+[functions.hyperliquid-bridge]
+verify_jwt = true
+
+[functions.bridge-retry-service]
+verify_jwt = false
+
 [studio]
 enabled = true
 port = 54323
