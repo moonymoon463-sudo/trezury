@@ -1240,6 +1240,45 @@ export type Database = {
         }
         Relationships: []
       }
+      hyperliquid_historical_candles: {
+        Row: {
+          close: string
+          created_at: string | null
+          high: string
+          id: string
+          interval: string
+          low: string
+          market: string
+          open: string
+          timestamp: number
+          volume: string
+        }
+        Insert: {
+          close: string
+          created_at?: string | null
+          high: string
+          id?: string
+          interval: string
+          low: string
+          market: string
+          open: string
+          timestamp: number
+          volume: string
+        }
+        Update: {
+          close?: string
+          created_at?: string | null
+          high?: string
+          id?: string
+          interval?: string
+          low?: string
+          market?: string
+          open?: string
+          timestamp?: number
+          volume?: string
+        }
+        Relationships: []
+      }
       hyperliquid_orders: {
         Row: {
           address: string
@@ -3395,11 +3434,13 @@ export type Database = {
         Row: {
           created_at: string | null
           drawings: Json | null
+          earliest_loaded_time: number | null
           id: string
           indicators: Json | null
           live_mode: boolean | null
           market: string
           resolution: string
+          total_candles_loaded: number | null
           updated_at: string | null
           user_id: string
           viewport: Json | null
@@ -3407,11 +3448,13 @@ export type Database = {
         Insert: {
           created_at?: string | null
           drawings?: Json | null
+          earliest_loaded_time?: number | null
           id?: string
           indicators?: Json | null
           live_mode?: boolean | null
           market: string
           resolution: string
+          total_candles_loaded?: number | null
           updated_at?: string | null
           user_id: string
           viewport?: Json | null
@@ -3419,11 +3462,13 @@ export type Database = {
         Update: {
           created_at?: string | null
           drawings?: Json | null
+          earliest_loaded_time?: number | null
           id?: string
           indicators?: Json | null
           live_mode?: boolean | null
           market?: string
           resolution?: string
+          total_candles_loaded?: number | null
           updated_at?: string | null
           user_id?: string
           viewport?: Json | null

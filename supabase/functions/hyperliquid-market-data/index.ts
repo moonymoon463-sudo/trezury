@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +60,12 @@ serve(async (req) => {
 
   try {
     const { operation, params } = await req.json();
+    
+    // Initialize Supabase client for database operations
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     const cacheKey = `${operation}:${JSON.stringify(params || {})}`;
     const cached = cache.get(cacheKey);
@@ -161,6 +168,37 @@ serve(async (req) => {
       });
       
       console.log('[Hyperliquid] Transformed candles:', result.length, 'candles');
+      
+      // Store candles in database for persistence
+      if (result.length > 0) {
+        const candlesToStore = result.map((c: any) => ({
+          market: params.market,
+          interval: interval,
+          timestamp: c.t,
+          open: c.o,
+          high: c.h,
+          low: c.l,
+          close: c.c,
+          volume: c.v
+        }));
+        
+        try {
+          const { error: dbError } = await supabaseClient
+            .from('hyperliquid_historical_candles')
+            .upsert(candlesToStore, { 
+              onConflict: 'market,interval,timestamp',
+              ignoreDuplicates: false 
+            });
+          
+          if (dbError) {
+            console.error('[Hyperliquid] Error storing candles:', dbError);
+          } else {
+            console.log('[Hyperliquid] Stored', candlesToStore.length, 'candles in database');
+          }
+        } catch (dbError) {
+          console.error('[Hyperliquid] Database error:', dbError);
+        }
+      }
     } else if (operation === 'get_trades') {
       result = (data || []).slice(0, params.limit || 50);
     } else if (operation === 'get_user_fills') {
