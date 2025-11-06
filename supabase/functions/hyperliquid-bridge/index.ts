@@ -517,7 +517,7 @@ async function decryptPrivateKey(encryptedKey: string, password: string): Promis
 function hexToUint8Array(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
   }
   return bytes;
 }
@@ -851,10 +851,10 @@ async function executeWormholeBridgeEVM(
   const tokenBridge = new ethers.Contract(tokenBridgeAddress, tokenBridgeAbi, wallet);
 
   // Target Arbitrum as intermediate (Wormhole chain ID)
-  const targetChainId = WORMHOLE_CHAIN_IDS.arbitrum;
+  const targetChainId = WORMHOLE_CHAIN_IDS.arbitrum || CHAIN_ID_ARBITRUM;
   
   // Convert destination address to bytes32
-  const recipientBytes32 = '0x' + tryNativeToHexString(destinationAddress, targetChainId);
+  const recipientBytes32 = ethers.zeroPadValue(destinationAddress, 32);
 
   // Calculate Wormhole fee (typically small, ~0.001 ETH equivalent)
   const wormholeFee = ethers.parseEther('0.001');
@@ -916,7 +916,7 @@ async function executeWormholeBridgeEVM(
     let vaaData;
     try {
       const wormholeAddress = await tokenBridge.wormhole();
-      sequence = parseSequenceFromLogEth(receipt, wormholeAddress);
+      sequence = parseSequenceFromReceipt(receipt, wormholeAddress);
       console.log('[executeWormholeBridgeEVM] Wormhole sequence:', sequence);
       
       // Fetch VAA in background
