@@ -3,16 +3,15 @@
  */
 
 import { ethers } from 'https://esm.sh/ethers@6.13.2';
-import {
-  CHAIN_ID_ARBITRUM,
-  getEmitterAddressEth,
-} from 'npm:@certusone/wormhole-sdk@0.10.18';
 import type { BridgeProvider, BridgeQuote, QuoteParams } from './types.ts';
 import { WORMHOLE_CONFIG, USDC_ADDRESSES, ERC20_ABI } from './config.ts';
 import { validateAmount, validateAddress } from './validation.ts';
 import { BridgeMonitor } from './monitoring.ts';
 import { getRpcUrl } from '../rpcConfig.ts';
-import { fetchVAA, parseSequenceFromReceipt } from '../wormholeVAA.ts';
+import { fetchVAA, parseSequenceFromReceipt, getEmitterAddressEth } from '../wormholeVAA.ts';
+
+// Local Wormhole chain ID constant (replaces SDK import)
+const CHAIN_ID_ARBITRUM = 23;
 
 export class WormholeProvider implements BridgeProvider {
   readonly name = 'wormhole';

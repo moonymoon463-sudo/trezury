@@ -99,24 +99,37 @@ export async function fetchVAA(
 }
 
 /**
- * Parse sequence number from transaction receipt logs
+ * Parse sequence number from transaction receipt logs using ethers Interface
  */
-export function parseSequenceFromReceipt(receipt: any, wormholeAddress: string): string {
-  // Look for LogMessagePublished event
-  const logMessagePublishedTopic = '0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2';
+export function parseSequenceFromReceipt(receipt: any, tokenBridgeAddress: string): string {
+  const iface = new ethers.Interface([
+    'event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel)',
+  ]);
   
   for (const log of receipt.logs) {
-    if (log.topics[0] === logMessagePublishedTopic && log.address.toLowerCase() === wormholeAddress.toLowerCase()) {
-      // Sequence is in the 3rd topic
-      if (log.topics.length >= 3) {
-        const sequenceHex = log.topics[2];
-        const sequence = BigInt(sequenceHex).toString();
-        return sequence;
+    if (log.address.toLowerCase() === tokenBridgeAddress.toLowerCase()) {
+      try {
+        const parsed = iface.parseLog({
+          topics: log.topics,
+          data: log.data,
+        });
+        if (parsed?.name === 'LogMessagePublished') {
+          return parsed.args.sequence.toString();
+        }
+      } catch {
+        // Not the event we're looking for, continue
       }
     }
   }
   
-  throw new Error('Could not find sequence number in transaction logs');
+  throw new Error('Wormhole sequence not found in transaction logs');
+}
+
+/**
+ * Get emitter address from token bridge address (replaces SDK function)
+ */
+export function getEmitterAddressEth(tokenBridgeAddress: string): string {
+  return tokenBridgeAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
 }
 
 /**
