@@ -1,0 +1,8 @@
+[install]
+# Skip native build scripts to avoid compilation errors
+optional = false
+# Don't run lifecycle scripts that compile native modules
+scripts = {
+  "node-hid" = "echo 'Skipping node-hid build'",
+  "@ledgerhq/hw-transport-node-hid-noevents" = "echo 'Skipping ledger build'"
+}

@@ -12,6 +12,14 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   optimizeDeps: {
     include: ["react", "react-dom"],
+    exclude: [
+      "@ethersproject/hardware-wallets",
+      "@ledgerhq/hw-app-eth",
+      "@ledgerhq/hw-transport",
+      "@ledgerhq/hw-transport-node-hid",
+      "@ledgerhq/hw-transport-node-hid-noevents",
+      "node-hid"
+    ],
   },
   resolve: {
     alias: {
@@ -19,4 +27,14 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom"],
   },
+  build: {
+    rollupOptions: {
+      external: [
+        "@ethersproject/hardware-wallets",
+        "@ledgerhq/hw-app-eth",
+        "@ledgerhq/hw-transport-node-hid",
+        "node-hid"
+      ].filter(() => true)
+    }
+  }
 }));
