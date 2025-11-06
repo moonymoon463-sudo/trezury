@@ -70,6 +70,9 @@ verify_jwt = true
 [functions.security-monitor]
 verify_jwt = true
 
+[functions.system-health]
+verify_jwt = false
+
 [functions.moonpay-status]
 verify_jwt = true
 

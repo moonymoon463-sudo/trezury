@@ -71,6 +71,8 @@ import AlertManagementSystem from "./components/admin/AlertManagementSystem";
 import CapacityPlanningDashboard from "./components/admin/CapacityPlanningDashboard";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import TradingDashboard from "./pages/TradingDashboard";
+import SystemHealthPage from "./pages/SystemHealth";
+import ProductionChecklistPage from "./pages/ProductionChecklist";
 // DydxTradesHistory removed - migrated to Hyperliquid
 // 01 Protocol removed - focused on Hyperliquid only
 
@@ -150,6 +152,8 @@ const AppRoutes = () => {
       <Route path="/admin/deploy-contract" element={<ProtectedRoute><AdminContractDeploy /></ProtectedRoute>} />
       <Route path="/admin/alerts" element={<ProtectedRoute><AlertManagementSystem /></ProtectedRoute>} />
       <Route path="/admin/capacity-planning" element={<ProtectedRoute><CapacityPlanningDashboard /></ProtectedRoute>} />
+      <Route path="/system-health" element={<ProtectedRoute><SystemHealthPage /></ProtectedRoute>} />
+      <Route path="/production-checklist" element={<ProtectedRoute><ProductionChecklistPage /></ProtectedRoute>} />
       <Route path="/trzry-reserves" element={<ProtectedRoute><TrzryReserves /></ProtectedRoute>} />
       <Route path="/trzry-hub" element={<ProtectedRoute><TrzryHub /></ProtectedRoute>} />
       <Route path="/send" element={<ProtectedRoute><Send /></ProtectedRoute>} />
