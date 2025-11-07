@@ -125,19 +125,24 @@ export class BridgeOrchestrator {
   ): Promise<BridgeExecutionResult> {
     this.monitor.logInfo('Executing internal wallet bridge', { userId, provider: quote.provider });
 
-    // Get encrypted private key
+    // Get encrypted wallet data
     const { data: encryptedData, error: encryptError } = await supabaseClient
-      .from('secure_wallets')
-      .select('encrypted_private_key')
+      .from('encrypted_wallet_keys')
+      .select('encrypted_private_key, encryption_iv, encryption_salt')
       .eq('user_id', userId)
       .single();
 
     if (encryptError || !encryptedData) {
-      throw new Error('Wallet private key not found');
+      throw new Error('Wallet private key not found. Please ensure your internal wallet is set up.');
     }
 
-    // Decrypt private key
-    const privateKey = await decryptPrivateKey(encryptedData.encrypted_private_key, password);
+    // Decrypt private key with password
+    const privateKey = await decryptPrivateKey(
+      encryptedData.encrypted_private_key,
+      password,
+      encryptedData.encryption_iv,
+      encryptedData.encryption_salt
+    );
     this.monitor.logInfo('Private key decrypted successfully');
 
     const destinationAddress = quote.route.destinationAddress;
