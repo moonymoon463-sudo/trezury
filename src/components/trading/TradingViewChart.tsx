@@ -61,14 +61,6 @@ const TradingViewChart = ({
   const lastCandleCountRef = useRef(0);
   const onLoadMoreRef = useRef<(() => void) | undefined>(onLoadMore);
   useEffect(() => { onLoadMoreRef.current = onLoadMore; }, [onLoadMore]);
-
-  // Gate chart initialization until we actually have candles to render
-  const [readyToInit, setReadyToInit] = useState(false);
-  useEffect(() => {
-    if (!readyToInit && candles && candles.length > 0) {
-      setReadyToInit(true);
-    }
-  }, [candles.length, readyToInit]);
   
   // Chart persistence
   const {
@@ -139,39 +131,35 @@ const TradingViewChart = ({
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
-      // Prevent initialization until we have data and we've flagged readiness
-      if (!readyToInit) {
-        console.log('[TradingViewChart] Waiting for candles to initialize...');
-        return;
-      }
-
       // Prevent double-initialization
       if (chartRef.current) {
         console.log('[TradingViewChart] Chart already exists, skipping init');
         return;
       }
       
-      if (!chartContainerRef.current) return;
-      
-      // Wait for container to have dimensions
-      if (chartContainerRef.current.clientHeight === 0) {
-        console.log('[TradingViewChart] Container not ready, waiting...');
+      if (!chartContainerRef.current) {
+        console.log('[TradingViewChart] Container ref not ready');
         return;
       }
 
-      console.log('[TradingViewChart] Chart initialization:', {
+      if (candles.length === 0) {
+        console.log('[TradingViewChart] No candles yet, waiting...');
+        return;
+      }
+
+      console.log('[TradingViewChart] Initializing chart:', {
         symbol,
         resolution,
         candlesCount: candles.length,
-        containerHeight: chartContainerRef.current?.clientHeight,
-        containerWidth: chartContainerRef.current?.clientWidth,
+        containerHeight: chartContainerRef.current?.clientHeight || 'N/A',
+        containerWidth: chartContainerRef.current?.clientWidth || 'N/A',
       });
 
       if (disposed) return;
 
-      // Create chart instance with stable sizing
-      const containerHeight = Math.max(chartContainerRef.current.clientHeight, 400);
-      const containerWidth = Math.max(chartContainerRef.current.clientWidth, 600);
+      // Create chart instance with stable sizing (use fallback if container not fully rendered)
+      const containerHeight = Math.max(chartContainerRef.current?.clientHeight || 550, 400);
+      const containerWidth = Math.max(chartContainerRef.current?.clientWidth || 800, 600);
       
       const chart = createChart(chartContainerRef.current, {
         layout: {
@@ -407,7 +395,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution, onLoadMore, readyToInit]);
+  }, [symbol, resolution, onLoadMore, candles.length]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
