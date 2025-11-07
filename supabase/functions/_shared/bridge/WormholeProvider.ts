@@ -133,9 +133,20 @@ export class WormholeProvider implements BridgeProvider {
     this.monitor.logInfo('Executing Wormhole transfer...', { bridgeId });
     const tokenBridgeAbi = [
       'function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) payable returns (uint64 sequence)',
+      'function wormhole() view returns (address)',
     ];
 
     const tokenBridge = new ethers.Contract(tokenBridgeAddress, tokenBridgeAbi, wallet);
+
+    // Query the current message fee from Wormhole core contract
+    const wormholeAddress = await tokenBridge.wormhole();
+    const wormholeAbi = [
+      'function messageFee() view returns (uint256)',
+    ];
+    const wormholeCore = new ethers.Contract(wormholeAddress, wormholeAbi, wallet);
+    const messageFee = await wormholeCore.messageFee();
+    
+    this.monitor.logInfo('Wormhole message fee', { messageFee: ethers.formatEther(messageFee), bridgeId });
 
     const transferTx = await tokenBridge.transferTokens(
       usdcAddress,
@@ -144,7 +155,7 @@ export class WormholeProvider implements BridgeProvider {
       ethers.zeroPadValue(wallet.address, 32),
       0,
       Math.floor(Math.random() * 4294967295),
-      { value: ethers.parseEther(WORMHOLE_CONFIG.nativeFee) }
+      { value: messageFee }
     );
 
     this.monitor.logTransactionSubmitted(bridgeId, transferTx.hash, 'wormhole');
