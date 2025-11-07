@@ -31,6 +31,14 @@ export const ACROSS_CONFIG = {
     base: '0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64',
     bsc: '0x4e8E101924eDE233C13e2D8622DC8aED2872d505',
   },
+  chainIds: {
+    ethereum: 1,
+    arbitrum: 42161,
+    optimism: 10,
+    polygon: 137,
+    base: 8453,
+    bsc: 56,
+  },
   timeEstimates: {
     ethereum: '1-3min',
     arbitrum: '30s-2min',

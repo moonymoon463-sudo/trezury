@@ -52,19 +52,21 @@ export class AcrossProvider implements BridgeProvider {
     return quote;
   }
 
-  async prepareTransaction(quote: BridgeQuote, fromAddress: string): Promise<any> {
+async prepareTransaction(quote: BridgeQuote, fromAddress: string): Promise<any> {
     const spokePoolAddress = ACROSS_CONFIG.spokePoolAddresses[quote.fromChain];
-    const usdcAddress = USDC_ADDRESSES[quote.fromChain];
+    const inputUsdc = USDC_ADDRESSES[quote.fromChain];
+    const outputUsdc = USDC_ADDRESSES[quote.toChain];
+    const destChainId = (ACROSS_CONFIG as any).chainIds?.[quote.toChain];
 
-    if (!spokePoolAddress || !usdcAddress) {
-      throw new Error(`Across not supported on ${quote.fromChain}`);
+    if (!spokePoolAddress || !inputUsdc || !outputUsdc || !destChainId) {
+      throw new Error(`Across not supported for ${quote.fromChain} -> ${quote.toChain}`);
     }
 
     const amount = ethers.parseUnits(quote.inputAmount.toString(), 6);
 
     return {
       approval: {
-        to: usdcAddress,
+        to: inputUsdc,
         from: fromAddress,
         data: new ethers.Interface(ERC20_ABI).encodeFunctionData('approve', [
           spokePoolAddress,
@@ -80,11 +82,11 @@ export class AcrossProvider implements BridgeProvider {
         ]).encodeFunctionData('depositV3', [
           fromAddress,
           fromAddress,
-          usdcAddress,
-          usdcAddress,
+          inputUsdc,
+          outputUsdc,
           amount,
           amount,
-          42161, // Arbitrum as intermediate chain
+          destChainId,
           ethers.ZeroAddress,
           Math.floor(Date.now() / 1000),
           Math.floor(Date.now() / 1000) + 3600,
@@ -109,17 +111,19 @@ export class AcrossProvider implements BridgeProvider {
     const wallet = new ethers.Wallet(privateKey, provider);
 
     const spokePoolAddress = ACROSS_CONFIG.spokePoolAddresses[quote.fromChain];
-    const usdcAddress = USDC_ADDRESSES[quote.fromChain];
+    const inputUsdc = USDC_ADDRESSES[quote.fromChain];
+    const outputUsdc = USDC_ADDRESSES[quote.toChain];
+    const destChainId = (ACROSS_CONFIG as any).chainIds?.[quote.toChain];
 
-    if (!spokePoolAddress || !usdcAddress) {
-      throw new Error(`Chain ${quote.fromChain} not supported for Across`);
+    if (!spokePoolAddress || !inputUsdc || !outputUsdc || !destChainId) {
+      throw new Error(`Across route unsupported: ${quote.fromChain} -> ${quote.toChain}`);
     }
 
     const amount = ethers.parseUnits(quote.inputAmount.toString(), 6);
 
     // Step 1: Approve USDC
     this.monitor.logInfo('Approving USDC...', { bridgeId, amount: quote.inputAmount });
-    const usdcContract = new ethers.Contract(usdcAddress, ERC20_ABI, wallet);
+    const usdcContract = new ethers.Contract(inputUsdc, ERC20_ABI, wallet);
 
     const currentAllowance = await usdcContract.allowance(wallet.address, spokePoolAddress);
     if (currentAllowance < amount) {
@@ -139,20 +143,27 @@ export class AcrossProvider implements BridgeProvider {
 
     const spokePool = new ethers.Contract(spokePoolAddress, spokePoolAbi, wallet);
 
-    const depositTx = await spokePool.depositV3(
-      wallet.address,
-      wallet.address,
-      usdcAddress,
-      usdcAddress,
-      amount,
-      amount,
-      42161, // Arbitrum
-      ethers.ZeroAddress,
-      Math.floor(Date.now() / 1000),
-      Math.floor(Date.now() / 1000) + 3600,
-      0,
-      '0x'
-    );
+    let depositTx;
+    try {
+      depositTx = await spokePool.depositV3(
+        wallet.address,
+        wallet.address,
+        inputUsdc,
+        outputUsdc,
+        amount,
+        amount,
+        destChainId,
+        ethers.ZeroAddress,
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000) + 3600,
+        0,
+        '0x'
+      );
+    } catch (e) {
+      this.monitor.logError(e as Error, { bridgeId, stage: 'depositV3', inputUsdc, outputUsdc, destChainId });
+      await supabaseClient.from('bridge_transactions').update({ status: 'failed', error_message: (e as Error).message, updated_at: new Date().toISOString() }).eq('id', bridgeId);
+      throw e;
+    }
 
     this.monitor.logTransactionSubmitted(bridgeId, depositTx.hash, 'across');
 
