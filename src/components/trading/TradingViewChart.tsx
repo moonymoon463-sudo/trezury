@@ -133,7 +133,11 @@ const TradingViewChart = ({
     const init = async () => {
       if (!chartContainerRef.current) return;
       
-      // Container dimensions will be handled by chart library
+      // Wait for container to have dimensions
+      if (chartContainerRef.current.clientHeight === 0) {
+        console.log('[TradingViewChart] Container not ready, waiting...');
+        return;
+      }
 
       if (candles.length === 0) {
         console.log('[TradingViewChart] No candles yet, waiting...');
@@ -259,9 +263,7 @@ const TradingViewChart = ({
             // Trigger load more when scrolling near the beginning
             if (range.from < 10) {
               console.log('[TradingViewChart] Loading more historical data');
-              if (onLoadMoreRef.current) {
-                onLoadMoreRef.current();
-              }
+              onLoadMore();
             }
           }
         });
@@ -382,7 +384,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution]);
+  }, [symbol, resolution, onLoadMore]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {

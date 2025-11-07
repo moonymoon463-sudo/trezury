@@ -282,7 +282,6 @@ export const useHyperliquidCandles = (
     };
   }, [market, interval, limit]);
 
-
   return { 
     candles, 
     loading, 
