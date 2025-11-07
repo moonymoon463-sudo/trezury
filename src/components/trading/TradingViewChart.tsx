@@ -263,7 +263,9 @@ const TradingViewChart = ({
             // Trigger load more when scrolling near the beginning
             if (range.from < 10) {
               console.log('[TradingViewChart] Loading more historical data');
-              onLoadMore();
+              if (onLoadMoreRef.current) {
+                onLoadMoreRef.current();
+              }
             }
           }
         });
@@ -384,7 +386,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution, onLoadMore]);
+  }, [symbol, resolution]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {

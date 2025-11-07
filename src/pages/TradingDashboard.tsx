@@ -157,8 +157,9 @@ const TradingDashboard = () => {
   });
 
   // Filter leverage assets (BTC, ETH, SOL from Hyperliquid)
+  const normalizeSymbol = (name: string) => name.replace(/-USD$|-PERP$/i, '');
   const leverageAssets = markets.filter(m => 
-    ['BTC', 'ETH', 'SOL'].includes(m.name)
+    ['BTC', 'ETH', 'SOL'].includes(normalizeSymbol(m.name))
   );
 
   // Spot trading assets (mock for now)
@@ -755,14 +756,14 @@ const TradingDashboard = () => {
               {tradingMode === 'leverage' && leverageAssets.map((asset) => (
                 <button
                   key={asset.name}
-                  onClick={() => setSelectedAsset(asset.name)}
+                  onClick={() => setSelectedAsset(`${normalizeSymbol(asset.name)}-USD`)}
                   className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg group transition-colors ${
-                    selectedAsset === asset.name ? 'bg-[#463c25]' : 'hover:bg-[#463c25]'
+                    selectedAsset === asset.name || selectedAsset === `${normalizeSymbol(asset.name)}-USD` ? 'bg-[#463c25]' : 'hover:bg-[#463c25]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-white" />
-                    <p className="text-white text-xs font-medium leading-normal">{asset.name}</p>
+                    <p className="text-white text-xs font-medium leading-normal">{normalizeSymbol(asset.name)}</p>
                   </div>
                 </button>
               ))}
