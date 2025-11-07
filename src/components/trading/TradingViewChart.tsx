@@ -395,7 +395,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution, onLoadMore, candles.length]);
+  }, [symbol, resolution, onLoadMore]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
@@ -797,7 +797,7 @@ const TradingViewChart = ({
       </div>
 
       {/* Chart Container */}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-[520px]">
         <SpiralOverlay phase={phase} />
         
         {/* Drawing Tools - Overlaid on chart */}
@@ -814,7 +814,7 @@ const TradingViewChart = ({
         
         <div 
           ref={chartContainerRef} 
-          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-full min-h-[520px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">
