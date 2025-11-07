@@ -58,6 +58,13 @@ export const useHyperliquidBridge = () => {
     if (!user?.id) throw new Error('User not authenticated');
     if (!sourceWalletAddress) throw new Error('Source wallet address required');
 
+    console.log('[useHyperliquidBridge] Starting bridge execution:', {
+      amount: quoteData.inputAmount,
+      provider: quoteData.provider,
+      sourceWalletType,
+      sourceWalletAddress: sourceWalletAddress?.slice(0, 10) + '...'
+    });
+
     setLoading(true);
     setError(null);
     try {
@@ -68,6 +75,8 @@ export const useHyperliquidBridge = () => {
         sourceWalletType,
         password
       );
+
+      console.log('[useHyperliquidBridge] Bridge result:', result);
 
       if (!result.success) {
         throw new Error(result.error || 'Bridge execution failed');
@@ -83,6 +92,7 @@ export const useHyperliquidBridge = () => {
       return result;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to execute bridge';
+      console.error('[useHyperliquidBridge] Bridge error:', err);
       setError(errorMsg);
       throw err;
     } finally {

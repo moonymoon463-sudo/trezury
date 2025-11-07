@@ -182,8 +182,19 @@ export class BridgeOrchestrator {
     this.monitor.logExecutionStart(bridgeData.id, { quote, sourceWalletAddress });
 
     // Get provider and execute transaction
+    this.monitor.logInfo('Starting bridge transaction execution', { 
+      bridgeId: bridgeData.id, 
+      provider: quote.provider,
+      amount: quote.inputAmount 
+    });
+    
     const provider = ProviderFactory.getProvider(quote.provider);
     const result = await provider.executeTransaction(quote, privateKey, bridgeData.id, supabaseClient);
+
+    this.monitor.logInfo('Bridge transaction executed successfully', { 
+      bridgeId: bridgeData.id, 
+      txHash: result.txHash 
+    });
 
     return {
       success: true,
