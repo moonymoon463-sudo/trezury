@@ -224,7 +224,7 @@ export class BridgeOrchestrator {
 
     return {
       status: data.status,
-      txHash: data.transaction_hash,
+      txHash: data.source_tx_hash,
       destinationTxHash: data.destination_tx_hash,
       error: data.error_message,
       estimatedCompletion: data.estimated_completion,

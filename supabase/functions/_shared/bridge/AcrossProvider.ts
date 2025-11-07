@@ -160,7 +160,7 @@ export class AcrossProvider implements BridgeProvider {
     await supabaseClient
       .from('bridge_transactions')
       .update({
-        transaction_hash: depositTx.hash,
+        source_tx_hash: depositTx.hash,
         status: 'processing',
         updated_at: new Date().toISOString(),
       })

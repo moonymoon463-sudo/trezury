@@ -178,14 +178,14 @@ export class WormholeProvider implements BridgeProvider {
       this.monitor.logTransactionSubmitted(bridgeId, transferTx.hash, 'wormhole');
 
       // Update database
-      await supabaseClient
-        .from('bridge_transactions')
-        .update({
-          transaction_hash: transferTx.hash,
-          status: 'processing',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', bridgeId);
+    await supabaseClient
+      .from('bridge_transactions')
+      .update({
+        source_tx_hash: transferTx.hash,
+        status: 'processing',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', bridgeId);
 
       // Wait for receipt and fetch VAA in background
       this.processVAAInBackground(
