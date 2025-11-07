@@ -66,6 +66,22 @@ export class WormholeProvider implements BridgeProvider {
 
     const amount = ethers.parseUnits(quote.inputAmount.toString(), 6);
 
+    // Dynamically fetch the current Wormhole message fee for this chain
+    const rpcUrl = getRpcUrl(quote.fromChain);
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const tokenBridgeAbi = [
+      'function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) payable returns (uint64 sequence)',
+      'function wormhole() view returns (address)',
+    ];
+    const tokenBridge = new ethers.Contract(tokenBridgeAddress, tokenBridgeAbi, provider);
+    const wormholeAddress = await tokenBridge.wormhole();
+    const wormholeAbi = [
+      'function messageFee() view returns (uint256)',
+    ];
+    const wormholeCore = new ethers.Contract(wormholeAddress, wormholeAbi, provider);
+    const messageFee = await wormholeCore.messageFee();
+    this.monitor.logInfo('Wormhole message fee (prepare)', { feeEth: ethers.formatEther(messageFee) });
+
     return {
       approval: {
         to: usdcAddress,
@@ -89,7 +105,7 @@ export class WormholeProvider implements BridgeProvider {
           0,
           Math.floor(Math.random() * 4294967295),
         ]),
-        value: ethers.parseEther(WORMHOLE_CONFIG.nativeFee).toString(),
+        value: messageFee.toString(),
       },
     };
   }

@@ -83,22 +83,33 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     const isValidationError = error instanceof ValidationError;
-    const statusCode = isValidationError ? 400 : 500;
+    const isUnauthorized = (error as Error)?.message === 'Unauthorized';
 
     monitor.logError(error as Error, {
       path: new URL(req.url).pathname,
       method: req.method,
     });
 
+    // Auth errors should remain 401
+    if (isUnauthorized) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', type: 'auth_error' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validation errors return 400
+    if (isValidationError) {
+      return new Response(
+        JSON.stringify({ success: false, error: (error as Error).message, type: 'validation_error' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // All other errors (typically provider/internal) return 200 with a structured failure to avoid non-2xx errors on the client
     return new Response(
-      JSON.stringify({
-        error: (error as Error).message,
-        type: isValidationError ? 'validation_error' : 'internal_error',
-      }),
-      {
-        status: statusCode,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify({ success: false, error: (error as Error).message, type: 'provider_error' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
