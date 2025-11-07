@@ -137,13 +137,19 @@ export class BridgeOrchestrator {
     }
 
     // Decrypt private key with password
-    const privateKey = await decryptPrivateKey(
-      encryptedData.encrypted_private_key,
-      password,
-      encryptedData.encryption_iv,
-      encryptedData.encryption_salt
-    );
-    this.monitor.logInfo('Private key decrypted successfully');
+    let privateKey: string;
+    try {
+      privateKey = await decryptPrivateKey(
+        encryptedData.encrypted_private_key,
+        password,
+        encryptedData.encryption_iv,
+        encryptedData.encryption_salt
+      );
+      this.monitor.logInfo('Private key decrypted successfully');
+    } catch (decryptError) {
+      this.monitor.logError(decryptError as Error, { operation: 'decrypt_private_key' });
+      throw new Error('Incorrect password or wallet decryption failed. Please check your password and try again.');
+    }
 
     const destinationAddress = quote.route.destinationAddress;
 
