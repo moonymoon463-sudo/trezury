@@ -128,17 +128,34 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
     }
 
     setStep('processing');
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    // Safety timeout - force stop after 15 minutes
+    const safetyTimeout = setTimeout(() => {
+      if (pollInterval) clearInterval(pollInterval);
+      setStep('input');
+      toast({
+        title: "Operation Timeout",
+        description: "Bridge operation timed out. Please try again or check your transaction status.",
+        variant: "destructive",
+      });
+    }, 15 * 60 * 1000); // 15 minutes
 
     try {
       const sourceAddress = sourceWallet === 'external' ? wallet.address : internalWalletAddress;
       const result = await executeBridge(quote as any, sourceAddress, sourceWallet, password);
       
       console.log('[DepositHyperliquidBridge] Bridge transaction submitted:', result);
+
+      // Check if result indicates failure
+      if (!result || !result.bridgeId) {
+        throw new Error('Failed to create bridge transaction');
+      }
       
       // Poll for status updates
       let attempts = 0;
       const maxAttempts = 120; // 10 minutes (5s intervals)
-      const pollInterval = setInterval(async () => {
+      pollInterval = setInterval(async () => {
         attempts++;
         
         try {
@@ -146,7 +163,8 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           console.log('[DepositHyperliquidBridge] Bridge status:', status);
           
           if (status.status === 'completed') {
-            clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
+            clearTimeout(safetyTimeout);
             setStep('complete');
             toast({
               title: "Bridge Complete",
@@ -154,34 +172,63 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
             });
             onSuccess?.();
           } else if (status.status === 'failed') {
-            clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
+            clearTimeout(safetyTimeout);
             setStep('input');
             toast({
               title: "Bridge Failed",
-              description: status.error || "Transaction failed on chain",
+              description: status.error || "Transaction failed on chain. Please try again or contact support.",
               variant: "destructive",
             });
           } else if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
+            if (pollInterval) clearInterval(pollInterval);
+            clearTimeout(safetyTimeout);
             setStep('input');
             toast({
               title: "Bridge Timeout",
-              description: "Bridge is taking longer than expected. Please check transaction status later.",
+              description: "Bridge is taking longer than expected. Transaction may still complete - check your wallet later.",
               variant: "destructive",
             });
           }
         } catch (error) {
           console.error('[DepositHyperliquidBridge] Status check failed:', error);
-          // Don't stop polling on status check errors
+          // Continue polling unless we've hit max attempts
+          if (attempts >= maxAttempts) {
+            if (pollInterval) clearInterval(pollInterval);
+            clearTimeout(safetyTimeout);
+            setStep('input');
+            toast({
+              title: "Status Check Failed",
+              description: "Unable to verify bridge status. Please check your wallet.",
+              variant: "destructive",
+            });
+          }
         }
       }, 5000); // Poll every 5 seconds
       
     } catch (error: any) {
       console.error('[DepositHyperliquidBridge] Bridge failed:', error);
+      if (pollInterval) clearInterval(pollInterval);
+      clearTimeout(safetyTimeout);
       setStep('input');
+      
+      // Extract meaningful error message
+      let errorMessage = "Failed to initiate bridge";
+      if (error?.message) {
+        if (error.message.includes('insufficient funds')) {
+          errorMessage = "Insufficient funds in source wallet";
+        } else if (error.message.includes('user rejected')) {
+          errorMessage = "Transaction rejected by user";
+        } else if (error.message.includes('invalid fee')) {
+          errorMessage = "Bridge fee configuration error. Please try a different provider.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Bridge Failed",
-        description: error.message || "Failed to initiate bridge",
+        description: errorMessage,
         variant: "destructive",
       });
     }
