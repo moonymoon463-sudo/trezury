@@ -131,14 +131,11 @@ const TradingViewChart = ({
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
-      // Prevent double-initialization
-      if (chartRef.current) {
-        console.log('[TradingViewChart] Chart already exists, skipping init');
-        return;
-      }
+      if (!chartContainerRef.current) return;
       
-      if (!chartContainerRef.current) {
-        console.log('[TradingViewChart] Container ref not ready');
+      // Wait for container to have dimensions
+      if (chartContainerRef.current.clientHeight === 0) {
+        console.log('[TradingViewChart] Container not ready, waiting...');
         return;
       }
 
@@ -147,19 +144,19 @@ const TradingViewChart = ({
         return;
       }
 
-      console.log('[TradingViewChart] Initializing chart:', {
+      console.log('[TradingViewChart] Chart initialization:', {
         symbol,
         resolution,
         candlesCount: candles.length,
-        containerHeight: chartContainerRef.current?.clientHeight || 'N/A',
-        containerWidth: chartContainerRef.current?.clientWidth || 'N/A',
+        containerHeight: chartContainerRef.current?.clientHeight,
+        containerWidth: chartContainerRef.current?.clientWidth,
       });
 
       if (disposed) return;
 
-      // Create chart instance with stable sizing (use fallback if container not fully rendered)
-      const containerHeight = Math.max(chartContainerRef.current?.clientHeight || 550, 400);
-      const containerWidth = Math.max(chartContainerRef.current?.clientWidth || 800, 600);
+      // Create chart instance with stable sizing
+      const containerHeight = Math.max(chartContainerRef.current.clientHeight, 400);
+      const containerWidth = Math.max(chartContainerRef.current.clientWidth, 600);
       
       const chart = createChart(chartContainerRef.current, {
         layout: {
@@ -254,14 +251,6 @@ const TradingViewChart = ({
 
       candleSeries.setData(chartData);
       volumeSeries.setData(volumeData);
-      
-      console.log('[TradingViewChart] Chart initialized successfully:', {
-        symbol,
-        resolution,
-        candlesCount: chartData.length,
-        firstTime: chartData[0]?.time,
-        lastTime: chartData[chartData.length - 1]?.time
-      });
 
       // Set up lazy loading on scroll
       if (onLoadMore) {
@@ -274,7 +263,7 @@ const TradingViewChart = ({
             // Trigger load more when scrolling near the beginning
             if (range.from < 10) {
               console.log('[TradingViewChart] Loading more historical data');
-              if (onLoadMoreRef.current) onLoadMoreRef.current();
+              onLoadMore();
             }
           }
         });
@@ -395,7 +384,7 @@ const TradingViewChart = ({
       disposed = true;
       if (cleanup) cleanup();
     };
-  }, [symbol, resolution]);
+  }, [symbol, resolution, onLoadMore]);
 
   // Update existing chart when candles change (without remounting)
   useEffect(() => {
@@ -797,7 +786,7 @@ const TradingViewChart = ({
       </div>
 
       {/* Chart Container */}
-      <div className="relative flex-1 min-h-[520px]">
+      <div className="relative flex-1 min-h-0">
         <SpiralOverlay phase={phase} />
         
         {/* Drawing Tools - Overlaid on chart */}
@@ -814,7 +803,7 @@ const TradingViewChart = ({
         
         <div 
           ref={chartContainerRef} 
-          className="w-full h-full min-h-[520px] rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
+          className="w-full h-full rounded-lg border border-aurum/20 bg-gradient-to-br from-black/80 to-zinc-950/80"
         />
         {isLoading && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-lg">

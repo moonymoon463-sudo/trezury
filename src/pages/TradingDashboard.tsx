@@ -28,7 +28,6 @@ import { DepositHyperliquidBridge } from '@/components/trading/DepositHyperliqui
 import { HyperliquidWalletGenerator } from '@/components/trading/HyperliquidWalletGenerator';
 import { WithdrawModal } from '@/components/trading/WithdrawModal';
 import { PasswordUnlockDialog } from '@/components/trading/PasswordUnlockDialog';
-import type { HyperliquidMarket } from '@/types/hyperliquid';
 import { OrderHistory } from '@/components/trading/OrderHistory';
 
 import { PositionManager } from '@/components/trading/PositionManager';
@@ -51,7 +50,7 @@ const TradingDashboard = () => {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   
   const [tradingMode, setTradingMode] = useState<'spot' | 'leverage'>('leverage');
-  const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC');
+  const [selectedAsset, setSelectedAsset] = useState<string | null>('BTC-USD');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop-limit'>('market');
   const [tradeMode, setTradeMode] = useState<'buy' | 'sell' | 'positions'>('buy');
   const [leverage, setLeverage] = useState(1);
@@ -157,33 +156,10 @@ const TradingDashboard = () => {
     candlesError
   });
 
-  // Filter leverage assets - prioritize BTC, ETH, SOL
-  const leverageAssets: HyperliquidMarket[] = Array.isArray(markets) && markets.length > 0 
-    ? ['BTC', 'ETH', 'SOL']
-        .map(name => {
-          const market = markets.find(m => 
-            m.name === name || 
-            m.name === `${name}-USD` || 
-            m.name === `${name}-PERP`
-          );
-          if (!market) console.warn(`[TradingDashboard] Market not found: ${name}`);
-          return market;
-        })
-        .filter((m): m is HyperliquidMarket => m !== undefined)
-    : [];
-  
-  console.log('[TradingDashboard] Markets state:', {
-    marketsLoading,
-    marketsCount: markets?.length || 0,
-    leverageAssetsCount: leverageAssets.length,
-    leverageAssetNames: leverageAssets.map(a => a.name)
-  });
-  
-  console.log('[TradingDashboard] Markets state:', {
-    marketsLoading,
-    marketsCount: markets?.length || 0,
-    leverageAssetsCount: leverageAssets.length
-  });
+  // Filter leverage assets (BTC, ETH, SOL from Hyperliquid)
+  const leverageAssets = markets.filter(m => 
+    ['BTC', 'ETH', 'SOL'].includes(m.name)
+  );
 
   // Spot trading assets (mock for now)
   const spotAssets = [
@@ -355,7 +331,7 @@ const TradingDashboard = () => {
     if (mode === 'spot') {
       setSelectedAsset('XAUT');
     } else {
-      setSelectedAsset('BTC');
+      setSelectedAsset('BTC-USD');
     }
   };
 
@@ -934,30 +910,28 @@ const TradingDashboard = () => {
 
         {/* Chart Section - Fixed responsive height */}
         <div className="flex-1 min-h-[550px] rounded-lg overflow-hidden bg-[#1a1712] border border-[#463c25] mb-2">
-          {selectedAsset ? (
-            tradingMode === 'leverage' ? (
-              <TradingViewChart
-                key={`${selectedAsset}-${chartResolution}`}
-                symbol={selectedAsset}
-                candles={candles}
-                resolution={chartResolution}
-                onResolutionChange={setChartResolution}
-                loading={candlesLoading}
-                error={candlesError}
-                onLoadMore={loadMoreHistory}
-                isBackfilling={isLoadingMore}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                  <BarChart3 className="h-24 w-24 mx-auto mb-4 text-[#e6b951]/40" />
-                  <h3 className="text-xl font-semibold text-[#e6b951] mb-2">Spot Trading Chart</h3>
-                  <p className="text-[#c6b795] max-w-md">
-                    Chart for {selectedAsset} will be integrated with spot market data.
-                  </p>
-                </div>
+          {selectedAsset && leverageAssets.find(a => a.name === selectedSymbol) ? (
+            <TradingViewChart
+              key={`${selectedAsset}-${chartResolution}`}
+              symbol={selectedAsset}
+              candles={candles}
+              resolution={chartResolution}
+              onResolutionChange={setChartResolution}
+              loading={candlesLoading}
+              error={candlesError}
+              onLoadMore={loadMoreHistory}
+              isBackfilling={isLoadingMore}
+            />
+          ) : selectedAsset ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <BarChart3 className="h-24 w-24 mx-auto mb-4 text-[#e6b951]/40" />
+                <h3 className="text-xl font-semibold text-[#e6b951] mb-2">Spot Trading Chart</h3>
+                <p className="text-[#c6b795] max-w-md">
+                  Chart for {selectedAsset} will be integrated with spot market data.
+                </p>
               </div>
-            )
+            </div>
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
