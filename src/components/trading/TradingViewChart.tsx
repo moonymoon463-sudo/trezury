@@ -133,11 +133,7 @@ const TradingViewChart = ({
     const init = async () => {
       if (!chartContainerRef.current) return;
       
-      // Wait for container to have dimensions
-      if (chartContainerRef.current.clientHeight === 0) {
-        console.log('[TradingViewChart] Container not ready, waiting...');
-        return;
-      }
+      // Container dimensions will be handled by chart library
 
       if (candles.length === 0) {
         console.log('[TradingViewChart] No candles yet, waiting...');

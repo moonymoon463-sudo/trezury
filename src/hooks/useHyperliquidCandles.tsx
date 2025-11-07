@@ -282,44 +282,6 @@ export const useHyperliquidCandles = (
     };
   }, [market, interval, limit]);
 
-  // Auto-backfill to target history depth
-  useEffect(() => {
-    if (!market || !loadedRange || !hasMoreHistory || loading || isLoadingMore) return;
-
-    const normalizedInterval = resolutionMap[interval] || interval;
-    const targetDepth = getTargetHistoryDepth(normalizedInterval);
-    const currentDepth = loadedRange.end - loadedRange.start;
-
-    if (currentDepth >= targetDepth) return;
-
-    let cancelled = false;
-    const backfill = async () => {
-      let iterations = 0;
-      const maxIterations = 12;
-      
-      while (!cancelled && iterations < maxIterations && hasMoreHistory) {
-        const beforeStart = loadedRange.start;
-        await loadMoreHistory();
-        iterations++;
-        
-        // Wait for state to propagate
-        await new Promise(r => setTimeout(r, 100));
-        
-        // If loadedRange didn't change, stop
-        if (loadedRange.start >= beforeStart) break;
-        
-        // Check if we've reached target
-        const newDepth = loadedRange.end - loadedRange.start;
-        if (newDepth >= targetDepth) break;
-      }
-      
-      console.log(`[useHyperliquidCandles] Auto-backfill complete for ${market} ${interval}: ${iterations} iterations`);
-    };
-    
-    backfill();
-
-    return () => { cancelled = true; };
-  }, [market, interval, loadedRange?.start, loadedRange?.end, hasMoreHistory, loading, isLoadingMore]);
 
   return { 
     candles, 

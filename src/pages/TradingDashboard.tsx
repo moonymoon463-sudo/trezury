@@ -170,7 +170,7 @@ const TradingDashboard = () => {
   ];
 
   const selectedSymbol = selectedAsset?.split('-')[0] || selectedAsset || '';
-  const currentAsset = leverageAssets.find(a => a.name === selectedSymbol) || spotAssets.find(a => a.symbol === selectedAsset);
+  const currentAsset = leverageAssets.find(a => normalizeSymbol(a.name) === selectedSymbol) || spotAssets.find(a => a.symbol === selectedAsset);
 
   const handleConnectWallet = async () => {
     try {
@@ -756,7 +756,7 @@ const TradingDashboard = () => {
               {tradingMode === 'leverage' && leverageAssets.map((asset) => (
                 <button
                   key={asset.name}
-                  onClick={() => setSelectedAsset(`${normalizeSymbol(asset.name)}-USD`)}
+                  onClick={() => setSelectedAsset(asset.name.includes('-') ? asset.name : `${asset.name}-USD`)}
                   className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg group transition-colors ${
                     selectedAsset === asset.name || selectedAsset === `${normalizeSymbol(asset.name)}-USD` ? 'bg-[#463c25]' : 'hover:bg-[#463c25]'
                   }`}
