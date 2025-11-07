@@ -24,6 +24,7 @@ export const useHyperliquidMarkets = () => {
         
         if (mounted) {
           setMarkets(data);
+          console.log('[useHyperliquidMarkets] Loaded markets:', { count: Array.isArray(data) ? data.length : 0, sample: Array.isArray(data) ? data.slice(0, 10).map((m: any) => m.name) : [] });
           setError(null);
         }
       } catch (err) {
@@ -62,6 +63,7 @@ export const useHyperliquidMarkets = () => {
       if (funcError) throw funcError;
       
       setMarkets(data);
+      console.log('[useHyperliquidMarkets] Refreshed markets:', { count: Array.isArray(data) ? data.length : 0, sample: Array.isArray(data) ? data.slice(0, 10).map((m: any) => m.name) : [] });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh markets');

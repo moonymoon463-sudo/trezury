@@ -160,7 +160,15 @@ const TradingDashboard = () => {
   // Filter leverage assets - prioritize BTC, ETH, SOL
   const leverageAssets: HyperliquidMarket[] = Array.isArray(markets) && markets.length > 0 
     ? ['BTC', 'ETH', 'SOL']
-        .map(name => markets.find(m => m.name === name))
+        .map(name => {
+          const market = markets.find(m => 
+            m.name === name || 
+            m.name === `${name}-USD` || 
+            m.name === `${name}-PERP`
+          );
+          if (!market) console.warn(`[TradingDashboard] Market not found: ${name}`);
+          return market;
+        })
         .filter((m): m is HyperliquidMarket => m !== undefined)
     : [];
   
