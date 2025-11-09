@@ -240,7 +240,7 @@ export interface BridgeTransaction {
   bridge_provider: string;
   amount: number;
   token: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'step1_complete' | 'processing_step2' | 'completed' | 'failed';
   estimated_completion: string | null;
   metadata: Record<string, any>;
   created_at: string;

@@ -154,7 +154,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
       
       // Poll for status updates
       let attempts = 0;
-      const maxAttempts = 120; // 10 minutes (5s intervals)
+      const maxAttempts = 180; // 15 minutes (5s intervals) - increased for Step 2
       pollInterval = setInterval(async () => {
         attempts++;
         
@@ -162,13 +162,22 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
           const status = await checkStatus(result.bridgeId);
           console.log('[DepositHyperliquidBridge] Bridge status:', status);
           
-          if (status.status === 'completed') {
+          // Handle different statuses
+          if (status.status === 'processing_step2' || status.status === 'step1_complete') {
+            const msg = status.status === 'processing_step2' 
+              ? 'Depositing to Hyperliquid trading wallet...'
+              : 'Funds on Arbitrum. Step 2 will begin automatically...';
+            toast({
+              title: status.status === 'processing_step2' ? 'Step 2 In Progress' : 'Step 1 Complete',
+              description: msg,
+            });
+          } else if (status.status === 'completed') {
             if (pollInterval) clearInterval(pollInterval);
             clearTimeout(safetyTimeout);
             setStep('complete');
             toast({
               title: "Bridge Complete",
-              description: `${amount} USDC has been deposited to your trading wallet`,
+              description: `${amount} USDC deposited to your Hyperliquid trading wallet`,
             });
             onSuccess?.();
           } else if (status.status === 'failed') {
@@ -177,7 +186,7 @@ export const DepositHyperliquidBridge = ({ hyperliquidAddress, onSuccess }: Depo
             setStep('input');
             toast({
               title: "Bridge Failed",
-              description: status.error || "Transaction failed on chain. Please try again or contact support.",
+              description: status.error || "Transaction failed. Please try again.",
               variant: "destructive",
             });
           } else if (attempts >= maxAttempts) {

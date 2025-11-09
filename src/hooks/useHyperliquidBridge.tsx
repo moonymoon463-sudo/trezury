@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { hyperliquidBridgeService, BridgeQuoteRequest, BridgeQuote } from '@/services/hyperliquidBridgeService';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useHyperliquidBridge = () => {
   const { user } = useAuth();
@@ -64,6 +65,22 @@ export const useHyperliquidBridge = () => {
       sourceWalletType,
       sourceWalletAddress: sourceWalletAddress?.slice(0, 10) + '...'
     });
+
+    // Pre-flight checks for internal wallets
+    if (sourceWalletType === 'internal') {
+      // Check if Hyperliquid wallet exists
+      const { data: hlWallet } = await supabase
+        .from('hyperliquid_wallets')
+        .select('address')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!hlWallet) {
+        throw new Error('Please create a Hyperliquid trading wallet first');
+      }
+
+      console.log('[useHyperliquidBridge] Pre-flight: HL wallet exists', hlWallet.address);
+    }
 
     setLoading(true);
     setError(null);

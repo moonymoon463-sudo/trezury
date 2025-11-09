@@ -130,7 +130,7 @@ class HyperliquidBridgeService {
    * Check bridge transaction status
    */
   async checkBridgeStatus(bridgeId: string): Promise<{
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'processing' | 'step1_complete' | 'processing_step2' | 'completed' | 'failed';
     txHash?: string;
     destinationTxHash?: string;
     error?: string;
