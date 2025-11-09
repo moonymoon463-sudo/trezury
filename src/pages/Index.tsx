@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { AssetAllocationChart } from "@/components/portfolio/AssetAllocationChart";
 import { AirdropEligibilityCard } from "@/components/AirdropEligibilityCard";
+import { WormholeRedemptionAlert } from "@/components/WormholeRedemptionAlert";
 
 
 const Index = () => {
@@ -90,6 +91,9 @@ const Index = () => {
             </div>
           </Card>
         )}
+
+        {/* Wormhole Redemption Alert */}
+        <WormholeRedemptionAlert />
 
         {/* Gold Price Section */}
         <div className="bg-surface-elevated rounded-xl p-3 flex-shrink-0">
