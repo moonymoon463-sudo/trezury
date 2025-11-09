@@ -31,6 +31,13 @@ const WORMHOLE_BRIDGES: Record<string, string> = {
   arbitrum: '0x0b2402144Bb366A632D14B83F244D2e0e21bD39c'
 };
 
+// Wormhole chain IDs
+const WORMHOLE_CHAIN_IDS: Record<string, number> = {
+  ethereum: 2,
+  base: 30,
+  arbitrum: 23
+};
+
 // Across SpokePool addresses
 const ACROSS_SPOKE_POOLS: Record<string, string> = {
   ethereum: '0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5',
@@ -95,11 +102,21 @@ async function analyzeTxHash(txHash: string): Promise<TransactionAnalysis> {
           
           // Extract Wormhole sequence if Wormhole
           if (provider_type === 'wormhole' && log.address.toLowerCase() === wormholeBridge?.toLowerCase()) {
-            // LogMessagePublished event
+            // LogMessagePublished event: event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel)
             const logMessageTopic = '0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2';
-            if (log.topics[0] === logMessageTopic) {
-              sequence = BigInt(log.topics[2]).toString();
-              console.log(`  📝 Wormhole sequence: ${sequence}`);
+            if (log.topics[0] === logMessageTopic && log.topics.length >= 2) {
+              // Sequence is in topics[1] (sender is topics[1], but sequence is in data for this event)
+              // Actually for Wormhole, sequence is in the data field, not topics
+              try {
+                const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
+                  ['uint64', 'uint32', 'bytes', 'uint8'], 
+                  log.data
+                );
+                sequence = decoded[0].toString();
+                console.log(`  📝 Wormhole sequence: ${sequence}`);
+              } catch (e) {
+                console.log(`  ⚠️ Could not decode sequence from log data`);
+              }
             }
           }
         }
@@ -133,56 +150,49 @@ async function analyzeTxHash(txHash: string): Promise<TransactionAnalysis> {
   };
 }
 
-async function checkWormholeRedemption(
-  sequence: string,
-  sourceChain: string,
-  emitterAddress: string
-): Promise<{ redeemed: boolean; vaaBytes?: string }> {
+async function fetchVAAByTxHash(
+  txHash: string,
+  sourceChain: string
+): Promise<{ vaaBytes?: string; sequence?: string; emitter?: string }> {
   try {
-    // Fetch VAA from Guardians
-    const chainIds: Record<string, number> = {
-      ethereum: 2,
-      base: 30,
-    };
+    const chainId = WORMHOLE_CHAIN_IDS[sourceChain];
+    if (!chainId) return {};
     
-    const chainId = chainIds[sourceChain];
-    if (!chainId) {
-      return { redeemed: false };
+    // Try Wormhole Guardian API transaction lookup
+    const url = `https://api.wormholescan.io/api/v1/transactions/${txHash}`;
+    console.log(`  🔍 Fetching VAA from Wormhole API: ${url}`);
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.log(`  ⏳ VAA not ready yet (${response.status})`);
+      return {};
     }
     
-    // Try to fetch VAA
-    const guardianUrl = `https://wormhole-v2-mainnet-api.certus.one/v1/signed_vaa/${chainId}/${emitterAddress}/${sequence}`;
-    const vaaResponse = await fetch(guardianUrl);
+    const data = await response.json();
     
-    if (!vaaResponse.ok) {
-      console.log(`  ⏳ VAA not ready yet for sequence ${sequence}`);
-      return { redeemed: false };
+    // Extract VAA info from response
+    if (data && data.data && data.data.vaa) {
+      const vaaInfo = data.data.vaa;
+      console.log(`  ✅ VAA found: sequence=${vaaInfo.sequence}, emitter=${vaaInfo.emitterAddr}`);
+      
+      // Fetch the actual signed VAA
+      const vaaUrl = `https://wormhole-v2-mainnet-api.certus.one/v1/signed_vaa/${chainId}/${vaaInfo.emitterAddr}/${vaaInfo.sequence}`;
+      const vaaResponse = await fetch(vaaUrl);
+      
+      if (vaaResponse.ok) {
+        const vaaData = await vaaResponse.json();
+        return {
+          vaaBytes: vaaData.vaaBytes,
+          sequence: vaaInfo.sequence,
+          emitter: vaaInfo.emitterAddr
+        };
+      }
     }
     
-    const vaaData = await vaaResponse.json();
-    const vaaBytes = vaaData.vaaBytes;
-    
-    console.log(`  ✅ VAA fetched for sequence ${sequence}`);
-    
-    // Check if redeemed on Arbitrum
-    const arbitrumProvider = new ethers.JsonRpcProvider(RPC_ENDPOINTS.arbitrum);
-    const bridgeAbi = ['function isTransferCompleted(bytes32) view returns (bool)'];
-    const bridgeContract = new ethers.Contract(
-      WORMHOLE_BRIDGES.arbitrum,
-      bridgeAbi,
-      arbitrumProvider
-    );
-    
-    // Calculate VAA hash
-    const vaaHash = ethers.keccak256('0x' + vaaBytes);
-    const isCompleted = await bridgeContract.isTransferCompleted(vaaHash);
-    
-    console.log(`  ${isCompleted ? '✅ Redeemed' : '❌ NOT redeemed'} on Arbitrum`);
-    
-    return { redeemed: isCompleted, vaaBytes };
+    return {};
   } catch (err) {
-    console.error(`  ❌ Error checking redemption:`, err);
-    return { redeemed: false };
+    console.error(`  ❌ Error fetching VAA:`, err);
+    return {};
   }
 }
 
@@ -262,20 +272,31 @@ Deno.serve(async (req) => {
     for (const txHash of txHashes) {
       const analysis = await analyzeTxHash(txHash);
       
-      // For Wormhole, check redemption status
-      if (analysis.provider === 'wormhole' && analysis.sequence) {
-        const emitterAddress = analysis.sourceChain === 'ethereum' 
-          ? '0x' + '0'.repeat(24) + WORMHOLE_BRIDGES.ethereum.slice(2)
-          : '0x' + '0'.repeat(24) + WORMHOLE_BRIDGES.base.slice(2);
+      // For Wormhole, fetch VAA and check redemption
+      if (analysis.provider === 'wormhole') {
+        const vaaInfo = await fetchVAAByTxHash(txHash, analysis.sourceChain);
         
-        const redemptionCheck = await checkWormholeRedemption(
-          analysis.sequence,
-          analysis.sourceChain,
-          emitterAddress
-        );
-        
-        analysis.status = redemptionCheck.redeemed ? 'filled' : 'needs_redemption';
-        analysis.vaaBytes = redemptionCheck.vaaBytes;
+        if (vaaInfo.vaaBytes && vaaInfo.sequence) {
+          analysis.sequence = vaaInfo.sequence;
+          analysis.vaaBytes = vaaInfo.vaaBytes;
+          
+          // Check if redeemed on Arbitrum
+          const arbitrumProvider = new ethers.JsonRpcProvider(RPC_ENDPOINTS.arbitrum);
+          const bridgeAbi = ['function isTransferCompleted(bytes32) view returns (bool)'];
+          const bridgeContract = new ethers.Contract(
+            WORMHOLE_BRIDGES.arbitrum,
+            bridgeAbi,
+            arbitrumProvider
+          );
+          
+          const vaaHash = ethers.keccak256('0x' + vaaInfo.vaaBytes);
+          const isCompleted = await bridgeContract.isTransferCompleted(vaaHash);
+          
+          analysis.status = isCompleted ? 'filled' : 'needs_redemption';
+          console.log(`  ${isCompleted ? '✅ Already redeemed' : '❌ Needs redemption'}`);
+        } else {
+          console.log(`  ⏳ VAA not available yet, keeping status as pending`);
+        }
       }
       
       // For Across, check fill status

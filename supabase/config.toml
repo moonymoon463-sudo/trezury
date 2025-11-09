@@ -137,6 +137,12 @@ verify_jwt = false
 [functions.redeem-wormhole-vaa]
 verify_jwt = true
 
+[functions.manual-wormhole-redemption]
+verify_jwt = true
+
+[functions.execute-wormhole-recovery]
+verify_jwt = true
+
 [functions.reconcile-bridge-transactions]
 verify_jwt = false
 
